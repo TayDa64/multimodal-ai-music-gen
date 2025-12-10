@@ -29,6 +29,7 @@ from .instrument_manager import (
     AnalyzedInstrument,
     InstrumentCategory,
     discover_instruments,
+    load_multiple_libraries,
     get_best_instruments_for_genre,
     analyze_sample,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "AnalyzedInstrument",
     "InstrumentCategory",
     "discover_instruments",
+    "load_multiple_libraries",
     "get_best_instruments_for_genre",
     "analyze_sample",
     # Utils

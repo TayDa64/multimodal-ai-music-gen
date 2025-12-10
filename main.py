@@ -152,7 +152,7 @@ def run_generation(
     export_stems: bool = False,
     soundfont_path: str = None,
     template_path: str = None,
-    instruments_path: str = None,
+    instruments_paths: list = None,
     verbose: bool = False,
 ) -> dict:
     """Run the full music generation pipeline.
@@ -167,7 +167,7 @@ def run_generation(
         export_stems: Export individual stem files
         soundfont_path: Path to SoundFont file for audio rendering
         template_path: Path to MPC template file
-        instruments_path: Path to instruments folder for intelligent sample selection
+        instruments_paths: List of paths to instrument folders for intelligent sample selection
         verbose: Enable verbose output
         
     Returns:
@@ -321,38 +321,55 @@ def run_generation(
     except Exception as e:
         print_warning(f"Sample generation issue: {e}")
     
-    # Step 4.5: Discover and analyze instruments (if path provided)
-    if instruments_path:
+    # Step 4.5: Discover and analyze instruments (if paths provided)
+    if instruments_paths:
         print_step("4.5/6", "Discovering and analyzing instruments...")
         try:
-            from multimodal_gen import InstrumentLibrary, InstrumentMatcher
+            from multimodal_gen import InstrumentLibrary, InstrumentMatcher, load_multiple_libraries
             
-            # Use local cache if instruments dir is read-only (e.g., Program Files)
-            instruments_path_obj = Path(instruments_path)
-            try:
-                # Try to use cache in instruments directory
-                cache_file = str(instruments_path_obj / ".instrument_cache.json")
-                # Test if writable
-                test_file = instruments_path_obj / ".write_test"
-                test_file.touch()
-                test_file.unlink()
-            except (PermissionError, OSError):
-                # Fall back to local cache in output directory
-                cache_name = instruments_path_obj.name.replace("[", "").replace("]", "")
-                cache_file = str(output_dir / f".instrument_cache_{cache_name}.json")
+            # Handle multiple instrument sources
+            if len(instruments_paths) == 1:
+                # Single source - use original logic with caching
+                single_path = instruments_paths[0]
+                instruments_path_obj = Path(single_path)
+                try:
+                    cache_file = str(instruments_path_obj / ".instrument_cache.json")
+                    test_file = instruments_path_obj / ".write_test"
+                    test_file.touch()
+                    test_file.unlink()
+                except (PermissionError, OSError):
+                    cache_name = instruments_path_obj.name.replace("[", "").replace("]", "")
+                    cache_file = str(output_dir / f".instrument_cache_{cache_name}.json")
+                    if verbose:
+                        print_info(f"Using local cache (source is read-only)")
+                
+                instrument_library = InstrumentLibrary(
+                    instruments_dir=single_path,
+                    cache_file=cache_file,
+                    auto_load_audio=True
+                )
+                count = instrument_library.discover_and_analyze()
+            else:
+                # Multiple sources - use load_multiple_libraries
+                print_info(f"Loading {len(instruments_paths)} instrument sources...")
+                
+                # Use output directory for caches (handles read-only sources)
+                instrument_library = load_multiple_libraries(
+                    instruments_paths,
+                    cache_dir=str(output_dir),
+                    auto_load_audio=True,
+                    verbose=verbose
+                )
+                count = len(instrument_library.instruments)
+                
+                # Show per-source breakdown
                 if verbose:
-                    print_info(f"Using local cache (source is read-only)")
-            
-            instrument_library = InstrumentLibrary(
-                instruments_dir=instruments_path,
-                cache_file=cache_file,
-                auto_load_audio=True
-            )
-            
-            count = instrument_library.discover_and_analyze()
+                    summary = instrument_library.get_source_summary()
+                    for source, src_count in summary.items():
+                        print_info(f"  {Path(source).name}: {src_count} instruments")
             
             if count > 0:
-                print_success(f"Discovered {count} instruments")
+                print_success(f"Discovered {count} instruments total")
                 
                 # Show category breakdown
                 categories = instrument_library.list_categories()
@@ -369,15 +386,20 @@ def run_generation(
                     for cat, matches in recommendations.items():
                         if matches:
                             best, score = matches[0]
-                            print_info(f"  {cat}: {best.name} ({score:.0%} match)")
+                            # Show source for multi-source setups
+                            source_info = ""
+                            if len(instruments_paths) > 1 and hasattr(best, 'source'):
+                                source_info = f" [{Path(best.source).name}]"
+                            print_info(f"  {cat}: {best.name}{source_info} ({score:.0%} match)")
                             results["instruments_used"].append({
                                 "category": cat,
                                 "name": best.name,
                                 "score": score,
                                 "path": best.path,
+                                "source": getattr(best, 'source', None),
                             })
             else:
-                print_warning("No instruments found in specified directory")
+                print_warning("No instruments found in specified directories")
                 instrument_library = None
                 
         except ImportError as e:
@@ -569,7 +591,9 @@ Intelligent Instruments (requires: pip install librosa):
     parser.add_argument(
         "-i", "--instruments",
         type=str,
-        help="Path to instruments directory for intelligent sample selection (analyzes samples and picks best fit for genre/mood)",
+        action="append",
+        dest="instruments",
+        help="Path to instruments directory for intelligent sample selection. Can be specified multiple times to combine sources (e.g., -i path1 -i path2)",
     )
     
     # Template options
@@ -626,7 +650,7 @@ Intelligent Instruments (requires: pip install librosa):
             export_stems=args.stems,
             soundfont_path=args.soundfont,
             template_path=args.template,
-            instruments_path=args.instruments,
+            instruments_paths=args.instruments,
             verbose=args.verbose,
         )
         

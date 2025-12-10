@@ -1087,11 +1087,124 @@ class InstrumentLibrary:
             print(f"Saved {len(data)} profiles to cache")
         except Exception as e:
             print(f"Failed to save cache: {e}")
+    
+    def merge(self, other: 'InstrumentLibrary') -> 'InstrumentLibrary':
+        """
+        Merge another library into this one.
+        
+        Args:
+            other: Another InstrumentLibrary to merge
+            
+        Returns:
+            Self (for chaining)
+        """
+        # Merge instruments dict
+        for path, instrument in other.instruments.items():
+            if path not in self.instruments:
+                self.instruments[path] = instrument
+        
+        # Merge by_category
+        for category, instruments in other.by_category.items():
+            for inst in instruments:
+                if inst not in self.by_category[category]:
+                    self.by_category[category].append(inst)
+        
+        # Merge cache
+        self._cache.update(other._cache)
+        
+        return self
+    
+    def get_source_summary(self) -> Dict[str, int]:
+        """Get count of instruments by source directory."""
+        sources = {}
+        for inst in self.instruments.values():
+            # Get parent directory name as source
+            source = Path(inst.path).parent.parent.name
+            if not source or source == ".":
+                source = Path(inst.path).parent.name
+            sources[source] = sources.get(source, 0) + 1
+        return sources
 
 
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
+def load_multiple_libraries(
+    paths: List[str],
+    cache_dir: str = None,
+    auto_load_audio: bool = True,
+    verbose: bool = False
+) -> InstrumentLibrary:
+    """
+    Load and merge multiple instrument sources into one library.
+    
+    Args:
+        paths: List of paths to instrument directories
+        cache_dir: Directory to store cache files (uses output dir if None)
+        auto_load_audio: Whether to load audio data
+        verbose: Print progress info
+        
+    Returns:
+        Merged InstrumentLibrary with all sources
+    """
+    if not paths:
+        return InstrumentLibrary()
+    
+    merged_library = None
+    
+    for i, path in enumerate(paths):
+        path_obj = Path(path)
+        if not path_obj.exists():
+            if verbose:
+                print(f"  ⚠ Source not found: {path}")
+            continue
+        
+        # Determine cache file location
+        if cache_dir:
+            cache_name = path_obj.name.replace("[", "").replace("]", "").replace(" ", "_")
+            cache_file = str(Path(cache_dir) / f".instrument_cache_{cache_name}.json")
+        else:
+            # Try to use cache in source directory
+            try:
+                test_file = path_obj / ".write_test"
+                test_file.touch()
+                test_file.unlink()
+                cache_file = str(path_obj / ".instrument_cache.json")
+            except (PermissionError, OSError):
+                # Source is read-only, skip cache for now
+                cache_file = None
+        
+        if verbose:
+            source_name = path_obj.name[:30] + "..." if len(path_obj.name) > 30 else path_obj.name
+            print(f"  📁 Loading source {i+1}/{len(paths)}: {source_name}")
+        
+        library = InstrumentLibrary(
+            instruments_dir=str(path),
+            cache_file=cache_file,
+            auto_load_audio=auto_load_audio
+        )
+        
+        count = library.discover_and_analyze()
+        
+        if verbose:
+            print(f"     Found {count} instruments")
+        
+        if merged_library is None:
+            merged_library = library
+        else:
+            merged_library.merge(library)
+    
+    if merged_library is None:
+        return InstrumentLibrary()
+    
+    if verbose:
+        total = len(merged_library.instruments)
+        sources = merged_library.get_source_summary()
+        print(f"  ✓ Total: {total} instruments from {len(sources)} sources")
+    
+    return merged_library
+
 
 def discover_instruments(
     instruments_dir: str = None
@@ -1168,6 +1281,7 @@ __all__ = [
     'InstrumentMatcher',
     'InstrumentLibrary',
     'discover_instruments',
+    'load_multiple_libraries',
     'get_best_instruments_for_genre',
     'analyze_sample',
     'GENRE_PROFILES',
