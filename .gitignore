@@ -1,0 +1,105 @@
+# =============================================================================
+# Multimodal AI Music Generator - Git Ignore
+# =============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =============================================================================
+# Project-specific ignores
+# =============================================================================
+
+# Output directory - ignore all generated music EXCEPT the showcase example
+output/*
+!output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/
+
+# Instrument analysis cache (regenerated on first run)
+instruments/.instrument_cache.json
+.instrument_cache.json
+
+# Reference analysis cache
+.reference_cache/
+
+# User-added instruments (keep structure, ignore samples)
+instruments/drums/kicks/*.wav
+instruments/drums/kicks/*.WAV
+instruments/drums/snares/*.wav
+instruments/drums/snares/*.WAV
+instruments/drums/hihats/*.wav
+instruments/drums/hihats/*.WAV
+instruments/drums/claps/*.wav
+instruments/drums/claps/*.WAV
+instruments/drums/808s/*.wav
+instruments/drums/808s/*.WAV
+instruments/bass/*.wav
+instruments/bass/*.WAV
+instruments/keys/*.wav
+instruments/keys/*.WAV
+instruments/synths/*.wav
+instruments/synths/*.WAV
+instruments/brass/*.wav
+instruments/brass/*.WAV
+instruments/strings/*.wav
+instruments/strings/*.WAV
+instruments/fx/*.wav
+instruments/fx/*.WAV
+
+# Keep the README in instruments
+!instruments/README.md
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# SoundFont files (too large for repo)
+*.sf2
+*.SF2
+
+# Audio files in root (test outputs)
+*.wav
+*.mp3
+*.aif
+*.aiff
+*.flac
+
+# But allow audio in the showcase example
+!output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.wav
+!output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.WAV

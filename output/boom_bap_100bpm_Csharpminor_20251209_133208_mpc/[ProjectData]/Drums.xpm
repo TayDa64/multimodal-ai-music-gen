@@ -1,0 +1,926 @@
+<?xml version="1.0" ?>
+<MPCVObject Version="2.0" Application="MPC" ApplicationVersion="2.13.1" Type="DrumProgram">
+  <Metadata>
+    <Name>Drums</Name>
+    <UUID>AAAC6375-F413-4345-B409-DD37ADE8CA79</UUID>
+    <MasterVolume>0.8</MasterVolume>
+  </Metadata>
+  <PadBanks>
+    <Bank Name="A">
+      <Pad Number="0">
+        <Name>Kick</Name>
+        <MidiNote>36</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/kick.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="1">
+        <Name>Snare</Name>
+        <MidiNote>38</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/snare.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="2">
+        <Name>HH Closed</Name>
+        <MidiNote>42</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>1</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/hh_closed.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="3">
+        <Name>HH Open</Name>
+        <MidiNote>46</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>1</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/hh_open.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="4">
+        <Name>Clap</Name>
+        <MidiNote>39</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/clap.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="5">
+        <Name>Rim</Name>
+        <MidiNote>37</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/rim.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="6">
+        <Name>Snare2</Name>
+        <MidiNote>40</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/snare2.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="7">
+        <Name>HH Pedal</Name>
+        <MidiNote>44</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>1</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/hh_pedal.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="8">
+        <Name>Tom Low</Name>
+        <MidiNote>43</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/tom_low.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="9">
+        <Name>Tom Mid</Name>
+        <MidiNote>47</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/tom_mid.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="10">
+        <Name>Crash</Name>
+        <MidiNote>49</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/crash.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="11">
+        <Name>Ride</Name>
+        <MidiNote>51</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+        <Tune>0.0</Tune>
+        <Attack>0.0</Attack>
+        <Decay>1.0</Decay>
+        <MuteGroup>0</MuteGroup>
+        <Layers>
+          <Layer Index="0">
+            <FilePath>[ProjectData]/Samples/ride.wav</FilePath>
+            <VelocityLow>0</VelocityLow>
+            <VelocityHigh>127</VelocityHigh>
+          </Layer>
+        </Layers>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad A13</Name>
+        <MidiNote>48</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad A14</Name>
+        <MidiNote>49</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad A15</Name>
+        <MidiNote>50</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad A16</Name>
+        <MidiNote>51</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="B">
+      <Pad Number="0">
+        <Name>Pad B1</Name>
+        <MidiNote>52</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad B2</Name>
+        <MidiNote>53</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad B3</Name>
+        <MidiNote>54</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad B4</Name>
+        <MidiNote>55</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad B5</Name>
+        <MidiNote>56</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad B6</Name>
+        <MidiNote>57</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad B7</Name>
+        <MidiNote>58</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad B8</Name>
+        <MidiNote>59</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad B9</Name>
+        <MidiNote>60</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad B10</Name>
+        <MidiNote>61</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad B11</Name>
+        <MidiNote>62</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad B12</Name>
+        <MidiNote>63</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad B13</Name>
+        <MidiNote>64</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad B14</Name>
+        <MidiNote>65</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad B15</Name>
+        <MidiNote>66</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad B16</Name>
+        <MidiNote>67</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="C">
+      <Pad Number="0">
+        <Name>Pad C1</Name>
+        <MidiNote>68</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad C2</Name>
+        <MidiNote>69</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad C3</Name>
+        <MidiNote>70</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad C4</Name>
+        <MidiNote>71</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad C5</Name>
+        <MidiNote>72</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad C6</Name>
+        <MidiNote>73</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad C7</Name>
+        <MidiNote>74</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad C8</Name>
+        <MidiNote>75</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad C9</Name>
+        <MidiNote>76</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad C10</Name>
+        <MidiNote>77</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad C11</Name>
+        <MidiNote>78</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad C12</Name>
+        <MidiNote>79</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad C13</Name>
+        <MidiNote>80</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad C14</Name>
+        <MidiNote>81</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad C15</Name>
+        <MidiNote>82</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad C16</Name>
+        <MidiNote>83</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="D">
+      <Pad Number="0">
+        <Name>Pad D1</Name>
+        <MidiNote>84</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad D2</Name>
+        <MidiNote>85</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad D3</Name>
+        <MidiNote>86</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad D4</Name>
+        <MidiNote>87</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad D5</Name>
+        <MidiNote>88</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad D6</Name>
+        <MidiNote>89</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad D7</Name>
+        <MidiNote>90</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad D8</Name>
+        <MidiNote>91</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad D9</Name>
+        <MidiNote>92</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad D10</Name>
+        <MidiNote>93</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad D11</Name>
+        <MidiNote>94</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad D12</Name>
+        <MidiNote>95</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad D13</Name>
+        <MidiNote>96</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad D14</Name>
+        <MidiNote>97</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad D15</Name>
+        <MidiNote>98</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad D16</Name>
+        <MidiNote>99</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="E">
+      <Pad Number="0">
+        <Name>Pad E1</Name>
+        <MidiNote>100</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad E2</Name>
+        <MidiNote>101</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad E3</Name>
+        <MidiNote>102</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad E4</Name>
+        <MidiNote>103</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad E5</Name>
+        <MidiNote>104</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad E6</Name>
+        <MidiNote>105</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad E7</Name>
+        <MidiNote>106</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad E8</Name>
+        <MidiNote>107</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad E9</Name>
+        <MidiNote>108</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad E10</Name>
+        <MidiNote>109</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad E11</Name>
+        <MidiNote>110</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad E12</Name>
+        <MidiNote>111</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad E13</Name>
+        <MidiNote>112</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad E14</Name>
+        <MidiNote>113</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad E15</Name>
+        <MidiNote>114</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad E16</Name>
+        <MidiNote>115</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="F">
+      <Pad Number="0">
+        <Name>Pad F1</Name>
+        <MidiNote>116</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad F2</Name>
+        <MidiNote>117</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad F3</Name>
+        <MidiNote>118</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad F4</Name>
+        <MidiNote>119</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad F5</Name>
+        <MidiNote>120</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad F6</Name>
+        <MidiNote>121</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad F7</Name>
+        <MidiNote>122</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad F8</Name>
+        <MidiNote>123</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad F9</Name>
+        <MidiNote>124</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad F10</Name>
+        <MidiNote>125</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad F11</Name>
+        <MidiNote>126</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad F12</Name>
+        <MidiNote>127</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad F13</Name>
+        <MidiNote>128</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad F14</Name>
+        <MidiNote>129</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad F15</Name>
+        <MidiNote>130</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad F16</Name>
+        <MidiNote>131</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="G">
+      <Pad Number="0">
+        <Name>Pad G1</Name>
+        <MidiNote>132</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad G2</Name>
+        <MidiNote>133</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad G3</Name>
+        <MidiNote>134</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad G4</Name>
+        <MidiNote>135</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad G5</Name>
+        <MidiNote>136</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad G6</Name>
+        <MidiNote>137</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad G7</Name>
+        <MidiNote>138</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad G8</Name>
+        <MidiNote>139</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad G9</Name>
+        <MidiNote>140</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad G10</Name>
+        <MidiNote>141</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad G11</Name>
+        <MidiNote>142</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad G12</Name>
+        <MidiNote>143</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad G13</Name>
+        <MidiNote>144</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad G14</Name>
+        <MidiNote>145</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad G15</Name>
+        <MidiNote>146</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad G16</Name>
+        <MidiNote>147</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+    <Bank Name="H">
+      <Pad Number="0">
+        <Name>Pad H1</Name>
+        <MidiNote>148</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="1">
+        <Name>Pad H2</Name>
+        <MidiNote>149</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="2">
+        <Name>Pad H3</Name>
+        <MidiNote>150</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="3">
+        <Name>Pad H4</Name>
+        <MidiNote>151</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="4">
+        <Name>Pad H5</Name>
+        <MidiNote>152</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="5">
+        <Name>Pad H6</Name>
+        <MidiNote>153</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="6">
+        <Name>Pad H7</Name>
+        <MidiNote>154</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="7">
+        <Name>Pad H8</Name>
+        <MidiNote>155</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="8">
+        <Name>Pad H9</Name>
+        <MidiNote>156</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="9">
+        <Name>Pad H10</Name>
+        <MidiNote>157</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="10">
+        <Name>Pad H11</Name>
+        <MidiNote>158</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="11">
+        <Name>Pad H12</Name>
+        <MidiNote>159</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="12">
+        <Name>Pad H13</Name>
+        <MidiNote>160</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="13">
+        <Name>Pad H14</Name>
+        <MidiNote>161</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="14">
+        <Name>Pad H15</Name>
+        <MidiNote>162</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+      <Pad Number="15">
+        <Name>Pad H16</Name>
+        <MidiNote>163</MidiNote>
+        <Volume>1.0</Volume>
+        <Pan>0.5</Pan>
+      </Pad>
+    </Bank>
+  </PadBanks>
+</MPCVObject>

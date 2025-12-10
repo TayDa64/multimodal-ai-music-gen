@@ -1,0 +1,35 @@
+# Multimodal AI Music Generator - Requirements
+# Target: Python 3.12+, CPU-only operation
+
+# Core MIDI Libraries
+mido>=1.3.0                    # MIDI file I/O and message handling
+pretty_midi>=0.2.10            # High-level MIDI manipulation
+
+# Audio Processing & Synthesis
+numpy>=1.24.0                  # Numerical operations for audio synthesis
+scipy>=1.11.0                  # Signal processing (filters, envelopes)
+soundfile>=0.12.0              # WAV/FLAC audio file I/O
+
+# Reference Analysis (for --reference feature)
+librosa>=0.10.0                # Audio analysis (BPM, key, spectral features)
+yt-dlp>=2024.1.0               # YouTube audio download
+
+# Optional: MIDI-to-Audio rendering (requires FluidSynth installed)
+midi2audio>=0.1.1              # FluidSynth Python wrapper
+
+# XML Processing (for MPC export)
+lxml>=4.9.0                    # Fast XML parsing/generation (preferred)
+# Note: xml.etree is stdlib fallback
+
+# CLI & UX
+tqdm>=4.65.0                   # Progress bars for batch processing
+colorama>=0.4.6                # Cross-platform terminal colors
+
+# Development & Testing
+pytest>=7.4.0                  # Unit testing framework
+pytest-cov>=4.1.0              # Coverage reporting
+
+# Optional: Advanced Audio (stretch goal - requires GPU or is slow on CPU)
+# torch>=2.0.0                 # For MusicGen inference (optional)
+# transformers>=4.30.0         # Hugging Face models (optional)
+# audiocraft>=1.0.0            # Meta's MusicGen (optional, GPU recommended)
