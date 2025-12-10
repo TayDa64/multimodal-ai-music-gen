@@ -327,7 +327,22 @@ def run_generation(
         try:
             from multimodal_gen import InstrumentLibrary, InstrumentMatcher
             
-            cache_file = str(Path(instruments_path) / ".instrument_cache.json")
+            # Use local cache if instruments dir is read-only (e.g., Program Files)
+            instruments_path_obj = Path(instruments_path)
+            try:
+                # Try to use cache in instruments directory
+                cache_file = str(instruments_path_obj / ".instrument_cache.json")
+                # Test if writable
+                test_file = instruments_path_obj / ".write_test"
+                test_file.touch()
+                test_file.unlink()
+            except (PermissionError, OSError):
+                # Fall back to local cache in output directory
+                cache_name = instruments_path_obj.name.replace("[", "").replace("]", "")
+                cache_file = str(output_dir / f".instrument_cache_{cache_name}.json")
+                if verbose:
+                    print_info(f"Using local cache (source is read-only)")
+            
             instrument_library = InstrumentLibrary(
                 instruments_dir=instruments_path,
                 cache_file=cache_file,
