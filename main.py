@@ -142,9 +142,15 @@ def generate_project_name(parsed: ParsedPrompt) -> str:
     return f"{genre}_{parsed.bpm}bpm_{key}{scale}_{timestamp}"
 
 
+# Type alias for progress callback: (step: str, percent: float, message: str) -> None
+from typing import Callable, Optional
+
+ProgressCallback = Callable[[str, float, str], None]
+
+
 def run_generation(
     prompt: str,
-    output_dir: Path,
+    output_dir: Path | str,
     bpm_override: int = None,
     key_override: str = None,
     reference_url: str = None,
@@ -154,6 +160,7 @@ def run_generation(
     template_path: str = None,
     instruments_paths: list = None,
     verbose: bool = False,
+    progress_callback: Optional[ProgressCallback] = None,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -169,10 +176,18 @@ def run_generation(
         template_path: Path to MPC template file
         instruments_paths: List of paths to instrument folders for intelligent sample selection
         verbose: Enable verbose output
+        progress_callback: Optional callback for progress reporting (step, percent, message)
         
     Returns:
         Dictionary with paths to generated files
     """
+    # Ensure output_dir is a Path object
+    output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
+    
+    # Helper to report progress
+    def report_progress(step: str, percent: float, message: str):
+        if progress_callback:
+            progress_callback(step, percent, message)
     results = {
         "midi": None,
         "audio": None,
@@ -251,6 +266,7 @@ def run_generation(
     
     # Step 1: Parse prompt
     print_step("1/6", "Parsing prompt...")
+    report_progress("parsing", 0.05, "Parsing prompt...")
     parser = PromptParser()
     parsed = parser.parse(prompt)
     
@@ -276,6 +292,7 @@ def run_generation(
     
     # Step 2: Create arrangement
     print_step("2/6", "Creating arrangement...")
+    report_progress("arranging", 0.15, "Creating arrangement...")
     arranger = Arranger()
     arrangement = arranger.create_arrangement(parsed)
     
@@ -288,6 +305,7 @@ def run_generation(
     
     # Step 3: Generate MIDI
     print_step("3/6", "Generating MIDI with humanization...")
+    report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
     midi_gen = MidiGenerator()
     midi_file = midi_gen.generate(arrangement, parsed)
     
@@ -300,6 +318,7 @@ def run_generation(
     
     # Step 4: Generate procedural samples
     print_step("4/6", "Generating procedural samples...")
+    report_progress("generating_samples", 0.45, "Generating procedural samples...")
     assets_gen = AssetsGenerator(str(output_dir / "samples"))
     
     try:
@@ -324,6 +343,7 @@ def run_generation(
     # Step 4.5: Discover and analyze instruments (if paths provided)
     if instruments_paths:
         print_step("4.5/6", "Discovering and analyzing instruments...")
+        report_progress("discovering_instruments", 0.55, "Discovering and analyzing instruments...")
         try:
             from multimodal_gen import InstrumentLibrary, InstrumentMatcher, load_multiple_libraries
             
@@ -417,6 +437,7 @@ def run_generation(
     
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")
+    report_progress("rendering_audio", 0.75, "Rendering audio...")
     renderer = AudioRenderer(
         soundfont_path=soundfont_path,
         instrument_library=instrument_library,
@@ -437,6 +458,7 @@ def run_generation(
         # Export stems if requested
         if export_stems:
             print_info("Exporting stems...")
+            report_progress("exporting_stems", 0.85, "Exporting stems...")
             stems_dir = output_dir / f"{project_name}_stems"
             stem_paths = renderer.render_stems(str(midi_path), str(stems_dir), parsed)
             results["stems"] = stem_paths
@@ -449,6 +471,7 @@ def run_generation(
     # Step 6: Export to MPC (optional)
     if export_mpc:
         print_step("6/6", "Exporting to MPC format...")
+        report_progress("exporting_mpc", 0.95, "Exporting to MPC format...")
         mpc_dir = output_dir / f"{project_name}_mpc"
         
         try:
@@ -466,6 +489,18 @@ def run_generation(
             print_warning(f"MPC export issue: {e}")
     else:
         print_step("6/6", "MPC export skipped (use --mpc to enable)")
+    
+    # Report completion
+    report_progress("complete", 1.0, "Generation complete!")
+    
+    # Add metadata to results for server mode
+    results["bpm"] = parsed.bpm
+    results["key"] = parsed.key
+    results["genre"] = parsed.genre
+    results["sections"] = [
+        {"name": s.section_type.value, "bars": s.bars}
+        for s in arrangement.sections
+    ] if 'arrangement' in dir() else []
     
     return results
 
@@ -528,13 +563,37 @@ Intelligent Instruments (requires: pip install librosa):
   - Analyzes samples for sonic characteristics (brightness, punch, warmth)
   - Auto-selects best-fit samples for genre/mood
   - Place samples in ./instruments/drums/kicks/, ./instruments/drums/snares/, etc.
+
+Server Mode (for JUCE integration):
+  %(prog)s --server [--port 9000] [--verbose]
+  - Starts OSC server for JUCE communication
+  - Receives generation requests, sends progress updates
         """,
+    )
+    
+    # Server mode (mutually exclusive with prompt)
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Start OSC server mode for JUCE integration",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=9000,
+        help="OSC server port (default: 9000, sends responses to port+1)",
+    )
+    parser.add_argument(
+        "--no-signals",
+        action="store_true",
+        help="Disable signal handlers (useful for VS Code terminals)",
     )
     
     # Positional arguments
     parser.add_argument(
         "prompt",
         type=str,
+        nargs="?",  # Optional when using --server
         help="Natural language music description (e.g., 'dark trap at 140 BPM in Am')",
     )
     
@@ -621,6 +680,40 @@ Intelligent Instruments (requires: pip install librosa):
     )
     
     args = parser.parse_args()
+    
+    # Handle server mode
+    if args.server:
+        try:
+            from multimodal_gen.server import MusicGenOSCServer, ServerConfig
+            
+            if not args.no_banner:
+                print_banner()
+            
+            config = ServerConfig(
+                recv_port=args.port,
+                send_port=args.port + 1,
+                verbose=args.verbose,
+                default_output_dir=args.output,
+                default_soundfont=args.soundfont,
+                instrument_paths=args.instruments or [],
+            )
+            
+            server = MusicGenOSCServer(config)
+            # Use handle_signals=False when --no-signals is set (for VS Code terminals)
+            server.start(handle_signals=not args.no_signals)
+            
+        except ImportError as e:
+            print_error(f"Server mode requires python-osc: {e}")
+            print_info("Install with: pip install python-osc")
+            sys.exit(1)
+        except KeyboardInterrupt:
+            print()
+            print_info("Server stopped.")
+        return
+    
+    # Normal generation mode - require prompt
+    if not args.prompt:
+        parser.error("prompt is required (or use --server mode)")
     
     # Print banner unless suppressed
     if not args.no_banner and not args.json:

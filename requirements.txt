@@ -25,6 +25,9 @@ lxml>=4.9.0                    # Fast XML parsing/generation (preferred)
 tqdm>=4.65.0                   # Progress bars for batch processing
 colorama>=0.4.6                # Cross-platform terminal colors
 
+# Server & Communication (for JUCE integration)
+python-osc>=1.8.0              # OSC protocol for JUCE ↔ Python communication
+
 # Development & Testing
 pytest>=7.4.0                  # Unit testing framework
 pytest-cov>=4.1.0              # Coverage reporting
