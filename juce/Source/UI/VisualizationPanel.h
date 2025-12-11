@@ -3,8 +3,9 @@
 
     VisualizationPanel.h
     
-    Tabbed panel containing Piano Roll and Recent Files views.
+    Tabbed panel containing Piano Roll, Waveform, Spectrum, and Recent Files views.
     Phase 6: Piano Roll Visualization
+    Phase 7: Waveform & Spectrum Visualization
 
   ==============================================================================
 */
@@ -13,6 +14,9 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "Visualization/PianoRollComponent.h"
+#include "Visualization/WaveformComponent.h"
+#include "Visualization/SpectrumComponent.h"
+#include "Visualization/GenreTheme.h"
 #include "RecentFilesPanel.h"
 #include "../Application/AppState.h"
 #include "../Audio/AudioEngine.h"
@@ -23,11 +27,14 @@
     
     Tabs:
     - Piano Roll: MIDI note visualization
+    - Waveform: Real-time audio waveform
+    - Spectrum: FFT frequency analyzer
     - Recent Files: List of generated files
 */
 class VisualizationPanel : public juce::Component,
                            public RecentFilesPanel::Listener,
-                           public PianoRollComponent::Listener
+                           public PianoRollComponent::Listener,
+                           private mmg::AudioEngine::VisualizationListener
 {
 public:
     //==============================================================================
@@ -48,11 +55,14 @@ public:
     /** Refresh recent files list */
     void refreshRecentFiles();
     
-    /** Switch to a specific tab */
+    /** Switch to a specific tab (0=Piano Roll, 1=Waveform, 2=Spectrum, 3=Files) */
     void showTab(int index);
     
     /** Set BPM for piano roll grid */
     void setBPM(int bpm);
+    
+    /** Set genre for themed visualizations */
+    void setGenre(const juce::String& genre);
     
     //==============================================================================
     // Forward listener interface
@@ -75,29 +85,43 @@ private:
     void pianoRollNoteHovered(const MidiNoteEvent* note) override;
     void pianoRollSeekRequested(double positionSeconds) override;
     
+    // AudioEngine::VisualizationListener (called from audio thread)
+    void audioSamplesReady(const float* leftSamples, 
+                           const float* rightSamples, 
+                           int numSamples) override;
+    
     //==============================================================================
     AppState& appState;
     mmg::AudioEngine& audioEngine;
     juce::ListenerList<Listener> listeners;
     
+    // Theme manager for smooth transitions
+    GenreThemeManager themeManager;
+    
     // Tab buttons
     juce::TextButton pianoRollTab { "Piano Roll" };
-    juce::TextButton recentFilesTab { "Recent Files" };
+    juce::TextButton waveformTab { "Waveform" };
+    juce::TextButton spectrumTab { "Spectrum" };
+    juce::TextButton recentFilesTab { "Files" };
     
     // Content panels
     std::unique_ptr<PianoRollComponent> pianoRoll;
+    std::unique_ptr<WaveformComponent> waveform;
+    std::unique_ptr<SpectrumComponent> spectrum;
     std::unique_ptr<RecentFilesPanel> recentFiles;
     
-    // Track info label (shows hovered note info)
-    juce::Label noteInfoLabel;
+    // Track info label (shows hovered note info or visualization mode)
+    juce::Label infoLabel;
     
     // Current tab
-    int currentTab = 1;  // Start with Recent Files
+    int currentTab = 0;  // Start with Piano Roll
     
     // Tab management
     void updateTabButtons();
+    void updateTheme();
     
     static constexpr int tabHeight = 28;
+    static constexpr int numTabs = 4;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VisualizationPanel)
 };

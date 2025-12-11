@@ -145,6 +145,11 @@ target_sources(MultimodalMusicGen PRIVATE
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp
     Source/UI/Visualization/PianoRollComponent.h
+    Source/UI/Visualization/WaveformComponent.cpp
+    Source/UI/Visualization/WaveformComponent.h
+    Source/UI/Visualization/SpectrumComponent.cpp
+    Source/UI/Visualization/SpectrumComponent.h
+    Source/UI/Visualization/GenreTheme.h
     
     # Look and Feel
     Source/UI/Theme/AppLookAndFeel.cpp
@@ -169,6 +174,9 @@ target_link_libraries(MultimodalMusicGen
         juce::juce_audio_formats
         juce::juce_audio_processors
         juce::juce_audio_utils
+        
+        # DSP module (for FFT spectrum analysis)
+        juce::juce_dsp
         
         # GUI modules
         juce::juce_graphics

@@ -161,6 +161,28 @@ public:
     MidiPlayer& getMidiPlayer() { return midiPlayer; }
     
     //==========================================================================
+    // Audio Visualization Support
+    //==========================================================================
+    
+    /** Listener interface for visualization - receives audio samples */
+    class VisualizationListener
+    {
+    public:
+        virtual ~VisualizationListener() = default;
+        
+        /** Called with audio samples for visualization (on audio thread!) */
+        virtual void audioSamplesReady(const float* leftSamples, 
+                                       const float* rightSamples, 
+                                       int numSamples) = 0;
+    };
+    
+    /** Add a visualization listener (lock-free, call from message thread) */
+    void addVisualizationListener(VisualizationListener* listener);
+    
+    /** Remove a visualization listener (lock-free, call from message thread) */
+    void removeVisualizationListener(VisualizationListener* listener);
+    
+    //==========================================================================
     // Listener Management
     //==========================================================================
     
@@ -212,6 +234,10 @@ private:
     
     // MIDI playback
     MidiPlayer midiPlayer;
+    
+    // Visualization listeners (lock-free array for audio thread safety)
+    static constexpr int maxVisualizationListeners = 8;
+    std::array<std::atomic<VisualizationListener*>, maxVisualizationListeners> visualizationListeners;
     
     // Listeners
     juce::ListenerList<Listener> listeners;

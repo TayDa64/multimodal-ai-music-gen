@@ -19,6 +19,10 @@ AudioEngine::AudioEngine()
 {
     // Register as listener for device changes
     deviceManager.addChangeListener(this);
+    
+    // Initialize visualization listeners to nullptr
+    for (auto& listener : visualizationListeners)
+        listener.store(nullptr);
 }
 
 AudioEngine::~AudioEngine()
@@ -237,6 +241,22 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
                 testTonePhase -= juce::MathConstants<double>::twoPi;
         }
     }
+    
+    // Send audio samples to visualization listeners (lock-free)
+    {
+        auto* leftChannel = bufferToFill.buffer->getReadPointer(0, bufferToFill.startSample);
+        auto* rightChannel = bufferToFill.buffer->getNumChannels() > 1
+                           ? bufferToFill.buffer->getReadPointer(1, bufferToFill.startSample)
+                           : leftChannel;
+        
+        for (auto& listenerPtr : visualizationListeners)
+        {
+            if (auto* listener = listenerPtr.load())
+            {
+                listener->audioSamplesReady(leftChannel, rightChannel, bufferToFill.numSamples);
+            }
+        }
+    }
 }
 
 //==============================================================================
@@ -277,6 +297,28 @@ void AudioEngine::addListener(Listener* listener)
 void AudioEngine::removeListener(Listener* listener)
 {
     listeners.remove(listener);
+}
+
+void AudioEngine::addVisualizationListener(VisualizationListener* listener)
+{
+    // Find an empty slot (lock-free for audio thread safety)
+    for (auto& slot : visualizationListeners)
+    {
+        VisualizationListener* expected = nullptr;
+        if (slot.compare_exchange_strong(expected, listener))
+            return;
+    }
+    DBG("AudioEngine: Warning - max visualization listeners reached!");
+}
+
+void AudioEngine::removeVisualizationListener(VisualizationListener* listener)
+{
+    // Find and clear the slot
+    for (auto& slot : visualizationListeners)
+    {
+        VisualizationListener* expected = listener;
+        slot.compare_exchange_strong(expected, nullptr);
+    }
 }
 
 void AudioEngine::notifyListeners(std::function<void(Listener*)> callback)

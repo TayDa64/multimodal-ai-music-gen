@@ -4,6 +4,8 @@
     VisualizationPanel.cpp
     
     Implementation of the tabbed visualization panel.
+    Phase 6: Piano Roll Visualization
+    Phase 7: Waveform & Spectrum Visualization
 
   ==============================================================================
 */
@@ -16,53 +18,69 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     : appState(state),
       audioEngine(engine)
 {
-    DBG("VisualizationPanel constructor");
+    DBG("VisualizationPanel constructor - Phase 7 with Waveform & Spectrum");
     
     // Create piano roll
     pianoRoll = std::make_unique<PianoRollComponent>(audioEngine);
     pianoRoll->addListener(this);
     pianoRoll->setBPM(appState.getBPM());
-    addChildComponent(*pianoRoll);  // Start hidden
+    addAndMakeVisible(*pianoRoll);
+    
+    // Create waveform visualizer
+    waveform = std::make_unique<WaveformComponent>();
+    waveform->setDisplayMode(WaveformComponent::DisplayMode::Filled);
+    addChildComponent(*waveform);
+    
+    // Create spectrum analyzer
+    spectrum = std::make_unique<SpectrumComponent>();
+    spectrum->setDisplayMode(SpectrumComponent::DisplayMode::Glow);
+    spectrum->setFrequencyScale(SpectrumComponent::FrequencyScale::Logarithmic);
+    addChildComponent(*spectrum);
     
     // Create recent files panel
     recentFiles = std::make_unique<RecentFilesPanel>(appState, audioEngine);
     recentFiles->addListener(this);
-    addAndMakeVisible(*recentFiles);  // Start visible
+    addChildComponent(*recentFiles);
     
-    // Setup tab buttons with distinct styling
-    pianoRollTab.setClickingTogglesState(false);
-    pianoRollTab.setColour(juce::TextButton::buttonColourId, AppColours::surfaceAlt);
-    pianoRollTab.setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
-    pianoRollTab.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
-    pianoRollTab.onClick = [this]() { 
-        DBG("Piano Roll tab clicked");
-        showTab(0); 
+    // Register for audio samples
+    audioEngine.addVisualizationListener(this);
+    
+    // Setup tab buttons
+    auto setupTab = [this](juce::TextButton& tab, const juce::String& name, int index) {
+        tab.setButtonText(name);
+        tab.setClickingTogglesState(false);
+        tab.setColour(juce::TextButton::buttonColourId, AppColours::surfaceAlt);
+        tab.setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
+        tab.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
+        tab.onClick = [this, index]() { showTab(index); };
+        addAndMakeVisible(tab);
     };
-    addAndMakeVisible(pianoRollTab);
     
-    recentFilesTab.setClickingTogglesState(false);
-    recentFilesTab.setColour(juce::TextButton::buttonColourId, AppColours::surfaceAlt);
-    recentFilesTab.setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
-    recentFilesTab.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
-    recentFilesTab.onClick = [this]() { 
-        DBG("Recent Files tab clicked");
-        showTab(1); 
-    };
-    addAndMakeVisible(recentFilesTab);
+    setupTab(pianoRollTab, "Piano Roll", 0);
+    setupTab(waveformTab, "Waveform", 1);
+    setupTab(spectrumTab, "Spectrum", 2);
+    setupTab(recentFilesTab, "Files", 3);
     
-    // Note info label
-    noteInfoLabel.setFont(juce::Font(11.0f));
-    noteInfoLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
-    noteInfoLabel.setJustificationType(juce::Justification::centredRight);
-    addAndMakeVisible(noteInfoLabel);
+    // Info label
+    infoLabel.setFont(juce::Font(11.0f));
+    infoLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    infoLabel.setJustificationType(juce::Justification::centredRight);
+    addAndMakeVisible(infoLabel);
     
-    // Initialize tab state
-    currentTab = 1;  // Start with Recent Files visible
+    // Initialize with piano roll visible
+    currentTab = 0;
     updateTabButtons();
+    
+    // Set default theme
+    themeManager.setTheme(GenreTheme::defaultTheme());
+    updateTheme();
 }
 
 VisualizationPanel::~VisualizationPanel()
 {
+    // Unregister from audio engine
+    audioEngine.removeVisualizationListener(this);
+    
     if (pianoRoll)
         pianoRoll->removeListener(this);
     if (recentFiles)
@@ -92,18 +110,24 @@ void VisualizationPanel::resized()
     // Tab bar
     auto tabBar = bounds.removeFromTop(tabHeight);
     
-    int tabWidth = 100;
+    int tabWidth = 85;
     pianoRollTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
+    waveformTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
+    spectrumTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
     recentFilesTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
     
-    // Note info label on right side of tab bar
-    noteInfoLabel.setBounds(tabBar.removeFromRight(200).reduced(4, 2));
+    // Info label on right side of tab bar
+    infoLabel.setBounds(tabBar.removeFromRight(200).reduced(4, 2));
     
     // Content area
     auto contentArea = bounds;
     
     if (pianoRoll)
         pianoRoll->setBounds(contentArea);
+    if (waveform)
+        waveform->setBounds(contentArea);
+    if (spectrum)
+        spectrum->setBounds(contentArea);
     if (recentFiles)
         recentFiles->setBounds(contentArea);
 }
@@ -140,23 +164,33 @@ void VisualizationPanel::refreshRecentFiles()
 void VisualizationPanel::showTab(int index)
 {
     DBG("VisualizationPanel::showTab(" << index << ")");
-    currentTab = index;
+    currentTab = juce::jlimit(0, numTabs - 1, index);
     
-    if (pianoRoll)
-    {
-        pianoRoll->setVisible(index == 0);
-        if (index == 0)
-        {
-            pianoRoll->repaint();
-            DBG("  Piano roll now visible, bounds: " << pianoRoll->getBounds().toString());
-        }
-    }
-    if (recentFiles)
-    {
-        recentFiles->setVisible(index == 1);
-    }
+    // Update visibility
+    if (pianoRoll) pianoRoll->setVisible(currentTab == 0);
+    if (waveform) waveform->setVisible(currentTab == 1);
+    if (spectrum) spectrum->setVisible(currentTab == 2);
+    if (recentFiles) recentFiles->setVisible(currentTab == 3);
     
     updateTabButtons();
+    
+    // Update info label based on tab
+    switch (currentTab)
+    {
+        case 0:
+            infoLabel.setText("Hover notes for info", juce::dontSendNotification);
+            break;
+        case 1:
+            infoLabel.setText("Real-time waveform", juce::dontSendNotification);
+            break;
+        case 2:
+            infoLabel.setText("Spectrum analyzer", juce::dontSendNotification);
+            break;
+        case 3:
+            infoLabel.setText("", juce::dontSendNotification);
+            break;
+    }
+    
     repaint();
 }
 
@@ -166,43 +200,64 @@ void VisualizationPanel::setBPM(int bpm)
         pianoRoll->setBPM(bpm);
 }
 
+void VisualizationPanel::setGenre(const juce::String& genre)
+{
+    auto newTheme = GenreTheme::getThemeForGenre(genre);
+    themeManager.transitionTo(newTheme, 0.5f);
+    updateTheme();
+    
+    DBG("VisualizationPanel: Set genre theme to " << newTheme.name);
+}
+
 void VisualizationPanel::updateTabButtons()
 {
-    // Highlight active tab with distinct colors
     juce::Colour activeColour = AppColours::primary;
     juce::Colour inactiveColour = AppColours::surfaceAlt.darker(0.1f);
     juce::Colour activeTextColour = juce::Colours::white;
     juce::Colour inactiveTextColour = AppColours::textSecondary;
     
-    pianoRollTab.setColour(juce::TextButton::buttonColourId, 
-                           currentTab == 0 ? activeColour : inactiveColour);
-    pianoRollTab.setColour(juce::TextButton::textColourOnId, 
-                           currentTab == 0 ? activeTextColour : inactiveTextColour);
-    pianoRollTab.setColour(juce::TextButton::textColourOffId, 
-                           currentTab == 0 ? activeTextColour : inactiveTextColour);
+    auto styleTab = [&](juce::TextButton& tab, bool isActive) {
+        tab.setColour(juce::TextButton::buttonColourId, 
+                      isActive ? activeColour : inactiveColour);
+        tab.setColour(juce::TextButton::textColourOnId, 
+                      isActive ? activeTextColour : inactiveTextColour);
+        tab.setColour(juce::TextButton::textColourOffId, 
+                      isActive ? activeTextColour : inactiveTextColour);
+        tab.repaint();
+    };
     
-    recentFilesTab.setColour(juce::TextButton::buttonColourId, 
-                              currentTab == 1 ? activeColour : inactiveColour);
-    recentFilesTab.setColour(juce::TextButton::textColourOnId, 
-                              currentTab == 1 ? activeTextColour : inactiveTextColour);
-    recentFilesTab.setColour(juce::TextButton::textColourOffId, 
-                              currentTab == 1 ? activeTextColour : inactiveTextColour);
+    styleTab(pianoRollTab, currentTab == 0);
+    styleTab(waveformTab, currentTab == 1);
+    styleTab(spectrumTab, currentTab == 2);
+    styleTab(recentFilesTab, currentTab == 3);
+}
+
+void VisualizationPanel::updateTheme()
+{
+    const auto& theme = themeManager.getTheme();
     
-    // Force button repaint
-    pianoRollTab.repaint();
-    recentFilesTab.repaint();
-    
-    // Clear note info when not on piano roll
-    if (currentTab != 0)
-        noteInfoLabel.setText("", juce::dontSendNotification);
-    
-    DBG("Tab buttons updated, currentTab=" << currentTab);
+    if (waveform)
+        waveform->setTheme(theme);
+    if (spectrum)
+        spectrum->setTheme(theme);
+}
+
+//==============================================================================
+void VisualizationPanel::audioSamplesReady(const float* leftSamples, 
+                                            const float* rightSamples, 
+                                            int numSamples)
+{
+    // Called from audio thread - forward to visualizers
+    if (waveform)
+        waveform->pushSamples(leftSamples, rightSamples, numSamples);
+    if (spectrum)
+        spectrum->pushSamples(leftSamples, rightSamples, numSamples);
 }
 
 //==============================================================================
 void VisualizationPanel::fileSelected(const juce::File& file)
 {
-    // Forward to our listeners using explicit lambda to avoid ambiguity
+    // Forward to our listeners
     listeners.call([&file](Listener& l) { l.fileSelected(file); });
     
     // If it's a MIDI file, also load it into the piano roll
@@ -214,22 +269,24 @@ void VisualizationPanel::fileSelected(const juce::File& file)
 
 void VisualizationPanel::pianoRollNoteHovered(const MidiNoteEvent* note)
 {
-    if (note != nullptr)
+    if (currentTab == 0)
     {
-        juce::String info = MidiNoteEvent::getNoteName(note->noteNumber);
-        info += " | Vel: " + juce::String(note->velocity);
-        info += " | Track " + juce::String(note->trackIndex + 1);
-        noteInfoLabel.setText(info, juce::dontSendNotification);
-    }
-    else
-    {
-        noteInfoLabel.setText("", juce::dontSendNotification);
+        if (note != nullptr)
+        {
+            juce::String info = MidiNoteEvent::getNoteName(note->noteNumber);
+            info += " | Vel: " + juce::String(note->velocity);
+            info += " | Track " + juce::String(note->trackIndex + 1);
+            infoLabel.setText(info, juce::dontSendNotification);
+        }
+        else
+        {
+            infoLabel.setText("Hover notes for info", juce::dontSendNotification);
+        }
     }
 }
 
 void VisualizationPanel::pianoRollSeekRequested(double positionSeconds)
 {
-    // AudioEngine is already updated by piano roll, just log for debugging
     DBG("Piano roll seek to: " << positionSeconds << "s");
 }
 
