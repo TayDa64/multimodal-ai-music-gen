@@ -183,6 +183,10 @@ float SpectrumComponent::applyEnvelope(float current, float target, int bandInde
     
     float envelope = envelopeState[bandIndex];
     
+    // Clamp target to valid range BEFORE envelope processing
+    // This prevents accumulation of out-of-bounds values
+    target = juce::jlimit(0.0f, 1.0f, target);
+    
     if (target > envelope)
     {
         // Attack phase - rising signal, respond quickly
@@ -193,6 +197,10 @@ float SpectrumComponent::applyEnvelope(float current, float target, int bandInde
         // Release phase - falling signal, decay smoothly
         envelope = releaseCoeff * envelope + (1.0f - releaseCoeff) * target;
     }
+    
+    // CRITICAL: Hard clamp output to prevent off-screen rendering
+    // This ensures bars/lines never exceed component bounds
+    envelope = juce::jlimit(0.0f, 1.0f, envelope);
     
     // Store state for next frame
     envelopeState[bandIndex] = envelope;
@@ -215,7 +223,9 @@ void SpectrumComponent::timerCallback()
         for (int i = 0; i < numBands; ++i)
         {
             // Apply release envelope toward zero when no new data
-            spectrumData[i] = applyEnvelope(spectrumData[i], 0.0f, i);
+            float decayed = applyEnvelope(spectrumData[i], 0.0f, i);
+            // Ensure value stays in valid range
+            spectrumData[i] = juce::jlimit(0.0f, 1.0f, decayed);
         }
     }
     
@@ -232,6 +242,9 @@ void SpectrumComponent::timerCallback()
             peakHoldData[i] *= peakDecayRate;
             if (peakHoldData[i] < 0.001f)
                 peakHoldData[i] = 0.0f;
+            
+            // Ensure peak value stays in valid range
+            peakHoldData[i] = juce::jlimit(0.0f, 1.0f, peakHoldData[i]);
         }
     }
     
@@ -294,12 +307,15 @@ void SpectrumComponent::processFFT()
         float enveloped = applyEnvelope(spectrumData[band], averaged, band);
         
         // Final spectrum value with all processing
-        spectrumData[band] = enveloped;
+        // CRITICAL: Ensure value is always in valid display range [0, 1]
+        spectrumData[band] = juce::jlimit(0.0f, 1.0f, enveloped);
         
         // Update peak hold (tracks actual peaks, not smoothed values)
-        if (normalized > peakHoldData[band])
+        // Also clamp peak values to prevent off-screen peak indicators
+        float clampedNormalized = juce::jlimit(0.0f, 1.0f, normalized);
+        if (clampedNormalized > peakHoldData[band])
         {
-            peakHoldData[band] = normalized;
+            peakHoldData[band] = clampedNormalized;
             peakHoldCountdown[band] = peakHoldFrames;
         }
     }
@@ -470,7 +486,10 @@ void SpectrumComponent::drawSpectrumBars(juce::Graphics& g)
     for (int i = 0; i < numBands; ++i)
     {
         float x = bounds.getX() + i * barWidth + gap / 2;
-        float barHeight = spectrumData[i] * bounds.getHeight();
+        
+        // DEFENSIVE: Clamp value to [0, 1] to prevent off-screen rendering
+        float clampedValue = juce::jlimit(0.0f, 1.0f, spectrumData[i]);
+        float barHeight = clampedValue * bounds.getHeight();
         float y = bounds.getBottom() - barHeight;
         
         // Get color for this frequency band
@@ -494,7 +513,13 @@ void SpectrumComponent::drawSpectrumLine(juce::Graphics& g)
     for (int i = 0; i < numBands; ++i)
     {
         float x = bounds.getX() + ((float)i / (float)(numBands - 1)) * bounds.getWidth();
-        float y = bounds.getBottom() - spectrumData[i] * bounds.getHeight();
+        
+        // DEFENSIVE: Clamp value to [0, 1] to prevent off-screen rendering
+        float clampedValue = juce::jlimit(0.0f, 1.0f, spectrumData[i]);
+        float y = bounds.getBottom() - clampedValue * bounds.getHeight();
+        
+        // Ensure y stays within bounds
+        y = juce::jlimit(bounds.getY(), bounds.getBottom(), y);
         
         if (i == 0)
             path.startNewSubPath(x, y);
@@ -527,7 +552,14 @@ void SpectrumComponent::drawSpectrumFilled(juce::Graphics& g)
     for (int i = 0; i < numBands; ++i)
     {
         float x = bounds.getX() + ((float)i / (float)(numBands - 1)) * bounds.getWidth();
-        float y = bounds.getBottom() - spectrumData[i] * bounds.getHeight();
+        
+        // DEFENSIVE: Clamp value to [0, 1] to prevent off-screen rendering
+        float clampedValue = juce::jlimit(0.0f, 1.0f, spectrumData[i]);
+        float y = bounds.getBottom() - clampedValue * bounds.getHeight();
+        
+        // Ensure y stays within bounds
+        y = juce::jlimit(bounds.getY(), bounds.getBottom(), y);
+        
         path.lineTo(x, y);
     }
     
@@ -551,7 +583,14 @@ void SpectrumComponent::drawSpectrumFilled(juce::Graphics& g)
     for (int i = 0; i < numBands; ++i)
     {
         float x = bounds.getX() + ((float)i / (float)(numBands - 1)) * bounds.getWidth();
-        float y = bounds.getBottom() - spectrumData[i] * bounds.getHeight();
+        
+        // DEFENSIVE: Clamp value to [0, 1] to prevent off-screen rendering
+        float clampedValue = juce::jlimit(0.0f, 1.0f, spectrumData[i]);
+        float y = bounds.getBottom() - clampedValue * bounds.getHeight();
+        
+        // Ensure y stays within bounds
+        y = juce::jlimit(bounds.getY(), bounds.getBottom(), y);
+        
         outline.lineTo(x, y);
     }
     
@@ -570,23 +609,34 @@ void SpectrumComponent::drawSpectrumGlow(juce::Graphics& g)
     for (int i = 0; i < numBands; ++i)
     {
         float x = bounds.getX() + i * barWidth + gap / 2;
-        float barHeight = spectrumData[i] * bounds.getHeight();
+        
+        // DEFENSIVE: Clamp value to [0, 1] to prevent off-screen rendering
+        float clampedValue = juce::jlimit(0.0f, 1.0f, spectrumData[i]);
+        float barHeight = clampedValue * bounds.getHeight();
         float y = bounds.getBottom() - barHeight;
+        
+        // Ensure y stays within bounds (at minimum, at top of drawable area)
+        y = juce::jmax(y, bounds.getY());
+        barHeight = juce::jmin(barHeight, bounds.getHeight());
         
         juce::Colour barColour = getColourForBand(i);
         
         // Draw glow layers (outer to inner)
-        if (spectrumData[i] > 0.1f)
+        if (clampedValue > 0.1f)
         {
             for (int layer = 3; layer >= 1; --layer)
             {
                 float expand = layer * 2.0f;
                 float alpha = 0.15f / (float)layer;
                 
+                // Constrain glow to not extend above top of bounds
+                float glowY = juce::jmax(y - expand, bounds.getY());
+                float glowHeight = bounds.getBottom() - glowY;
+                
                 g.setColour(barColour.withAlpha(alpha));
                 g.fillRoundedRectangle(
-                    x - expand, y - expand,
-                    barWidth - gap + expand * 2, barHeight + expand * 2,
+                    x - expand, glowY,
+                    barWidth - gap + expand * 2, glowHeight,
                     3.0f
                 );
             }
@@ -624,10 +674,16 @@ void SpectrumComponent::drawPeakHold(juce::Graphics& g)
     
     for (int i = 0; i < numBands; ++i)
     {
-        if (peakHoldData[i] > 0.01f)
+        // DEFENSIVE: Clamp peak value to [0, 1] to prevent off-screen rendering
+        float clampedPeak = juce::jlimit(0.0f, 1.0f, peakHoldData[i]);
+        
+        if (clampedPeak > 0.01f)
         {
             float x = bounds.getX() + i * barWidth + gap / 2;
-            float y = bounds.getBottom() - peakHoldData[i] * bounds.getHeight();
+            float y = bounds.getBottom() - clampedPeak * bounds.getHeight();
+            
+            // Ensure peak indicator stays within bounds
+            y = juce::jlimit(bounds.getY(), bounds.getBottom() - 2.0f, y);
             
             // Draw peak indicator line
             g.fillRect(x, y - 1, barWidth - gap, 2.0f);
