@@ -1,0 +1,281 @@
+/*
+  ==============================================================================
+    MidiPlayer.cpp
+    
+    Implementation of MIDI file playback.
+    
+    Task 0.4: JUCE MIDI Playback Research
+  ==============================================================================
+*/
+
+#include "MidiPlayer.h"
+
+namespace mmg
+{
+
+//==============================================================================
+MidiPlayer::MidiPlayer()
+{
+    setupSynthesiser();
+}
+
+//==============================================================================
+void MidiPlayer::setupSynthesiser()
+{
+    // Clear any existing voices/sounds
+    synth.clearVoices();
+    synth.clearSounds();
+    
+    // Add sine wave voices (polyphony)
+    for (int i = 0; i < numVoices; ++i)
+    {
+        synth.addVoice(new SimpleSineVoice());
+    }
+    
+    // Add the sound (all voices use this)
+    synth.addSound(new SimpleSineSound());
+    
+    DBG("MidiPlayer: Synthesiser setup with " << numVoices << " voices");
+}
+
+//==============================================================================
+void MidiPlayer::prepareToPlay(double newSampleRate, int newSamplesPerBlock)
+{
+    sampleRate = newSampleRate;
+    samplesPerBlock = newSamplesPerBlock;
+    
+    synth.setCurrentPlaybackSampleRate(sampleRate);
+    
+    // Prepare each voice
+    for (int i = 0; i < synth.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<SimpleSineVoice*>(synth.getVoice(i)))
+        {
+            voice->prepareToPlay(sampleRate, samplesPerBlock);
+        }
+    }
+    
+    DBG("MidiPlayer: Prepared - SR: " << sampleRate << ", Block: " << samplesPerBlock);
+}
+
+void MidiPlayer::releaseResources()
+{
+    synth.allNotesOff(0, true);
+}
+
+//==============================================================================
+bool MidiPlayer::loadMidiFile(const juce::File& file)
+{
+    if (!file.existsAsFile())
+    {
+        DBG("MidiPlayer: File not found: " << file.getFullPathName());
+        return false;
+    }
+    
+    // Read the file
+    juce::FileInputStream fileStream(file);
+    if (!fileStream.openedOk())
+    {
+        DBG("MidiPlayer: Could not open file: " << file.getFullPathName());
+        return false;
+    }
+    
+    // Parse MIDI
+    if (!midiFile.readFrom(fileStream))
+    {
+        DBG("MidiPlayer: Failed to parse MIDI file: " << file.getFullPathName());
+        return false;
+    }
+    
+    // Convert timestamps to seconds
+    midiFile.convertTimestampTicksToSeconds();
+    
+    // Merge all tracks into one sequence for easier playback
+    combinedSequence.clear();
+    for (int track = 0; track < midiFile.getNumTracks(); ++track)
+    {
+        const auto* trackSequence = midiFile.getTrack(track);
+        if (trackSequence != nullptr)
+        {
+            combinedSequence.addSequence(*trackSequence, 0.0);
+        }
+    }
+    
+    // Sort by timestamp
+    combinedSequence.sort();
+    
+    // Update state
+    loadedFile = file;
+    midiLoaded = true;
+    currentEventIndex = 0;
+    currentPositionSeconds = 0.0;
+    
+    // Extract metadata (tempo, time signature, etc.)
+    extractMetadata();
+    
+    // Calculate total duration
+    if (combinedSequence.getNumEvents() > 0)
+    {
+        totalDurationSeconds = combinedSequence.getEndTime();
+    }
+    else
+    {
+        totalDurationSeconds = 0.0;
+    }
+    
+    DBG("MidiPlayer: Loaded " << file.getFileName());
+    DBG("  Tracks: " << midiFile.getNumTracks());
+    DBG("  Events: " << combinedSequence.getNumEvents());
+    DBG("  Duration: " << totalDurationSeconds << "s");
+    DBG("  BPM: " << bpm);
+    
+    return true;
+}
+
+void MidiPlayer::clearMidiFile()
+{
+    playing = false;
+    midiLoaded = false;
+    combinedSequence.clear();
+    midiFile.clear();
+    loadedFile = juce::File();
+    currentEventIndex = 0;
+    currentPositionSeconds = 0.0;
+    totalDurationSeconds = 0.0;
+    
+    // Turn off any playing notes
+    synth.allNotesOff(0, true);
+}
+
+void MidiPlayer::extractMetadata()
+{
+    // Default values
+    bpm = 120.0;
+    timeSignatureNumerator = 4;
+    timeSignatureDenominator = 4;
+    
+    // Look for tempo and time signature in track 0 (conductor track)
+    const auto* track0 = midiFile.getTrack(0);
+    if (track0 == nullptr)
+        return;
+    
+    for (int i = 0; i < track0->getNumEvents(); ++i)
+    {
+        auto& midiEvent = track0->getEventPointer(i)->message;
+        
+        if (midiEvent.isTempoMetaEvent())
+        {
+            double secondsPerQuarterNote = midiEvent.getTempoSecondsPerQuarterNote();
+            if (secondsPerQuarterNote > 0)
+            {
+                bpm = 60.0 / secondsPerQuarterNote;
+            }
+        }
+        else if (midiEvent.isTimeSignatureMetaEvent())
+        {
+            int numerator, denominator;
+            midiEvent.getTimeSignatureInfo(numerator, denominator);
+            timeSignatureNumerator = numerator;
+            timeSignatureDenominator = denominator;
+        }
+    }
+}
+
+//==============================================================================
+void MidiPlayer::setPlaying(bool shouldPlay)
+{
+    if (shouldPlay && !midiLoaded)
+    {
+        DBG("MidiPlayer: Cannot play - no MIDI loaded");
+        return;
+    }
+    
+    if (!shouldPlay)
+    {
+        // Turn off all notes when stopping
+        synth.allNotesOff(0, true);
+    }
+    
+    playing = shouldPlay;
+}
+
+void MidiPlayer::setPosition(double positionInSeconds)
+{
+    // Clamp to valid range
+    currentPositionSeconds = juce::jlimit(0.0, totalDurationSeconds, positionInSeconds);
+    
+    // Find the event index for this position
+    currentEventIndex = 0;
+    for (int i = 0; i < combinedSequence.getNumEvents(); ++i)
+    {
+        if (combinedSequence.getEventPointer(i)->message.getTimeStamp() >= currentPositionSeconds)
+        {
+            currentEventIndex = i;
+            break;
+        }
+        currentEventIndex = i + 1;
+    }
+    
+    // Turn off all notes when seeking
+    synth.allNotesOff(0, true);
+}
+
+//==============================================================================
+void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSamples)
+{
+    // Clear the buffer first (synth adds to buffer)
+    buffer.clear();
+    
+    if (!playing || !midiLoaded)
+    {
+        return;
+    }
+    
+    // Calculate time advance for this block
+    double blockDurationSeconds = numSamples / sampleRate;
+    double endPositionSeconds = currentPositionSeconds + (blockDurationSeconds * tempoMultiplier);
+    
+    // Create MIDI buffer for events in this time range
+    juce::MidiBuffer midiBuffer;
+    
+    while (currentEventIndex < combinedSequence.getNumEvents())
+    {
+        auto* eventPtr = combinedSequence.getEventPointer(currentEventIndex);
+        double eventTime = eventPtr->message.getTimeStamp();
+        
+        // Check if event is within this block's time range
+        if (eventTime >= endPositionSeconds)
+            break;
+        
+        // Calculate sample offset within this block
+        double offsetSeconds = eventTime - currentPositionSeconds;
+        int sampleOffset = juce::jmax(0, static_cast<int>(offsetSeconds * sampleRate / tempoMultiplier));
+        sampleOffset = juce::jmin(sampleOffset, numSamples - 1);
+        
+        // Add MIDI message to buffer (skip meta events)
+        if (!eventPtr->message.isMetaEvent())
+        {
+            midiBuffer.addEvent(eventPtr->message, sampleOffset);
+        }
+        
+        ++currentEventIndex;
+    }
+    
+    // Render synth with MIDI events
+    synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
+    
+    // Update position
+    currentPositionSeconds = endPositionSeconds;
+    
+    // Check for end of file
+    if (currentPositionSeconds >= totalDurationSeconds)
+    {
+        playing = false;
+        currentPositionSeconds = 0.0;
+        currentEventIndex = 0;
+        synth.allNotesOff(0, true);
+        DBG("MidiPlayer: Playback finished");
+    }
+}
+
+} // namespace mmg

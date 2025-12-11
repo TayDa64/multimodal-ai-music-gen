@@ -3,24 +3,41 @@
 
     AppState.h
     
-    Global application state management.
-    Handles settings persistence, project state, and undo/redo.
+    Global application state management with listener pattern.
 
   ==============================================================================
 */
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_core/juce_core.h>
+#include <juce_graphics/juce_graphics.h>
+#include <juce_data_structures/juce_data_structures.h>
+
+//==============================================================================
+// Progress update structure
+struct GenerationProgress
+{
+    juce::String stepName;
+    float progress = 0.0f;
+    juce::String message;
+};
+
+//==============================================================================
+// Current generation state
+struct GenerationState
+{
+    juce::String prompt;
+    int bpm = 90;
+    juce::String key;
+    juce::String genre;
+    juce::File midiFile;
+    juce::File audioFile;
+};
 
 //==============================================================================
 /**
-    Application state manager.
-    
-    Manages:
-    - User preferences (window position, last used paths)
-    - Current project state
-    - Undo/redo history
+    Application state manager with listener pattern for UI updates.
 */
 class AppState
 {
@@ -28,6 +45,32 @@ public:
     //==============================================================================
     AppState();
     ~AppState();
+    
+    //==============================================================================
+    /** Listener interface for state change notifications */
+    class Listener
+    {
+    public:
+        virtual ~Listener() = default;
+        virtual void onGenerationStarted() {}
+        virtual void onGenerationFinished() {}
+        virtual void onProgressChanged(const GenerationProgress& progress) { juce::ignoreUnused(progress); }
+        virtual void onGenerationProgress(const GenerationProgress& progress) { juce::ignoreUnused(progress); }
+        virtual void onGenerationCompleted(const juce::File& outputFile) { juce::ignoreUnused(outputFile); }
+        virtual void onGenerationError(const juce::String& error) { juce::ignoreUnused(error); }
+        virtual void onConnectionStatusChanged(bool connected) { juce::ignoreUnused(connected); }
+    };
+    
+    void addListener(Listener* listener);
+    void removeListener(Listener* listener);
+    
+    //==============================================================================
+    // Notify listeners
+    void notifyGenerationStarted() { listeners.call(&Listener::onGenerationStarted); }
+    void notifyGenerationProgress(const GenerationProgress& p) { listeners.call(&Listener::onGenerationProgress, p); }
+    void notifyGenerationCompleted(const juce::File& f) { listeners.call(&Listener::onGenerationCompleted, f); }
+    void notifyGenerationError(const juce::String& e) { listeners.call(&Listener::onGenerationError, e); }
+    void notifyConnectionStatusChanged(bool c) { listeners.call(&Listener::onConnectionStatusChanged, c); }
     
     //==============================================================================
     // Settings persistence
@@ -41,14 +84,12 @@ public:
     
     //==============================================================================
     // Project management
-    bool hasUnsavedChanges() const { return unsavedChanges; }
-    void setUnsavedChanges(bool hasChanges) { unsavedChanges = hasChanges; }
-    
     void newProject();
     bool loadProject(const juce::File& file);
     bool saveProject();
     bool saveProjectAs(const juce::File& file);
     
+    bool hasUnsavedChanges() const { return unsavedChanges; }
     juce::File getCurrentProjectFile() const { return currentProjectFile; }
     
     //==============================================================================
@@ -58,40 +99,54 @@ public:
     void clearRecentFiles();
     
     //==============================================================================
-    // User preferences
+    // Generation parameters
+    juce::String getPrompt() const;
+    void setPrompt(const juce::String& p);
+    
+    int getBPM() const;
+    void setBPM(int b);
+    
+    int getDurationBars() const;
+    void setDurationBars(int bars);
+    
+    bool isGenerating() const;
+    void setGenerating(bool g);
+    
+    juce::File getOutputFile() const;
+    void setOutputFile(const juce::File& f);
+    
+    //==============================================================================
+    // Progress management
+    void setProgress(const GenerationProgress& progress);
+    GenerationProgress getProgress() const;
+    
+    //==============================================================================
+    // Path settings
     juce::String getLastInstrumentPath() const;
     void setLastInstrumentPath(const juce::String& path);
     
     juce::String getLastOutputPath() const;
     void setLastOutputPath(const juce::String& path);
     
+    //==============================================================================
+    // Server settings
     int getServerPort() const;
     void setServerPort(int port);
     
-    //==============================================================================
-    // Current generation state
-    struct GenerationState
-    {
-        juce::String prompt;
-        int bpm = 0;
-        juce::String key;
-        juce::String genre;
-        juce::StringArray instrumentPaths;
-        
-        juce::File midiFile;
-        juce::File audioFile;
-    };
-    
-    GenerationState& getCurrentGeneration() { return currentGeneration; }
-    const GenerationState& getCurrentGeneration() const { return currentGeneration; }
-    
 private:
     //==============================================================================
+    juce::ListenerList<Listener> listeners;
     std::unique_ptr<juce::PropertiesFile> settings;
+    
+    // Project state
     juce::File currentProjectFile;
     bool unsavedChanges = false;
     
+    // Current generation
     GenerationState currentGeneration;
+    int durationBars = 8;
+    bool generating = false;
+    GenerationProgress currentProgress;
     
     //==============================================================================
     juce::File getSettingsFile() const;

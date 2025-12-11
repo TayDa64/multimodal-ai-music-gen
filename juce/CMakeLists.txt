@@ -112,6 +112,13 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/Application/AppState.h
     Source/Application/AppConfig.h
     
+    # Audio Engine
+    Source/Audio/AudioEngine.cpp
+    Source/Audio/AudioEngine.h
+    Source/Audio/MidiPlayer.cpp
+    Source/Audio/MidiPlayer.h
+    Source/Audio/SimpleSynthVoice.h
+    
     # Communication with Python backend
     Source/Communication/OSCBridge.cpp
     Source/Communication/OSCBridge.h
@@ -126,6 +133,8 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/PromptPanel.h
     Source/UI/ProgressOverlay.cpp
     Source/UI/ProgressOverlay.h
+    Source/UI/RecentFilesPanel.cpp
+    Source/UI/RecentFilesPanel.h
     
     # Look and Feel
     Source/UI/Theme/AppLookAndFeel.cpp

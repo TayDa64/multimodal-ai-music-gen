@@ -12,28 +12,56 @@
 #include "UI/Theme/ColourScheme.h"
 
 //==============================================================================
-MainComponent::MainComponent(AppState& state)
-    : appState(state)
+MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
+    : appState(state),
+      audioEngine(engine)
 {
-    // Set size
+    // Set size FIRST
     setSize(1280, 800);
     
     // Create UI components
-    transportBar = std::make_unique<TransportComponent>(appState);
+    transportBar = std::make_unique<TransportComponent>(appState, audioEngine);
+    transportBar->setVisible(true);
     addAndMakeVisible(*transportBar);
     
     promptPanel = std::make_unique<PromptPanel>(appState);
     promptPanel->addListener(this);
+    promptPanel->setVisible(true);
     addAndMakeVisible(*promptPanel);
+    
+    // Recent files panel - shows output directory contents
+    recentFilesPanel = std::make_unique<RecentFilesPanel>(appState, audioEngine);
+    recentFilesPanel->addListener(this);
+    recentFilesPanel->setVisible(true);
+    addAndMakeVisible(*recentFilesPanel);
+    
+    // Set output directory for recent files - use a more reliable path
+    auto appDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
+    
+    // Try multiple possible output locations
+    juce::Array<juce::File> possibleOutputDirs = {
+        appDir.getParentDirectory().getParentDirectory().getParentDirectory().getParentDirectory().getChildFile("output"),
+        appDir.getSiblingFile("output"),
+        juce::File("C:/dev/AI Music Generator/multimodal-ai-music-gen/output")
+    };
+    
+    for (auto& dir : possibleOutputDirs)
+    {
+        if (dir.isDirectory())
+        {
+            recentFilesPanel->setOutputDirectory(dir);
+            break;
+        }
+    }
     
     progressOverlay = std::make_unique<ProgressOverlay>(appState);
     progressOverlay->addListener(this);
     addChildComponent(*progressOverlay); // Hidden by default
     
-    // Setup OSC connection
-    setupOSCConnection();
+    // Force a layout update
+    resized();
     
-    // Start timer for status updates
+    // Start timer for status updates (OSC setup happens in first timer callback)
     startTimerHz(10);
 }
 
@@ -43,6 +71,9 @@ MainComponent::~MainComponent()
     
     if (oscBridge)
         oscBridge->removeListener(this);
+    
+    if (recentFilesPanel)
+        recentFilesPanel->removeListener(this);
 }
 
 //==============================================================================
@@ -61,29 +92,40 @@ void MainComponent::setupOSCConnection()
 void MainComponent::paint(juce::Graphics& g)
 {
     // Background
-    g.fillAll(ColourScheme::background);
+    g.fillAll(AppColours::background);
     
-    // Draw placeholder areas
-    drawPlaceholder(g, visualizationArea, 
-                   "Visualization\n(Piano Roll / Waveform)", 
-                   ColourScheme::surface);
-    
+    // Draw placeholder for bottom panel only (visualization is now RecentFilesPanel)
     drawPlaceholder(g, bottomPanelArea, 
                    "Mixer / Instrument Browser", 
-                   ColourScheme::surfaceAlt);
+                   AppColours::surfaceAlt);
     
-    // Connection status indicator
-    auto statusArea = getLocalBounds().removeFromBottom(20).reduced(padding);
-    g.setColour(ColourScheme::textSecondary);
+    // Status bar at bottom - clear, single source of truth for connection status
+    auto statusArea = getLocalBounds().removeFromBottom(24).reduced(padding, 2);
+    
+    // Background for status bar
+    g.setColour(AppColours::surface);
+    g.fillRect(statusArea.expanded(padding, 2));
+    
+    // Connection status (left side) - use clear icon and text
+    juce::String connectionText;
+    juce::Colour connectionColour;
+    if (serverConnected)
+    {
+        connectionText = juce::String(juce::CharPointer_UTF8("● Server Connected"));
+        connectionColour = AppColours::success;
+    }
+    else
+    {
+        connectionText = juce::String(juce::CharPointer_UTF8("○ Server Offline - Start with: python main.py --server"));
+        connectionColour = AppColours::warning;
+    }
+    
     g.setFont(12.0f);
+    g.setColour(connectionColour);
+    g.drawText(connectionText, statusArea.removeFromLeft(400), juce::Justification::left);
     
-    juce::String statusText = serverConnected 
-        ? juce::String(juce::CharPointer_UTF8("● Connected")) 
-        : juce::String(juce::CharPointer_UTF8("○ Disconnected"));
-    g.setColour(serverConnected ? ColourScheme::success : ColourScheme::textSecondary);
-    g.drawText(statusText, statusArea, juce::Justification::left);
-    
-    g.setColour(ColourScheme::textSecondary);
+    // Current activity status (right side)
+    g.setColour(AppColours::textSecondary);
     g.drawText(currentStatus, statusArea, juce::Justification::right);
 }
 
@@ -91,27 +133,50 @@ void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
     
-    // Reserve space for status bar
-    bounds.removeFromBottom(20);
+    if (bounds.isEmpty())
+        return;  // Guard against zero-size
     
-    // Transport bar at top
-    transportBar->setBounds(bounds.removeFromTop(transportHeight));
+    // Reserve space for status bar (slightly taller for better readability)
+    bounds.removeFromBottom(24);
     
-    // Bottom panel
+    // Transport bar at top (50px)
+    if (transportBar)
+    {
+        transportBar->setBounds(bounds.removeFromTop(transportHeight));
+        transportBar->setVisible(true);
+    }
+    
+    // Bottom panel (150px)
     bottomPanelArea = bounds.removeFromBottom(bottomPanelHeight);
     
-    // Main content area
+    // Main content area - what remains
     auto contentArea = bounds.reduced(padding);
     
-    // Prompt panel on left
-    promptPanel->setBounds(contentArea.removeFromLeft(promptPanelWidth));
+    // Prompt panel on left (320px)
+    if (promptPanel)
+    {
+        promptPanel->setBounds(contentArea.removeFromLeft(promptPanelWidth));
+        promptPanel->setVisible(true);
+    }
     
-    // Visualization takes remaining space
+    // Gap between prompt and recent files
     contentArea.removeFromLeft(padding);
+    
+    // Recent files panel takes remaining space
     visualizationArea = contentArea;
     
+    if (recentFilesPanel)
+    {
+        recentFilesPanel->setBounds(visualizationArea);
+        recentFilesPanel->setVisible(true);
+    }
+    
     // Progress overlay covers the whole component
-    progressOverlay->setBounds(getLocalBounds());
+    if (progressOverlay)
+        progressOverlay->setBounds(getLocalBounds());
+    
+    // Force repaint
+    repaint();
 }
 
 //==============================================================================
@@ -123,11 +188,11 @@ void MainComponent::drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area
     g.fillRoundedRectangle(area.toFloat(), 6.0f);
     
     // Border
-    g.setColour(ColourScheme::border);
+    g.setColour(AppColours::border);
     g.drawRoundedRectangle(area.toFloat(), 6.0f, 1.0f);
     
     // Label
-    g.setColour(ColourScheme::textSecondary.withAlpha(0.5f));
+    g.setColour(AppColours::textSecondary.withAlpha(0.5f));
     g.setFont(16.0f);
     g.drawText(label, area, juce::Justification::centred);
 }
@@ -163,15 +228,36 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
     juce::MessageManager::callAsync([this, result]()
     {
         // Update app state with output file
-        appState.setOutputFile(juce::File(result.audioPath.isNotEmpty() 
-            ? result.audioPath : result.midiPath));
+        juce::File outputFile(result.audioPath.isNotEmpty() 
+            ? result.audioPath : result.midiPath);
+        appState.setOutputFile(outputFile);
         
-        // Show completion message
+        // IMPORTANT: Notify all AppState listeners that generation is complete
+        // This must happen BEFORE setGenerating(false) to ensure proper UI reset
+        appState.notifyGenerationCompleted(outputFile);
+        
+        // Now reset generating state
+        appState.setGenerating(false);
+        
+        // Refresh the recent files panel to show the new file
+        if (recentFilesPanel)
+            recentFilesPanel->refresh();
+        
+        // Load the generated MIDI file for playback
+        if (result.midiPath.isNotEmpty())
+        {
+            juce::File midiFile(result.midiPath);
+            if (midiFile.existsAsFile())
+                audioEngine.loadMidiFile(midiFile);
+        }
+        
+        // Show completion message (no callback to prevent accidental triggers)
         juce::String message = "Generation complete!\n\n";
         message += "MIDI: " + result.midiPath + "\n";
         if (result.audioPath.isNotEmpty())
             message += "Audio: " + result.audioPath + "\n";
         message += "\nDuration: " + juce::String(result.duration, 1) + "s";
+        message += "\n\nThe file has been added to Recent Files.";
         
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::InfoIcon,
@@ -185,10 +271,17 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
 
 void MainComponent::onError(int code, const juce::String& message)
 {
+    juce::ignoreUnused(code);
     currentStatus = "Error: " + message;
     
     juce::MessageManager::callAsync([this, message]()
     {
+        // Notify all AppState listeners about the error first
+        appState.notifyGenerationError(message);
+        
+        // Then reset generating state
+        appState.setGenerating(false);
+        
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::WarningIcon,
             "Generation Error",
@@ -203,6 +296,13 @@ void MainComponent::onError(int code, const juce::String& message)
 // PromptPanel::Listener
 void MainComponent::generateRequested(const juce::String& prompt)
 {
+    // Prevent duplicate generation requests
+    if (appState.isGenerating())
+    {
+        DBG("Generation already in progress, ignoring request");
+        return;
+    }
+    
     if (oscBridge && oscBridge->isConnected())
     {
         GenerationRequest request;
@@ -232,13 +332,44 @@ void MainComponent::cancelRequested()
     {
         oscBridge->sendCancel();
     }
+    
+    // Notify listeners about the cancellation (treated as an error for UI reset purposes)
+    appState.notifyGenerationError("Cancelled by user");
+    
+    // Reset generating state immediately on user cancel
+    appState.setGenerating(false);
+    currentStatus = "Generation cancelled";
+    
+    juce::MessageManager::callAsync([this]()
+    {
+        repaint();
+    });
+}
+
+//==============================================================================
+// RecentFilesPanel::Listener
+void MainComponent::fileSelected(const juce::File& file)
+{
+    currentStatus = "Loaded: " + file.getFileName();
+    
+    juce::MessageManager::callAsync([this]()
+    {
+        repaint();
+    });
 }
 
 //==============================================================================
 void MainComponent::timerCallback()
 {
+    // Delayed OSC setup on first timer call
+    if (!oscBridge)
+    {
+        setupOSCConnection();
+        return;
+    }
+    
     // Periodic health check
-    if (oscBridge && !oscBridge->isConnected())
+    if (!oscBridge->isConnected())
     {
         // Try to reconnect
         oscBridge->connect();

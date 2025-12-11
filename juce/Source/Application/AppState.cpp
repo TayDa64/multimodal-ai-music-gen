@@ -222,3 +222,93 @@ void AppState::setServerPort(int port)
     if (settings)
         settings->setValue("serverPort", port);
 }
+
+//==============================================================================
+// Generation parameter accessors
+int AppState::getBPM() const
+{
+    return currentGeneration.bpm;
+}
+
+void AppState::setBPM(int newBPM)
+{
+    currentGeneration.bpm = newBPM;
+    unsavedChanges = true;
+}
+
+int AppState::getDurationBars() const
+{
+    return durationBars;
+}
+
+void AppState::setDurationBars(int bars)
+{
+    durationBars = bars;
+    unsavedChanges = true;
+}
+
+juce::String AppState::getPrompt() const
+{
+    return currentGeneration.prompt;
+}
+
+void AppState::setPrompt(const juce::String& newPrompt)
+{
+    currentGeneration.prompt = newPrompt;
+    unsavedChanges = true;
+}
+
+bool AppState::isGenerating() const
+{
+    return generating;
+}
+
+void AppState::setGenerating(bool isGenerating)
+{
+    generating = isGenerating;
+    
+    if (isGenerating)
+    {
+        listeners.call([](Listener& l) { l.onGenerationStarted(); });
+    }
+    else
+    {
+        listeners.call([](Listener& l) { l.onGenerationFinished(); });
+    }
+}
+
+juce::File AppState::getOutputFile() const
+{
+    return currentGeneration.audioFile;
+}
+
+void AppState::setOutputFile(const juce::File& file)
+{
+    currentGeneration.audioFile = file;
+    unsavedChanges = true;
+}
+
+//==============================================================================
+// Progress management
+void AppState::setProgress(const GenerationProgress& progress)
+{
+    currentProgress = progress;
+    listeners.call([&progress](Listener& l) { l.onProgressChanged(progress); });
+}
+
+GenerationProgress AppState::getProgress() const
+{
+    return currentProgress;
+}
+
+//==============================================================================
+// Listener management
+void AppState::addListener(Listener* listener)
+{
+    listeners.add(listener);
+}
+
+void AppState::removeListener(Listener* listener)
+{
+    listeners.remove(listener);
+}

@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_core/juce_core.h>
 
 //==============================================================================
 /**
@@ -20,6 +20,7 @@ struct GenerationRequest
 {
     juce::String prompt;
     int bpm = 0;                    // 0 = auto-detect
+    int bars = 8;                   // Number of bars to generate
     juce::String key;               // Empty = auto-detect
     juce::String outputDir;
     juce::StringArray instrumentPaths;
@@ -36,6 +37,7 @@ struct GenerationRequest
         
         obj->setProperty("prompt", prompt);
         obj->setProperty("bpm", bpm);
+        obj->setProperty("bars", bars);
         obj->setProperty("key", key);
         obj->setProperty("output_dir", outputDir);
         obj->setProperty("soundfont", soundfontPath);

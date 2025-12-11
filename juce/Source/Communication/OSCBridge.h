@@ -10,7 +10,8 @@
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_osc/juce_osc.h>
+#include <juce_core/juce_core.h>
 #include "Messages.h"
 
 //==============================================================================

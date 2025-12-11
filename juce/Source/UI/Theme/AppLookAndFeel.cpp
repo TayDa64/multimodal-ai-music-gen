@@ -15,60 +15,60 @@
 AppLookAndFeel::AppLookAndFeel()
 {
     // Set colour scheme
-    setColour(juce::ResizableWindow::backgroundColourId, ColourScheme::background);
-    setColour(juce::DocumentWindow::textColourId, ColourScheme::textPrimary);
+    setColour(juce::ResizableWindow::backgroundColourId, AppColours::background);
+    setColour(juce::DocumentWindow::textColourId, AppColours::textPrimary);
     
     // Text button
-    setColour(juce::TextButton::buttonColourId, ColourScheme::buttonBg);
-    setColour(juce::TextButton::buttonOnColourId, ColourScheme::primary);
-    setColour(juce::TextButton::textColourOffId, ColourScheme::textPrimary);
-    setColour(juce::TextButton::textColourOnId, ColourScheme::textPrimary);
+    setColour(juce::TextButton::buttonColourId, AppColours::buttonBg);
+    setColour(juce::TextButton::buttonOnColourId, AppColours::primary);
+    setColour(juce::TextButton::textColourOffId, AppColours::textPrimary);
+    setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
     
     // Text editor
-    setColour(juce::TextEditor::backgroundColourId, ColourScheme::inputBg);
-    setColour(juce::TextEditor::textColourId, ColourScheme::textPrimary);
-    setColour(juce::TextEditor::highlightColourId, ColourScheme::primary.withAlpha(0.4f));
-    setColour(juce::TextEditor::highlightedTextColourId, ColourScheme::textPrimary);
-    setColour(juce::TextEditor::outlineColourId, ColourScheme::inputBorder);
-    setColour(juce::TextEditor::focusedOutlineColourId, ColourScheme::primary);
-    setColour(juce::CaretComponent::caretColourId, ColourScheme::primary);
+    setColour(juce::TextEditor::backgroundColourId, AppColours::inputBg);
+    setColour(juce::TextEditor::textColourId, AppColours::textPrimary);
+    setColour(juce::TextEditor::highlightColourId, AppColours::primary.withAlpha(0.4f));
+    setColour(juce::TextEditor::highlightedTextColourId, AppColours::textPrimary);
+    setColour(juce::TextEditor::outlineColourId, AppColours::inputBorder);
+    setColour(juce::TextEditor::focusedOutlineColourId, AppColours::primary);
+    setColour(juce::CaretComponent::caretColourId, AppColours::primary);
     
     // Label
-    setColour(juce::Label::textColourId, ColourScheme::textPrimary);
+    setColour(juce::Label::textColourId, AppColours::textPrimary);
     setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     
     // Slider
-    setColour(juce::Slider::backgroundColourId, ColourScheme::surfaceAlt);
-    setColour(juce::Slider::thumbColourId, ColourScheme::primary);
-    setColour(juce::Slider::trackColourId, ColourScheme::primary);
-    setColour(juce::Slider::textBoxTextColourId, ColourScheme::textPrimary);
-    setColour(juce::Slider::textBoxBackgroundColourId, ColourScheme::inputBg);
-    setColour(juce::Slider::textBoxOutlineColourId, ColourScheme::inputBorder);
+    setColour(juce::Slider::backgroundColourId, AppColours::surfaceAlt);
+    setColour(juce::Slider::thumbColourId, AppColours::primary);
+    setColour(juce::Slider::trackColourId, AppColours::primary);
+    setColour(juce::Slider::textBoxTextColourId, AppColours::textPrimary);
+    setColour(juce::Slider::textBoxBackgroundColourId, AppColours::inputBg);
+    setColour(juce::Slider::textBoxOutlineColourId, AppColours::inputBorder);
     
     // Progress bar
-    setColour(juce::ProgressBar::backgroundColourId, ColourScheme::surfaceAlt);
-    setColour(juce::ProgressBar::foregroundColourId, ColourScheme::primary);
+    setColour(juce::ProgressBar::backgroundColourId, AppColours::surfaceAlt);
+    setColour(juce::ProgressBar::foregroundColourId, AppColours::primary);
     
     // Popup menu
-    setColour(juce::PopupMenu::backgroundColourId, ColourScheme::surface);
-    setColour(juce::PopupMenu::textColourId, ColourScheme::textPrimary);
-    setColour(juce::PopupMenu::highlightedBackgroundColourId, ColourScheme::primary);
-    setColour(juce::PopupMenu::highlightedTextColourId, ColourScheme::textPrimary);
+    setColour(juce::PopupMenu::backgroundColourId, AppColours::surface);
+    setColour(juce::PopupMenu::textColourId, AppColours::textPrimary);
+    setColour(juce::PopupMenu::highlightedBackgroundColourId, AppColours::primary);
+    setColour(juce::PopupMenu::highlightedTextColourId, AppColours::textPrimary);
     
     // Combo box
-    setColour(juce::ComboBox::backgroundColourId, ColourScheme::inputBg);
-    setColour(juce::ComboBox::textColourId, ColourScheme::textPrimary);
-    setColour(juce::ComboBox::outlineColourId, ColourScheme::inputBorder);
-    setColour(juce::ComboBox::arrowColourId, ColourScheme::textSecondary);
+    setColour(juce::ComboBox::backgroundColourId, AppColours::inputBg);
+    setColour(juce::ComboBox::textColourId, AppColours::textPrimary);
+    setColour(juce::ComboBox::outlineColourId, AppColours::inputBorder);
+    setColour(juce::ComboBox::arrowColourId, AppColours::textSecondary);
     
     // Scroll bar
-    setColour(juce::ScrollBar::thumbColourId, ColourScheme::textSecondary.withAlpha(0.4f));
+    setColour(juce::ScrollBar::thumbColourId, AppColours::textSecondary.withAlpha(0.4f));
     setColour(juce::ScrollBar::backgroundColourId, juce::Colours::transparentBlack);
     
     // Alert window
-    setColour(juce::AlertWindow::backgroundColourId, ColourScheme::surface);
-    setColour(juce::AlertWindow::textColourId, ColourScheme::textPrimary);
-    setColour(juce::AlertWindow::outlineColourId, ColourScheme::border);
+    setColour(juce::AlertWindow::backgroundColourId, AppColours::surface);
+    setColour(juce::AlertWindow::textColourId, AppColours::textPrimary);
+    setColour(juce::AlertWindow::outlineColourId, AppColours::border);
 }
 
 //==============================================================================
@@ -83,16 +83,16 @@ void AppLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& butto
     juce::Colour baseColour = backgroundColour;
     
     if (shouldDrawButtonAsDown)
-        baseColour = ColourScheme::buttonPressed;
+        baseColour = AppColours::buttonPressed;
     else if (shouldDrawButtonAsHighlighted)
-        baseColour = ColourScheme::buttonHover;
+        baseColour = AppColours::buttonHover;
     
     // Background
     g.setColour(baseColour);
     g.fillRoundedRectangle(bounds, cornerSize);
     
     // Border
-    g.setColour(ColourScheme::border);
+    g.setColour(AppColours::border);
     g.drawRoundedRectangle(bounds, cornerSize, 1.0f);
 }
 
@@ -108,7 +108,7 @@ void AppLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& button,
         : juce::TextButton::textColourOffId);
     
     if (!button.isEnabled())
-        textColour = ColourScheme::textDisabled;
+        textColour = AppColours::textDisabled;
     
     g.setColour(textColour);
     
@@ -155,7 +155,7 @@ void AppLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width
     juce::Path backgroundTrack;
     backgroundTrack.startNewSubPath(startPoint);
     backgroundTrack.lineTo(endPoint);
-    g.setColour(ColourScheme::surfaceAlt);
+    g.setColour(AppColours::surfaceAlt);
     g.strokePath(backgroundTrack, { trackWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded });
     
     // Value track
@@ -165,17 +165,17 @@ void AppLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width
     
     valueTrack.startNewSubPath(startPoint);
     valueTrack.lineTo(thumbPoint);
-    g.setColour(ColourScheme::primary);
+    g.setColour(AppColours::primary);
     g.strokePath(valueTrack, { trackWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded });
     
     // Thumb
     auto thumbWidth = slider.isHorizontal() ? trackWidth * 2.0f : (float)width;
     auto thumbHeight = slider.isHorizontal() ? (float)height : trackWidth * 2.0f;
     
-    g.setColour(ColourScheme::primary);
+    g.setColour(AppColours::primary);
     g.fillEllipse(juce::Rectangle<float>(thumbWidth, thumbWidth).withCentre(thumbPoint));
     
-    g.setColour(ColourScheme::textPrimary);
+    g.setColour(AppColours::textPrimary);
     g.drawEllipse(juce::Rectangle<float>(thumbWidth, thumbWidth).withCentre(thumbPoint), 1.0f);
 }
 
@@ -192,7 +192,7 @@ void AppLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width
     auto angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
     
     // Background
-    g.setColour(ColourScheme::surfaceAlt);
+    g.setColour(AppColours::surfaceAlt);
     g.fillEllipse(rx, ry, rw, rw);
     
     // Arc
@@ -200,7 +200,7 @@ void AppLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width
     arc.addCentredArc(centreX, centreY, radius - 2.0f, radius - 2.0f, 0.0f,
                      rotaryStartAngle, angle, true);
     
-    g.setColour(ColourScheme::primary);
+    g.setColour(AppColours::primary);
     g.strokePath(arc, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     
     // Pointer
@@ -210,7 +210,7 @@ void AppLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width
     pointer.addRectangle(-pointerThickness * 0.5f, -radius + 4.0f, pointerThickness, pointerLength);
     pointer.applyTransform(juce::AffineTransform::rotation(angle).translated(centreX, centreY));
     
-    g.setColour(ColourScheme::textPrimary);
+    g.setColour(AppColours::textPrimary);
     g.fillPath(pointer);
 }
 
@@ -250,7 +250,7 @@ void AppLookAndFeel::drawProgressBar(juce::Graphics& g, juce::ProgressBar& bar,
     // Text
     if (textToShow.isNotEmpty())
     {
-        g.setColour(ColourScheme::textPrimary);
+        g.setColour(AppColours::textPrimary);
         g.setFont(height * 0.6f);
         g.drawText(textToShow, bounds, juce::Justification::centred, false);
     }
@@ -277,8 +277,8 @@ void AppLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& label)
 //==============================================================================
 void AppLookAndFeel::drawPopupMenuBackground(juce::Graphics& g, int width, int height)
 {
-    g.fillAll(ColourScheme::surface);
-    g.setColour(ColourScheme::border);
+    g.fillAll(AppColours::surface);
+    g.setColour(AppColours::border);
     g.drawRect(0, 0, width, height, 1);
 }
 
@@ -293,7 +293,7 @@ void AppLookAndFeel::drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<
         auto r = area.reduced(5, 0);
         r.removeFromTop(r.getHeight() / 2 - 1);
         
-        g.setColour(ColourScheme::separator);
+        g.setColour(AppColours::separator);
         g.fillRect(r.removeFromTop(1));
     }
     else
@@ -302,12 +302,12 @@ void AppLookAndFeel::drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<
         
         if (isHighlighted && isActive)
         {
-            g.setColour(ColourScheme::primary);
+            g.setColour(AppColours::primary);
             g.fillRect(area);
         }
         
-        g.setColour(isActive ? (isHighlighted ? ColourScheme::textPrimary : ColourScheme::textPrimary)
-                            : ColourScheme::textDisabled);
+        g.setColour(isActive ? (isHighlighted ? AppColours::textPrimary : AppColours::textPrimary)
+                            : AppColours::textDisabled);
         
         auto font = getPopupMenuFont();
         g.setFont(font);
@@ -329,7 +329,8 @@ void AppLookAndFeel::drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<
         if (isTicked)
         {
             auto tickWidth = area.getHeight() * 0.7f;
-            g.drawText(juce::String::charToString(0x2713), area.removeFromLeft((int)tickWidth), 
+            auto tickArea = area.withWidth((int)tickWidth);
+            g.drawText(juce::String::charToString(0x2713), tickArea, 
                       juce::Justification::centred);
         }
         
@@ -337,7 +338,7 @@ void AppLookAndFeel::drawPopupMenuItem(juce::Graphics& g, const juce::Rectangle<
         
         if (shortcutKeyText.isNotEmpty())
         {
-            g.setColour(ColourScheme::textSecondary);
+            g.setColour(AppColours::textSecondary);
             g.drawText(shortcutKeyText, textArea, juce::Justification::centredRight);
         }
     }

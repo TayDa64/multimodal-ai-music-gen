@@ -9,10 +9,22 @@
   ==============================================================================
 */
 
-#include <JuceHeader.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_audio_utils/juce_audio_utils.h>
 #include "MainComponent.h"
 #include "Application/AppState.h"
+#include "Audio/AudioEngine.h"
 #include "UI/Theme/AppLookAndFeel.h"
+
+//==============================================================================
+// Application info (replaces auto-generated ProjectInfo)
+namespace ProjectInfo
+{
+    static constexpr const char* projectName = "AI Music Generator";
+    static constexpr const char* companyName = "Multimodal AI";
+    static constexpr const char* versionString = "1.0.0";
+    static constexpr int versionNumber = 0x10000;
+}
 
 //==============================================================================
 /**
@@ -50,18 +62,26 @@ public:
     {
         juce::ignoreUnused(commandLine);
         
-        // Initialize custom look and feel
+        // Initialize look and feel
         lookAndFeel = std::make_unique<AppLookAndFeel>();
         juce::LookAndFeel::setDefaultLookAndFeel(lookAndFeel.get());
         
         // Initialize application state
         appState = std::make_unique<AppState>();
         
+        // Initialize audio engine
+        audioEngine = std::make_unique<mmg::AudioEngine>();
+        auto audioError = audioEngine->initialise();
+        if (audioError.isNotEmpty())
+        {
+            DBG("Warning: Audio engine initialization failed: " + audioError);
+            // Continue anyway - user can fix audio settings later
+        }
+        
         // Create main window
-        mainWindow = std::make_unique<MainWindow>(getApplicationName(), *appState);
+        mainWindow = std::make_unique<MainWindow>(getApplicationName(), *appState, *audioEngine);
         
         DBG("=== AI Music Generator Started ===");
-        DBG("Version: " << getApplicationVersion());
     }
 
     void shutdown() override
@@ -72,8 +92,14 @@ public:
         if (appState)
             appState->saveSettings();
         
-        // Clean up
+        // Clean up (order matters!)
         mainWindow = nullptr;
+        
+        // Shutdown audio engine before destroying
+        if (audioEngine)
+            audioEngine->shutdown();
+        audioEngine = nullptr;
+        
         appState = nullptr;
         
         // Reset look and feel
@@ -133,15 +159,16 @@ public:
     class MainWindow : public juce::DocumentWindow
     {
     public:
-        MainWindow(juce::String name, AppState& state)
+        MainWindow(juce::String name, AppState& state, mmg::AudioEngine& engine)
             : DocumentWindow(name,
                             juce::Desktop::getInstance().getDefaultLookAndFeel()
                                 .findColour(juce::ResizableWindow::backgroundColourId),
                             DocumentWindow::allButtons),
-              appState(state)
+              appState(state),
+              audioEngine(engine)
         {
             setUsingNativeTitleBar(true);
-            setContentOwned(new MainComponent(appState), true);
+            setContentOwned(new MainComponent(appState, audioEngine), true);
 
             #if JUCE_IOS || JUCE_ANDROID
                 setFullScreen(true);
@@ -177,17 +204,20 @@ public:
         void moved() override
         {
             DocumentWindow::moved();
-            appState.setWindowBounds(getBounds());
+            if (isVisible())
+                appState.setWindowBounds(getBounds());
         }
         
         void resized() override
         {
             DocumentWindow::resized();
-            appState.setWindowBounds(getBounds());
+            if (isVisible())
+                appState.setWindowBounds(getBounds());
         }
 
     private:
         AppState& appState;
+        mmg::AudioEngine& audioEngine;
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainWindow)
     };
@@ -195,6 +225,7 @@ public:
 private:
     std::unique_ptr<MainWindow> mainWindow;
     std::unique_ptr<AppState> appState;
+    std::unique_ptr<mmg::AudioEngine> audioEngine;
     std::unique_ptr<AppLookAndFeel> lookAndFeel;
 };
 

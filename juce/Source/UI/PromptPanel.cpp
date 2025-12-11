@@ -42,7 +42,7 @@ void PromptPanel::setupPromptInput()
     promptInput.setScrollbarsShown(true);
     promptInput.setPopupMenuEnabled(true);
     promptInput.setTextToShowWhenEmpty("Describe the music you want to generate...", 
-                                       ColourScheme::textSecondary);
+                                       AppColours::textSecondary);
     promptInput.setFont(juce::Font(14.0f));
     
     // Handle Enter key to generate
@@ -61,7 +61,7 @@ void PromptPanel::setupGenreSelector()
     // Label
     genreLabel.setText("Genre", juce::dontSendNotification);
     genreLabel.setFont(juce::Font(12.0f));
-    genreLabel.setColour(juce::Label::textColourId, ColourScheme::textSecondary);
+    genreLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     addAndMakeVisible(genreLabel);
     
     // Setup genre presets
@@ -104,34 +104,31 @@ void PromptPanel::setupDurationControls()
     // Label
     durationLabel.setText("Duration", juce::dontSendNotification);
     durationLabel.setFont(juce::Font(12.0f));
-    durationLabel.setColour(juce::Label::textColourId, ColourScheme::textSecondary);
+    durationLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     addAndMakeVisible(durationLabel);
     
-    // Slider
+    // Slider with text box showing value
     durationSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-    durationSlider.setTextBoxStyle(juce::Slider::NoTextBox, true, 0, 0);
+    durationSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
     durationSlider.setRange(4, 32, 4);
     durationSlider.setValue(appState.getDurationBars());
+    durationSlider.setTextValueSuffix(" bars");
     durationSlider.onValueChange = [this] {
         int bars = (int)durationSlider.getValue();
         appState.setDurationBars(bars);
-        durationValueLabel.setText(juce::String(bars) + " bars", juce::dontSendNotification);
     };
     addAndMakeVisible(durationSlider);
     
-    // Value label
-    durationValueLabel.setText(juce::String(appState.getDurationBars()) + " bars", 
-                               juce::dontSendNotification);
-    durationValueLabel.setFont(juce::Font(12.0f));
-    durationValueLabel.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(durationValueLabel);
+    // Value label no longer needed since slider shows it
+    durationValueLabel.setVisible(false);
 }
 
 void PromptPanel::setupGenerateButton()
 {
-    // Generate button
-    generateButton.setColour(juce::TextButton::buttonColourId, ColourScheme::primary);
-    generateButton.setColour(juce::TextButton::textColourOffId, ColourScheme::textPrimary);
+    // Generate button - always visible when not generating
+    generateButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
+    generateButton.setColour(juce::TextButton::textColourOffId, AppColours::textPrimary);
+    generateButton.setButtonText("Generate");
     generateButton.onClick = [this] {
         if (!isGenerating && promptInput.getText().isNotEmpty())
         {
@@ -151,27 +148,29 @@ void PromptPanel::setupGenerateButton()
             listeners.call(&Listener::generateRequested, finalPrompt);
         }
     };
-    generateButton.setEnabled(false); // Disabled until connected
+    // Enable button even when disconnected - will show error message if clicked
+    generateButton.setEnabled(true);
+    generateButton.setVisible(true);
     addAndMakeVisible(generateButton);
     
-    // Cancel button
-    cancelButton.setColour(juce::TextButton::buttonColourId, ColourScheme::error);
+    // Cancel button - only shown during generation
+    cancelButton.setColour(juce::TextButton::buttonColourId, AppColours::error);
     cancelButton.onClick = [this] {
         listeners.call(&Listener::cancelRequested);
     };
     cancelButton.setVisible(false);
-    addAndMakeVisible(cancelButton);
+    addChildComponent(cancelButton); // Use addChildComponent since it starts hidden
 }
 
 //==============================================================================
 void PromptPanel::paint(juce::Graphics& g)
 {
     // Background
-    g.setColour(ColourScheme::surface);
+    g.setColour(AppColours::surface);
     g.fillRoundedRectangle(getLocalBounds().toFloat(), 8.0f);
     
     // Border
-    g.setColour(ColourScheme::border);
+    g.setColour(AppColours::border);
     g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 8.0f, 1.0f);
 }
 
@@ -184,32 +183,31 @@ void PromptPanel::resized()
     bounds.removeFromTop(8);
     
     // Prompt input (takes most of the space)
-    auto inputHeight = juce::jmax(60, bounds.getHeight() - 100);
+    auto inputHeight = juce::jmax(60, bounds.getHeight() - 120);
     promptInput.setBounds(bounds.removeFromTop(inputHeight));
     bounds.removeFromTop(12);
     
-    // Controls row
-    auto controlsRow = bounds.removeFromTop(28);
+    // Genre row
+    auto genreRow = bounds.removeFromTop(28);
+    genreLabel.setBounds(genreRow.removeFromLeft(45).withHeight(28));
+    genreSelector.setBounds(genreRow.removeFromLeft(120).withHeight(28));
     
-    // Genre selector
-    genreLabel.setBounds(controlsRow.removeFromLeft(50).withHeight(28));
-    genreSelector.setBounds(controlsRow.removeFromLeft(120).withHeight(28));
-    controlsRow.removeFromLeft(16);
+    bounds.removeFromTop(8);
     
-    // Duration controls
-    durationLabel.setBounds(controlsRow.removeFromLeft(60).withHeight(28));
-    durationSlider.setBounds(controlsRow.removeFromLeft(100).withHeight(28));
-    durationValueLabel.setBounds(controlsRow.removeFromLeft(60).withHeight(28));
+    // Duration row (separate line for clarity)
+    auto durationRow = bounds.removeFromTop(28);
+    durationLabel.setBounds(durationRow.removeFromLeft(60).withHeight(28));
+    durationSlider.setBounds(durationRow.withHeight(28)); // Takes remaining width
     
     bounds.removeFromTop(12);
     
     // Generate button row
     auto buttonRow = bounds.removeFromTop(36);
-    auto buttonWidth = 120;
+    auto buttonWidth = 140;
     
     // Center the button
     auto buttonX = (buttonRow.getWidth() - buttonWidth) / 2;
-    generateButton.setBounds(buttonRow.withX(buttonRow.getX() + buttonX).withWidth(buttonWidth));
+    generateButton.setBounds(buttonRow.withX(buttonRow.getX() + buttonX).withWidth(buttonWidth).withHeight(32));
     cancelButton.setBounds(generateButton.getBounds());
 }
 
@@ -250,24 +248,48 @@ void PromptPanel::onGenerationProgress(const GenerationProgress& /*progress*/)
 void PromptPanel::onGenerationCompleted(const juce::File& /*outputFile*/)
 {
     juce::MessageManager::callAsync([this] {
+        DBG("PromptPanel::onGenerationCompleted - resetting UI state");
         isGenerating = false;
+        
+        // Restore Generate button
         generateButton.setVisible(true);
+        generateButton.setEnabled(true);
+        generateButton.setButtonText(isConnected ? "Generate" : "Generate (Offline)");
+        
+        // Hide Cancel button
         cancelButton.setVisible(false);
+        
+        // Re-enable all input controls
         promptInput.setEnabled(true);
         genreSelector.setEnabled(true);
         durationSlider.setEnabled(true);
+        
+        // Force repaint to ensure UI updates
+        repaint();
     });
 }
 
 void PromptPanel::onGenerationError(const juce::String& /*error*/)
 {
     juce::MessageManager::callAsync([this] {
+        DBG("PromptPanel::onGenerationError - resetting UI state");
         isGenerating = false;
+        
+        // Restore Generate button
         generateButton.setVisible(true);
+        generateButton.setEnabled(true);
+        generateButton.setButtonText(isConnected ? "Generate" : "Generate (Offline)");
+        
+        // Hide Cancel button
         cancelButton.setVisible(false);
+        
+        // Re-enable all input controls
         promptInput.setEnabled(true);
         genreSelector.setEnabled(true);
         durationSlider.setEnabled(true);
+        
+        // Force repaint
+        repaint();
     });
 }
 
@@ -275,16 +297,9 @@ void PromptPanel::onConnectionStatusChanged(bool connected)
 {
     juce::MessageManager::callAsync([this, connected] {
         isConnected = connected;
-        generateButton.setEnabled(connected && !isGenerating && promptInput.getText().isNotEmpty());
-        
-        if (!connected)
-        {
-            generateButton.setButtonText("Connecting...");
-        }
-        else
-        {
-            generateButton.setButtonText("Generate");
-        }
+        // Keep button enabled - clicking when disconnected shows helpful error message
+        generateButton.setEnabled(!isGenerating);
+        generateButton.setButtonText(connected ? "Generate" : "Generate (Offline)");
     });
 }
 

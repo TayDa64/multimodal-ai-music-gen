@@ -10,12 +10,15 @@
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_osc/juce_osc.h>
 #include "Application/AppState.h"
+#include "Audio/AudioEngine.h"
 #include "Communication/OSCBridge.h"
 #include "UI/TransportComponent.h"
 #include "UI/PromptPanel.h"
 #include "UI/ProgressOverlay.h"
+#include "UI/RecentFilesPanel.h"
 
 //==============================================================================
 /**
@@ -26,23 +29,24 @@
     │  Transport Bar (play/pause/stop, position, BPM)                         │
     ├─────────────────────────────────────────────────────────────────────────┤
     │                           │                                              │
-    │   Prompt Panel            │          Visualization Area                  │
-    │   (text input,            │          (piano roll, waveform)              │
+    │   Prompt Panel            │          Recent Files / Visualization        │
+    │   (text input,            │          (file browser, piano roll)          │
     │    generate btn)          │                                              │
     │                           │                                              │
     ├───────────────────────────┴──────────────────────────────────────────────┤
-    │  Mixer / Instrument Browser (collapsible)                                │
+    │  Status Bar / Quick Actions                                              │
     └─────────────────────────────────────────────────────────────────────────┘
 */
 class MainComponent : public juce::Component,
                       public OSCBridge::Listener,
                       public PromptPanel::Listener,
                       public ProgressOverlay::Listener,
+                      public RecentFilesPanel::Listener,
                       public juce::Timer
 {
 public:
     //==============================================================================
-    MainComponent(AppState& state);
+    MainComponent(AppState& state, mmg::AudioEngine& engine);
     ~MainComponent() override;
 
     //==============================================================================
@@ -62,6 +66,10 @@ public:
     void cancelRequested() override;
     
     //==============================================================================
+    // RecentFilesPanel::Listener
+    void fileSelected(const juce::File& file) override;
+    
+    //==============================================================================
     // Timer callback for UI updates
     void timerCallback() override;
 
@@ -69,6 +77,7 @@ private:
     //==============================================================================
     // State
     AppState& appState;
+    mmg::AudioEngine& audioEngine;
     std::unique_ptr<OSCBridge> oscBridge;
     
     //==============================================================================
@@ -76,6 +85,7 @@ private:
     std::unique_ptr<TransportComponent> transportBar;
     std::unique_ptr<PromptPanel> promptPanel;
     std::unique_ptr<ProgressOverlay> progressOverlay;
+    std::unique_ptr<RecentFilesPanel> recentFilesPanel;
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;

@@ -10,8 +10,9 @@
 
 #pragma once
 
-#include <JuceHeader.h>
+#include <juce_gui_basics/juce_gui_basics.h>
 #include "../Application/AppState.h"
+#include "../Audio/AudioEngine.h"
 
 //==============================================================================
 /**
@@ -19,11 +20,12 @@
 */
 class TransportComponent  : public juce::Component,
                            private AppState::Listener,
+                           private mmg::AudioEngine::Listener,
                            private juce::Timer
 {
 public:
     //==============================================================================
-    TransportComponent(AppState& state);
+    TransportComponent(AppState& state, mmg::AudioEngine& engine);
     ~TransportComponent() override;
 
     //==============================================================================
@@ -66,11 +68,16 @@ private:
     void onGenerationError(const juce::String& error) override;
     void onConnectionStatusChanged(bool connected) override;
     
+    // AudioEngine::Listener
+    void transportStateChanged(mmg::AudioEngine::TransportState newState) override;
+    void audioDeviceChanged() override;
+    
     // Timer
     void timerCallback() override;
     
     //==============================================================================
     AppState& appState;
+    mmg::AudioEngine& audioEngine;
     juce::ListenerList<Listener> listeners;
     
     // Transport buttons
@@ -85,6 +92,12 @@ private:
     // BPM control
     juce::Slider bpmSlider;
     juce::Label bpmLabel;
+    
+    // Test tone (for audio verification)
+    juce::ToggleButton testToneButton{ "Test Tone" };
+    
+    // Load MIDI button (for testing)
+    juce::TextButton loadMidiButton{ "Load MIDI" };
     
     // Time display
     juce::Label timeDisplay;

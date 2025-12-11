@@ -27,21 +27,30 @@ ProgressOverlay::ProgressOverlay(AppState& state)
     // Step label
     stepLabel.setText("Initializing...", juce::dontSendNotification);
     stepLabel.setFont(juce::Font(14.0f));
-    stepLabel.setColour(juce::Label::textColourId, ColourScheme::textSecondary);
+    stepLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     stepLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(stepLabel);
     
     // Percent label
     percentLabel.setText("0%", juce::dontSendNotification);
     percentLabel.setFont(juce::Font(48.0f, juce::Font::bold));
-    percentLabel.setColour(juce::Label::textColourId, ColourScheme::primary);
+    percentLabel.setColour(juce::Label::textColourId, AppColours::primary);
     percentLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(percentLabel);
     
-    // Cancel button
-    cancelButton.setColour(juce::TextButton::buttonColourId, ColourScheme::error);
+    // Cancel button - more prominent
+    cancelButton.setColour(juce::TextButton::buttonColourId, AppColours::error);
+    cancelButton.setColour(juce::TextButton::textColourOffId, juce::Colours::white);
     cancelButton.onClick = [this] {
+        // Immediately start hiding and notify listeners
+        stepLabel.setText("Cancelling...", juce::dontSendNotification);
+        cancelButton.setEnabled(false);
         listeners.call(&Listener::cancelRequested);
+        
+        // Hide after a brief delay
+        juce::Timer::callAfterDelay(500, [this] {
+            hide();
+        });
     };
     addAndMakeVisible(cancelButton);
     
@@ -58,7 +67,7 @@ ProgressOverlay::~ProgressOverlay()
 void ProgressOverlay::paint(juce::Graphics& g)
 {
     // Semi-transparent background
-    g.setColour(ColourScheme::background.withAlpha(fadeAlpha * 0.9f));
+    g.setColour(AppColours::background.withAlpha(fadeAlpha * 0.9f));
     g.fillAll();
     
     auto bounds = getLocalBounds();
@@ -67,10 +76,10 @@ void ProgressOverlay::paint(juce::Graphics& g)
     
     // Card background
     auto cardBounds = juce::Rectangle<float>(300, 280).withCentre({ (float)centerX, (float)centerY });
-    g.setColour(ColourScheme::surface.withAlpha(fadeAlpha));
+    g.setColour(AppColours::surface.withAlpha(fadeAlpha));
     g.fillRoundedRectangle(cardBounds, 12.0f);
     
-    g.setColour(ColourScheme::border.withAlpha(fadeAlpha));
+    g.setColour(AppColours::border.withAlpha(fadeAlpha));
     g.drawRoundedRectangle(cardBounds, 12.0f, 1.0f);
     
     // Progress ring
@@ -79,7 +88,7 @@ void ProgressOverlay::paint(juce::Graphics& g)
     auto ringRadius = ringBounds.getWidth() * 0.45f;
     
     // Background ring
-    g.setColour(ColourScheme::surfaceAlt.withAlpha(fadeAlpha));
+    g.setColour(AppColours::surfaceAlt.withAlpha(fadeAlpha));
     g.drawEllipse(ringBounds.reduced(5), 6.0f);
     
     // Progress arc
@@ -90,7 +99,7 @@ void ProgressOverlay::paint(juce::Graphics& g)
     progressArc.addCentredArc(ringCenter.x, ringCenter.y, ringRadius, ringRadius,
                              0, startAngle, endAngle, true);
     
-    g.setColour(ColourScheme::primary.withAlpha(fadeAlpha));
+    g.setColour(AppColours::primary.withAlpha(fadeAlpha));
     g.strokePath(progressArc, juce::PathStrokeType(6.0f, juce::PathStrokeType::curved,
                                                     juce::PathStrokeType::rounded));
     
@@ -104,7 +113,7 @@ void ProgressOverlay::paint(juce::Graphics& g)
         spinnerArc.addCentredArc(ringCenter.x, ringCenter.y, ringRadius, ringRadius,
                                 0, spinStart, spinEnd, true);
         
-        g.setColour(ColourScheme::primary.withAlpha(fadeAlpha * 0.5f));
+        g.setColour(AppColours::primary.withAlpha(fadeAlpha * 0.5f));
         g.strokePath(spinnerArc, juce::PathStrokeType(6.0f, juce::PathStrokeType::curved,
                                                        juce::PathStrokeType::rounded));
     }
@@ -139,7 +148,9 @@ void ProgressOverlay::show()
     currentProgress = 0.0;
     currentStep = "Initializing...";
     stepLabel.setText(currentStep, juce::dontSendNotification);
+    stepLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     percentLabel.setText("0%", juce::dontSendNotification);
+    cancelButton.setEnabled(true);
     
     fadeAlpha = 0.0f;
     fadingIn = true;
@@ -153,6 +164,8 @@ void ProgressOverlay::hide()
 {
     fadingIn = false;
     fadingOut = true;
+    // Re-enable cancel button for next time
+    cancelButton.setEnabled(true);
 }
 
 //==============================================================================
@@ -194,12 +207,12 @@ void ProgressOverlay::onGenerationError(const juce::String& error)
 {
     juce::MessageManager::callAsync([this, error] {
         stepLabel.setText("Error: " + error, juce::dontSendNotification);
-        stepLabel.setColour(juce::Label::textColourId, ColourScheme::error);
+        stepLabel.setColour(juce::Label::textColourId, AppColours::error);
         
         // Delay hide for user to see error
         juce::Timer::callAfterDelay(2000, [this] {
             hide();
-            stepLabel.setColour(juce::Label::textColourId, ColourScheme::textSecondary);
+            stepLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
         });
     });
 }
