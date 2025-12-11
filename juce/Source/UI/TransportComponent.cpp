@@ -10,6 +10,7 @@
 
 #include "TransportComponent.h"
 #include "Theme/ColourScheme.h"
+#include "AudioSettingsDialog.h"
 
 //==============================================================================
 TransportComponent::TransportComponent(AppState& state, mmg::AudioEngine& engine)
@@ -137,6 +138,14 @@ void TransportComponent::setupSliders()
             });
     };
     addAndMakeVisible(loadMidiButton);
+    
+    // Audio settings button
+    audioSettingsButton.setColour(juce::TextButton::buttonColourId, AppColours::surfaceAlt);
+    audioSettingsButton.setTooltip("Audio Settings");
+    audioSettingsButton.onClick = [this] {
+        AudioSettingsDialog::showDialog(audioEngine, this);
+    };
+    addAndMakeVisible(audioSettingsButton);
 }
 
 void TransportComponent::setupLabels()
@@ -156,6 +165,14 @@ void TransportComponent::setupLabels()
     timeDisplay.setFont(juce::Font(16.0f, juce::Font::bold));
     timeDisplay.setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(timeDisplay);
+    
+    // Bar:Beat display
+    barBeatDisplay.setText("1:1", juce::dontSendNotification);
+    barBeatDisplay.setFont(juce::Font(12.0f));
+    barBeatDisplay.setColour(juce::Label::textColourId, AppColours::primary);
+    barBeatDisplay.setJustificationType(juce::Justification::centred);
+    barBeatDisplay.setTooltip("Bar : Beat");
+    addAndMakeVisible(barBeatDisplay);
     
     // Duration display
     durationDisplay.setText("/ 0:00", juce::dontSendNotification);
@@ -193,13 +210,14 @@ void TransportComponent::resized()
     auto buttonWidth = 60;
     auto centerY = bounds.getCentreY() - buttonHeight / 2;
     
-    // Left section - transport buttons + load MIDI
-    auto leftSection = bounds.removeFromLeft(280);
+    // Left section - transport buttons + load MIDI + settings
+    auto leftSection = bounds.removeFromLeft(320);
     
     playButton.setBounds(leftSection.getX(), centerY, buttonWidth, buttonHeight);
     pauseButton.setBounds(leftSection.getX() + buttonWidth + 4, centerY, buttonWidth, buttonHeight);
     stopButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 2, centerY, buttonWidth, buttonHeight);
     loadMidiButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3, centerY, 70, buttonHeight);
+    audioSettingsButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3 + 74, centerY, 30, buttonHeight);
     
     // Right section - Status, BPM, test tone
     auto rightSection = bounds.removeFromRight(340);
@@ -216,14 +234,15 @@ void TransportComponent::resized()
     bpmLabel.setBounds(rightSection.removeFromLeft(35).withHeight(20).withY(centerY + 4));
     bpmSlider.setBounds(rightSection.removeFromLeft(100).withHeight(20).withY(centerY + 4));
     
-    // Center section - time display and position slider
+    // Center section - time display, bar:beat, and position slider
     bounds.removeFromLeft(16);
     bounds.removeFromRight(16);
     
     // Time display
-    auto timeSection = bounds.removeFromLeft(100);
+    auto timeSection = bounds.removeFromLeft(130);
     timeDisplay.setBounds(timeSection.removeFromLeft(45).withHeight(20).withY(centerY + 4));
-    durationDisplay.setBounds(timeSection.withHeight(20).withY(centerY + 4));
+    durationDisplay.setBounds(timeSection.removeFromLeft(45).withHeight(20).withY(centerY + 4));
+    barBeatDisplay.setBounds(timeSection.withHeight(20).withY(centerY + 4));
     
     bounds.removeFromLeft(8);
     
@@ -256,6 +275,20 @@ void TransportComponent::updateTimeDisplay()
     
     timeDisplay.setText(currentStr, juce::dontSendNotification);
     durationDisplay.setText("/ " + totalStr, juce::dontSendNotification);
+    
+    // Calculate bar:beat display
+    int bpm = appState.getBPM();
+    if (bpm > 0)
+    {
+        double secondsPerBeat = 60.0 / bpm;
+        double totalBeats = currentPosition / secondsPerBeat;
+        
+        int bar = (int)(totalBeats / 4.0) + 1;  // 4 beats per bar
+        int beat = (int)std::fmod(totalBeats, 4.0) + 1;
+        
+        barBeatDisplay.setText(juce::String(bar) + ":" + juce::String(beat), 
+                               juce::dontSendNotification);
+    }
     
     if (totalDuration > 0)
         positionSlider.setValue(currentPosition / totalDuration, juce::dontSendNotification);

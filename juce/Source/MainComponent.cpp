@@ -24,6 +24,12 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     transportBar->setVisible(true);
     addAndMakeVisible(*transportBar);
     
+    // Timeline component - shows sections, beat markers, playhead
+    timelineComponent = std::make_unique<TimelineComponent>(appState, audioEngine);
+    timelineComponent->setBPM(appState.getBPM());
+    timelineComponent->setVisible(true);
+    addAndMakeVisible(*timelineComponent);
+    
     promptPanel = std::make_unique<PromptPanel>(appState);
     promptPanel->addListener(this);
     promptPanel->setVisible(true);
@@ -144,6 +150,13 @@ void MainComponent::resized()
     {
         transportBar->setBounds(bounds.removeFromTop(transportHeight));
         transportBar->setVisible(true);
+    }
+    
+    // Timeline below transport (65px)
+    if (timelineComponent)
+    {
+        timelineComponent->setBounds(bounds.removeFromTop(timelineHeight).reduced(padding, 0));
+        timelineComponent->setVisible(true);
     }
     
     // Bottom panel (150px)

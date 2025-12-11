@@ -135,6 +135,10 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/ProgressOverlay.h
     Source/UI/RecentFilesPanel.cpp
     Source/UI/RecentFilesPanel.h
+    Source/UI/TimelineComponent.cpp
+    Source/UI/TimelineComponent.h
+    Source/UI/AudioSettingsDialog.cpp
+    Source/UI/AudioSettingsDialog.h
     
     # Look and Feel
     Source/UI/Theme/AppLookAndFeel.cpp

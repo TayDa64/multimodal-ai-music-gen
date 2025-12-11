@@ -19,6 +19,7 @@
 #include "UI/PromptPanel.h"
 #include "UI/ProgressOverlay.h"
 #include "UI/RecentFilesPanel.h"
+#include "UI/TimelineComponent.h"
 
 //==============================================================================
 /**
@@ -83,6 +84,7 @@ private:
     //==============================================================================
     // UI Components
     std::unique_ptr<TransportComponent> transportBar;
+    std::unique_ptr<TimelineComponent> timelineComponent;
     std::unique_ptr<PromptPanel> promptPanel;
     std::unique_ptr<ProgressOverlay> progressOverlay;
     std::unique_ptr<RecentFilesPanel> recentFilesPanel;
@@ -94,6 +96,7 @@ private:
     //==============================================================================
     // Layout constants
     static constexpr int transportHeight = 50;
+    static constexpr int timelineHeight = 65;
     static constexpr int promptPanelWidth = 320;
     static constexpr int bottomPanelHeight = 150;
     static constexpr int padding = 4;

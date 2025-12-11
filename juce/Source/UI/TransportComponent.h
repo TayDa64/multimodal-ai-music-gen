@@ -14,6 +14,9 @@
 #include "../Application/AppState.h"
 #include "../Audio/AudioEngine.h"
 
+// Forward declaration
+class AudioSettingsDialog;
+
 //==============================================================================
 /**
     Transport bar component with playback controls and time display.
@@ -101,7 +104,11 @@ private:
     
     // Time display
     juce::Label timeDisplay;
+    juce::Label barBeatDisplay;  // Bar:Beat display (e.g., "3:2")
     juce::Label durationDisplay;
+    
+    // Audio settings button
+    juce::TextButton audioSettingsButton{ juce::String(juce::CharPointer_UTF8("\xE2\x9A\x99")) }; // Gear icon
     
     // Status
     juce::Label statusLabel;
