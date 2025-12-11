@@ -15,11 +15,17 @@
 PianoRollComponent::PianoRollComponent(mmg::AudioEngine& engine)
     : audioEngine(engine)
 {
+    // Enable mouse interaction
+    setInterceptsMouseClicks(true, true);
+    setWantsKeyboardFocus(true);
+    
     audioEngine.addListener(this);
     startTimerHz(30);  // Update at 30fps
     
     // Set default scroll to middle C area
     scrollY = 60;
+    
+    DBG("PianoRollComponent created");
 }
 
 PianoRollComponent::~PianoRollComponent()
@@ -31,14 +37,26 @@ PianoRollComponent::~PianoRollComponent()
 //==============================================================================
 void PianoRollComponent::loadMidiFile(const juce::File& midiFile)
 {
+    DBG("PianoRollComponent::loadMidiFile: " << midiFile.getFullPathName());
+    
     juce::FileInputStream stream(midiFile);
     if (stream.openedOk())
     {
         juce::MidiFile midi;
         if (midi.readFrom(stream))
         {
+            DBG("MIDI file loaded successfully, parsing...");
             setMidiData(midi);
+            DBG("Loaded " << notes.size() << " notes from MIDI file");
         }
+        else
+        {
+            DBG("ERROR: Failed to parse MIDI file");
+        }
+    }
+    else
+    {
+        DBG("ERROR: Failed to open MIDI file stream");
     }
 }
 
@@ -48,6 +66,7 @@ void PianoRollComponent::setMidiData(const juce::MidiFile& midiFile)
     
     // Get time format
     short timeFormat = midiFile.getTimeFormat();
+    DBG("setMidiData: timeFormat=" << timeFormat);
     
     // Create a copy to convert timestamps
     juce::MidiFile midiCopy = midiFile;
@@ -58,6 +77,7 @@ void PianoRollComponent::setMidiData(const juce::MidiFile& midiFile)
     
     // Process each track
     int numTracks = midiCopy.getNumTracks();
+    DBG("setMidiData: numTracks=" << numTracks);
     
     for (int trackIndex = 0; trackIndex < numTracks; ++trackIndex)
     {
@@ -446,7 +466,18 @@ void PianoRollComponent::drawPlayhead(juce::Graphics& g)
 
 void PianoRollComponent::drawNoteTooltip(juce::Graphics& g)
 {
-    if (hoveredNote == nullptr) return;
+    if (hoveredNote == nullptr)
+    {
+        // No hovered note - check if we have any notes to show debug
+        if (notes.isEmpty())
+        {
+            // Draw "No notes loaded" message if empty
+            g.setColour(AppColours::textSecondary.withAlpha(0.5f));
+            g.setFont(14.0f);
+            g.drawText("Load a MIDI file to see notes", getLocalBounds(), juce::Justification::centred);
+        }
+        return;
+    }
     
     juce::String text = MidiNoteEvent::getNoteName(hoveredNote->noteNumber);
     text += " | Vel: " + juce::String(hoveredNote->velocity);
@@ -535,18 +566,29 @@ void PianoRollComponent::resized()
 
 void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
 {
+    DBG("PianoRoll mouseDown at " << event.position.toString());
+    
+    // Grab focus for keyboard shortcuts
+    grabKeyboardFocus();
+    
     if (event.mods.isLeftButtonDown())
     {
         isDragging = true;
         lastMousePos = event.position;
         
-        // Seek to position if clicking in note area
-        if (event.x > pianoKeyWidth && event.mods.isCommandDown())
+        // Seek to position if clicking in note area (Ctrl/Cmd + click)
+        if (event.x > pianoKeyWidth && (event.mods.isCommandDown() || event.mods.isCtrlDown()))
         {
             double time = xToTime(event.position.x);
             audioEngine.setPlaybackPosition(time);
             listeners.call(&Listener::pianoRollSeekRequested, time);
         }
+    }
+    else if (event.mods.isMiddleButtonDown())
+    {
+        // Middle-click also starts drag
+        isDragging = true;
+        lastMousePos = event.position;
     }
 }
 
@@ -578,6 +620,10 @@ void PianoRollComponent::mouseMove(const juce::MouseEvent& event)
     if (note != hoveredNote)
     {
         hoveredNote = note;
+        if (note != nullptr)
+        {
+            DBG("Hovering note: " << MidiNoteEvent::getNoteName(note->noteNumber) << " vel=" << note->velocity);
+        }
         listeners.call(&Listener::pianoRollNoteHovered, note);
         repaint();
     }
@@ -585,30 +631,47 @@ void PianoRollComponent::mouseMove(const juce::MouseEvent& event)
 
 void PianoRollComponent::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
+    DBG("PianoRoll mouseWheel deltaY=" << wheel.deltaY << " shift=" << event.mods.isShiftDown() << " ctrl=" << event.mods.isCtrlDown());
+    
     if (event.mods.isShiftDown())
     {
-        // Horizontal zoom
-        float zoomDelta = wheel.deltaY * 0.5f;
-        setHorizontalZoom(hZoom * (1.0f + zoomDelta));
+        // Horizontal zoom with Shift + wheel
+        float zoomFactor = wheel.deltaY > 0 ? 1.15f : 0.87f;
+        float newZoom = juce::jlimit(0.1f, 10.0f, hZoom * zoomFactor);
+        DBG("  H-zoom: " << hZoom << " -> " << newZoom);
+        hZoom = newZoom;
+        repaint();
     }
-    else if (event.mods.isCommandDown())
+    else if (event.mods.isCtrlDown() || event.mods.isCommandDown())
     {
-        // Vertical zoom
-        float zoomDelta = wheel.deltaY * 0.3f;
-        setVerticalZoom(vZoom * (1.0f + zoomDelta));
+        // Vertical zoom with Ctrl/Cmd + wheel
+        float zoomFactor = wheel.deltaY > 0 ? 1.15f : 0.87f;
+        float newZoom = juce::jlimit(0.5f, 4.0f, vZoom * zoomFactor);
+        DBG("  V-zoom: " << vZoom << " -> " << newZoom);
+        vZoom = newZoom;
+        repaint();
     }
     else
     {
-        // Scroll
-        scrollX -= wheel.deltaX * 0.5;
-        scrollX = juce::jmax(0.0, scrollX);
+        // Scroll vertically with wheel (horizontal with deltaX if available)
+        if (std::abs(wheel.deltaX) > 0.001f)
+        {
+            scrollX -= wheel.deltaX * 2.0;
+            scrollX = juce::jmax(0.0, scrollX);
+        }
         
-        float noteHeight = whiteKeyHeight * vZoom;
-        scrollY -= (int)(wheel.deltaY * 5);
-        scrollY = juce::jlimit(minNote, maxNote, scrollY);
+        // Vertical scroll - higher deltaY = scroll up (see higher notes)
+        int scrollAmount = (int)(wheel.deltaY * 8);
+        scrollY = juce::jlimit(minNote, maxNote, scrollY - scrollAmount);
         
+        DBG("  Scroll: scrollX=" << scrollX << " scrollY=" << scrollY);
         repaint();
     }
+}
+
+void PianoRollComponent::mouseUp(const juce::MouseEvent& /*event*/)
+{
+    isDragging = false;
 }
 
 void PianoRollComponent::mouseExit(const juce::MouseEvent& /*event*/)

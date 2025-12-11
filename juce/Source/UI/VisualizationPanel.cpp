@@ -16,26 +16,38 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     : appState(state),
       audioEngine(engine)
 {
+    DBG("VisualizationPanel constructor");
+    
     // Create piano roll
     pianoRoll = std::make_unique<PianoRollComponent>(audioEngine);
     pianoRoll->addListener(this);
     pianoRoll->setBPM(appState.getBPM());
-    addChildComponent(*pianoRoll);
+    addChildComponent(*pianoRoll);  // Start hidden
     
     // Create recent files panel
     recentFiles = std::make_unique<RecentFilesPanel>(appState, audioEngine);
     recentFiles->addListener(this);
-    addAndMakeVisible(*recentFiles);
+    addAndMakeVisible(*recentFiles);  // Start visible
     
-    // Setup tab buttons
+    // Setup tab buttons with distinct styling
     pianoRollTab.setClickingTogglesState(false);
     pianoRollTab.setColour(juce::TextButton::buttonColourId, AppColours::surfaceAlt);
-    pianoRollTab.onClick = [this]() { showTab(0); };
+    pianoRollTab.setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
+    pianoRollTab.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
+    pianoRollTab.onClick = [this]() { 
+        DBG("Piano Roll tab clicked");
+        showTab(0); 
+    };
     addAndMakeVisible(pianoRollTab);
     
     recentFilesTab.setClickingTogglesState(false);
     recentFilesTab.setColour(juce::TextButton::buttonColourId, AppColours::surfaceAlt);
-    recentFilesTab.onClick = [this]() { showTab(1); };
+    recentFilesTab.setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
+    recentFilesTab.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
+    recentFilesTab.onClick = [this]() { 
+        DBG("Recent Files tab clicked");
+        showTab(1); 
+    };
     addAndMakeVisible(recentFilesTab);
     
     // Note info label
@@ -44,6 +56,8 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     noteInfoLabel.setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(noteInfoLabel);
     
+    // Initialize tab state
+    currentTab = 1;  // Start with Recent Files visible
     updateTabButtons();
 }
 
@@ -97,10 +111,17 @@ void VisualizationPanel::resized()
 //==============================================================================
 void VisualizationPanel::loadMidiFile(const juce::File& midiFile)
 {
+    DBG("VisualizationPanel::loadMidiFile: " << midiFile.getFullPathName());
+    
     if (pianoRoll && midiFile.existsAsFile())
     {
         pianoRoll->loadMidiFile(midiFile);
         showTab(0);  // Switch to piano roll when loading MIDI
+        DBG("  Switched to piano roll tab");
+    }
+    else
+    {
+        DBG("  ERROR: pianoRoll is null or file doesn't exist");
     }
 }
 
@@ -118,14 +139,25 @@ void VisualizationPanel::refreshRecentFiles()
 
 void VisualizationPanel::showTab(int index)
 {
+    DBG("VisualizationPanel::showTab(" << index << ")");
     currentTab = index;
     
     if (pianoRoll)
+    {
         pianoRoll->setVisible(index == 0);
+        if (index == 0)
+        {
+            pianoRoll->repaint();
+            DBG("  Piano roll now visible, bounds: " << pianoRoll->getBounds().toString());
+        }
+    }
     if (recentFiles)
+    {
         recentFiles->setVisible(index == 1);
+    }
     
     updateTabButtons();
+    repaint();
 }
 
 void VisualizationPanel::setBPM(int bpm)
@@ -136,18 +168,35 @@ void VisualizationPanel::setBPM(int bpm)
 
 void VisualizationPanel::updateTabButtons()
 {
-    // Highlight active tab
+    // Highlight active tab with distinct colors
     juce::Colour activeColour = AppColours::primary;
-    juce::Colour inactiveColour = AppColours::surfaceAlt;
+    juce::Colour inactiveColour = AppColours::surfaceAlt.darker(0.1f);
+    juce::Colour activeTextColour = juce::Colours::white;
+    juce::Colour inactiveTextColour = AppColours::textSecondary;
     
     pianoRollTab.setColour(juce::TextButton::buttonColourId, 
                            currentTab == 0 ? activeColour : inactiveColour);
+    pianoRollTab.setColour(juce::TextButton::textColourOnId, 
+                           currentTab == 0 ? activeTextColour : inactiveTextColour);
+    pianoRollTab.setColour(juce::TextButton::textColourOffId, 
+                           currentTab == 0 ? activeTextColour : inactiveTextColour);
+    
     recentFilesTab.setColour(juce::TextButton::buttonColourId, 
                               currentTab == 1 ? activeColour : inactiveColour);
+    recentFilesTab.setColour(juce::TextButton::textColourOnId, 
+                              currentTab == 1 ? activeTextColour : inactiveTextColour);
+    recentFilesTab.setColour(juce::TextButton::textColourOffId, 
+                              currentTab == 1 ? activeTextColour : inactiveTextColour);
+    
+    // Force button repaint
+    pianoRollTab.repaint();
+    recentFilesTab.repaint();
     
     // Clear note info when not on piano roll
     if (currentTab != 0)
         noteInfoLabel.setText("", juce::dontSendNotification);
+    
+    DBG("Tab buttons updated, currentTab=" << currentTab);
 }
 
 //==============================================================================

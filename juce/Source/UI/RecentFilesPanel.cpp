@@ -96,8 +96,12 @@ void RecentFilesPanel::FileListBox::paintListBoxItem(int rowNumber, juce::Graphi
 
 void RecentFilesPanel::FileListBox::listBoxItemClicked(int row, const juce::MouseEvent&)
 {
+    DBG("RecentFilesPanel: Single-click on row " << row);
     owner.selectedRow = row;
     repaint();
+    
+    // Load file on single click for immediate feedback
+    owner.loadSelectedFile();
 }
 
 void RecentFilesPanel::FileListBox::listBoxItemDoubleClicked(int row, const juce::MouseEvent&)
@@ -361,18 +365,27 @@ juce::String RecentFilesPanel::formatFileSize(juce::int64 bytes)
 
 void RecentFilesPanel::loadSelectedFile()
 {
+    DBG("RecentFilesPanel::loadSelectedFile - selectedRow=" << selectedRow);
+    
     if (selectedRow >= 0 && selectedRow < files.size())
     {
         auto& info = files[selectedRow];
+        DBG("  Loading file: " << info.file.getFullPathName());
         
-        if (audioEngine.loadMidiFile(info.file))
-        {
-            listeners.call(&Listener::fileSelected, info.file);
-            
-            // Update app state with BPM if parsed
-            if (info.bpm > 0)
-                appState.setBPM(info.bpm);
-        }
+        bool loaded = audioEngine.loadMidiFile(info.file);
+        DBG("  AudioEngine load result: " << (loaded ? "SUCCESS" : "FAILED"));
+        
+        // Always notify listeners so piano roll can load the file directly too
+        listeners.call(&Listener::fileSelected, info.file);
+        DBG("  Notified listeners");
+        
+        // Update app state with BPM if parsed
+        if (info.bpm > 0)
+            appState.setBPM(info.bpm);
+    }
+    else
+    {
+        DBG("  Invalid selectedRow or files empty");
     }
 }
 
