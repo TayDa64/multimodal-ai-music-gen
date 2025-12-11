@@ -20,6 +20,7 @@
 #include "UI/ProgressOverlay.h"
 #include "UI/RecentFilesPanel.h"
 #include "UI/TimelineComponent.h"
+#include "UI/VisualizationPanel.h"
 
 //==============================================================================
 /**
@@ -42,7 +43,7 @@ class MainComponent : public juce::Component,
                       public OSCBridge::Listener,
                       public PromptPanel::Listener,
                       public ProgressOverlay::Listener,
-                      public RecentFilesPanel::Listener,
+                      public VisualizationPanel::Listener,
                       public juce::Timer
 {
 public:
@@ -67,7 +68,7 @@ public:
     void cancelRequested() override;
     
     //==============================================================================
-    // RecentFilesPanel::Listener
+    // VisualizationPanel::Listener
     void fileSelected(const juce::File& file) override;
     
     //==============================================================================
@@ -87,7 +88,7 @@ private:
     std::unique_ptr<TimelineComponent> timelineComponent;
     std::unique_ptr<PromptPanel> promptPanel;
     std::unique_ptr<ProgressOverlay> progressOverlay;
-    std::unique_ptr<RecentFilesPanel> recentFilesPanel;
+    std::unique_ptr<VisualizationPanel> visualizationPanel;
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;

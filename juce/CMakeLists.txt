@@ -139,6 +139,12 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/TimelineComponent.h
     Source/UI/AudioSettingsDialog.cpp
     Source/UI/AudioSettingsDialog.h
+    Source/UI/VisualizationPanel.cpp
+    Source/UI/VisualizationPanel.h
+    
+    # Visualization Components
+    Source/UI/Visualization/PianoRollComponent.cpp
+    Source/UI/Visualization/PianoRollComponent.h
     
     # Look and Feel
     Source/UI/Theme/AppLookAndFeel.cpp

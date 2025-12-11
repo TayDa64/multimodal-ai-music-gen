@@ -35,13 +35,13 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     promptPanel->setVisible(true);
     addAndMakeVisible(*promptPanel);
     
-    // Recent files panel - shows output directory contents
-    recentFilesPanel = std::make_unique<RecentFilesPanel>(appState, audioEngine);
-    recentFilesPanel->addListener(this);
-    recentFilesPanel->setVisible(true);
-    addAndMakeVisible(*recentFilesPanel);
+    // Visualization panel with tabbed interface (Piano Roll + Recent Files)
+    visualizationPanel = std::make_unique<VisualizationPanel>(appState, audioEngine);
+    visualizationPanel->addListener(this);
+    visualizationPanel->setVisible(true);
+    addAndMakeVisible(*visualizationPanel);
     
-    // Set output directory for recent files - use a more reliable path
+    // Set output directory for visualization panel - use a more reliable path
     auto appDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
     
     // Try multiple possible output locations
@@ -55,7 +55,7 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     {
         if (dir.isDirectory())
         {
-            recentFilesPanel->setOutputDirectory(dir);
+            visualizationPanel->setOutputDirectory(dir);
             break;
         }
     }
@@ -78,8 +78,8 @@ MainComponent::~MainComponent()
     if (oscBridge)
         oscBridge->removeListener(this);
     
-    if (recentFilesPanel)
-        recentFilesPanel->removeListener(this);
+    if (visualizationPanel)
+        visualizationPanel->removeListener(this);
 }
 
 //==============================================================================
@@ -178,10 +178,10 @@ void MainComponent::resized()
     // Recent files panel takes remaining space
     visualizationArea = contentArea;
     
-    if (recentFilesPanel)
+    if (visualizationPanel)
     {
-        recentFilesPanel->setBounds(visualizationArea);
-        recentFilesPanel->setVisible(true);
+        visualizationPanel->setBounds(visualizationArea);
+        visualizationPanel->setVisible(true);
     }
     
     // Progress overlay covers the whole component
@@ -252,16 +252,21 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
         // Now reset generating state
         appState.setGenerating(false);
         
-        // Refresh the recent files panel to show the new file
-        if (recentFilesPanel)
-            recentFilesPanel->refresh();
+        // Refresh the visualization panel to show the new file
+        if (visualizationPanel)
+            visualizationPanel->refreshRecentFiles();
         
-        // Load the generated MIDI file for playback
+        // Load the generated MIDI file for playback and visualization
         if (result.midiPath.isNotEmpty())
         {
             juce::File midiFile(result.midiPath);
             if (midiFile.existsAsFile())
+            {
                 audioEngine.loadMidiFile(midiFile);
+                // Also load into piano roll
+                if (visualizationPanel)
+                    visualizationPanel->loadMidiFile(midiFile);
+            }
         }
         
         // Show completion message (no callback to prevent accidental triggers)
@@ -360,10 +365,16 @@ void MainComponent::cancelRequested()
 }
 
 //==============================================================================
-// RecentFilesPanel::Listener
+// VisualizationPanel::Listener
 void MainComponent::fileSelected(const juce::File& file)
 {
     currentStatus = "Loaded: " + file.getFileName();
+    
+    // If it's a MIDI file, load it into the piano roll
+    if (file.hasFileExtension(".mid;.midi") && visualizationPanel)
+    {
+        visualizationPanel->loadMidiFile(file);
+    }
     
     juce::MessageManager::callAsync([this]()
     {
