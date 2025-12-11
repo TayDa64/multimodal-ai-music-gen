@@ -262,10 +262,18 @@ void SpectrumComponent::processFFT()
     // Perform FFT - gets magnitude spectrum directly
     forwardFFT.performFrequencyOnlyForwardTransform(fftData.data());
     
+    // === CRITICAL FIX: Normalize FFT output ===
+    // JUCE's FFT returns un-normalized magnitudes that scale with fftSize.
+    // For a full-scale sine wave, peak bin magnitude ≈ fftSize/2.
+    // We must normalize to get values in a sensible range (0-1 for full scale).
+    // Normalization factor: 1 / (fftSize / 2) = 2 / fftSize
+    const float normalizationFactor = 2.0f / (float)fftSize;
+    
     // Store raw spectrum data (first half of FFT output = positive frequencies)
     for (int i = 0; i < fftSize / 2; ++i)
     {
-        rawSpectrumData[i] = fftData[i];
+        // Normalize the FFT magnitude output
+        rawSpectrumData[i] = fftData[i] * normalizationFactor;
     }
     
     // Calculate magnitude for each display band with professional processing
@@ -284,6 +292,7 @@ void SpectrumComponent::processFFT()
         }
         
         // Convert to dB scale with wide dynamic range
+        // Now magnitude is properly normalized (0-1 for full scale input)
         float db = juce::Decibels::gainToDecibels(magnitude, noiseFloorDb);
         
         // Normalize to 0-1 range with -60dB as bottom, 0dB as top
