@@ -28,6 +28,18 @@ SpectrumComponent::SpectrumComponent()
     peakHoldData.resize(numBands, 0.0f);
     peakHoldCountdown.resize(numBands, 0);
     
+    // Initialize envelope follower state
+    envelopeState.resize(numBands, 0.0f);
+    
+    // Initialize multi-frame averaging buffer
+    averagingBuffer.resize(averagingFrames);
+    for (auto& frame : averagingBuffer)
+        frame.resize(numBands, 0.0f);
+    
+    // Calculate attack/release coefficients for 60fps display rate
+    // Using time constants for professional metering behavior
+    calculateBallistics(60.0, defaultAttackMs, defaultReleaseMs);
+    
     // Start refresh timer (60 fps)
     startTimerHz(60);
 }
@@ -135,7 +147,57 @@ void SpectrumComponent::setNumBands(int bands)
     spectrumData.resize(numBands, 0.0f);
     peakHoldData.resize(numBands, 0.0f);
     peakHoldCountdown.resize(numBands, 0);
+    envelopeState.resize(numBands, 0.0f);
+    
+    // Resize averaging buffer
+    for (auto& frame : averagingBuffer)
+        frame.resize(numBands, 0.0f);
+    
     repaint();
+}
+
+//==============================================================================
+// Production-grade envelope follower ballistics
+void SpectrumComponent::calculateBallistics(double displayRate, float attackMs, float releaseMs)
+{
+    // Convert time constants to per-frame coefficients
+    // Using the standard formula: coeff = exp(-1.0 / (time_constant * rate))
+    // This gives proper RC-style envelope following behavior
+    
+    if (attackMs > 0.0f)
+        attackCoeff = std::exp(-1000.0f / (attackMs * (float)displayRate));
+    else
+        attackCoeff = 0.0f;  // Instant attack
+    
+    if (releaseMs > 0.0f)
+        releaseCoeff = std::exp(-1000.0f / (releaseMs * (float)displayRate));
+    else
+        releaseCoeff = 0.0f;  // Instant release
+}
+
+float SpectrumComponent::applyEnvelope(float current, float target, int bandIndex)
+{
+    // Professional envelope follower with separate attack/release
+    // Attack: fast response to rising levels
+    // Release: smooth decay on falling levels
+    
+    float envelope = envelopeState[bandIndex];
+    
+    if (target > envelope)
+    {
+        // Attack phase - rising signal, respond quickly
+        envelope = attackCoeff * envelope + (1.0f - attackCoeff) * target;
+    }
+    else
+    {
+        // Release phase - falling signal, decay smoothly
+        envelope = releaseCoeff * envelope + (1.0f - releaseCoeff) * target;
+    }
+    
+    // Store state for next frame
+    envelopeState[bandIndex] = envelope;
+    
+    return envelope;
 }
 
 //==============================================================================
@@ -146,20 +208,30 @@ void SpectrumComponent::timerCallback()
         processFFT();
         nextFFTBlockReady = false;
     }
+    else
+    {
+        // No new FFT data - apply natural decay via envelope follower
+        // This makes inactive frequencies smoothly return to zero
+        for (int i = 0; i < numBands; ++i)
+        {
+            // Apply release envelope toward zero when no new data
+            spectrumData[i] = applyEnvelope(spectrumData[i], 0.0f, i);
+        }
+    }
     
-    // Decay spectrum values
+    // Decay peak hold indicators
     for (int i = 0; i < numBands; ++i)
     {
-        spectrumData[i] *= decayRate;
-        
-        // Decay peak hold
         if (peakHoldCountdown[i] > 0)
         {
             peakHoldCountdown[i]--;
         }
         else
         {
+            // Smooth peak decay
             peakHoldData[i] *= peakDecayRate;
+            if (peakHoldData[i] < 0.001f)
+                peakHoldData[i] = 0.0f;
         }
     }
     
@@ -171,10 +243,10 @@ void SpectrumComponent::processFFT()
     // Copy FIFO to FFT data buffer
     std::copy(fifo.begin(), fifo.begin() + fftSize, fftData.begin());
     
-    // Apply windowing function
+    // Apply windowing function (Hann window reduces spectral leakage)
     window.multiplyWithWindowingTable(fftData.data(), fftSize);
     
-    // Perform FFT
+    // Perform FFT - gets magnitude spectrum directly
     forwardFFT.performFrequencyOnlyForwardTransform(fftData.data());
     
     // Store raw spectrum data (first half of FFT output = positive frequencies)
@@ -183,7 +255,7 @@ void SpectrumComponent::processFFT()
         rawSpectrumData[i] = fftData[i];
     }
     
-    // Calculate magnitude for each display band
+    // Calculate magnitude for each display band with professional processing
     for (int band = 0; band < numBands; ++band)
     {
         float lowFreq = getFrequencyForBand(band);
@@ -191,22 +263,49 @@ void SpectrumComponent::processFFT()
         
         float magnitude = getMagnitudeForFrequencyRange(lowFreq, highFreq);
         
-        // Convert to dB scale and normalize
-        float db = juce::Decibels::gainToDecibels(magnitude, -100.0f);
+        // === NOISE FLOOR GATING ===
+        // Prevent flickering by gating values below noise floor
+        if (magnitude < gateThreshold)
+        {
+            magnitude = 0.0f;
+        }
+        
+        // Convert to dB scale with wide dynamic range
+        float db = juce::Decibels::gainToDecibels(magnitude, noiseFloorDb);
+        
+        // Normalize to 0-1 range with -60dB as bottom, 0dB as top
         float normalized = juce::jmap(db, -60.0f, 0.0f, 0.0f, 1.0f);
         normalized = juce::jlimit(0.0f, 1.0f, normalized);
         
-        // Smooth with previous value
-        float target = normalized;
-        spectrumData[band] = spectrumData[band] * smoothingFactor + target * (1.0f - smoothingFactor);
+        // === MULTI-FRAME AVERAGING ===
+        // Store in circular averaging buffer
+        averagingBuffer[averagingIndex][band] = normalized;
         
-        // Update peak hold
-        if (spectrumData[band] > peakHoldData[band])
+        // Calculate average across frames
+        float averaged = 0.0f;
+        for (int f = 0; f < averagingFrames; ++f)
         {
-            peakHoldData[band] = spectrumData[band];
+            averaged += averagingBuffer[f][band];
+        }
+        averaged /= (float)averagingFrames;
+        
+        // === ENVELOPE FOLLOWER ===
+        // Apply attack/release ballistics for smooth, professional metering
+        float enveloped = applyEnvelope(spectrumData[band], averaged, band);
+        
+        // Final spectrum value with all processing
+        spectrumData[band] = enveloped;
+        
+        // Update peak hold (tracks actual peaks, not smoothed values)
+        if (normalized > peakHoldData[band])
+        {
+            peakHoldData[band] = normalized;
             peakHoldCountdown[band] = peakHoldFrames;
         }
     }
+    
+    // Advance averaging buffer index
+    averagingIndex = (averagingIndex + 1) % averagingFrames;
 }
 
 float SpectrumComponent::getFrequencyForBin(int bin) const

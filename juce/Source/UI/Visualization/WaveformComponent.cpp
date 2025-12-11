@@ -22,6 +22,12 @@ WaveformComponent::WaveformComponent()
     displayBufferLeft.resize(displaySamples, 0.0f);
     displayBufferRight.resize(displaySamples, 0.0f);
     
+    // Initialize RMS and smoothed buffers
+    rmsBufferLeft.resize(displaySamples, 0.0f);
+    rmsBufferRight.resize(displaySamples, 0.0f);
+    smoothedLeft.resize(displaySamples, 0.0f);
+    smoothedRight.resize(displaySamples, 0.0f);
+    
     // Start the display refresh timer (60 fps)
     startTimerHz(60);
 }
@@ -60,6 +66,10 @@ void WaveformComponent::clear()
     rightBuffer.fill(0.0f);
     std::fill(displayBufferLeft.begin(), displayBufferLeft.end(), 0.0f);
     std::fill(displayBufferRight.begin(), displayBufferRight.end(), 0.0f);
+    std::fill(rmsBufferLeft.begin(), rmsBufferLeft.end(), 0.0f);
+    std::fill(rmsBufferRight.begin(), rmsBufferRight.end(), 0.0f);
+    std::fill(smoothedLeft.begin(), smoothedLeft.end(), 0.0f);
+    std::fill(smoothedRight.begin(), smoothedRight.end(), 0.0f);
     peakLeft = 0.0f;
     peakRight = 0.0f;
     repaint();
@@ -101,9 +111,14 @@ void WaveformComponent::timerCallback()
 {
     processSamplesForDisplay();
     
-    // Decay peaks
-    peakLeft *= peakDecay;
-    peakRight *= peakDecay;
+    // Apply peak release (envelope follower style)
+    // Peak attack is instant, release is smooth
+    peakLeft *= peakReleaseCoeff;
+    peakRight *= peakReleaseCoeff;
+    
+    // Clamp very small values to zero to avoid visual noise
+    if (peakLeft < 0.001f) peakLeft = 0.0f;
+    if (peakRight < 0.001f) peakRight = 0.0f;
     
     repaint();
 }
@@ -115,24 +130,97 @@ void WaveformComponent::processSamplesForDisplay()
     // Calculate how many buffer samples per display sample
     float samplesPerPixel = (float)bufferSize / (float)displaySamples;
     
+    // Convert ring buffers to vectors for processing
+    std::vector<float> leftVec(leftBuffer.begin(), leftBuffer.end());
+    std::vector<float> rightVec(rightBuffer.begin(), rightBuffer.end());
+    
     for (int i = 0; i < displaySamples; ++i)
     {
         // Read position in the ring buffer (going backwards from write position)
         float bufferPos = (float)(readPos - (displaySamples - i) * (int)(samplesPerPixel));
         while (bufferPos < 0) bufferPos += bufferSize;
         
-        // Get averaged sample
-        displayBufferLeft[i] = getSampleForPosition(
-            std::vector<float>(leftBuffer.begin(), leftBuffer.end()), bufferPos);
-        displayBufferRight[i] = getSampleForPosition(
-            std::vector<float>(rightBuffer.begin(), rightBuffer.end()), bufferPos);
+        // === USE CATMULL-ROM INTERPOLATION FOR SMOOTHER CURVES ===
+        float leftSample = interpolateCatmullRom(leftVec, bufferPos);
+        float rightSample = interpolateCatmullRom(rightVec, bufferPos);
         
-        // Update peaks
-        float absLeft = std::abs(displayBufferLeft[i]);
-        float absRight = std::abs(displayBufferRight[i]);
+        // Store raw samples
+        displayBufferLeft[i] = leftSample;
+        displayBufferRight[i] = rightSample;
+        
+        // === CALCULATE RMS FOR THIS SEGMENT ===
+        // RMS gives a smoother representation of audio energy
+        int rmsStart = (int)bufferPos;
+        float rmsLeft = calculateRMS(leftVec, rmsStart, rmsWindowSize);
+        float rmsRight = calculateRMS(rightVec, rmsStart, rmsWindowSize);
+        
+        // Smooth the RMS values over time (low-pass filter)
+        const float rmsSmoothing = 0.8f;
+        rmsBufferLeft[i] = rmsBufferLeft[i] * rmsSmoothing + rmsLeft * (1.0f - rmsSmoothing);
+        rmsBufferRight[i] = rmsBufferRight[i] * rmsSmoothing + rmsRight * (1.0f - rmsSmoothing);
+        
+        // Update peaks (instant attack)
+        float absLeft = std::abs(leftSample);
+        float absRight = std::abs(rightSample);
         if (absLeft > peakLeft) peakLeft = absLeft;
         if (absRight > peakRight) peakRight = absRight;
     }
+    
+    // === APPLY SMOOTHING PASS ===
+    // 3-point moving average for cleaner display
+    for (int i = 1; i < displaySamples - 1; ++i)
+    {
+        smoothedLeft[i] = (displayBufferLeft[i-1] + displayBufferLeft[i] * 2.0f + displayBufferLeft[i+1]) * 0.25f;
+        smoothedRight[i] = (displayBufferRight[i-1] + displayBufferRight[i] * 2.0f + displayBufferRight[i+1]) * 0.25f;
+    }
+    // Handle edges
+    smoothedLeft[0] = displayBufferLeft[0];
+    smoothedRight[0] = displayBufferRight[0];
+    smoothedLeft[displaySamples-1] = displayBufferLeft[displaySamples-1];
+    smoothedRight[displaySamples-1] = displayBufferRight[displaySamples-1];
+}
+
+float WaveformComponent::calculateRMS(const std::vector<float>& samples, int start, int count)
+{
+    float sum = 0.0f;
+    int actualCount = 0;
+    
+    for (int i = 0; i < count; ++i)
+    {
+        int idx = (start + i) % (int)samples.size();
+        float sample = samples[idx];
+        sum += sample * sample;
+        actualCount++;
+    }
+    
+    if (actualCount > 0)
+        return std::sqrt(sum / (float)actualCount);
+    return 0.0f;
+}
+
+float WaveformComponent::interpolateCatmullRom(const std::vector<float>& buffer, float position)
+{
+    // Catmull-Rom spline interpolation for smoother curves
+    int size = (int)buffer.size();
+    int p0 = ((int)position - 1 + size) % size;
+    int p1 = (int)position % size;
+    int p2 = ((int)position + 1) % size;
+    int p3 = ((int)position + 2) % size;
+    
+    float t = position - std::floor(position);
+    float t2 = t * t;
+    float t3 = t2 * t;
+    
+    float v0 = buffer[p0];
+    float v1 = buffer[p1];
+    float v2 = buffer[p2];
+    float v3 = buffer[p3];
+    
+    // Catmull-Rom formula
+    return 0.5f * ((2.0f * v1) +
+                   (-v0 + v2) * t +
+                   (2.0f * v0 - 5.0f * v1 + 4.0f * v2 - v3) * t2 +
+                   (-v0 + 3.0f * v1 - 3.0f * v2 + v3) * t3);
 }
 
 float WaveformComponent::getSampleForPosition(const std::vector<float>& buffer, float position)
@@ -192,19 +280,22 @@ void WaveformComponent::paint(juce::Graphics& g)
 void WaveformComponent::drawWaveformByMode(juce::Graphics& g, const std::vector<float>& samples,
                                             juce::Rectangle<float> bounds)
 {
+    // Use smoothed samples for cleaner display
+    const auto& smoothedSamples = (&samples == &displayBufferLeft) ? smoothedLeft : smoothedRight;
+    
     switch (displayMode)
     {
         case DisplayMode::Line:
-            drawWaveformLine(g, samples, theme.waveformFill, theme.waveformOutline);
+            drawWaveformLine(g, smoothedSamples, theme.waveformFill, theme.waveformOutline);
             break;
         case DisplayMode::Filled:
-            drawWaveformFilled(g, samples, theme.waveformFill, theme.waveformOutline);
+            drawWaveformFilled(g, smoothedSamples, theme.waveformFill, theme.waveformOutline);
             break;
         case DisplayMode::Mirror:
-            drawWaveformMirror(g, samples, theme.waveformFill, theme.waveformOutline);
+            drawWaveformMirror(g, smoothedSamples, theme.waveformFill, theme.waveformOutline);
             break;
         case DisplayMode::Bars:
-            drawWaveformBars(g, samples, theme.waveformFill);
+            drawWaveformBars(g, smoothedSamples, theme.waveformFill);
             break;
     }
 }
@@ -520,5 +611,9 @@ void WaveformComponent::resized()
     displaySamples = juce::jmax(128, getWidth());
     displayBufferLeft.resize(displaySamples, 0.0f);
     displayBufferRight.resize(displaySamples, 0.0f);
+    rmsBufferLeft.resize(displaySamples, 0.0f);
+    rmsBufferRight.resize(displaySamples, 0.0f);
+    smoothedLeft.resize(displaySamples, 0.0f);
+    smoothedRight.resize(displaySamples, 0.0f);
 }
 

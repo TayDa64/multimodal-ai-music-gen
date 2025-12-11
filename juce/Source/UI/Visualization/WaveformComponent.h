@@ -111,6 +111,8 @@ private:
     // Sample processing
     void processSamplesForDisplay();
     float getSampleForPosition(const std::vector<float>& buffer, float position);
+    float calculateRMS(const std::vector<float>& samples, int start, int count);
+    float interpolateCatmullRom(const std::vector<float>& buffer, float position);
     
     //==========================================================================
     // Ring buffer for incoming samples (lock-free for audio thread safety)
@@ -124,10 +126,20 @@ private:
     std::vector<float> displayBufferRight;
     int displaySamples = 512;
     
-    // Peak tracking
+    // RMS envelope tracking for smoother display
+    std::vector<float> rmsBufferLeft;
+    std::vector<float> rmsBufferRight;
+    static constexpr int rmsWindowSize = 64;  // Samples per RMS calculation
+    
+    // Smoothing via interpolation
+    std::vector<float> smoothedLeft;
+    std::vector<float> smoothedRight;
+    
+    // Peak tracking with proper ballistics
     float peakLeft = 0.0f;
     float peakRight = 0.0f;
-    float peakDecay = 0.95f;
+    static constexpr float peakAttackCoeff = 0.0f;    // Instant attack
+    static constexpr float peakReleaseCoeff = 0.97f;  // ~500ms release at 60fps
     
     // Visual settings
     DisplayMode displayMode = DisplayMode::Filled;
@@ -135,6 +147,7 @@ private:
     bool glowEnabled = true;
     bool stereoMode = false;
     float lineThickness = 2.0f;
+    bool showRMS = true;  // Show RMS envelope overlay
     
     // Cached path for glow effect
     juce::Path cachedPath;

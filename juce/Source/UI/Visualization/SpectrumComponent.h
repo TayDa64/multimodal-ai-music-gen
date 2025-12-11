@@ -163,6 +163,30 @@ private:
     static constexpr int peakHoldFrames = 30;  // ~0.5 sec at 60fps
     static constexpr float peakDecayRate = 0.95f;
     
+    //==========================================================================
+    // Production-grade envelope follower parameters
+    // Attack: fast response to transients (~5ms)
+    // Release: smooth decay (~300ms)
+    static constexpr float defaultAttackMs = 5.0f;
+    static constexpr float defaultReleaseMs = 300.0f;
+    float attackCoeff = 0.0f;   // Calculated from attack time
+    float releaseCoeff = 0.0f;  // Calculated from release time
+    
+    // Noise floor gate - prevents flickering on silent frequencies
+    static constexpr float noiseFloorDb = -80.0f;
+    static constexpr float gateThreshold = 0.00001f;  // ~-100dB linear
+    
+    // Multi-frame averaging for smoother display
+    static constexpr int averagingFrames = 3;
+    std::vector<std::vector<float>> averagingBuffer;
+    int averagingIndex = 0;
+    
+    // Envelope state per band (for attack/release ballistics)
+    std::vector<float> envelopeState;
+    
+    void calculateBallistics(double sampleRate, float attackMs, float releaseMs);
+    float applyEnvelope(float current, float target, int bandIndex);
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SpectrumComponent)
 };
 
