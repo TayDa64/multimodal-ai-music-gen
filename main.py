@@ -27,6 +27,7 @@ from datetime import datetime
 import json
 import random
 import numpy as np
+from typing import Callable, Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -192,7 +193,6 @@ def run_generation(
     
     # Set random seed if provided
     if seed is not None:
-        import random
         random.seed(seed)
         np.random.seed(seed)
     else:

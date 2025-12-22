@@ -82,6 +82,8 @@ def test_bwf_writer():
     """Test BWF writer with AI provenance."""
     print("Testing BWF writer...")
     
+    import tempfile
+    
     # Create test audio
     duration = 0.5
     sample_rate = 44100
@@ -105,28 +107,36 @@ def test_bwf_writer():
         }
     }
     
-    # Save as BWF
-    output_path = '/tmp/test_bwf.wav'
-    save_wav_with_ai_provenance(
-        audio,
-        output_path,
-        ai_metadata=ai_metadata,
-        sample_rate=sample_rate,
-        description="Test BWF file"
-    )
+    # Save as BWF (use cross-platform temp directory)
+    with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp:
+        output_path = tmp.name
     
-    assert Path(output_path).exists(), "BWF file not created"
-    print(f"  ✓ BWF file created: {output_path}")
+    try:
+        save_wav_with_ai_provenance(
+            audio,
+            output_path,
+            ai_metadata=ai_metadata,
+            sample_rate=sample_rate,
+            description="Test BWF file"
+        )
+        
+        assert Path(output_path).exists(), "BWF file not created"
+        print(f"  ✓ BWF file created: {output_path}")
+        
+        # Read back metadata
+        metadata = read_bwf_metadata(output_path)
+        assert metadata is not None, "Failed to read BWF metadata"
+        assert metadata.get('prompt') == 'test generation', "Metadata mismatch"
+        assert metadata.get('seed') == 12345, "Seed mismatch"
+        print(f"  ✓ BWF metadata verified:")
+        print(f"    - Prompt: {metadata.get('prompt')}")
+        print(f"    - Seed: {metadata.get('seed')}")
+        print(f"    - BPM: {metadata.get('bpm')}")
     
-    # Read back metadata
-    metadata = read_bwf_metadata(output_path)
-    assert metadata is not None, "Failed to read BWF metadata"
-    assert metadata.get('prompt') == 'test generation', "Metadata mismatch"
-    assert metadata.get('seed') == 12345, "Seed mismatch"
-    print(f"  ✓ BWF metadata verified:")
-    print(f"    - Prompt: {metadata.get('prompt')}")
-    print(f"    - Seed: {metadata.get('seed')}")
-    print(f"    - BPM: {metadata.get('bpm')}")
+    finally:
+        # Clean up
+        if Path(output_path).exists():
+            Path(output_path).unlink()
     
     print("✅ BWF writer tests passed!\n")
 

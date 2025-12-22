@@ -390,13 +390,23 @@ def read_bwf_metadata(bwf_path: str) -> Optional[Dict[str, Any]]:
                         params = root.find('GenerationParameters')
                         if params is not None:
                             metadata['prompt'] = params.findtext('Prompt')
-                            metadata['bpm'] = params.findtext('BPM')
+                            # Convert BPM to numeric type
+                            bpm_text = params.findtext('BPM')
+                            if bpm_text:
+                                try:
+                                    metadata['bpm'] = float(bpm_text)
+                                except ValueError:
+                                    metadata['bpm'] = bpm_text
                             metadata['key'] = params.findtext('Key')
                             metadata['genre'] = params.findtext('Genre')
                         
                         seed_elem = root.find('Seed')
-                        if seed_elem is not None:
-                            metadata['seed'] = int(seed_elem.text)
+                        if seed_elem is not None and seed_elem.text:
+                            try:
+                                metadata['seed'] = int(seed_elem.text)
+                            except ValueError:
+                                # If seed is not a valid integer, store as string
+                                metadata['seed'] = seed_elem.text
                         
                         synth = root.find('SynthesisParameters')
                         if synth is not None:
