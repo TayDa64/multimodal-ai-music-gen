@@ -89,6 +89,9 @@ instruments/fx/*.WAV
 *.temp
 *.log
 
+# Development test scripts (local only)
+audio_test.py
+
 # SoundFont files (too large for repo)
 *.sf2
 *.SF2
