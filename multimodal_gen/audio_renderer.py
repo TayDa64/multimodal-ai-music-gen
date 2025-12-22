@@ -599,7 +599,8 @@ class AudioRenderer:
     Main audio rendering class.
     
     Handles MIDI-to-audio conversion with mixing, effects, and export.
-    Now supports intelligent instrument selection via InstrumentLibrary.
+    Now supports intelligent instrument selection via InstrumentLibrary
+    and BWF (Broadcast Wave Format) with AI provenance metadata.
     """
     
     def __init__(
@@ -609,7 +610,9 @@ class AudioRenderer:
         soundfont_path: Optional[str] = None,
         instrument_library: 'InstrumentLibrary' = None,
         genre: str = None,
-        mood: str = None
+        mood: str = None,
+        use_bwf: bool = True,
+        ai_metadata: Optional[Dict] = None
     ):
         self.sample_rate = sample_rate
         self.use_fluidsynth = use_fluidsynth and check_fluidsynth_available()
@@ -617,6 +620,8 @@ class AudioRenderer:
         self.instrument_library = instrument_library
         self.genre = genre
         self.mood = mood
+        self.use_bwf = use_bwf
+        self.ai_metadata = ai_metadata or {}
         
         # Procedural fallback with optional instrument library
         self.procedural = ProceduralRenderer(
@@ -749,8 +754,34 @@ class AudioRenderer:
         mix = normalize_audio(mix, 0.85)
         mix = limit_audio(mix, TARGET_TRUE_PEAK)
         
-        # Save
-        save_wav(mix, output_path, self.sample_rate, stereo=True)
+        # Save with BWF format if enabled
+        if self.use_bwf:
+            try:
+                from .bwf_writer import save_wav_with_ai_provenance
+                
+                # Prepare AI metadata
+                ai_metadata = self.ai_metadata.copy()
+                if parsed:
+                    ai_metadata.update({
+                        'prompt': getattr(parsed, 'prompt', ''),
+                        'bpm': parsed.bpm,
+                        'key': parsed.key,
+                        'genre': parsed.genre,
+                    })
+                
+                save_wav_with_ai_provenance(
+                    mix,
+                    output_path,
+                    ai_metadata=ai_metadata,
+                    sample_rate=self.sample_rate,
+                    description=f"AI-generated music: {parsed.genre if parsed else 'unknown'} at {parsed.bpm if parsed else 0} BPM"
+                )
+            except Exception as e:
+                # Fall back to standard WAV if BWF fails
+                print(f"BWF save failed, falling back to standard WAV: {e}")
+                save_wav(mix, output_path, self.sample_rate, stereo=True)
+        else:
+            save_wav(mix, output_path, self.sample_rate, stereo=True)
         
         # Post-process
         if parsed:

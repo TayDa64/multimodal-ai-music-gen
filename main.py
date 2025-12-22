@@ -458,11 +458,25 @@ def run_generation(
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")
     report_progress("rendering_audio", 0.75, "Rendering audio...")
+    
+    # Prepare AI metadata for BWF
+    ai_metadata = {
+        'version': '0.2.0',
+        'prompt': prompt,
+        'seed': seed,
+        'bpm': parsed.bpm,
+        'key': parsed.key,
+        'genre': parsed.genre,
+        'synthesis_params': results.get('synthesis_params', {}),
+    }
+    
     renderer = AudioRenderer(
         soundfont_path=soundfont_path,
         instrument_library=instrument_library,
         genre=parsed.genre,
-        mood=parsed.mood
+        mood=parsed.mood,
+        use_bwf=use_bwf,
+        ai_metadata=ai_metadata
     )
     
     try:
