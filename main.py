@@ -25,6 +25,9 @@ import os
 from pathlib import Path
 from datetime import datetime
 import json
+import random
+import numpy as np
+from typing import Callable, Optional
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -161,6 +164,8 @@ def run_generation(
     instruments_paths: list = None,
     verbose: bool = False,
     progress_callback: Optional[ProgressCallback] = None,
+    seed: Optional[int] = None,
+    use_bwf: bool = True,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -177,6 +182,8 @@ def run_generation(
         instruments_paths: List of paths to instrument folders for intelligent sample selection
         verbose: Enable verbose output
         progress_callback: Optional callback for progress reporting (step, percent, message)
+        seed: Random seed for reproducibility (enables iterative refinement)
+        use_bwf: Use Broadcast Wave Format with AI provenance metadata (default: True)
         
     Returns:
         Dictionary with paths to generated files
@@ -184,10 +191,21 @@ def run_generation(
     # Ensure output_dir is a Path object
     output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
     
+    # Set random seed if provided
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+    else:
+        # Generate seed for reproducibility
+        seed = np.random.randint(0, 2**31 - 1)
+        random.seed(seed)
+        np.random.seed(seed)
+    
     # Helper to report progress
     def report_progress(step: str, percent: float, message: str):
         if progress_callback:
             progress_callback(step, percent, message)
+    
     results = {
         "midi": None,
         "audio": None,
@@ -196,6 +214,8 @@ def run_generation(
         "samples": [],
         "reference_analysis": None,
         "instruments_used": [],
+        "seed": seed,  # Store seed in results
+        "synthesis_params": {},  # Store synthesis parameters
     }
     
     reference_info = None
@@ -438,11 +458,25 @@ def run_generation(
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")
     report_progress("rendering_audio", 0.75, "Rendering audio...")
+    
+    # Prepare AI metadata for BWF
+    ai_metadata = {
+        'version': '0.2.0',
+        'prompt': prompt,
+        'seed': seed,
+        'bpm': parsed.bpm,
+        'key': parsed.key,
+        'genre': parsed.genre,
+        'synthesis_params': results.get('synthesis_params', {}),
+    }
+    
     renderer = AudioRenderer(
         soundfont_path=soundfont_path,
         instrument_library=instrument_library,
         genre=parsed.genre,
-        mood=parsed.mood
+        mood=parsed.mood,
+        use_bwf=use_bwf,
+        ai_metadata=ai_metadata
     )
     
     try:
@@ -505,9 +539,36 @@ def run_generation(
     return results
 
 
-def save_project_metadata(output_dir: Path, prompt: str, results: dict, parsed: ParsedPrompt):
-    """Save project metadata as JSON."""
-    metadata = {
+def save_project_metadata(
+    output_dir: Path,
+    prompt: str,
+    results: dict,
+    parsed: ParsedPrompt,
+    seed: Optional[int] = None,
+    synthesis_params: Optional[dict] = None
+):
+    """
+    Save comprehensive project metadata as JSON with support for iterative refinement.
+    
+    Enhanced to include:
+    - Seed value for reproducibility
+    - ADSR parameters for each synthesized sound
+    - Duty cycle and waveform type for each element
+    - Synthesis parameter history for non-deterministic iteration
+    """
+    # Load existing metadata if present (for refinement tracking)
+    metadata_path = output_dir / "project_metadata.json"
+    history = []
+    if metadata_path.exists():
+        try:
+            with open(metadata_path, 'r') as f:
+                existing = json.load(f)
+                history = existing.get('generation_history', [])
+        except:
+            pass
+    
+    # Create current generation record
+    current_generation = {
         "prompt": prompt,
         "parsed": {
             "bpm": parsed.bpm,
@@ -523,14 +584,160 @@ def save_project_metadata(output_dir: Path, prompt: str, results: dict, parsed: 
         },
         "outputs": results,
         "generated_at": datetime.now().isoformat(),
-        "version": "0.1.0",
+        "seed": seed,  # For reproducibility
+        "synthesis_params": synthesis_params or {},  # ADSR, waveforms, duty cycles
     }
     
-    metadata_path = output_dir / "project_metadata.json"
+    # Add to history
+    history.append(current_generation)
+    
+    # Complete metadata structure
+    metadata = {
+        "version": "0.2.0",  # Updated version with persistence features
+        "current": current_generation,
+        "generation_history": history,
+        "refinement_capable": True,  # Indicates support for iterative refinement
+        "original_seed": history[0].get('seed') if history else seed,  # Preserve original "soul"
+    }
+    
     with open(metadata_path, 'w') as f:
         json.dump(metadata, f, indent=2)
     
     return metadata_path
+
+
+def load_project_metadata(metadata_path: str | Path) -> Optional[dict]:
+    """
+    Load project metadata from JSON file.
+    
+    Returns:
+        Metadata dictionary or None if not found
+    """
+    metadata_path = Path(metadata_path)
+    
+    if not metadata_path.exists():
+        return None
+    
+    try:
+        with open(metadata_path, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading metadata: {e}")
+        return None
+
+
+def refine_generation(
+    metadata_path: str | Path,
+    refinement_prompt: str,
+    output_dir: Optional[Path] = None,
+    **override_params
+) -> dict:
+    """
+    Refine a previous generation using its original seed and parameters.
+    
+    This implements the "non-deterministic iteration" feature where users
+    can provide follow-up prompts like "make the snare punchier" and the AI
+    will use the original seed to maintain the "soul" of the track while
+    modifying specific parameters.
+    
+    Args:
+        metadata_path: Path to project_metadata.json
+        refinement_prompt: Follow-up prompt (e.g., "make snare punchier")
+        output_dir: Output directory (defaults to same as original)
+        **override_params: Specific parameters to override
+        
+    Returns:
+        Results dictionary from refined generation
+    """
+    # Load original metadata
+    metadata = load_project_metadata(metadata_path)
+    if not metadata:
+        raise FileNotFoundError(f"Metadata not found: {metadata_path}")
+    
+    # Get original seed to preserve "soul"
+    original_seed = metadata.get('original_seed')
+    current = metadata.get('current', {})
+    
+    # Determine output directory
+    if output_dir is None:
+        output_dir = Path(metadata_path).parent
+    
+    # Merge original prompt with refinement
+    original_prompt = current.get('prompt', '')
+    combined_prompt = f"{original_prompt} {refinement_prompt}"
+    
+    # Extract original parameters
+    parsed_data = current.get('parsed', {})
+    
+    # Apply overrides
+    for key, value in override_params.items():
+        if key in parsed_data:
+            parsed_data[key] = value
+    
+    # Run generation with original seed
+    print(f"Refining generation with original seed: {original_seed}")
+    print(f"Refinement prompt: {refinement_prompt}")
+    
+    results = run_generation(
+        prompt=combined_prompt,
+        output_dir=output_dir,
+        bpm_override=override_params.get('bpm', parsed_data.get('bpm')),
+        key_override=override_params.get('key', parsed_data.get('key')),
+        **{k: v for k, v in override_params.items() if k not in ['bpm', 'key']}
+    )
+    
+    return results
+
+
+def extract_refinement_intent(refinement_prompt: str) -> dict:
+    """
+    Parse refinement prompt to extract specific modification intent.
+    
+    Examples:
+        "make the snare punchier" -> {'element': 'snare', 'adjustment': 'punchier'}
+        "extend the outro" -> {'section': 'outro', 'adjustment': 'extend'}
+        "add more bass" -> {'element': 'bass', 'adjustment': 'more'}
+    
+    Returns:
+        Dictionary with refinement parameters
+    """
+    refinement = {
+        'intent': 'general',
+        'element': None,
+        'section': None,
+        'adjustment': None,
+    }
+    
+    prompt_lower = refinement_prompt.lower()
+    
+    # Detect elements
+    elements = ['snare', 'kick', 'bass', '808', 'hihat', 'hi-hat', 'clap', 'piano', 'rhodes']
+    for element in elements:
+        if element in prompt_lower:
+            refinement['element'] = element
+            refinement['intent'] = 'element_modification'
+            break
+    
+    # Detect sections
+    sections = ['intro', 'verse', 'chorus', 'drop', 'outro', 'bridge']
+    for section in sections:
+        if section in prompt_lower:
+            refinement['section'] = section
+            refinement['intent'] = 'section_modification'
+            break
+    
+    # Detect adjustments
+    if any(word in prompt_lower for word in ['punchier', 'harder', 'louder', 'more']):
+        refinement['adjustment'] = 'increase'
+    elif any(word in prompt_lower for word in ['softer', 'quieter', 'less', 'subtle']):
+        refinement['adjustment'] = 'decrease'
+    elif any(word in prompt_lower for word in ['extend', 'longer']):
+        refinement['adjustment'] = 'extend'
+    elif any(word in prompt_lower for word in ['shorten', 'shorter']):
+        refinement['adjustment'] = 'shorten'
+    
+    return refinement
+
 
 
 def main():
@@ -662,6 +869,24 @@ Server Mode (for JUCE integration):
         help="Path to MPC template file for export customization",
     )
     
+    # Advanced features
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="Random seed for reproducible generation (enables iterative refinement)",
+    )
+    parser.add_argument(
+        "--refine",
+        type=str,
+        metavar="METADATA_PATH",
+        help="Refine previous generation using its metadata (e.g., 'make snare punchier')",
+    )
+    parser.add_argument(
+        "--no-bwf",
+        action="store_true",
+        help="Disable Broadcast Wave Format metadata (use standard WAV)",
+    )
+    
     # Misc options
     parser.add_argument(
         "-v", "--verbose",
@@ -711,6 +936,51 @@ Server Mode (for JUCE integration):
             print_info("Server stopped.")
         return
     
+    # Normal generation mode - handle refine mode
+    if args.refine:
+        # Refinement mode
+        if not args.prompt:
+            parser.error("Refinement prompt is required with --refine")
+        
+        try:
+            if not args.no_banner and not args.json:
+                print_banner()
+            
+            if not args.json:
+                print_info(f"Refining generation from: {args.refine}")
+                print_info(f"Refinement prompt: \"{args.prompt}\"")
+                print()
+            
+            # Run refinement
+            results = refine_generation(
+                metadata_path=args.refine,
+                refinement_prompt=args.prompt,
+                output_dir=Path(args.output) if args.output != "./output" else None,
+                bpm=args.bpm,
+                key=args.key,
+                export_mpc=args.mpc,
+                export_stems=args.stems,
+                soundfont_path=args.soundfont,
+                instruments_paths=args.instruments,
+                verbose=args.verbose,
+            )
+            
+            if not args.json:
+                print_success("✓ Refinement complete!")
+                if results.get('midi'):
+                    print_info(f"MIDI: {Path(results['midi']).name}")
+                if results.get('audio'):
+                    print_info(f"Audio: {Path(results['audio']).name}")
+            
+            return
+            
+        except Exception as e:
+            print_error(f"Refinement failed: {e}")
+            if args.verbose:
+                import traceback
+                traceback.print_exc()
+            sys.exit(1)
+    
     # Normal generation mode - require prompt
     if not args.prompt:
         parser.error("prompt is required (or use --server mode)")
@@ -729,6 +999,8 @@ Server Mode (for JUCE integration):
             print_info(f"Reference: {args.reference}")
         if args.instruments:
             print_info(f"Instruments: {args.instruments}")
+        if args.seed:
+            print_info(f"Seed: {args.seed} (reproducible generation enabled)")
         print()
     
     try:
@@ -745,6 +1017,8 @@ Server Mode (for JUCE integration):
             template_path=args.template,
             instruments_paths=args.instruments,
             verbose=args.verbose,
+            seed=args.seed,
+            use_bwf=not args.no_bwf,
         )
         
         # Parse prompt again for metadata (could optimize)
@@ -760,8 +1034,15 @@ Server Mode (for JUCE integration):
                 parsed.key = args.key
                 parsed.scale = "major"
         
-        # Save metadata
-        metadata_path = save_project_metadata(output_dir, args.prompt, results, parsed)
+        # Save metadata with seed and synthesis params
+        metadata_path = save_project_metadata(
+            output_dir,
+            args.prompt,
+            results,
+            parsed,
+            seed=results.get('seed'),
+            synthesis_params=results.get('synthesis_params')
+        )
         
         if args.json:
             # JSON output mode

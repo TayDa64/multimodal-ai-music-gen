@@ -216,13 +216,17 @@ def organize_samples_as_kit(
 
 def parse_mpc_xpm(xpm_path: str) -> Optional[Dict]:
     """
-    Parse an MPC .xpm drum program file.
+    Parse an MPC .xpm drum program file with full support for:
+    - Velocity layers
+    - Sample zones
+    - Multiple samples per pad
+    - Pad mappings
     
     Args:
         xpm_path: Path to .xpm file
         
     Returns:
-        Dictionary with pad mappings or None if failed
+        Dictionary with complete pad mappings or None if failed
     """
     try:
         tree = ET.parse(xpm_path)
@@ -231,6 +235,7 @@ def parse_mpc_xpm(xpm_path: str) -> Optional[Dict]:
         program_info = {
             'name': '',
             'pads': {},
+            'velocity_layers_enabled': False,
         }
         
         # Get program name
@@ -255,7 +260,9 @@ def parse_mpc_xpm(xpm_path: str) -> Optional[Dict]:
                         'number': pad_num,
                         'name': '',
                         'midi_note': 36 + pad_num,
-                        'sample_path': None,
+                        'layers': [],  # Enhanced: support multiple velocity layers
+                        'velocity_range': (1, 127),  # Default full range
+                        'sample_zones': [],  # Enhanced: support sample zones
                     }
                     
                     name_elem = pad.find('Name')
@@ -266,14 +273,77 @@ def parse_mpc_xpm(xpm_path: str) -> Optional[Dict]:
                     if note_elem is not None:
                         pad_info['midi_note'] = int(note_elem.text)
                     
-                    # Get sample layer
+                    # Enhanced: Parse all sample layers (velocity layers)
                     layers = pad.find('Layers')
                     if layers is not None:
-                        layer = layers.find('Layer')
-                        if layer is not None:
+                        for layer in layers.findall('Layer'):
+                            layer_info = {
+                                'sample_path': None,
+                                'velocity_min': 1,
+                                'velocity_max': 127,
+                                'volume': 100,
+                                'pan': 0,
+                                'pitch_offset': 0,
+                            }
+                            
+                            # Sample path
                             path_elem = layer.find('FilePath')
                             if path_elem is not None:
-                                pad_info['sample_path'] = path_elem.text
+                                layer_info['sample_path'] = path_elem.text
+                            
+                            # Velocity range for this layer
+                            vel_min_elem = layer.find('VelocityMin')
+                            if vel_min_elem is not None:
+                                layer_info['velocity_min'] = int(vel_min_elem.text)
+                            
+                            vel_max_elem = layer.find('VelocityMax')
+                            if vel_max_elem is not None:
+                                layer_info['velocity_max'] = int(vel_max_elem.text)
+                            
+                            # Volume
+                            vol_elem = layer.find('Volume')
+                            if vol_elem is not None:
+                                layer_info['volume'] = float(vol_elem.text)
+                            
+                            # Pan
+                            pan_elem = layer.find('Pan')
+                            if pan_elem is not None:
+                                layer_info['pan'] = float(pan_elem.text)
+                            
+                            # Pitch offset (in cents or semitones)
+                            pitch_elem = layer.find('PitchOffset')
+                            if pitch_elem is not None:
+                                layer_info['pitch_offset'] = float(pitch_elem.text)
+                            
+                            pad_info['layers'].append(layer_info)
+                            
+                            # Track if velocity layers are used
+                            if layer_info['velocity_min'] > 1 or layer_info['velocity_max'] < 127:
+                                program_info['velocity_layers_enabled'] = True
+                    
+                    # Enhanced: Parse sample zones (if present)
+                    zones = pad.find('SampleZones')
+                    if zones is not None:
+                        for zone in zones.findall('Zone'):
+                            zone_info = {
+                                'sample_path': None,
+                                'note_range': (36, 36),  # MIDI note range
+                                'velocity_range': (1, 127),
+                            }
+                            
+                            path_elem = zone.find('FilePath')
+                            if path_elem is not None:
+                                zone_info['sample_path'] = path_elem.text
+                            
+                            note_min_elem = zone.find('NoteMin')
+                            note_max_elem = zone.find('NoteMax')
+                            if note_min_elem is not None and note_max_elem is not None:
+                                zone_info['note_range'] = (
+                                    int(note_min_elem.text),
+                                    int(note_max_elem.text)
+                                )
+                            
+                            pad_info['sample_zones'].append(zone_info)
                     
                     program_info['pads'][pad_id] = pad_info
         
@@ -289,7 +359,10 @@ def load_kit_from_xpm(
     samples_base_dir: Optional[str] = None
 ) -> Optional[SampleKit]:
     """
-    Load a sample kit from an MPC .xpm drum program.
+    Load a sample kit from an MPC .xpm drum program with enhanced support for:
+    - Velocity layers
+    - Multiple samples per pad
+    - Sample zones
     
     Args:
         xpm_path: Path to .xpm file
@@ -316,33 +389,73 @@ def load_kit_from_xpm(
     )
     
     for pad_id, pad_info in program['pads'].items():
-        if pad_info['sample_path']:
-            # Resolve sample path
-            sample_path = pad_info['sample_path']
-            
-            # Handle [ProjectData] paths
-            if '[ProjectData]' in sample_path:
-                sample_path = sample_path.replace('[ProjectData]/', '')
-                sample_path = sample_path.replace('[ProjectData]\\', '')
-            
-            # Try to find the sample
-            full_path = Path(samples_base_dir) / sample_path
-            
-            if not full_path.exists():
-                # Try just the filename
-                full_path = Path(samples_base_dir) / Path(sample_path).name
-            
-            if full_path.exists():
-                sample = load_wav_sample(str(full_path))
-                if sample:
-                    sample.name = pad_info['name'] or sample.name
-                    sample.midi_note = pad_info['midi_note']
-                    
-                    # Use pad name for type detection if sample type unknown
-                    if sample.sample_type == 'unknown' and pad_info['name']:
-                        sample.sample_type = detect_sample_type(pad_info['name'])
-                    
-                    kit.samples[pad_id] = sample
+        # Process all layers (velocity layers)
+        for layer_idx, layer in enumerate(pad_info.get('layers', [])):
+            if layer['sample_path']:
+                # Resolve sample path
+                sample_path = layer['sample_path']
+                
+                # Handle [ProjectData] paths
+                if '[ProjectData]' in sample_path:
+                    sample_path = sample_path.replace('[ProjectData]/', '')
+                    sample_path = sample_path.replace('[ProjectData]\\', '')
+                
+                # Try to find the sample
+                full_path = Path(samples_base_dir) / sample_path
+                
+                if not full_path.exists():
+                    # Try just the filename
+                    full_path = Path(samples_base_dir) / Path(sample_path).name
+                
+                if full_path.exists():
+                    sample = load_wav_sample(str(full_path))
+                    if sample:
+                        # Enhanced: Store layer information
+                        sample.name = pad_info['name'] or sample.name
+                        sample.midi_note = pad_info['midi_note']
+                        
+                        # Use pad name for type detection if sample type unknown
+                        if sample.sample_type == 'unknown' and pad_info['name']:
+                            sample.sample_type = detect_sample_type(pad_info['name'])
+                        
+                        # Create unique key for multi-layer samples
+                        if len(pad_info['layers']) > 1:
+                            # Include velocity range in key for velocity layers
+                            vel_range = f"v{layer['velocity_min']}-{layer['velocity_max']}"
+                            kit_key = f"{pad_id}_{vel_range}"
+                        else:
+                            kit_key = pad_id
+                        
+                        kit.samples[kit_key] = sample
+        
+        # Process sample zones if present
+        for zone_idx, zone in enumerate(pad_info.get('sample_zones', [])):
+            if zone['sample_path']:
+                sample_path = zone['sample_path']
+                
+                # Handle [ProjectData] paths
+                if '[ProjectData]' in sample_path:
+                    sample_path = sample_path.replace('[ProjectData]/', '')
+                    sample_path = sample_path.replace('[ProjectData]\\', '')
+                
+                full_path = Path(samples_base_dir) / sample_path
+                
+                if not full_path.exists():
+                    full_path = Path(samples_base_dir) / Path(sample_path).name
+                
+                if full_path.exists():
+                    sample = load_wav_sample(str(full_path))
+                    if sample:
+                        sample.name = pad_info['name'] or sample.name
+                        sample.midi_note = pad_info['midi_note']
+                        
+                        if sample.sample_type == 'unknown' and pad_info['name']:
+                            sample.sample_type = detect_sample_type(pad_info['name'])
+                        
+                        # Create unique key for zoned samples
+                        note_range = zone['note_range']
+                        zone_key = f"{pad_id}_zone{note_range[0]}-{note_range[1]}"
+                        kit.samples[zone_key] = sample
     
     return kit
 

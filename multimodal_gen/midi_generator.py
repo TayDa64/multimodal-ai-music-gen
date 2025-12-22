@@ -998,6 +998,163 @@ def save_midi(midi_file: MidiFile, path: str):
     midi_file.save(path)
 
 
+def overdub_midi_track(
+    existing_midi_path: str,
+    new_track_data: TrackData,
+    track_name: str = "Overdub",
+    output_path: Optional[str] = None
+) -> MidiFile:
+    """
+    Overdub (merge) new MIDI notes onto an existing MIDI file.
+    
+    This implements the "Overdub (Merge)" mode where new performances
+    are layered onto existing MIDI tracks without erasing previous data.
+    
+    Args:
+        existing_midi_path: Path to existing MIDI file
+        new_track_data: TrackData containing new notes to add
+        track_name: Name for the new track
+        output_path: Optional output path (if None, returns MidiFile object)
+        
+    Returns:
+        MidiFile object with merged tracks
+    """
+    # Load existing MIDI file
+    existing_midi = MidiFile(existing_midi_path)
+    
+    # Create new track from track data
+    new_track = MidiTrack()
+    new_track.append(MetaMessage('track_name', name=track_name, time=0))
+    
+    # Add program change if specified
+    if new_track_data.program > 0:
+        new_track.append(Message(
+            'program_change',
+            program=new_track_data.program,
+            channel=new_track_data.channel,
+            time=0
+        ))
+    
+    # Convert notes to MIDI messages
+    events = []
+    for note in new_track_data.notes:
+        events.append(('note_on', note.start_tick, note.pitch, note.velocity, note.channel))
+        events.append(('note_off', note.end_tick, note.pitch, 0, note.channel))
+    
+    # Sort by time
+    events.sort(key=lambda e: (e[1], 0 if e[0] == 'note_off' else 1))
+    
+    # Convert to delta times
+    prev_time = 0
+    for event_type, abs_time, pitch, velocity, channel in events:
+        delta = abs_time - prev_time
+        
+        if event_type == 'note_on':
+            new_track.append(Message(
+                'note_on',
+                note=pitch,
+                velocity=velocity,
+                channel=channel,
+                time=delta
+            ))
+        else:
+            new_track.append(Message(
+                'note_off',
+                note=pitch,
+                velocity=0,
+                channel=channel,
+                time=delta
+            ))
+        
+        prev_time = abs_time
+    
+    # End of track
+    new_track.append(MetaMessage('end_of_track', time=0))
+    
+    # Add new track to existing MIDI
+    existing_midi.tracks.append(new_track)
+    
+    # Save if output path specified
+    if output_path:
+        existing_midi.save(output_path)
+    
+    return existing_midi
+
+
+def create_midi_version(
+    original_midi_path: str,
+    version_suffix: Optional[str] = None
+) -> str:
+    """
+    Create a versioned copy of a MIDI file.
+    
+    This implements the "Record (New Version)" mode where initiating
+    a standard "Record" creates a new MIDI sequence while preserving
+    the original state in the output/ folder.
+    
+    Args:
+        original_midi_path: Path to original MIDI file
+        version_suffix: Optional version suffix (default: timestamp)
+        
+    Returns:
+        Path to versioned MIDI file
+    """
+    from pathlib import Path
+    from datetime import datetime
+    
+    original_path = Path(original_midi_path)
+    
+    # Generate version suffix if not provided
+    if version_suffix is None:
+        version_suffix = datetime.now().strftime("v%Y%m%d_%H%M%S")
+    
+    # Create versioned filename
+    versioned_name = f"{original_path.stem}_{version_suffix}{original_path.suffix}"
+    versioned_path = original_path.parent / versioned_name
+    
+    # Load and save as new version
+    midi_file = MidiFile(original_midi_path)
+    midi_file.save(str(versioned_path))
+    
+    return str(versioned_path)
+
+
+def load_and_merge_midi_tracks(
+    *midi_paths: str,
+    output_path: Optional[str] = None
+) -> MidiFile:
+    """
+    Load multiple MIDI files and merge all their tracks.
+    
+    Useful for combining multiple recordings or overdubs.
+    
+    Args:
+        *midi_paths: Variable number of MIDI file paths
+        output_path: Optional output path
+        
+    Returns:
+        MidiFile with all merged tracks
+    """
+    if not midi_paths:
+        raise ValueError("At least one MIDI path required")
+    
+    # Load first file as base
+    merged = MidiFile(midi_paths[0])
+    
+    # Merge additional files
+    for midi_path in midi_paths[1:]:
+        midi = MidiFile(midi_path)
+        # Skip tempo track (track 0), add all others
+        for track in midi.tracks[1:]:
+            merged.tracks.append(track)
+    
+    # Save if output path specified
+    if output_path:
+        merged.save(output_path)
+    
+    return merged
+
+
 if __name__ == '__main__':
     # Test generation
     from .prompt_parser import parse_prompt

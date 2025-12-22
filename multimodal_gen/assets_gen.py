@@ -33,6 +33,268 @@ from .utils import SAMPLE_RATE, BIT_DEPTH
 
 
 # =============================================================================
+# WAVEFORM TYPES
+# =============================================================================
+
+class WaveformType(Enum):
+    """Supported waveform types for hybrid synthesis."""
+    SINE = "sine"
+    TRIANGLE = "triangle"
+    SQUARE = "square"
+    SAWTOOTH = "sawtooth"
+    PULSE = "pulse"
+
+
+@dataclass
+class ADSRParameters:
+    """ADSR envelope parameters for natural musical shape."""
+    attack_ms: float = 10.0      # Attack time in milliseconds
+    decay_ms: float = 100.0      # Decay time in milliseconds
+    sustain_level: float = 0.7   # Sustain level (0-1)
+    release_ms: float = 200.0    # Release time in milliseconds
+    
+    def to_samples(self, sample_rate: int = SAMPLE_RATE) -> tuple:
+        """Convert time values to sample counts."""
+        return (
+            int(self.attack_ms * sample_rate / 1000),
+            int(self.decay_ms * sample_rate / 1000),
+            self.sustain_level,
+            int(self.release_ms * sample_rate / 1000)
+        )
+
+
+@dataclass
+class SynthesisParameters:
+    """Complete synthesis parameters for procedural audio generation."""
+    waveform: WaveformType = WaveformType.SINE
+    frequency: float = 440.0
+    duration_sec: float = 1.0
+    adsr: ADSRParameters = None
+    duty_cycle: float = 0.5  # For pulse wave (0.1-0.9)
+    
+    def __post_init__(self):
+        if self.adsr is None:
+            self.adsr = ADSRParameters()
+
+
+def generate_waveform(
+    waveform_type: WaveformType,
+    frequency: float,
+    duration: float,
+    duty_cycle: float = 0.5,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """
+    Generate basic waveform for procedural synthesis.
+    
+    Args:
+        waveform_type: Type of waveform (sine, triangle, square, etc.)
+        frequency: Frequency in Hz
+        duration: Duration in seconds
+        duty_cycle: Duty cycle for pulse wave (0.2 = thin, 0.5 = square)
+        sample_rate: Sample rate
+        
+    Returns:
+        Generated waveform as numpy array
+    """
+    num_samples = int(duration * sample_rate)
+    t = np.arange(num_samples) / sample_rate
+    
+    if waveform_type == WaveformType.SINE:
+        # Sine wave: smooth, warm tone
+        audio = np.sin(2 * np.pi * frequency * t)
+    
+    elif waveform_type == WaveformType.TRIANGLE:
+        # Triangle wave: softer than square, more harmonic content than sine
+        phase = (frequency * t) % 1.0
+        audio = 2 * np.abs(2 * phase - 1) - 1
+    
+    elif waveform_type == WaveformType.SQUARE:
+        # Square wave: harsh, hollow tone (50% duty cycle)
+        audio = np.sign(np.sin(2 * np.pi * frequency * t))
+    
+    elif waveform_type == WaveformType.SAWTOOTH:
+        # Sawtooth wave: bright, buzzy tone
+        phase = (frequency * t) % 1.0
+        audio = 2 * phase - 1
+    
+    elif waveform_type == WaveformType.PULSE:
+        # Pulse wave: variable duty cycle (thin to square)
+        # duty_cycle: 0.2 = thin pulse, 0.5 = square wave
+        phase = (frequency * t) % 1.0
+        audio = np.where(phase < duty_cycle, 1.0, -1.0)
+    
+    else:
+        # Default to sine
+        audio = np.sin(2 * np.pi * frequency * t)
+    
+    return audio
+
+
+def generate_tone_with_adsr(
+    params: SynthesisParameters,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """
+    Generate a tone with specified waveform and ADSR envelope.
+    
+    This is the main function for procedural synthesis fallback when
+    samples are missing.
+    
+    Args:
+        params: Complete synthesis parameters
+        sample_rate: Sample rate
+        
+    Returns:
+        Generated audio with envelope applied
+    """
+    # Generate base waveform
+    audio = generate_waveform(
+        params.waveform,
+        params.frequency,
+        params.duration_sec,
+        params.duty_cycle,
+        sample_rate
+    )
+    
+    # Apply ADSR envelope
+    attack_samples, decay_samples, sustain_level, release_samples = params.adsr.to_samples(sample_rate)
+    
+    # Calculate sustain duration
+    total_samples = len(audio)
+    sustain_samples = max(0, total_samples - attack_samples - decay_samples - release_samples)
+    
+    audio = apply_envelope(
+        audio,
+        attack_samples,
+        decay_samples,
+        sustain_level,
+        release_samples,
+        sustain_samples
+    )
+    
+    return audio
+
+
+def generate_hybrid_sound(
+    sound_type: str,
+    frequency: float = 440.0,
+    duration: float = 0.5,
+    adsr: Optional[ADSRParameters] = None,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """
+    Generate hybrid procedural sound based on type.
+    
+    Automatically selects appropriate waveform and parameters for
+    different sound types (kick, snare, bass, etc.).
+    
+    Args:
+        sound_type: Type of sound ('kick', 'snare', 'bass', 'pad', 'pluck')
+        frequency: Base frequency in Hz
+        duration: Duration in seconds
+        adsr: Custom ADSR parameters (optional)
+        sample_rate: Sample rate
+        
+    Returns:
+        Generated audio
+    """
+    if sound_type == 'kick':
+        # Kick: sine with fast pitch decay
+        params = SynthesisParameters(
+            waveform=WaveformType.SINE,
+            frequency=frequency,
+            duration_sec=duration,
+            adsr=adsr or ADSRParameters(
+                attack_ms=1.0,
+                decay_ms=80.0,
+                sustain_level=0.0,
+                release_ms=0.0
+            )
+        )
+        return generate_tone_with_adsr(params, sample_rate)
+    
+    elif sound_type == 'bass':
+        # Bass: sine or triangle, medium sustain
+        params = SynthesisParameters(
+            waveform=WaveformType.TRIANGLE,
+            frequency=frequency,
+            duration_sec=duration,
+            adsr=adsr or ADSRParameters(
+                attack_ms=5.0,
+                decay_ms=50.0,
+                sustain_level=0.8,
+                release_ms=100.0
+            )
+        )
+        return generate_tone_with_adsr(params, sample_rate)
+    
+    elif sound_type == 'pad':
+        # Pad: multiple detuned sine waves for warmth
+        params = SynthesisParameters(
+            waveform=WaveformType.SINE,
+            frequency=frequency,
+            duration_sec=duration,
+            adsr=adsr or ADSRParameters(
+                attack_ms=200.0,
+                decay_ms=100.0,
+                sustain_level=0.9,
+                release_ms=500.0
+            )
+        )
+        # Generate detuned layers
+        layer1 = generate_tone_with_adsr(params, sample_rate)
+        params.frequency = frequency * 1.005  # Slightly sharp
+        layer2 = generate_tone_with_adsr(params, sample_rate)
+        params.frequency = frequency * 0.995  # Slightly flat
+        layer3 = generate_tone_with_adsr(params, sample_rate)
+        
+        # Mix layers
+        return (layer1 + layer2 + layer3) / 3.0
+    
+    elif sound_type == 'pluck':
+        # Pluck: triangle with fast decay
+        params = SynthesisParameters(
+            waveform=WaveformType.TRIANGLE,
+            frequency=frequency,
+            duration_sec=duration,
+            adsr=adsr or ADSRParameters(
+                attack_ms=1.0,
+                decay_ms=200.0,
+                sustain_level=0.2,
+                release_ms=100.0
+            )
+        )
+        return generate_tone_with_adsr(params, sample_rate)
+    
+    elif sound_type == 'lead':
+        # Lead: pulse or sawtooth, bright
+        params = SynthesisParameters(
+            waveform=WaveformType.PULSE,
+            frequency=frequency,
+            duration_sec=duration,
+            duty_cycle=0.3,  # Thin pulse for bright tone
+            adsr=adsr or ADSRParameters(
+                attack_ms=10.0,
+                decay_ms=100.0,
+                sustain_level=0.7,
+                release_ms=150.0
+            )
+        )
+        return generate_tone_with_adsr(params, sample_rate)
+    
+    else:
+        # Default: sine wave
+        params = SynthesisParameters(
+            waveform=WaveformType.SINE,
+            frequency=frequency,
+            duration_sec=duration,
+            adsr=adsr or ADSRParameters()
+        )
+        return generate_tone_with_adsr(params, sample_rate)
+
+
+# =============================================================================
 # SYNTHESIS UTILITIES
 # =============================================================================
 

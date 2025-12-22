@@ -5,16 +5,34 @@ A text-to-MIDI-to-audio generation system with professional humanization
 and MPC Software export support.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "AI Music Generator Team"
 
 from .prompt_parser import PromptParser, ParsedPrompt
-from .midi_generator import MidiGenerator
+from .midi_generator import (
+    MidiGenerator,
+    overdub_midi_track,
+    create_midi_version,
+    load_and_merge_midi_tracks,
+)
 from .audio_renderer import AudioRenderer
 from .mpc_exporter import MpcExporter
 from .arranger import Arranger, SongSection
-from .assets_gen import AssetsGenerator
+from .assets_gen import (
+    AssetsGenerator,
+    WaveformType,
+    ADSRParameters,
+    SynthesisParameters,
+    generate_waveform,
+    generate_tone_with_adsr,
+    generate_hybrid_sound,
+)
 from .sample_loader import SampleLibrary, quick_load_samples
+from .bwf_writer import (
+    BWFWriter,
+    save_wav_with_ai_provenance,
+    read_bwf_metadata,
+)
 from .reference_analyzer import (
     ReferenceAnalyzer,
     ReferenceAnalysis,
@@ -46,13 +64,25 @@ __all__ = [
     "PromptParser",
     "ParsedPrompt",
     "MidiGenerator",
+    "overdub_midi_track",
+    "create_midi_version",
+    "load_and_merge_midi_tracks",
     "AudioRenderer",
     "MpcExporter",
     "Arranger",
     "SongSection",
     "AssetsGenerator",
+    "WaveformType",
+    "ADSRParameters",
+    "SynthesisParameters",
+    "generate_waveform",
+    "generate_tone_with_adsr",
+    "generate_hybrid_sound",
     "SampleLibrary",
     "quick_load_samples",
+    "BWFWriter",
+    "save_wav_with_ai_provenance",
+    "read_bwf_metadata",
     "ReferenceAnalyzer",
     "ReferenceAnalysis",
     "analyze_reference",
