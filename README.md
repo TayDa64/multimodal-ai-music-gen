@@ -21,6 +21,7 @@
 - [Using Your Own Samples](#-using-your-own-samples)
 - [MPC Integration](#-mpc-integration)
 - [Audio Quality & Mixing](#-audio-quality--mixing)
+- [Ethiopian Instruments](#-ethiopian-instruments)
 - [Troubleshooting](#-troubleshooting)
 - [Development](#-development)
 
@@ -61,6 +62,8 @@ This single command creates:
 | 📁 **MPC Export** | .xpj projects for MPC Software 2.13+ | ✅ Complete |
 | 🎨 **Sample Import** | Use your own .wav samples or .xpm programs | ✅ Complete |
 | 🎚️ **Soft Clipping** | Prevents digital distortion in loud mixes | ✅ Complete |
+| 🪕 **Ethiopian Instruments** | Krar, Masenqo, Begena, Kebero synthesis | ✅ Complete |
+| 🎛️ **Instrument Shaper** | Pro-Q3 style spectrum editor for sounds | ✅ Complete |
 | 💻 **CPU-Only** | No GPU required | ✅ Complete |
 | 🌐 **Offline** | No internet after install | ✅ Complete |
 
@@ -625,6 +628,58 @@ Based on professional drum programming techniques:
 2. **Timing Swing**: 50-60% for shuffled feel
 3. **Drummer Physics**: Weaker hand simulation
 4. **Ghost Notes**: Subtle snare hits between main beats
+
+---
+
+## 🪕 Ethiopian Instruments
+
+The generator includes physically-modeled Ethiopian traditional instruments with authentic synthesis algorithms:
+
+### Instruments
+
+| Instrument | Type | Description | Algorithm |
+|------------|------|-------------|-----------|
+| **Krar** | Plucked lyre | 6-string bowl lyre with bright, clear tone | Karplus-Strong |
+| **Masenqo** | Bowed fiddle | Single-string spike fiddle with expressive "crying" voice | Stick-slip bow model |
+| **Begena** | Bass lyre | 10-string meditation lyre with characteristic buzz | Karplus-Strong + buzz |
+| **Kebero** | Drum | Traditional double-headed hand drum | Modal synthesis |
+
+### Ethiopian Scales
+
+The generator supports traditional Ethiopian modes:
+
+| Scale | Notes (in C) | Character |
+|-------|--------------|-----------|
+| **Tizita Minor** | C Db E F G Ab Bb | Nostalgic, sad (Ethiopian blues) |
+| **Tizita Major** | C D E F G A Bb | Longing, bittersweet |
+| **Ambassel** | C Db E F G Ab B | Spiritual, meditative |
+| **Anchihoye** | C D Eb F G A Bb | Joyful, celebratory |
+
+### Instrument Shaper Tool
+
+A FabFilter Pro-Q3 style spectrum editor for shaping Ethiopian instrument sounds:
+
+```bash
+python instrument_shaper.py
+```
+
+**Features:**
+- Single interactive spectrum graph
+- Drag harmonic nodes to shape instrument timbre
+- Real-time preview with [Space]
+- Switch instruments with [1] [2] [3] keys
+- Add harmonics with double-click
+- Remove with right-click
+- Scroll to adjust Q/resonance
+
+### Demo Song Generation
+
+Generate an authentic Ethiopian Tizita ballad:
+
+```python
+# See output/ethiopian_tizita_authentic.wav for example
+# Key instruments: Masenqo (lead), Krar (rhythm), Begena (bass)
+```
 
 ---
 

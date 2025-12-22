@@ -1,7 +1,7 @@
 # 🎵 AI Music Generator - Project Knowledge Base
 
 > **Reference document for continuing development across chat sessions**  
-> **Last Updated**: December 11, 2025
+> **Last Updated**: December 22, 2025
 
 ---
 
@@ -200,6 +200,8 @@ f489f81 Complete Phases 0-3: OSC bridge, Audio engine, UI polish
 | Genre themes | ✅ | 7 color themes |
 | Python OSC server | ✅ | `--server` mode |
 | Generation flow | ✅ | Prompt → Python → Load |
+| Ethiopian instruments | ✅ | Krar, Masenqo, Begena, Kebero |
+| Instrument shaper | ✅ | Pro-Q3 style spectrum editor |
 
 ### Known Limitations
 - No per-track mixer yet (Phase 8)
@@ -319,6 +321,23 @@ multimodal-ai-music-gen/
 | Boom Bap | Gold/Brown/Black |
 | Drill | Dark Blue/Black/White |
 | House | Cyan/Magenta/Yellow |
+
+### Ethiopian Instruments (Physical Modeling)
+| Instrument | Algorithm | Key Parameters |
+|------------|-----------|----------------|
+| **Krar** | Karplus-Strong | decay=0.996, brightness, body resonance |
+| **Masenqo** | Stick-slip bow model | expressiveness, bow pressure, vibrato |
+| **Begena** | Karplus-Strong + buzz | buzz_amount, leather dampening |
+| **Kebero** | Modal synthesis | shell modes, skin tension |
+
+**Frequency Range**: 20-3000 Hz (appropriate for acoustic gut strings)
+**Attack Times**: All < 10ms (verified via spectrum analysis)
+
+### Instrument Shaper Tool
+- **File**: `instrument_shaper.py`
+- **Style**: FabFilter Pro-Q3 single-graph interface
+- **Features**: Draggable harmonic nodes, real-time preview, Q adjustment
+- **Controls**: Mouse drag, scroll for Q, keyboard shortcuts (1-3, Space, R, S)
 
 ---
 
