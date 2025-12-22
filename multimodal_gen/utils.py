@@ -51,6 +51,18 @@ GM_DRUM_NOTES = {
     'tambourine': 54, # Tambourine
     'cowbell': 56,    # Cowbell
     'perc_808': 36,   # Map 808 kick to bass drum
+    # African/Ethiopian percussion mappings
+    'conga_high': 62,     # High Conga - for kebero slap
+    'conga_low': 63,      # Low Conga - for kebero bass
+    'bongo_high': 60,     # High Bongo - for atamo
+    'bongo_low': 61,      # Low Bongo
+    'shaker': 70,         # Maracas - for shaker sounds
+    'agogo_high': 67,     # High Agogo
+    'agogo_low': 68,      # Low Agogo  
+    'cabasa': 69,         # Cabasa - texture percussion
+    'guiro': 73,          # Guiro
+    'woodblock_high': 76, # Hi Wood Block
+    'woodblock_low': 77,  # Low Wood Block
 }
 
 # 808 specific (for trap/hip-hop, often use different mappings)
@@ -98,6 +110,19 @@ class ScaleType(Enum):
     PENTATONIC_MAJOR = [0, 2, 4, 7, 9]
     PENTATONIC_MINOR = [0, 3, 5, 7, 10]
     BLUES = [0, 3, 5, 6, 7, 10]
+    
+    # Ethiopian Qenet (modes) - Traditional Ethiopian scales
+    # These pentatonic scales are fundamental to Ethiopian music
+    TIZITA_MAJOR = [0, 2, 5, 7, 9]      # Nostalgic/melancholic feel, major variant
+    TIZITA_MINOR = [0, 3, 5, 7, 10]     # Nostalgic/melancholic feel, minor variant
+    BATI_MAJOR = [0, 2, 4, 7, 9]        # Joyful, celebratory (similar to major pentatonic)
+    BATI_MINOR = [0, 3, 5, 7, 10]       # Joyful minor variant
+    AMBASSEL = [0, 2, 5, 7, 10]         # Spiritual, meditative, often used for slow songs
+    ANCHIHOYE = [0, 2, 4, 5, 7, 9, 11]  # Playful, dance-like (similar to major but distinct phrasing)
+    
+    # Additional Ethiopian scales
+    ETHIOPIAN_PENTATONIC = [0, 2, 5, 7, 9]  # Common Ethiopian pentatonic base
+    ETHIO_JAZZ = [0, 2, 3, 5, 7, 9, 10]     # Ethio-jazz fusion (minor with raised 6th)
 
 
 # Note name to MIDI number mapping (C4 = 60 = Middle C)
@@ -543,5 +568,44 @@ GENRE_DEFAULTS = {
         'swing': 0.0,
         'sparse_drums': True,
         'emphasis': 'pads',
+    },
+    # Ethiopian music genres
+    'ethiopian': {
+        'bpm_range': (100, 130),
+        'default_bpm': 115,
+        'scale': ScaleType.TIZITA_MAJOR,
+        'swing': 0.15,
+        'time_signature': (6, 8),  # 6/8 or 12/8 common in Ethiopian music
+        'emphasis': 'melody',
+        'syncopation': True,
+        'call_response': True,
+    },
+    'ethio_jazz': {
+        'bpm_range': (90, 120),
+        'default_bpm': 105,
+        'scale': ScaleType.ETHIO_JAZZ,
+        'swing': 0.12,
+        'emphasis': 'brass',
+        'syncopation': True,
+        'funk_elements': True,
+    },
+    'ethiopian_traditional': {
+        'bpm_range': (80, 130),
+        'default_bpm': 110,
+        'scale': ScaleType.AMBASSEL,
+        'swing': 0.10,
+        'time_signature': (12, 8),
+        'emphasis': 'melody',
+        'pentatonic': True,
+        'ornamental': True,
+    },
+    'eskista': {
+        'bpm_range': (100, 140),
+        'default_bpm': 120,
+        'scale': ScaleType.BATI_MAJOR,
+        'swing': 0.18,
+        'time_signature': (6, 8),
+        'emphasis': 'drums',
+        'dance_rhythm': True,
     },
 }

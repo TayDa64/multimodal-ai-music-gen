@@ -52,6 +52,13 @@ from .assets_gen import (
     generate_fm_pluck,
     generate_pad_tone,
     generate_sine_tone,
+    # Ethiopian instruments
+    generate_krar_tone,
+    generate_masenqo_tone,
+    generate_washint_tone,
+    generate_begena_tone,
+    generate_brass_tone,
+    generate_organ_tone,
     lowpass_filter,
     highpass_filter,
     normalize_audio,
@@ -532,11 +539,11 @@ class ProceduralRenderer:
         for note in notes:
             if is_drums:
                 sample = self._get_drum_sample(note.pitch)
+                # Apply velocity only for drums (synthesis functions already apply it)
+                sample = sample * note.velocity
             else:
+                # Melodic synthesis functions already apply velocity internally
                 sample = self._synthesize_note(note)
-            
-            # Apply velocity
-            sample = sample * note.velocity
             
             # Mix into output
             end_sample = min(note.start_sample + len(sample), total_samples)
@@ -561,9 +568,29 @@ class ProceduralRenderer:
             44: 'hihat',    # Pedal Hi-Hat
             46: 'hihat_open',  # Open Hi-Hat
             49: 'hihat_open',  # Crash
+            # Ethiopian drums (custom kebero range)
+            50: 'kebero',      # Kebero bass
+            51: 'kebero_slap', # Kebero slap
+            52: 'kebero_mute', # Kebero muted
+            # GM Latin percussion (used for Ethiopian approximation)
+            60: 'bongo_high',  # High Bongo - Atamo
+            61: 'bongo_low',   # Low Bongo
+            62: 'conga_high',  # High Conga - Kebero slap
+            63: 'conga_low',   # Low Conga - Kebero bass
+            70: 'shaker',      # Maracas/Shaker
         }
         
         drum_name = drum_map.get(pitch, 'kick')
+        
+        # Handle Ethiopian/Latin percussion with procedural synthesis
+        if drum_name.startswith('kebero') or drum_name in ['conga_high', 'conga_low', 'bongo_high', 'bongo_low', 'shaker']:
+            from .assets_gen import generate_kebero_hit, generate_shaker_hit
+            velocity = 0.8
+            if drum_name == 'shaker':
+                return generate_shaker_hit(velocity, self.sample_rate)
+            else:
+                # Map conga/bongo to kebero-like sounds
+                return generate_kebero_hit(pitch, velocity, self.sample_rate)
         
         # Prefer custom instruments from library
         if drum_name in self._custom_drum_cache:
@@ -573,18 +600,43 @@ class ProceduralRenderer:
         return self._drum_cache.get(drum_name, self._drum_cache['kick']).copy()
     
     def _synthesize_note(self, note: SynthNote) -> np.ndarray:
-        """Synthesize a melodic note."""
+        """Synthesize a melodic note based on MIDI program number."""
         # Convert MIDI pitch to frequency
         freq = 440 * (2 ** ((note.pitch - 69) / 12))
         duration = note.duration_samples / self.sample_rate
+        velocity = note.velocity  # Already normalized 0-1 by _render_track_procedural
         
         # Choose synthesis method based on program
+        # Standard GM instruments
         if note.program in [0, 1, 2, 3, 4, 5, 6, 7]:  # Piano/Rhodes
             return generate_fm_pluck(freq, duration)
         elif note.program in [38, 39]:  # Synth Bass
             return generate_808_kick(duration, freq * 4, freq)
         elif note.program >= 88 and note.program <= 95:  # Pads
             return generate_pad_tone(freq, duration)
+        elif note.program == 16 or note.program == 17:  # Organ
+            return generate_organ_tone(freq, duration, velocity)
+        elif note.program >= 56 and note.program <= 63:  # Brass
+            return generate_brass_tone(freq, duration, velocity)
+        elif note.program >= 40 and note.program <= 47:  # Strings
+            # Use masenqo for strings (bowed sound)
+            return generate_masenqo_tone(freq, duration, velocity)
+        elif note.program >= 72 and note.program <= 79:  # Flute/Wind
+            return generate_washint_tone(freq, duration, velocity)
+        # Ethiopian instruments (custom program numbers 110-119)
+        elif note.program == 110:  # Krar
+            # Use Ethiopian tuning, optionally add ornaments on accented notes
+            add_ornament = velocity > 0.7 and duration > 0.15
+            return generate_krar_tone(freq, duration, velocity, self.sample_rate, 'tizita', add_ornament)
+        elif note.program == 111:  # Masenqo
+            # High expressiveness for authentic Azmari sound
+            expressiveness = 0.6 + velocity * 0.3
+            add_ornament = velocity > 0.6 and duration > 0.25
+            return generate_masenqo_tone(freq, duration, velocity, self.sample_rate, expressiveness, add_ornament)
+        elif note.program == 112:  # Washint
+            return generate_washint_tone(freq, duration, velocity, self.sample_rate)
+        elif note.program == 113:  # Begena
+            return generate_begena_tone(freq, duration, velocity, self.sample_rate)
         else:
             # Default to FM pluck
             return generate_fm_pluck(freq, duration)
@@ -720,8 +772,15 @@ class AudioRenderer:
         
         # Render each track
         tracks_audio = []
+        track_infos = []  # (name, is_drums) for each track
         
         for track in midi.tracks:
+            # Detect if drum track
+            is_drums = any(
+                hasattr(msg, 'channel') and msg.channel == 9 
+                for msg in track if msg.type == 'note_on'
+            )
+            
             track_audio = self._render_track_procedural(
                 track,
                 midi.ticks_per_beat,
@@ -729,20 +788,39 @@ class AudioRenderer:
             )
             if track_audio is not None:
                 tracks_audio.append(track_audio)
+                track_infos.append((track.name, is_drums))
         
         if not tracks_audio:
             return False
         
-        # Mix tracks
-        # Assume: track 0 = meta, track 1 = drums, track 2+ = melodic
-        # Lower overall levels to prevent clipping
-        levels = [-6, -3] + [-9] * (len(tracks_audio) - 2)  # More headroom
-        pans = [0, 0] + [0.3, -0.3, 0.2, -0.2][:len(tracks_audio) - 2]  # Pan melodic
+        # RMS-based mixing for balanced sound
+        # Calculate RMS for each track
+        rms_values = [np.sqrt(np.mean(audio**2)) for audio in tracks_audio]
+        
+        # Target RMS levels: drums lower, melodic higher
+        # Drums typically at -10dB relative to melodic
+        target_rms = 0.15  # Target RMS for melodic
         
         stereo_tracks = []
-        for audio, level, pan in zip(tracks_audio, levels, pans):
+        for i, (audio, (name, is_drums)) in enumerate(zip(tracks_audio, track_infos)):
+            rms = rms_values[i]
+            
+            if rms > 0.001:  # Avoid division by zero
+                if is_drums:
+                    # Drums at lower level (-6dB relative to melodic)
+                    target = target_rms * 0.5
+                    gain = target / rms
+                else:
+                    # Melodic at full level
+                    gain = target_rms / rms
+                
+                # Limit gain to avoid extreme amplification
+                gain = min(gain, 4.0)  # Max +12dB
+                audio = audio * gain
+            
+            # Apply panning - drums center, melodic slightly spread
+            pan = 0 if is_drums else (0.2 if i % 2 == 0 else -0.2)
             stereo = apply_stereo_pan(audio, pan)
-            stereo = apply_gain(stereo, level)
             stereo_tracks.append(stereo)
         
         mix = mix_stereo_tracks(stereo_tracks)

@@ -353,6 +353,198 @@ def generate_house_drum_pattern(
     }
 
 
+def generate_ethiopian_drum_pattern(
+    bars: int,
+    style: str = 'ethiopian',
+    base_velocity: int = 95
+) -> Dict[str, List[Tuple[int, int, int]]]:
+    """
+    Generate authentic Ethiopian-style drum patterns.
+    
+    Ethiopian music is characterized by:
+    - Compound meters (6/8, 12/8) creating a "triplet" or "shuffle" feel
+    - The kebero drum with interlocking bass (doom) and slap (tek) patterns
+    - Polyrhythmic layering with atamo (small drum) and shakers
+    - Call-and-response between different drums
+    
+    Styles:
+    - 'eskista': Fast shoulder dance rhythm - energetic 6/8 with strong accents
+    - 'ethiopian_traditional': Traditional kebero patterns
+    - 'ethio_jazz': Fusion with jazz kit while keeping Ethiopian feel
+    - 'ethiopian': Modern Ethiopian pop
+    
+    Key rhythmic concept: Ethiopian 6/8 divides each bar into TWO groups of THREE
+    (1-2-3, 4-5-6) rather than THREE groups of TWO like Western 6/8.
+    """
+    ticks_per_bar = TICKS_PER_BAR_4_4
+    
+    # For authentic Ethiopian feel, think in 12/8 (12 subdivisions per bar)
+    # Each "pulse" = ticks_per_bar / 12
+    pulse = ticks_per_bar // 12
+    
+    kebero_bass = []      # Deep "doom" sounds
+    kebero_slap = []      # Higher "tek" sounds  
+    atamo = []            # Small drum fills
+    shaker = []           # Continuous texture
+    
+    for bar in range(bars):
+        bar_offset = bar * ticks_per_bar
+        
+        if style == 'eskista':
+            # ESKISTA: Fast, energetic shoulder dance
+            # Characteristic: Strong accents on 1, 4, 7, 10 (of 12)
+            # with syncopated slaps creating the "bounce" for shoulder movement
+            
+            # Kebero bass - the foundation groove
+            # Hits on pulses 0, 3, 6, 9 (every 3rd pulse = strong beats)
+            for pulse_num in [0, 3, 6, 9]:
+                tick = bar_offset + (pulse_num * pulse)
+                tick = humanize_timing(tick, swing=0.03, timing_variation=0.015)
+                # Accent first and seventh beats more
+                if pulse_num in [0, 6]:
+                    vel = humanize_velocity(base_velocity, variation=0.08)
+                else:
+                    vel = humanize_velocity(base_velocity - 12, variation=0.1)
+                kebero_bass.append((tick, pulse * 2, vel))
+            
+            # Kebero slap - creates the characteristic bounce
+            # Syncopated pattern between bass hits
+            for pulse_num in [1, 2, 4, 5, 7, 8, 10, 11]:
+                tick = bar_offset + (pulse_num * pulse)
+                tick = humanize_timing(tick, swing=0.05, timing_variation=0.025)
+                # Alternate accent pattern for movement feel
+                if pulse_num in [2, 5, 8, 11]:  # Off-pulse accents
+                    vel = humanize_velocity(base_velocity - 8, variation=0.1)
+                else:
+                    vel = humanize_velocity(base_velocity - 20, variation=0.12)
+                kebero_slap.append((tick, pulse, vel))
+            
+            # Atamo - fills and accents
+            # Fast triplet fills on every other bar for variation
+            if bar % 2 == 1:
+                for pulse_num in [9, 10, 11]:  # Fill at end of bar
+                    tick = bar_offset + (pulse_num * pulse)
+                    vel = humanize_velocity(base_velocity - 15, variation=0.15)
+                    atamo.append((tick, pulse // 2, vel))
+            
+            # Shaker - continuous 12/8 texture
+            for pulse_num in range(12):
+                tick = bar_offset + (pulse_num * pulse)
+                tick = humanize_timing(tick, swing=0.02, timing_variation=0.02)
+                # Accent main beats
+                if pulse_num % 3 == 0:
+                    vel = humanize_velocity(base_velocity - 25, variation=0.1)
+                else:
+                    vel = humanize_velocity(base_velocity - 40, variation=0.15)
+                shaker.append((tick, pulse // 2, vel))
+                
+        elif style in ['ethiopian_traditional']:
+            # Traditional slower kebero pattern
+            # More call-and-response, less continuous
+            
+            # Bass on 1 and 4 (in 6/8 feel = pulses 0 and 6)
+            for pulse_num in [0, 6]:
+                tick = bar_offset + (pulse_num * pulse)
+                tick = humanize_timing(tick, swing=0, timing_variation=0.02)
+                vel = humanize_velocity(base_velocity, variation=0.1)
+                kebero_bass.append((tick, pulse * 3, vel))
+            
+            # Slaps creating the "response" 
+            # Traditional pattern: bass-slap-slap, bass-slap-slap
+            for pulse_num in [2, 4, 8, 10]:
+                tick = bar_offset + (pulse_num * pulse)
+                tick = humanize_timing(tick, swing=0.04, timing_variation=0.03)
+                vel = humanize_velocity(base_velocity - 15, variation=0.12)
+                kebero_slap.append((tick, pulse, vel))
+            
+            # Occasional atamo accent
+            if random.random() < 0.5:
+                pulse_num = random.choice([3, 9])
+                tick = bar_offset + (pulse_num * pulse)
+                vel = humanize_velocity(base_velocity - 20, variation=0.15)
+                atamo.append((tick, pulse, vel))
+            
+            # Light shaker on main pulses only
+            for pulse_num in [0, 3, 6, 9]:
+                tick = bar_offset + (pulse_num * pulse)
+                vel = humanize_velocity(base_velocity - 35, variation=0.12)
+                shaker.append((tick, pulse * 2, vel))
+        
+        elif style == 'ethio_jazz':
+            # Ethio-jazz: jazz kit with Ethiopian rhythmic influence
+            # Think Mulatu Astatke - ride cymbal with 12/8 feel
+            
+            # Kick with Ethiopian accent pattern
+            for pulse_num in [0, 5, 9]:  # Syncopated
+                tick = bar_offset + (pulse_num * pulse)
+                vel = humanize_velocity(base_velocity, variation=0.08)
+                kebero_bass.append((tick, pulse * 2, vel))
+            
+            # Snare backbeat with ghost notes
+            for pulse_num in [3, 9]:  # On "2" and "4" in 4/4 terms
+                tick = bar_offset + (pulse_num * pulse)
+                vel = humanize_velocity(base_velocity - 5, variation=0.1)
+                kebero_slap.append((tick, pulse, vel))
+            
+            # Ghost notes for jazz feel
+            for pulse_num in [1, 4, 7, 10]:
+                if random.random() < 0.6:
+                    tick = bar_offset + (pulse_num * pulse)
+                    vel = humanize_velocity(40, variation=0.2)
+                    atamo.append((tick, pulse // 2, vel))
+            
+            # Ride cymbal in 12/8
+            for pulse_num in range(12):
+                tick = bar_offset + (pulse_num * pulse)
+                tick = humanize_timing(tick, swing=0.06, timing_variation=0.015)
+                if pulse_num % 3 == 0:
+                    vel = humanize_velocity(base_velocity - 15, variation=0.1)
+                else:
+                    vel = humanize_velocity(base_velocity - 30, variation=0.15)
+                shaker.append((tick, pulse // 2, vel))
+        
+        else:  # Default 'ethiopian' modern style
+            # Modern Ethiopian pop - blend of styles
+            
+            # Kick with compound feel
+            for pulse_num in [0, 5, 8]:
+                tick = bar_offset + (pulse_num * pulse)
+                vel = humanize_velocity(base_velocity, variation=0.08)
+                kebero_bass.append((tick, pulse * 2, vel))
+            
+            # Snare/clap on 2 and 4 (pulses 3 and 9)
+            for pulse_num in [3, 9]:
+                tick = bar_offset + (pulse_num * pulse)
+                vel = humanize_velocity(base_velocity - 10, variation=0.1)
+                kebero_slap.append((tick, pulse, vel))
+            
+            # Hihat in 16ths with swing
+            for sixteenth in range(16):
+                tick = bar_offset + (sixteenth * (ticks_per_bar // 16))
+                is_offbeat = sixteenth % 2 == 1
+                tick = humanize_timing(tick, swing=0.08, timing_variation=0.02, is_offbeat=is_offbeat)
+                if sixteenth % 4 == 0:
+                    vel = humanize_velocity(base_velocity - 15, variation=0.08)
+                else:
+                    vel = humanize_velocity(base_velocity - 30, variation=0.12)
+                shaker.append((tick, ticks_per_bar // 32, vel))
+            
+            # Percussion texture
+            for pulse_num in range(12):
+                if random.random() < 0.5:
+                    tick = bar_offset + (pulse_num * pulse)
+                    vel = humanize_velocity(base_velocity - 35, variation=0.15)
+                    atamo.append((tick, pulse // 2, vel))
+    
+    # Return with semantic names for proper mapping
+    return {
+        'kebero_bass': kebero_bass,
+        'kebero_slap': kebero_slap,
+        'atamo': atamo,
+        'shaker': shaker,
+    }
+
+
 # =============================================================================
 # MELODIC GENERATORS
 # =============================================================================
@@ -584,13 +776,20 @@ class MidiGenerator:
             bass_track = self._create_bass_track(arrangement, parsed)
             mid.tracks.append(bass_track)
         
-        # Track 3: Chords
-        if any(inst in parsed.instruments for inst in ['piano', 'rhodes', 'pad', 'strings']):
+        # Track 3: Chords - includes both standard and Ethiopian instruments
+        chord_instruments = [
+            'piano', 'rhodes', 'pad', 'strings', 'organ', 'brass',
+            # Ethiopian instruments
+            'krar', 'masenqo', 'begena'
+        ]
+        if any(inst in parsed.instruments for inst in chord_instruments):
             chord_track = self._create_chord_track(arrangement, parsed)
             mid.tracks.append(chord_track)
         
-        # Track 4: Melody (optional)
-        if parsed.genre not in ['ambient', 'lofi']:  # These often don't have melody
+        # Track 4: Melody (optional) - especially for Ethiopian flute/lead
+        melody_instruments = ['washint', 'flute', 'synth_lead', 'synth']
+        has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
+        if parsed.genre not in ['ambient', 'lofi'] or has_melody_inst:
             melody_track = self._create_melody_track(arrangement, parsed)
             if len(melody_track) > 1:  # Has notes beyond track name
                 mid.tracks.append(melody_track)
@@ -627,10 +826,32 @@ class MidiGenerator:
         
         # Key signature
         # In mido, key_signature just takes 'key' as a string like 'C', 'Am', 'F#m'
-        key_str = parsed.key
+        # Valid keys: C, D, E, F, G, A, B with optional # or b, plus 'm' for minor
+        # Strip "major" or "minor" suffix if present, as mido only wants the note
+        key_str = parsed.key.replace(' major', '').replace(' minor', '').strip()
+        
+        # MIDI key signatures use circle of fifths: flats from F to Cb, sharps from G to C#
+        # Convert sharp keys that don't exist in MIDI to their flat equivalents
+        key_mapping = {
+            'G#': 'Ab', 'D#': 'Eb', 'A#': 'Bb',  # Sharp to flat (these sharps aren't valid MIDI keys)
+            'E#': 'F', 'B#': 'C',                 # Enharmonic simplification
+        }
+        key_str = key_mapping.get(key_str, key_str)
+        
         if parsed.scale_type == ScaleType.MINOR:
-            key_str = f"{parsed.key}m"
-        track.append(MetaMessage('key_signature', key=key_str, time=0))
+            key_str = f"{key_str}m"
+        
+        # Valid MIDI key signatures (circle of fifths)
+        valid_keys = [
+            # Major keys: Cb(-7) to C#(+7)
+            'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#',  # Sharp keys
+            'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb',   # Flat keys
+            # Minor keys
+            'Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'A#m',  # Sharp-side minors
+            'Dm', 'Gm', 'Cm', 'Fm', 'Bbm', 'Ebm', 'Abm',          # Flat-side minors
+        ]
+        if key_str in valid_keys:
+            track.append(MetaMessage('key_signature', key=key_str, time=0))
         
         # End of track
         track.append(MetaMessage('end_of_track', time=arrangement.total_ticks))
@@ -778,6 +999,39 @@ class MidiGenerator:
                             channel=GM_DRUM_CHANNEL
                         ))
         
+        elif parsed.genre in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']:
+            # Ethiopian-style drums with authentic percussion mapping
+            patterns = generate_ethiopian_drum_pattern(
+                section.bars,
+                style=parsed.genre,
+                base_velocity=int(95 * config.drum_density)
+            )
+            
+            # Map Ethiopian drum types to GM percussion notes
+            # Using conga/bongo sounds to approximate kebero tones
+            ethiopian_drum_mapping = {
+                'kebero_bass': 'conga_low',      # Deep kebero "doom" (GM 63)
+                'kebero_slap': 'conga_high',     # Kebero slap "tek" (GM 62)
+                'atamo': 'bongo_high',           # Small drum (GM 60)
+                'shaker': 'shaker',              # Maracas/shaker (GM 70)
+                # Fallback for old-style patterns
+                'kick': 'conga_low',
+                'snare': 'conga_high', 
+                'hihat': 'shaker',
+                'perc': 'bongo_high',
+            }
+            
+            for drum_type, note_name in ethiopian_drum_mapping.items():
+                if drum_type in patterns:
+                    for tick, dur, vel in patterns[drum_type]:
+                        notes.append(NoteEvent(
+                            pitch=GM_DRUM_NOTES[note_name],
+                            start_tick=section.start_tick + tick,
+                            duration_ticks=dur,
+                            velocity=vel,
+                            channel=GM_DRUM_CHANNEL
+                        ))
+        
         else:
             # Default boom-bap style
             patterns = generate_lofi_drum_pattern(section.bars, swing=0.08)
@@ -840,7 +1094,20 @@ class MidiGenerator:
         track.append(MetaMessage('track_name', name='Chords', time=0))
         
         # Program change based on instrument
-        if 'rhodes' in parsed.instruments:
+        # Priority: Ethiopian genres should prefer Ethiopian instruments
+        is_ethiopian = parsed.genre in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
+        
+        # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
+        if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
+            program = 110  # Custom: Krar (Ethiopian lyre)
+        elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
+            program = 111  # Custom: Masenqo (Ethiopian fiddle)
+        elif 'begena' in parsed.instruments:
+            program = 113  # Custom: Begena (Ethiopian harp)
+        elif 'washint' in parsed.instruments:
+            program = 112  # Custom: Washint (Ethiopian flute)
+        # Standard GM instruments
+        elif 'rhodes' in parsed.instruments:
             program = 4  # Electric Piano 1
         elif 'piano' in parsed.instruments:
             program = 0  # Acoustic Grand
@@ -848,8 +1115,16 @@ class MidiGenerator:
             program = 89  # Pad 2 (warm)
         elif 'strings' in parsed.instruments:
             program = 48  # String Ensemble
+        elif 'organ' in parsed.instruments:
+            program = 16  # Drawbar Organ
+        elif 'brass' in parsed.instruments:
+            program = 61  # Brass Section
         else:
-            program = 4  # Default to Rhodes
+            # Default based on genre
+            if is_ethiopian:
+                program = 110  # Krar for Ethiopian
+            else:
+                program = 4  # Rhodes for others
         
         track.append(Message('program_change', program=program, channel=2, time=0))
         
@@ -898,8 +1173,23 @@ class MidiGenerator:
         track = MidiTrack()
         track.append(MetaMessage('track_name', name='Melody', time=0))
         
-        # Use lead synth
-        track.append(Message('program_change', program=80, channel=3, time=0))  # Lead 1 (square)
+        # Choose program based on instruments
+        if 'washint' in parsed.instruments:
+            program = 112  # Custom: Washint (Ethiopian flute) - great for melodies
+        elif 'masenqo' in parsed.instruments:
+            program = 111  # Custom: Masenqo (Ethiopian fiddle)
+        elif 'krar' in parsed.instruments:
+            program = 110  # Custom: Krar
+        elif 'flute' in parsed.instruments:
+            program = 73  # Flute
+        elif 'brass' in parsed.instruments:
+            program = 56  # Trumpet
+        elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
+            program = 80  # Lead 1 (square)
+        else:
+            program = 80  # Lead 1 (square) - default
+        
+        track.append(Message('program_change', program=program, channel=3, time=0))
         
         all_notes = []
         

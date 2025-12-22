@@ -82,6 +82,7 @@ class DrumAnalysis:
     four_on_floor: bool  # House-style kick pattern
     trap_hihats: bool  # Rapid hi-hat patterns typical of trap
     boom_bap_feel: bool  # Classic hip-hop swing feel
+    compound_meter: bool = False  # 6/8, 12/8 feel (Ethiopian, Afrobeat)
 
 
 @dataclass
@@ -93,6 +94,7 @@ class SpectralProfile:
     has_808: bool  # Detected 808-style sub-bass
     lofi_character: float  # 0.0-1.0, lo-fi aesthetic markers
     clarity: float  # 0.0-1.0, high frequency detail
+    pentatonic: bool = False  # Pentatonic scale detected (Ethiopian, Asian)
 
 
 @dataclass
@@ -243,6 +245,31 @@ class ReferenceAnalyzer:
             "bpm_range": (60, 95),
             "has_808": True,
             "brightness": (0.2, 0.5),
+        },
+        # Ethiopian music genres
+        "ethiopian": {
+            "bpm_range": (90, 130),
+            "brightness": (0.4, 0.7),
+            "compound_meter": True,
+            "pentatonic": True,
+        },
+        "ethio_jazz": {
+            "bpm_range": (85, 120),
+            "brightness": (0.5, 0.8),
+            "swing": 0.2,
+            "compound_meter": True,
+            "pentatonic": True,
+        },
+        "ethiopian_traditional": {
+            "bpm_range": (80, 120),
+            "brightness": (0.3, 0.6),
+            "compound_meter": True,
+            "pentatonic": True,
+        },
+        "eskista": {
+            "bpm_range": (110, 145),
+            "brightness": (0.5, 0.8),
+            "compound_meter": True,
         },
     }
     
@@ -644,6 +671,31 @@ class ReferenceAnalyzer:
             not four_on_floor
         )
         
+        # Detect compound meter (6/8, 12/8) - Ethiopian, Afrobeat
+        # Compound meters have accents in groups of 3 rather than 2 or 4
+        compound_meter = False
+        try:
+            # Get beat positions
+            tempo, beats = librosa.beat.beat_track(y=y_perc, sr=sr)
+            if len(beats) > 12:
+                # Analyze accent pattern - compound meters have different energy distribution
+                beat_times = librosa.frames_to_time(beats, sr=sr)
+                intervals = np.diff(beat_times)
+                if len(intervals) > 6:
+                    # Check for triplet-like groupings (every 3rd beat stronger)
+                    # In 6/8 or 12/8, there's typically emphasis every 3 subdivisions
+                    beat_energies = [onset_env[min(b, len(onset_env)-1)] for b in beats[:24]]
+                    if len(beat_energies) >= 12:
+                        # Compare energy of 1st vs 2nd vs 3rd positions in groups of 3
+                        first = np.mean(beat_energies[::3])
+                        second = np.mean(beat_energies[1::3])
+                        third = np.mean(beat_energies[2::3])
+                        # Compound meter: 1st position is significantly stronger
+                        if first > second * 1.2 and first > third * 1.2:
+                            compound_meter = True
+        except Exception:
+            pass  # If detection fails, default to False
+        
         return DrumAnalysis(
             density=density_normalized,
             kick_pattern=[],  # Would need beat-aligned analysis
@@ -653,6 +705,7 @@ class ReferenceAnalyzer:
             four_on_floor=four_on_floor,
             trap_hihats=trap_hihats,
             boom_bap_feel=boom_bap_feel,
+            compound_meter=compound_meter,
         )
     
     def _analyze_spectral(self, y: np.ndarray, sr: int) -> SpectralProfile:
@@ -706,6 +759,28 @@ class ReferenceAnalyzer:
             (1 - min(1.0, high_ratio * 20)) * 0.3
         )
         
+        # Pentatonic detection using chroma analysis
+        # Pentatonic scales use only 5 notes (vs 7 in diatonic)
+        # Ethiopian qenet scales are pentatonic variants
+        pentatonic = False
+        try:
+            chroma = librosa.feature.chroma_cqt(y=y, sr=sr)
+            chroma_mean = np.mean(chroma, axis=1)
+            
+            # Sort chroma values to find dominant notes
+            sorted_indices = np.argsort(chroma_mean)[::-1]
+            
+            # Pentatonic: top 5 notes should have significantly more energy
+            # than the remaining 7 notes
+            top_5_energy = np.sum(chroma_mean[sorted_indices[:5]])
+            bottom_7_energy = np.sum(chroma_mean[sorted_indices[5:]])
+            
+            # If top 5 notes dominate, likely pentatonic
+            if top_5_energy > bottom_7_energy * 2.5:
+                pentatonic = True
+        except Exception:
+            pass  # If detection fails, default to False
+        
         return SpectralProfile(
             brightness=brightness,
             warmth=warmth,
@@ -713,6 +788,7 @@ class ReferenceAnalyzer:
             has_808=has_808,
             lofi_character=lofi_character,
             clarity=clarity,
+            pentatonic=pentatonic,
         )
     
     def _analyze_groove(
@@ -881,6 +957,18 @@ class ReferenceAnalyzer:
             if "swing" in profile:
                 if groove.swing_amount >= profile["swing"]:
                     score += 0.8
+                factors += 1
+            
+            # Compound meter (6/8, 12/8) - Ethiopian, Afrobeat
+            if "compound_meter" in profile:
+                if drums.compound_meter == profile["compound_meter"]:
+                    score += 1.2  # Strong indicator for Ethiopian
+                factors += 1
+            
+            # Pentatonic scale detection
+            if "pentatonic" in profile:
+                if spectral.pentatonic == profile["pentatonic"]:
+                    score += 1.0
                 factors += 1
             
             # Normalize score

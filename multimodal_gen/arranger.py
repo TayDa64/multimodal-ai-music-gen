@@ -315,6 +315,47 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
         (SectionType.VERSE, 16),
         (SectionType.OUTRO, 8),
     ],
+    # Ethiopian arrangements - typically feature call-and-response patterns
+    'ethiopian': [
+        (SectionType.INTRO, 4),
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.VERSE, 8),
+        (SectionType.BREAKDOWN, 4),
+        (SectionType.CHORUS, 8),
+        (SectionType.VARIATION, 8),
+        (SectionType.OUTRO, 4),
+    ],
+    'ethio_jazz': [
+        (SectionType.INTRO, 8),
+        (SectionType.VERSE, 8),
+        (SectionType.VARIATION, 8),  # Solo/improvisation section
+        (SectionType.CHORUS, 8),
+        (SectionType.BREAKDOWN, 8),
+        (SectionType.VARIATION, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.OUTRO, 8),
+    ],
+    'ethiopian_traditional': [
+        (SectionType.INTRO, 4),
+        (SectionType.VERSE, 8),  # Call section
+        (SectionType.CHORUS, 4),  # Response
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 4),
+        (SectionType.VARIATION, 8),
+        (SectionType.OUTRO, 4),
+    ],
+    'eskista': [
+        # Eskista (shoulder dance) - energetic with build-ups
+        (SectionType.INTRO, 4),
+        (SectionType.BUILDUP, 4),
+        (SectionType.DROP, 8),  # Main dance section
+        (SectionType.VARIATION, 8),
+        (SectionType.BREAKDOWN, 4),
+        (SectionType.BUILDUP, 4),
+        (SectionType.DROP, 8),
+        (SectionType.OUTRO, 4),
+    ],
 }
 
 

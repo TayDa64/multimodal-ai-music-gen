@@ -507,4 +507,152 @@ When starting a new chat session:
 
 ---
 
-*This document captures the complete state of the AI Music Generator project as of December 11, 2025. Use it to continue development in new chat sessions.*
+*This document captures the complete state of the AI Music Generator project as of December 22, 2025. Use it to continue development in new chat sessions.*
+
+---
+
+## 🤖 For AI Assistants: Continuation Guide
+
+### Overview
+
+This project is a **dual-component music production system** with:
+- **Python Backend** (multimodal_gen/) - Music generation engine
+- **JUCE Frontend** (juce/) - Professional audio UI
+
+### Python Module API Quick Reference
+
+```python
+# Core imports
+from multimodal_gen import (
+    PromptParser,      # Parse natural language → ParsedPrompt dataclass
+    Arranger,          # Create song structure → Arrangement
+    MidiGenerator,     # Generate MIDI → mido.MidiFile
+    AudioRenderer,     # Render audio → numpy array / WAV
+)
+
+# Ethiopian instruments
+from multimodal_gen.assets_gen import (
+    generate_krar_tone,      # Karplus-Strong plucked lyre
+    generate_masenqo_tone,   # Stick-slip bowed fiddle (expressiveness param!)
+    generate_begena_tone,    # Bass lyre with buzz
+    generate_kebero_hit,     # Modal synthesis drum
+    SAMPLE_RATE,             # 44100 Hz
+)
+```
+
+### Key Data Classes
+
+```python
+# ParsedPrompt (from prompt_parser.py)
+@dataclass
+class ParsedPrompt:
+    bpm: float = 120.0
+    key: str = 'C'
+    scale_type: ScaleType = ScaleType.MINOR
+    genre: str = 'trap_soul'
+    instruments: List[str]
+    drum_elements: List[str]
+    mood: str = 'neutral'
+    raw_prompt: str = ''
+
+# Arrangement (from arranger.py)
+@dataclass
+class Arrangement:
+    bpm: float
+    key: str
+    scale: List[int]
+    sections: List[SongSection]
+    total_bars: int
+```
+
+### Usage Pattern
+
+```python
+# Full generation pipeline
+parser = PromptParser()
+parsed = parser.parse("trap soul at 87 BPM in C minor")
+
+arranger = Arranger()
+arrangement = arranger.create_arrangement(parsed)
+
+generator = MidiGenerator()
+midi_file = generator.generate(arrangement, parsed)
+midi_file.save('output.mid')
+```
+
+### Ethiopian Instrument Generation
+
+```python
+# Krar (plucked lyre) - bright, harp-like
+krar = generate_krar_tone(
+    frequency=261.63,  # Hz (e.g., C4)
+    duration=1.0,      # seconds
+    velocity=0.8       # 0.0-1.0
+)
+
+# Masenqo (bowed fiddle) - expressive, crying tone
+masenqo = generate_masenqo_tone(
+    frequency=392.0,
+    duration=2.0,
+    velocity=0.7,
+    expressiveness=0.8  # IMPORTANT: Controls vibrato/bow variation
+)
+
+# Begena (bass lyre) - deep, meditative with buzz
+begena = generate_begena_tone(
+    frequency=130.81,  # Lower frequencies work best
+    duration=1.5,
+    velocity=0.7
+)
+```
+
+### Running Tests
+
+```bash
+# Run comprehensive test suite
+python test_suite.py
+
+# Expected: 19/19 tests pass
+```
+
+### Development Environment
+
+```bash
+# Activate virtual environment (Windows)
+.venv\Scripts\Activate.ps1
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Key packages: numpy, scipy, mido, python-osc, matplotlib
+```
+
+### Common Issues
+
+1. **Pylance "import could not be resolved"** - VS Code not using venv
+   - Solution: `pyrightconfig.json` configures venv path
+   - Or manually select Python interpreter in VS Code
+
+2. **Masenqo generates empty audio** - Duration too short for bow model
+   - Solution: Use `duration >= 0.5` seconds
+
+3. **JUCE build fails** - Missing JUCE path
+   - Solution: Set `JUCE_DIR` environment variable or install JUCE
+
+### Files Created This Session
+
+| File | Purpose |
+|------|---------|
+| `instrument_shaper.py` | Pro-Q3 style spectrum editor for instruments |
+| `spectrum_viewer.py` | Simple spectrum analysis tool |
+| `test_suite.py` | Comprehensive test suite (19 tests) |
+| `pyrightconfig.json` | Pylance/Pyright configuration |
+
+### What to Work On Next
+
+Refer to **Phase 8: Track Mixer** in the Next Steps section above, or:
+
+1. **Improve Ethiopian instruments** - Add more scales (Ambassel, Anchihoye)
+2. **Track Mixer** - Per-track volume, pan, mute/solo
+3. **Instrument Browser** - Browse and preview sounds
+4. **VST3 Plugin** - Package as DAW plugin

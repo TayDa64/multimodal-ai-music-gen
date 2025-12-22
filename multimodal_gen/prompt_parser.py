@@ -82,6 +82,11 @@ class ParsedPrompt:
             'boom_bap': ['piano', 'bass', 'brass'],
             'house': ['bass', 'synth', 'pad'],
             'ambient': ['pad', 'strings', 'piano'],
+            # Ethiopian genres
+            'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],
+            'ethio_jazz': ['brass', 'piano', 'bass', 'organ'],
+            'ethiopian_traditional': ['krar', 'masenqo', 'washint', 'begena'],
+            'eskista': ['brass', 'krar', 'masenqo'],
         }
         return genre_instruments.get(self.genre, ['piano', 'bass'])
     
@@ -94,6 +99,11 @@ class ParsedPrompt:
             'boom_bap': ['kick', 'snare', 'hihat', 'crash'],
             'house': ['kick', 'clap', 'hihat_open', 'hihat'],
             'ambient': ['kick', 'snare', 'cymbal'],
+            # Ethiopian genres - kebero-based patterns
+            'ethiopian': ['kebero', 'kick', 'snare', 'shaker'],
+            'ethio_jazz': ['kick', 'snare', 'hihat', 'ride', 'perc'],
+            'ethiopian_traditional': ['kebero', 'atamo', 'clap'],
+            'eskista': ['kebero', 'kick', 'snare', 'clap', 'shaker'],
         }
         return genre_drums.get(self.genre, ['kick', 'snare', 'hihat'])
 
@@ -141,6 +151,26 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'ambient', 'atmospheric', 'cinematic', 'soundscape',
         'meditation', 'calm', 'peaceful', 'drone'
     ],
+    # Ethiopian music genres
+    'ethiopian': [
+        'ethiopian', 'ethiopia', 'habesha', 'amharic', 'tigrinya',
+        'oromo', 'gurage', 'wollo', 'gondar', 'gonder', 'addis',
+        'azmari', 'tizita', 'bati', 'ambassel', 'anchihoye'
+    ],
+    'ethio_jazz': [
+        'ethio jazz', 'ethio-jazz', 'ethiopian jazz', 'mulatu',
+        'mulatu astatke', 'astatke', 'swinging addis', 'ethiopiques',
+        'addis jazz', 'ethiopian funk'
+    ],
+    'ethiopian_traditional': [
+        'traditional ethiopian', 'ethiopian traditional', 'azmari music',
+        'masenqo', 'krar', 'washint', 'begena', 'kebero',
+        'cultural ethiopian', 'folk ethiopian'
+    ],
+    'eskista': [
+        'eskista', 'shoulder dance', 'ethiopian dance', 'habesha dance',
+        'amhara dance', 'tigray dance'
+    ],
 }
 
 # Instrument keywords mapped to instrument type
@@ -185,6 +215,19 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
     'flute': [
         'flute', 'pan flute', 'bamboo flute', 'shakuhachi'
     ],
+    # Ethiopian instruments
+    'krar': [
+        'krar', 'kirar', 'ethiopian lyre', 'ethiopian harp'
+    ],
+    'masenqo': [
+        'masenqo', 'masinko', 'masenko', 'ethiopian fiddle', 'one string'
+    ],
+    'washint': [
+        'washint', 'ethiopian flute', 'bamboo flute ethiopian'
+    ],
+    'begena': [
+        'begena', 'ethiopian harp', 'david harp', 'meditation harp'
+    ],
 }
 
 # Drum element keywords
@@ -200,6 +243,9 @@ DRUM_KEYWORDS: Dict[str, List[str]] = {
     'ride': ['ride', 'ride cymbal'],
     'perc': ['perc', 'percussion', 'shaker', 'tambourine'],
     'rim': ['rim', 'rimshot', 'sidestick'],
+    # Ethiopian drums
+    'kebero': ['kebero', 'kebaro', 'ethiopian drum', 'habesha drum'],
+    'atamo': ['atamo', 'ethiopian percussion'],
     'tom': ['tom', 'toms', 'floor tom'],
 }
 
@@ -392,12 +438,38 @@ class PromptParser:
         return ('C', ScaleType.MINOR)
     
     def _extract_genre(self, prompt: str) -> str:
-        """Extract genre from prompt."""
-        # Check each genre's keywords
+        """Extract genre from prompt.
+        
+        Priority order: more specific genres are checked first (e.g., 'eskista' 
+        before 'ethiopian_traditional') to avoid false matches.
+        """
+        # Define priority order - more specific genres first
+        priority_order = [
+            'eskista',  # Specific Ethiopian dance style
+            'ethio_jazz',  # Specific Ethiopian fusion
+            'ethiopian_traditional',  # Traditional with instruments
+            'ethiopian',  # General Ethiopian
+            'trap_soul',  # More specific than trap
+            'trap',
+            'lofi',
+            'boom_bap',
+            'house',
+            'ambient',
+        ]
+        
+        # Check genres in priority order
+        for genre in priority_order:
+            if genre in GENRE_KEYWORDS:
+                for keyword in GENRE_KEYWORDS[genre]:
+                    if keyword in prompt:
+                        return genre
+        
+        # Check any remaining genres not in priority list
         for genre, keywords in GENRE_KEYWORDS.items():
-            for keyword in keywords:
-                if keyword in prompt:
-                    return genre
+            if genre not in priority_order:
+                for keyword in keywords:
+                    if keyword in prompt:
+                        return genre
         
         # Default based on other hints
         if '808' in prompt or 'hihat roll' in prompt:
