@@ -631,7 +631,7 @@ void PianoRollComponent::mouseMove(const juce::MouseEvent& event)
 
 void PianoRollComponent::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
-    DBG("PianoRoll mouseWheel deltaY=" << wheel.deltaY << " shift=" << event.mods.isShiftDown() << " ctrl=" << event.mods.isCtrlDown());
+    DBG("PianoRoll mouseWheel deltaY=" << wheel.deltaY << " shift=" << (event.mods.isShiftDown() ? 1 : 0) << " ctrl=" << (event.mods.isCtrlDown() ? 1 : 0));
     
     if (event.mods.isShiftDown())
     {
