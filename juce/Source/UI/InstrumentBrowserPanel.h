@@ -13,6 +13,8 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
+#include <juce_audio_devices/juce_audio_devices.h>
+#include <juce_audio_utils/juce_audio_utils.h>
 #include "../Application/AppState.h"
 
 //==============================================================================
@@ -54,11 +56,11 @@ struct InstrumentInfo
         info.category = json.getProperty("category", "").toString();
         info.subcategory = json.getProperty("subcategory", "").toString();
         info.key = json.getProperty("key", "").toString();
-        info.bpm = json.getProperty("bpm", 0.0f);
-        info.durationSec = json.getProperty("duration_ms", 0.0f) / 1000.0f;
-        info.fileSizeBytes = json.getProperty("file_size_bytes", 0);
-        info.favorite = json.getProperty("favorite", false);
-        info.playCount = json.getProperty("play_count", 0);
+        info.bpm = static_cast<float>(json.getProperty("bpm", 0.0));
+        info.durationSec = static_cast<float>(json.getProperty("duration_ms", 0.0)) / 1000.0f;
+        info.fileSizeBytes = static_cast<int>(json.getProperty("file_size_bytes", 0));
+        info.favorite = static_cast<bool>(json.getProperty("favorite", false));
+        info.playCount = static_cast<int>(json.getProperty("play_count", 0));
         
         if (auto* tagsArray = json.getProperty("tags", juce::var()).getArray())
         {
@@ -283,6 +285,7 @@ private:
     
     InstrumentInfo currentInstrument;
     bool hasInstrument = false;
+    bool audioCallbackRegistered = false;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SamplePreviewPanel)
 };

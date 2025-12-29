@@ -68,6 +68,9 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     progressOverlay->addListener(this);
     addChildComponent(*progressOverlay); // Hidden by default
     
+    // NB Phase 2: Genre-aware components
+    setupBottomPanel();
+    
     // Force a layout update
     resized();
     
@@ -87,6 +90,15 @@ MainComponent::~MainComponent()
     
     if (visualizationPanel)
         visualizationPanel->removeListener(this);
+    
+    if (genreSelector)
+        genreSelector->removeListener(this);
+    
+    if (instrumentBrowser)
+        instrumentBrowser->removeListener(this);
+    
+    if (fxChainPanel)
+        fxChainPanel->removeListener(this);
 }
 
 //==============================================================================
@@ -102,15 +114,91 @@ void MainComponent::setupOSCConnection()
 }
 
 //==============================================================================
+void MainComponent::setupBottomPanel()
+{
+    // Create all components first before adding listeners
+    
+    // Genre Selector - positioned above prompt panel
+    genreSelector = std::make_unique<GenreSelector>();
+    addAndMakeVisible(*genreSelector);
+    
+    // Instrument Browser
+    instrumentBrowser = std::make_unique<InstrumentBrowserPanel>(audioEngine.getDeviceManager());
+    addAndMakeVisible(*instrumentBrowser);
+    
+    // FX Chain Panel
+    fxChainPanel = std::make_unique<FXChainPanel>();
+    fxChainPanel->setVisible(false);  // Start hidden
+    addAndMakeVisible(*fxChainPanel);
+    
+    // Tab buttons for bottom panel
+    instrumentsTabButton.setRadioGroupId(100);
+    instrumentsTabButton.setClickingTogglesState(true);
+    instrumentsTabButton.setToggleState(true, juce::dontSendNotification);
+    instrumentsTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
+    instrumentsTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
+    instrumentsTabButton.onClick = [this]() {
+        currentBottomTab = 0;
+        updateBottomPanelTabs();
+    };
+    addAndMakeVisible(instrumentsTabButton);
+    
+    fxTabButton.setRadioGroupId(100);
+    fxTabButton.setClickingTogglesState(true);
+    fxTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
+    fxTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
+    fxTabButton.onClick = [this]() {
+        currentBottomTab = 1;
+        updateBottomPanelTabs();
+    };
+    addAndMakeVisible(fxTabButton);
+    
+    // Now add listeners AFTER all components are created
+    genreSelector->addListener(this);
+    instrumentBrowser->addListener(this);
+    fxChainPanel->addListener(this);
+    
+    // Set default genre (this triggers listener, but all components now exist)
+    genreSelector->setSelectedGenre("trap");
+}
+
+void MainComponent::updateBottomPanelTabs()
+{
+    if (instrumentBrowser)
+        instrumentBrowser->setVisible(currentBottomTab == 0);
+    
+    if (fxChainPanel)
+        fxChainPanel->setVisible(currentBottomTab == 1);
+    
+    resized();
+    repaint();
+}
+
+void MainComponent::applyGenreTheme(const juce::String& genreId)
+{
+    currentGenre = genreId;
+    
+    // Guard against being called before components are ready
+    // Apply theme to visualization panel
+    if (visualizationPanel)
+        visualizationPanel->setGenre(genreId);
+    
+    // Apply genre-specific FX chain preset
+    if (fxChainPanel)
+        fxChainPanel->loadPreset(genreId);
+    
+    // Filter instruments by genre
+    if (instrumentBrowser)
+        instrumentBrowser->setGenreFilter(genreId);
+    
+    DBG("Applied genre theme: " + genreId);
+}
+
+//==============================================================================
 void MainComponent::paint(juce::Graphics& g)
 {
     // Background
     g.fillAll(AppColours::background);
-    
-    // Draw placeholder for bottom panel only (visualization is now RecentFilesPanel)
-    drawPlaceholder(g, bottomPanelArea, 
-                   "Mixer / Instrument Browser", 
-                   AppColours::surfaceAlt);
     
     // Status bar at bottom - clear, single source of truth for connection status
     auto statusArea = getLocalBounds().removeFromBottom(24).reduced(padding, 2);
@@ -136,6 +224,10 @@ void MainComponent::paint(juce::Graphics& g)
     g.setFont(12.0f);
     g.setColour(connectionColour);
     g.drawText(connectionText, statusArea.removeFromLeft(400), juce::Justification::left);
+    
+    // Current genre indicator (center)
+    g.setColour(AppColours::textSecondary);
+    g.drawText("Genre: " + currentGenre, statusArea.reduced(100, 0), juce::Justification::centred);
     
     // Current activity status (right side)
     g.setColour(AppColours::textSecondary);
@@ -166,23 +258,48 @@ void MainComponent::resized()
         timelineComponent->setVisible(true);
     }
     
-    // Bottom panel (150px)
-    bottomPanelArea = bounds.removeFromBottom(bottomPanelHeight);
+    // Bottom panel with tabs (180px total: 30px tabs + 150px content)
+    auto bottomArea = bounds.removeFromBottom(bottomPanelHeight + 30);
+    
+    // Tab buttons for bottom panel
+    auto tabRow = bottomArea.removeFromTop(30);
+    int tabWidth = 100;
+    instrumentsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
+    fxTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
+    
+    // Bottom panel content
+    bottomPanelArea = bottomArea.reduced(padding, 0);
+    if (instrumentBrowser && currentBottomTab == 0)
+        instrumentBrowser->setBounds(bottomPanelArea);
+    if (fxChainPanel && currentBottomTab == 1)
+        fxChainPanel->setBounds(bottomPanelArea);
     
     // Main content area - what remains
     auto contentArea = bounds.reduced(padding);
     
-    // Prompt panel on left (320px)
+    // Left column: Genre selector + Prompt panel (320px)
+    auto leftColumn = contentArea.removeFromLeft(promptPanelWidth);
+    
+    // Genre selector at top of left column (60px)
+    if (genreSelector)
+    {
+        genreSelector->setBounds(leftColumn.removeFromTop(60));
+        genreSelector->setVisible(true);
+    }
+    
+    leftColumn.removeFromTop(padding);
+    
+    // Prompt panel fills the rest of left column
     if (promptPanel)
     {
-        promptPanel->setBounds(contentArea.removeFromLeft(promptPanelWidth));
+        promptPanel->setBounds(leftColumn);
         promptPanel->setVisible(true);
     }
     
-    // Gap between prompt and recent files
+    // Gap between prompt and visualization
     contentArea.removeFromLeft(padding);
     
-    // Recent files panel takes remaining space
+    // Visualization panel takes remaining space
     visualizationArea = contentArea;
     
     if (visualizationPanel)
@@ -387,6 +504,50 @@ void MainComponent::fileSelected(const juce::File& file)
     {
         repaint();
     });
+}
+
+//==============================================================================
+// GenreSelector::Listener
+void MainComponent::genreChanged(const juce::String& genreId, const GenreTemplate& genre)
+{
+    DBG("Genre changed to: " + genreId);
+    applyGenreTheme(genreId);
+    
+    // Update app state BPM based on genre template
+    int midBpm = (genre.bpmMin + genre.bpmMax) / 2;
+    appState.setBPM(midBpm);
+    
+    currentStatus = "Genre: " + genre.displayName;
+    repaint();
+}
+
+//==============================================================================
+// InstrumentBrowserPanel::Listener
+void MainComponent::instrumentChosen(const InstrumentInfo& info)
+{
+    DBG("Instrument chosen: " + info.name + " (" + info.category + ")");
+    currentStatus = "Selected: " + info.name;
+    
+    // TODO: Send instrument selection to Python backend via OSC
+    // oscBridge->sendInstrumentSelection(info.category, info.path);
+    
+    repaint();
+}
+
+//==============================================================================
+// FXChainPanel::Listener
+void MainComponent::fxChainChanged(FXChainPanel* panel)
+{
+    if (panel == nullptr) return;
+    
+    DBG("FX chain updated");
+    currentStatus = "FX chain updated";
+    
+    // TODO: Send FX chain to Python backend via OSC
+    // auto fxJson = panel->toJSON();
+    // oscBridge->sendFXChain(fxJson);
+    
+    repaint();
 }
 
 //==============================================================================

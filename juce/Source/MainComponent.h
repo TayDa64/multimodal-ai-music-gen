@@ -22,6 +22,9 @@
 #include "UI/RecentFilesPanel.h"
 #include "UI/TimelineComponent.h"
 #include "UI/VisualizationPanel.h"
+#include "UI/GenreSelector.h"
+#include "UI/InstrumentBrowserPanel.h"
+#include "UI/FXChainPanel.h"
 
 //==============================================================================
 /**
@@ -45,6 +48,9 @@ class MainComponent : public juce::Component,
                       public PromptPanel::Listener,
                       public ProgressOverlay::Listener,
                       public VisualizationPanel::Listener,
+                      public GenreSelector::Listener,
+                      public InstrumentBrowserPanel::Listener,
+                      public FXChainPanel::Listener,
                       public juce::Timer
 {
 public:
@@ -73,6 +79,18 @@ public:
     void fileSelected(const juce::File& file) override;
     
     //==============================================================================
+    // GenreSelector::Listener
+    void genreChanged(const juce::String& genreId, const GenreTemplate& genre) override;
+    
+    //==============================================================================
+    // InstrumentBrowserPanel::Listener
+    void instrumentChosen(const InstrumentInfo& info) override;
+    
+    //==============================================================================
+    // FXChainPanel::Listener
+    void fxChainChanged(FXChainPanel* panel) override;
+    
+    //==============================================================================
     // Timer callback for UI updates
     void timerCallback() override;
 
@@ -92,6 +110,16 @@ private:
     std::unique_ptr<ProgressOverlay> progressOverlay;
     std::unique_ptr<VisualizationPanel> visualizationPanel;
     
+    // NB Phase 2: Genre-aware components
+    std::unique_ptr<GenreSelector> genreSelector;
+    std::unique_ptr<InstrumentBrowserPanel> instrumentBrowser;
+    std::unique_ptr<FXChainPanel> fxChainPanel;
+    
+    // Bottom panel tab buttons
+    juce::TextButton instrumentsTabButton { "Instruments" };
+    juce::TextButton fxTabButton { "FX Chain" };
+    int currentBottomTab = 0;  // 0 = Instruments, 1 = FX Chain
+    
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;
     juce::Rectangle<int> bottomPanelArea;
@@ -109,11 +137,15 @@ private:
     bool serverConnected = false;
     float currentProgress = 0.0f;
     juce::String currentStatus = "Ready";
+    juce::String currentGenre = "trap";  // Default genre
     
     //==============================================================================
     void startPythonServer();
     void stopPythonServer();
     void setupOSCConnection();
+    void setupBottomPanel();
+    void updateBottomPanelTabs();
+    void applyGenreTheme(const juce::String& genreId);
     void drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area, 
                         const juce::String& label, juce::Colour colour);
     

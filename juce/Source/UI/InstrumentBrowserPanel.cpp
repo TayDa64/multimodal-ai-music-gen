@@ -322,8 +322,8 @@ SamplePreviewPanel::SamplePreviewPanel(juce::AudioDeviceManager& dm)
 {
     formatManager.registerBasicFormats();
     
-    audioDeviceManager.addAudioCallback(&audioSourcePlayer);
-    audioSourcePlayer.setSource(&transportSource);
+    // Defer audio callback registration - will be done when first audio file is loaded
+    // This prevents issues if the device manager isn't fully ready yet
     
     playButton.setColour(juce::TextButton::buttonColourId, juce::Colour(50, 120, 50));
     stopButton.setColour(juce::TextButton::buttonColourId, juce::Colour(120, 50, 50));
@@ -352,7 +352,10 @@ SamplePreviewPanel::~SamplePreviewPanel()
     stopTimer();
     transportSource.setSource(nullptr);
     audioSourcePlayer.setSource(nullptr);
-    audioDeviceManager.removeAudioCallback(&audioSourcePlayer);
+    
+    // Only remove callback if we actually added it
+    if (audioCallbackRegistered)
+        audioDeviceManager.removeAudioCallback(&audioSourcePlayer);
 }
 
 void SamplePreviewPanel::paint(juce::Graphics& g)
@@ -459,6 +462,14 @@ void SamplePreviewPanel::loadAudioFile(const juce::String& path)
     
     if (!file.existsAsFile())
         return;
+    
+    // Register audio callback on first load
+    if (!audioCallbackRegistered)
+    {
+        audioSourcePlayer.setSource(&transportSource);
+        audioDeviceManager.addAudioCallback(&audioSourcePlayer);
+        audioCallbackRegistered = true;
+    }
     
     auto* reader = formatManager.createReaderFor(file);
     
