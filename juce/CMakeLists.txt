@@ -142,6 +142,14 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/VisualizationPanel.cpp
     Source/UI/VisualizationPanel.h
     
+    # NB Phase 2: Genre-aware UI Components
+    Source/UI/GenreSelector.cpp
+    Source/UI/GenreSelector.h
+    Source/UI/InstrumentBrowserPanel.cpp
+    Source/UI/InstrumentBrowserPanel.h
+    Source/UI/FXChainPanel.cpp
+    Source/UI/FXChainPanel.h
+    
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp
     Source/UI/Visualization/PianoRollComponent.h

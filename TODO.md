@@ -1157,6 +1157,7 @@ juce/Source/
 **Duration**: 5-6 days  
 **Risk Level**: 🟢 Low  
 **Goal**: Browse, preview, and select instruments with AI-powered recommendations
+**Status**: 🔲 NOT STARTED (NB Phase 2 UI components created)
 
 #### Architecture
 
@@ -2696,61 +2697,49 @@ multimodal_gen/
 ---
 
 ### NB Phase 2: JUCE Framework & UI Standardization
-**Status**: IN PROGRESS  
+**Status**: ✅ IN PROGRESS (Core components created)  
 **Goal**: Industry-standard UI with genre-aware components
 
-#### Planned Components:
+#### Completed Components:
 
-- [ ] **GenreSelector** - Top-level genre selection
-  ```cpp
-  // Source/UI/GenreSelector.h
-  class GenreSelector : public juce::Component {
-  public:
-      void loadFromGenreIntelligence();  // Load from genres.json
-      void setSelectedGenre(const juce::String& genre);
-      
-      class Listener {
-          virtual void genreChanged(const juce::String& genre) = 0;
-      };
-      
-  private:
-      juce::Array<GenreTemplate> genres;
-      juce::ComboBox genreCombo;
-      juce::Colour currentThemeColor;  // Genre-specific theming
-  };
-  ```
+- [x] **GenreSelector.h/cpp** - ✅ CREATED
+  - Top-level genre selection with theme colors
+  - `GenreTemplate` struct with full configuration (BPM range, swing, FX chains)
+  - `Listener` pattern for genre change notifications
+  - JSON parsing for dynamic genre loading
+  - 10 hardcoded defaults matching genres.json
+  **Implementation**: `juce/Source/UI/GenreSelector.h/cpp`
 
-- [ ] **InstrumentBrowserPanel** - Category-based instrument browser
-  ```cpp
-  // Source/UI/InstrumentBrowser/InstrumentBrowserPanel.h
-  // Based on instrument_categories from genres.json:
-  // - drums (kicks, snares, claps, hihats, 808s)
-  // - bass (808_bass, synth_bass, electric_bass)
-  // - keys (piano, rhodes, organ)
-  // - synths (leads, pads, plucks, arps)
-  // - strings (strings, brass, woodwinds)
-  // - fx (risers, impacts, textures, vinyl)
-  // - ethiopian (krar, masenqo, washint, kebero, begena)
-  ```
+- [x] **InstrumentBrowserPanel.h/cpp** - ✅ CREATED
+  - `InstrumentInfo` struct (id, name, category, subcategory, key, BPM, duration, tags)
+  - `InstrumentCategory` struct with subcategories
+  - `InstrumentCard` component with hover/selection states
+  - `InstrumentListComponent` with scrollable card list
+  - `CategoryTabBar` with 7 default categories (drums, bass, keys, synths, strings, fx, ethiopian)
+  - `SamplePreviewPanel` with waveform thumbnail and playback
+  - Search filtering and genre filtering
+  - Click-to-select, double-click-to-activate
+  **Implementation**: `juce/Source/UI/InstrumentBrowserPanel.h/cpp`
 
-- [ ] **InstrumentCard** - Sample preview with waveform thumbnail
-  ```cpp
-  // Source/UI/InstrumentBrowser/InstrumentCard.h
-  class InstrumentCard : public juce::Component {
-      // Display: Name, Category, Genre Hints, AI Match Score
-      // Preview: Waveform thumbnail, Play/Stop buttons
-      // Actions: Drag to track, Add to favorites
-  };
-  ```
+- [x] **FXChainPanel.h/cpp** - ✅ CREATED
+  - `FXUnit` struct with type, parameters, JSON serialization
+  - `FXChainPreset` struct for genre-aware chains
+  - `FXUnitComponent` with type-specific colors and icons
+  - `FXChainStrip` for each bus (master, drums, bass, melodic)
+  - `FXParameterPanel` with dynamic sliders per FX type
+  - Genre preset selector with 10 presets
+  - Add/remove FX, enable/disable per unit
+  - Full JSON import/export
+  **Implementation**: `juce/Source/UI/FXChainPanel.h/cpp`
 
-- [ ] **FXChainPanel** - Genre-aware FX chain visualization
-  ```cpp
-  // Based on fx_definitions from genres.json:
-  // - soft_clip, analog_warmth, vinyl_crackle
-  // - sidechain_duck, slight_pump
-  // - room_reverb, hall_reverb, plate_reverb
-  // - bitcrush_light, tape_saturation
-  ```
+- [x] **CMakeLists.txt** - ✅ UPDATED
+  - Added GenreSelector.h/cpp, InstrumentBrowserPanel.h/cpp, FXChainPanel.h/cpp
+
+#### Planned Integration:
+- [ ] Integrate GenreSelector into MainComponent/PromptPanel
+- [ ] Wire InstrumentBrowserPanel to OSC instrument requests
+- [ ] Connect FXChainPanel to Python FX processing
+- [ ] Add theme color propagation to visualization components
 
 ---
 
