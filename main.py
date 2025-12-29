@@ -158,6 +158,7 @@ ProgressCallback = Callable[[str, float, str], None]
 def run_generation(
     prompt: str,
     output_dir: Path | str,
+    genre_override: str = None,
     bpm_override: int = None,
     key_override: str = None,
     reference_url: str = None,
@@ -176,6 +177,7 @@ def run_generation(
     Args:
         prompt: Natural language music prompt
         output_dir: Directory for output files
+        genre_override: Override genre from prompt (e.g., "g_funk", "trap_soul")
         bpm_override: Override BPM from prompt
         key_override: Override key from prompt (e.g., "Cm", "F#m")
         reference_url: YouTube URL or audio file to analyze for style reference
@@ -309,6 +311,13 @@ def run_generation(
             parsed.instruments = base_parsed.instruments
     
     # Apply overrides
+    if genre_override:
+        parsed.genre = genre_override
+        # Re-apply genre intelligence to update drum/instrument defaults
+        parsed._apply_genre_intelligence()
+        if verbose:
+            print_info(f"Genre override applied: {genre_override}")
+    
     if bpm_override:
         parsed.bpm = bpm_override
         if verbose:

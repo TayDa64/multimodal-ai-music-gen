@@ -137,7 +137,7 @@ private:
     bool serverConnected = false;
     float currentProgress = 0.0f;
     juce::String currentStatus = "Ready";
-    juce::String currentGenre = "trap";  // Default genre
+    juce::String currentGenre = "trap";  // Default genre (synced with GenreSelector)
     
     //==============================================================================
     void startPythonServer();

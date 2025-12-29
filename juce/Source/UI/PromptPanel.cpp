@@ -91,44 +91,34 @@ void PromptPanel::setupNegativePromptInput()
 
 void PromptPanel::setupGenreSelector()
 {
-    // Label
+    // Genre selection is now handled by the main GenreSelector component
+    // This section is hidden but kept for potential future use
     genreLabel.setText("Genre", juce::dontSendNotification);
     genreLabel.setFont(juce::Font(12.0f));
     genreLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    genreLabel.setVisible(false);  // Hidden - using main GenreSelector
     addAndMakeVisible(genreLabel);
     
-    // Setup genre presets
+    // Setup genre presets (kept for internal use but combo box hidden)
     genrePresets = {
-        { "G-Funk",     "west coast g-funk synths bass",    92 },
-        { "Trap",       "trap 808 hi-hats",                 140 },
-        { "Boom Bap",   "boom bap drums sample chops",      90 },
-        { "Lo-Fi",      "lo-fi chill vinyl crackle",        85 },
-        { "Drill",      "UK drill sliding 808s",            140 },
-        { "RnB",        "smooth rnb soul",                  100 },
-        { "Jazz Hop",   "jazz hip-hop samples",             88 },
-        { "Custom",     "",                                 100 }
+        { "G-Funk",     "",    92 },   // Empty suffix - genre set via GenreSelector
+        { "Trap",       "",    140 },
+        { "Boom Bap",   "",    90 },
+        { "Lo-Fi",      "",    85 },
+        { "Drill",      "",    140 },
+        { "RnB",        "",    100 },
+        { "Jazz Hop",   "",    88 },
+        { "Custom",     "",    100 }
     };
     
-    // Populate combo box
+    // Populate combo box but keep it hidden
     for (int i = 0; i < (int)genrePresets.size(); ++i)
     {
         genreSelector.addItem(genrePresets[i].name, i + 1);
     }
     
-    genreSelector.setSelectedId(1); // G-Funk default
-    
-    genreSelector.onChange = [this] {
-        int selectedIndex = genreSelector.getSelectedId() - 1;
-        if (selectedIndex >= 0 && selectedIndex < (int)genrePresets.size())
-        {
-            auto& preset = genrePresets[selectedIndex];
-            if (preset.name != "Custom")
-            {
-                appState.setBPM(preset.suggestedBPM);
-            }
-        }
-    };
-    
+    genreSelector.setSelectedId(1);
+    genreSelector.setVisible(false);  // Hidden - using main GenreSelector
     addAndMakeVisible(genreSelector);
 }
 
@@ -165,28 +155,8 @@ void PromptPanel::setupGenerateButton()
     generateButton.onClick = [this] {
         if (!isGenerating && promptInput.getText().isNotEmpty())
         {
-            // Start with combined prompt (main + negative)
+            // Use combined prompt (main + negative) - genre is passed separately via GenreSelector
             juce::String finalPrompt = getCombinedPrompt();
-            
-            // Append genre suffix if not custom
-            int selectedIndex = genreSelector.getSelectedId() - 1;
-            if (selectedIndex >= 0 && selectedIndex < (int)genrePresets.size())
-            {
-                auto& preset = genrePresets[selectedIndex];
-                if (preset.promptSuffix.isNotEmpty())
-                {
-                    // Insert genre suffix before negative prompt section
-                    if (finalPrompt.contains(" negative prompt:"))
-                    {
-                        int negIdx = finalPrompt.indexOf(" negative prompt:");
-                        finalPrompt = finalPrompt.substring(0, negIdx) + " " + preset.promptSuffix + finalPrompt.substring(negIdx);
-                    }
-                    else
-                    {
-                        finalPrompt += " " + preset.promptSuffix;
-                    }
-                }
-            }
             
             appState.setPrompt(finalPrompt);
             listeners.call(&Listener::generateRequested, finalPrompt);
@@ -238,12 +208,8 @@ void PromptPanel::resized()
     negativePromptInput.setBounds(bounds.removeFromTop(26));
     bounds.removeFromTop(10);
     
-    // Genre row
-    auto genreRow = bounds.removeFromTop(26);
-    genreLabel.setBounds(genreRow.removeFromLeft(45).withHeight(26));
-    genreSelector.setBounds(genreRow.removeFromLeft(120).withHeight(26));
-    
-    bounds.removeFromTop(6);
+    // Genre row - hidden (using main GenreSelector)
+    // Skip layout for genre controls
     
     // Duration row (separate line for clarity)
     auto durationRow = bounds.removeFromTop(26);

@@ -298,6 +298,7 @@ class MusicGenOSCServer:
                 prompt=prompt,
                 request_id=request_id,
                 schema_version=schema_version,
+                genre=data.get("genre", ""),  # Genre ID from JUCE GenreSelector
                 bpm=int(data.get("bpm", 0)),
                 key=data.get("key", ""),
                 output_dir=data.get("output_dir", self.config.default_output_dir),
@@ -311,6 +312,7 @@ class MusicGenOSCServer:
             )
             
             self._log(f"   Request ID: {request_id}" if request_id else "   Request ID: (none)")
+            self._log(f"   Genre: {request.genre}" if request.genre else "   Genre: (auto-detect)")
             self._log(f"   Prompt: \"{request.prompt[:50]}...\"" if len(request.prompt) > 50 else f"   Prompt: \"{request.prompt}\"")
             
             # Optional callback

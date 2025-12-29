@@ -182,7 +182,7 @@ private:
     
     // Genre templates
     std::map<juce::String, GenreTemplate> genres;
-    juce::String currentGenreId = "trap_soul";
+    juce::String currentGenreId = "trap";
     
     // Listeners
     juce::ListenerList<Listener> listeners;

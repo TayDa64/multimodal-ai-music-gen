@@ -28,6 +28,7 @@ struct GenerationRequest
     juce::String requestId;         // UUID for request/response correlation
     int schemaVersion = SCHEMA_VERSION;
     juce::String prompt;
+    juce::String genre;             // Genre ID from GenreSelector (e.g., "g_funk", "trap")
     int bpm = 0;                    // 0 = auto-detect
     int bars = 8;                   // Number of bars to generate
     juce::String key;               // Empty = auto-detect
@@ -55,6 +56,7 @@ struct GenerationRequest
         obj->setProperty("request_id", requestId);
         obj->setProperty("schema_version", schemaVersion);
         obj->setProperty("prompt", prompt);
+        obj->setProperty("genre", genre);
         obj->setProperty("bpm", bpm);
         obj->setProperty("bars", bars);
         obj->setProperty("key", key);

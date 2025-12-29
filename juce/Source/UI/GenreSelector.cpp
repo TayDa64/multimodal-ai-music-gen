@@ -186,7 +186,7 @@ void GenreSelector::loadDefaults()
     }
     
     // Select default genre
-    setSelectedGenre("trap_soul");
+    setSelectedGenre("trap");
 }
 
 //==============================================================================

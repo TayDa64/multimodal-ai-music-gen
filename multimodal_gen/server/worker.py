@@ -39,6 +39,7 @@ class GenerationRequest:
         request_id: Unique identifier for request/response correlation
         schema_version: Protocol version for compatibility checking
         prompt: Natural language music description
+        genre: Genre ID override (e.g., "g_funk", "trap", "lofi")
         bpm: BPM override (0 = auto-detect from prompt)
         key: Key override (empty = auto-detect)
         output_dir: Directory for generated files
@@ -54,6 +55,7 @@ class GenerationRequest:
     prompt: str
     request_id: str = ""  # UUID for request/response correlation
     schema_version: int = 1  # Protocol version
+    genre: str = ""  # Genre ID from UI (e.g., "g_funk", "trap_soul")
     bpm: int = 0
     key: str = ""
     output_dir: str = ""
@@ -72,6 +74,7 @@ class GenerationRequest:
             "request_id": self.request_id,
             "schema_version": self.schema_version,
             "prompt": self.prompt,
+            "genre": self.genre,
             "bpm": self.bpm,
             "key": self.key,
             "output_dir": self.output_dir,
@@ -356,6 +359,7 @@ class GenerationWorker:
             results = run_generation(
                 prompt=task.request.prompt,
                 output_dir=output_dir,
+                genre_override=task.request.genre if task.request.genre else None,
                 bpm_override=task.request.bpm if task.request.bpm > 0 else None,
                 key_override=task.request.key if task.request.key else None,
                 reference_url=task.request.reference_url if task.request.reference_url else None,

@@ -449,6 +449,7 @@ void MainComponent::generateRequested(const juce::String& prompt)
     {
         GenerationRequest request;
         request.prompt = prompt;
+        request.genre = currentGenre;  // Pass genre from GenreSelector
         request.bpm = appState.getBPM();
         request.bars = appState.getDurationBars();
         request.renderAudio = true;

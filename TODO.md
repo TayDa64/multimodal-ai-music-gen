@@ -2735,11 +2735,62 @@ multimodal_gen/
 - [x] **CMakeLists.txt** - ✅ UPDATED
   - Added GenreSelector.h/cpp, InstrumentBrowserPanel.h/cpp, FXChainPanel.h/cpp
 
-#### Planned Integration:
-- [ ] Integrate GenreSelector into MainComponent/PromptPanel
+#### Integration Status (Updated Dec 29, 2025):
+- [x] Integrate GenreSelector into MainComponent ✅
+  - GenreSelector positioned above PromptPanel  
+  - `genreChanged()` callback updates `currentGenre` and propagates to all components
+  - Genre passed to Python backend via OSC `/generate` message
+  - PromptPanel's internal genre selector hidden to avoid confusion
 - [ ] Wire InstrumentBrowserPanel to OSC instrument requests
 - [ ] Connect FXChainPanel to Python FX processing
-- [ ] Add theme color propagation to visualization components
+- [x] Add theme color propagation to visualization components ✅
+  - `applyGenreTheme()` propagates genre to visualization, FX, and instrument panels
+
+#### Issue #5: Genre Disconnect Between UI and Generation
+**Date Fixed**: December 29, 2025  
+**Severity**: High (Functional)  
+**Symptoms**: 
+- Header showed "g_funk_92bpm..." but footer showed "Genre: trap_soul"
+- GenreSelector changes did not affect actual generation
+- Rolling 1/16 hi-hat notes persisted regardless of genre selection
+
+**Root Cause**: 
+Two separate genre selection mechanisms were operating independently:
+1. **GenreSelector** (NB Phase 2) - controlled `currentGenre` displayed in status bar
+2. **PromptPanel's genreSelector** - appended genre keywords to prompt, defaulted to G-Funk
+
+The `GenerationRequest` struct had no `genre` field, so the Python backend relied solely on 
+prompt text parsing to detect genre. The PromptPanel was appending G-Funk keywords to 
+every prompt, overriding user intent.
+
+**Fixed Code**:
+1. Added `genre` field to `GenerationRequest` in `Messages.h`
+2. `MainComponent::generateRequested()` now passes `currentGenre` to request
+3. `osc_server.py` parses `genre` from OSC message
+4. `worker.py` passes `genre_override` to `run_generation()`
+5. `main.py` applies `genre_override` before prompt parsing
+6. Hidden PromptPanel's genre selector to prevent confusion
+7. Updated GenreSelector default from "trap_soul" to "trap"
+
+**Files Modified**:
+- `juce/Source/Communication/Messages.h` - Added genre field
+- `juce/Source/MainComponent.cpp` - Pass currentGenre in generateRequested()
+- `juce/Source/UI/PromptPanel.cpp` - Hidden genre selector, removed keyword appending
+- `juce/Source/UI/GenreSelector.cpp` - Default to "trap"
+- `juce/Source/UI/GenreSelector.h` - Default to "trap"
+- `multimodal_gen/server/osc_server.py` - Parse genre from OSC
+- `multimodal_gen/server/worker.py` - Add genre to GenerationRequest, pass to run_generation
+- `main.py` - Add genre_override parameter, apply before parsing
+
+**Genre → Hi-hat Rolls Mapping**:
+| Genre | Hi-hat Rolls | Expected Behavior |
+|-------|-------------|-------------------|
+| trap | true | 16th note hi-hat rolls |
+| trap_soul | false | Clean 8th note hi-hats |
+| g_funk | false | Clean, groovy hi-hats |
+| drill | true | 16th note rolls |
+| lofi | false | Minimal, laid-back |
+| boom_bap | false | Classic boom-bap feel |
 
 ---
 
