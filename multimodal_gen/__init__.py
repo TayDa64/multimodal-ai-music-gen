@@ -51,6 +51,17 @@ from .instrument_manager import (
     get_best_instruments_for_genre,
     analyze_sample,
 )
+from .expansion_manager import (
+    ExpansionManager,
+    ExpansionPack,
+    ExpansionInstrument,
+    ResolvedInstrument,
+    MatchType,
+    InstrumentRole,
+    SonicFingerprint,
+    create_expansion_manager,
+    resolve_genre_instruments,
+)
 from .utils import (
     TICKS_PER_BEAT,
     generate_uuid,
@@ -108,6 +119,16 @@ __all__ = [
     "load_multiple_libraries",
     "get_best_instruments_for_genre",
     "analyze_sample",
+    # Expansion Manager (AI-powered instrument resolution)
+    "ExpansionManager",
+    "ExpansionPack",
+    "ExpansionInstrument",
+    "ResolvedInstrument",
+    "MatchType",
+    "InstrumentRole",
+    "SonicFingerprint",
+    "create_expansion_manager",
+    "resolve_genre_instruments",
     # Utils
     "TICKS_PER_BEAT",
     "generate_uuid",

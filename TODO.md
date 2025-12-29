@@ -2943,15 +2943,146 @@ class MPCExporter:
 | NB1 | genres.json | ✅ DONE | ✅ | None |
 | NB1 | genre_intelligence.py | ✅ DONE | ✅ | genres.json |
 | NB1 | instrument_manager.py | ✅ DONE | ✅ | None |
-| NB2 | GenreSelector | HIGH | Low | genres.json |
+| NB2 | GenreSelector | ✅ DONE | ✅ | genres.json |
 | NB2 | InstrumentBrowserPanel | HIGH | Medium | instrument_manager |
 | NB2 | InstrumentCard | MEDIUM | Low | InstrumentBrowserPanel |
-| NB2 | FXChainPanel | MEDIUM | Medium | genres.json |
+| NB2 | FXChainPanel | ✅ DONE | ✅ | genres.json |
+| **NEW** | ExpansionManager | ✅ DONE | ✅ | instrument_manager |
 | NB3 | PluginScanner | LOW | High | None |
 | NB4 | Real-time params | MEDIUM | High | OSC protocol |
 | NB4 | HumanizationPanel | MEDIUM | Low | genres.json |
 | NB5 | MPC 3.x export | MEDIUM | Medium | mpc_exporter |
 | NB5 | Ableton export | LOW | High | None |
+
+---
+
+### NB Phase 2.5: Instrument Expansion System ✅ COMPLETE
+**Status**: IMPLEMENTED  
+**Date Completed**: December 29, 2025  
+**Goal**: Enable AI to intelligently select instruments from user-imported expansions
+
+#### Problem Solved
+When generating Ethiopian genres (Eskista, Ethiopian Traditional), the AI requested instruments 
+like `krar`, `masenqo`, `washint`, `kebero` that don't exist in standard sample libraries. 
+Without the expansion system, generation would fail or use incorrect instruments.
+
+#### Solution: Multi-Tier Instrument Resolution
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│              INSTRUMENT RESOLUTION ALGORITHM                       │
+│                                                                   │
+│  Request: "krar" for genre "eskista"                              │
+│                                                                   │
+│  Tier 1: EXACT MATCH                                              │
+│    └─ Search all expansions for "krar" → NOT FOUND                │
+│                                                                   │
+│  Tier 2: MAPPED MATCH                                             │
+│    └─ Check genre-specific mappings in expansion.json             │
+│    └─ krar → ["guitar", "acoustic"] → FOUND: RnB-Guitar           │
+│                                                                   │
+│  Tier 3: SEMANTIC MATCH (if tier 2 fails)                         │
+│    └─ krar role = ETHIOPIAN_STRING                                │
+│    └─ Compatible roles: MELODIC_STRING, MELODIC_KEYS              │
+│    └─ Find instruments with compatible roles → Guitar, Piano      │
+│                                                                   │
+│  Tier 4: SPECTRAL MATCH (if tier 3 fails)                         │
+│    └─ krar ideal profile: bright=0.7, pluck=0.8, warmth=0.5       │
+│    └─ Find instruments with similar sonic fingerprint             │
+│                                                                   │
+│  Tier 5: DEFAULT FALLBACK                                         │
+│    └─ Use default library or return not-found message             │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+#### Components Implemented
+
+1. **ExpansionManager** (`expansion_manager.py`) - Main API
+   - `scan_expansions(dir)` - Auto-discover expansion packs
+   - `resolve_instrument(name, genre)` - Multi-tier resolution
+   - `resolve_instrument_set(instruments, genre)` - Batch resolution
+   - `list_expansions()` / `list_instruments()` - Query API
+
+2. **ExpansionLoader** - Parses expansion directories
+   - Auto-generates manifest from folder structure
+   - Parses MPC .xpm program files
+   - Detects categories from naming conventions (Inst-Bass-*, RnB-Kit-*, etc.)
+
+3. **IntelligentMatcher** - Multi-tier resolution engine
+   - Exact name matching
+   - Genre-specific mappings (via expansion.json)
+   - Semantic role matching (InstrumentRole enum)
+   - Spectral similarity matching (SonicFingerprint)
+
+4. **SonicFingerprint** - Audio characteristics for matching
+   - brightness, warmth, punch, pluck_character, decay_ms, noise_level
+
+5. **expansion.json** - Manifest format for expansions
+   ```json
+   {
+     "name": "Funk o Rama",
+     "target_genres": ["g_funk", "rnb", "trap_soul"],
+     "instrument_mappings": {
+       "krar": ["rnb-guitar-acoustic"],
+       "kebero": ["rnb-perc-conga"]
+     }
+   }
+   ```
+
+#### Test Results (Funk o Rama Expansion)
+
+| Requested | Genre | Resolved | Match Type | Confidence |
+|-----------|-------|----------|------------|------------|
+| piano | rnb | Inst-Keys-Ensemble Piano | exact | 100% |
+| bass | g_funk | Inst-Bass-Amphi Bass | exact | 100% |
+| kick | trap | RnB-Kick-Advtrus Kick | exact | 100% |
+| krar | eskista | RnB-Guitar-Advtrus | semantic | 70% |
+| masenqo | eskista | RnB-Guitar-Advtrus | semantic | 70% |
+| washint | eskista | Inst-Synth-SweetFlute | semantic | 70% |
+| kebero | eskista | RnB-Perc-Advtrus | semantic | 70% |
+| 808 | trap | Inst-Bass-Deep Bass | semantic | 70% |
+
+#### File Structure
+
+```
+multimodal_gen/
+├── expansion_manager.py     # ✅ NEW: Complete expansion system
+├── instrument_manager.py    # Existing: spectral analysis
+└── __init__.py              # ✅ UPDATED: Export new classes
+
+expansions/
+└── funk_o_rama/
+    └── Funk o Rama-1.0.5/
+        └── Funk o Rama/
+            ├── expansion.json     # ✅ NEW: Custom manifest
+            ├── Inst-Bass-*.WAV    # Synth bass samples
+            ├── Inst-Keys-*.WAV    # Piano/organ samples
+            ├── RnB-Kit-*.xpm      # Drum kit programs
+            ├── RnB-Kick-*.WAV     # One-shot kicks
+            └── ... (1109 samples)
+```
+
+#### Integration Points
+
+**Python CLI** (main.py):
+```python
+from multimodal_gen import ExpansionManager, resolve_genre_instruments
+
+manager = ExpansionManager()
+manager.scan_expansions("./expansions")
+
+# Resolve instruments for Ethiopian genre
+instruments = resolve_genre_instruments(
+    genre="eskista",
+    required_instruments=["krar", "kebero", "masenqo"],
+    manager=manager
+)
+```
+
+**Future JUCE Integration**:
+- OSC message `/expansion/list` → List available expansions
+- OSC message `/expansion/resolve` → Resolve instrument with explanation
+- OSC message `/expansion/import` → Import new expansion pack
 
 ---
 
