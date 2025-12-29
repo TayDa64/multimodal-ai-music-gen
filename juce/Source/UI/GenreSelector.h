@@ -182,6 +182,7 @@ private:
     
     // Genre templates
     std::map<juce::String, GenreTemplate> genres;
+    juce::StringArray genreOrder;  // Preserves combo box item order (std::map iterates alphabetically!)
     juce::String currentGenreId = "trap";
     
     // Listeners

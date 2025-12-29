@@ -2794,6 +2794,54 @@ every prompt, overriding user intent.
 
 ---
 
+#### Issue #6: Genre ComboBox Selection Mismatch
+**Date Fixed**: December 29, 2025  
+**Severity**: High (Functional)  
+**Symptoms**: 
+- Selecting "Trap" in dropdown showed "boom_bap" in footer
+- Selecting "G-Funk" showed "eskista"
+- Pattern: Selection index 1 mapped to alphabetically-first genre
+
+**Root Cause**: 
+`std::map` iterates in **alphabetical key order**, not insertion order!
+
+Combo box items were added in display order:
+1. Trap, 2. Trap Soul, 3. G-Funk, 4. R&B, 5. Lo-Fi, 6. Boom Bap, 7. House, 8. Drill, 9. Ethiopian Traditional, 10. Eskista
+
+But `comboBoxChanged()` and `setSelectedGenre()` iterated the `std::map<juce::String, GenreTemplate>` which gives:
+1. boom_bap, 2. drill, 3. eskista, 4. ethiopian_traditional, 5. g_funk, 6. house, 7. lofi, 8. rnb, 9. trap, 10. trap_soul
+
+So selecting combo item 1 ("Trap") found map item 1 ("boom_bap")!
+
+**Fixed Code**:
+Added `juce::StringArray genreOrder` to preserve insertion order:
+```cpp
+// GenreSelector.h
+juce::StringArray genreOrder;  // Preserves combo box item order
+
+// GenreSelector.cpp - loadDefaults()
+genreOrder.add(t.id);  // Track insertion order
+
+// GenreSelector.cpp - comboBoxChanged()
+int index = selectedId - 1;  // ComboBox IDs are 1-based
+if (index >= 0 && index < genreOrder.size())
+    currentGenreId = genreOrder[index];
+
+// GenreSelector.cpp - setSelectedGenre()
+int index = genreOrder.indexOf(genreId);
+if (index >= 0)
+    genreCombo.setSelectedId(index + 1, juce::dontSendNotification);
+```
+
+**Files Modified**:
+- `juce/Source/UI/GenreSelector.h` - Added `genreOrder` member
+- `juce/Source/UI/GenreSelector.cpp` - Use `genreOrder` instead of map iteration
+
+**Lesson Learned**: 
+`std::map` iterates alphabetically by key. Use `std::vector` or `juce::StringArray` to preserve insertion order when order matters (like combo box item mapping).
+
+---
+
 ### NB Phase 3: Plugin & Extension Integration
 **Status**: PLANNED  
 **Goal**: Professional plugin scanning and loading

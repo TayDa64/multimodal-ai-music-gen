@@ -109,6 +109,7 @@ void GenreSelector::loadFromJSON(const juce::String& json)
     }
     
     genres.clear();
+    genreOrder.clear();
     genreCombo.clear();
     
     // Parse genres from manifest
@@ -121,6 +122,7 @@ void GenreSelector::loadFromJSON(const juce::String& json)
             juce::String genreId = prop.name.toString();
             GenreTemplate tmpl = GenreTemplate::fromJSON(genreId, prop.value);
             genres[genreId] = tmpl;
+            genreOrder.add(genreId);  // Preserve insertion order
             
             genreCombo.addItem(tmpl.displayName, itemId++);
         }
@@ -143,6 +145,7 @@ void GenreSelector::loadFromJSON(const juce::String& json)
 void GenreSelector::loadDefaults()
 {
     genres.clear();
+    genreOrder.clear();
     genreCombo.clear();
     
     // Hardcoded defaults matching genres.json
@@ -182,6 +185,7 @@ void GenreSelector::loadDefaults()
         t.hihatRolls = d.hihatRolls;
         
         genres[t.id] = t;
+        genreOrder.add(t.id);  // Preserve insertion order for combo box mapping
         genreCombo.addItem(t.displayName, itemId++);
     }
     
@@ -208,16 +212,11 @@ void GenreSelector::setSelectedGenre(const juce::String& genreId)
     
     currentGenreId = genreId;
     
-    // Find the combo box item
-    int itemIndex = 1;
-    for (const auto& [id, tmpl] : genres)
+    // Find the combo box item using genreOrder (preserves insertion order)
+    int index = genreOrder.indexOf(genreId);
+    if (index >= 0)
     {
-        if (id == genreId)
-        {
-            genreCombo.setSelectedId(itemIndex, juce::dontSendNotification);
-            break;
-        }
-        itemIndex++;
+        genreCombo.setSelectedId(index + 1, juce::dontSendNotification);  // ComboBox IDs are 1-based
     }
     
     updateInfoDisplay();
@@ -285,16 +284,13 @@ void GenreSelector::comboBoxChanged(juce::ComboBox* comboBox)
         return;
     
     int selectedId = genreCombo.getSelectedId();
-    int itemIndex = 1;
     
-    for (const auto& [id, tmpl] : genres)
+    // Use genreOrder vector (preserves insertion order) instead of iterating std::map (alphabetical)
+    int index = selectedId - 1;  // ComboBox IDs are 1-based
+    if (index >= 0 && index < genreOrder.size())
     {
-        if (itemIndex == selectedId)
-        {
-            currentGenreId = id;
-            break;
-        }
-        itemIndex++;
+        currentGenreId = genreOrder[index];
+        DBG("GenreSelector: Selected index " + juce::String(index) + " -> genre: " + currentGenreId);
     }
     
     updateInfoDisplay();
