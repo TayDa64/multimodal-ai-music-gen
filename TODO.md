@@ -2625,6 +2625,265 @@ The following features were implemented ahead of schedule:
 
 ---
 
+## 🧠 NotebookLM Strategic Roadmap
+
+### Vision: From "Vending Machine" to "Sous-Chef"
+
+Based on comprehensive NotebookLM synthesis of the codebase and industry best practices, this roadmap transforms the AI Music Generator from a one-shot generation tool into an intelligent music production assistant.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TRANSFORMATION ARCHITECTURE                               │
+│                                                                             │
+│   CURRENT STATE                           TARGET STATE                       │
+│   "Vending Machine"                       "Sous-Chef"                        │
+│   ─────────────────                       ────────────                        │
+│   • Prompt → One-shot result              • Continuous collaboration         │
+│   • Limited user control                  • Real-time parameter tweaking     │
+│   • Regenerate to change                  • Non-destructive adjustments      │
+│   • Black box processing                  • Transparent AI decisions         │
+│                                                                             │
+│   ┌─────────────┐      ┌─────────────┐      ┌─────────────────────────────┐ │
+│   │ Text Prompt │ ───▶ │ AI Backend  │ ───▶ │ Final Output (immutable)   │ │
+│   └─────────────┘      └─────────────┘      └─────────────────────────────┘ │
+│                                                                             │
+│                              ▼  BECOMES  ▼                                  │
+│                                                                             │
+│   ┌─────────────┐      ┌─────────────┐      ┌─────────────────────────────┐ │
+│   │ UI Controls │ ◀──▶ │ AI Backend  │ ◀──▶ │ Live Preview (adjustable)  │ │
+│   └─────────────┘      └─────────────┘      └─────────────────────────────┘ │
+│         │                    │                          │                   │
+│         │                    │                          │                   │
+│         ▼                    ▼                          ▼                   │
+│   Genre Selector      Real-time Params         Drag-Drop Arrangement       │
+│   Instrument Browser  Humanization Sliders     Section Restructuring       │
+│   FX Chain Toggles    Density Controls         Export Options              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### NB Phase 1: Core Backend & Genre Intelligence ✅ COMPLETE
+**Status**: IMPLEMENTED  
+**Goal**: Foundational genre-aware generation system
+
+#### Completed Components:
+- [x] **genres.json** - Comprehensive genre template system with 10 genres
+  - trap, trap_soul, g_funk, rnb, lofi, boom_bap, house, drill, ethiopian_traditional, eskista
+  - Mandatory/forbidden/recommended elements per genre
+  - Spectral profiles (sub_bass_presence, brightness, warmth, 808_character)
+  - FX chains per bus (master, drums, bass, melodic)
+  - Humanization profiles (tight, natural, loose, live)
+
+- [x] **genre_intelligence.py** - Python module for genre template access
+  - `get_genre_template(genre)` - Full template retrieval
+  - `is_element_allowed(genre, element)` - Validation API
+  - `get_fx_chain(genre, bus)` - FX chain retrieval
+  - `validate_prompt_against_genre()` - Prompt validation
+  - `to_json_manifest()` - JSON export for JUCE UI
+
+- [x] **instrument_manager.py** - Enhanced with AI-powered selection
+  - `InstrumentAnalyzer` - Spectral fingerprinting
+  - `InstrumentMatcher` - Genre/mood matching
+  - `InstrumentLibrary` - Discovery and caching
+
+#### File Structure (NB Phase 1):
+```
+multimodal_gen/
+├── genres.json              # ✅ Genre DNA templates
+├── genre_intelligence.py    # ✅ Python API for genre templates
+└── instrument_manager.py    # ✅ AI-powered instrument selection
+```
+
+---
+
+### NB Phase 2: JUCE Framework & UI Standardization
+**Status**: IN PROGRESS  
+**Goal**: Industry-standard UI with genre-aware components
+
+#### Planned Components:
+
+- [ ] **GenreSelector** - Top-level genre selection
+  ```cpp
+  // Source/UI/GenreSelector.h
+  class GenreSelector : public juce::Component {
+  public:
+      void loadFromGenreIntelligence();  // Load from genres.json
+      void setSelectedGenre(const juce::String& genre);
+      
+      class Listener {
+          virtual void genreChanged(const juce::String& genre) = 0;
+      };
+      
+  private:
+      juce::Array<GenreTemplate> genres;
+      juce::ComboBox genreCombo;
+      juce::Colour currentThemeColor;  // Genre-specific theming
+  };
+  ```
+
+- [ ] **InstrumentBrowserPanel** - Category-based instrument browser
+  ```cpp
+  // Source/UI/InstrumentBrowser/InstrumentBrowserPanel.h
+  // Based on instrument_categories from genres.json:
+  // - drums (kicks, snares, claps, hihats, 808s)
+  // - bass (808_bass, synth_bass, electric_bass)
+  // - keys (piano, rhodes, organ)
+  // - synths (leads, pads, plucks, arps)
+  // - strings (strings, brass, woodwinds)
+  // - fx (risers, impacts, textures, vinyl)
+  // - ethiopian (krar, masenqo, washint, kebero, begena)
+  ```
+
+- [ ] **InstrumentCard** - Sample preview with waveform thumbnail
+  ```cpp
+  // Source/UI/InstrumentBrowser/InstrumentCard.h
+  class InstrumentCard : public juce::Component {
+      // Display: Name, Category, Genre Hints, AI Match Score
+      // Preview: Waveform thumbnail, Play/Stop buttons
+      // Actions: Drag to track, Add to favorites
+  };
+  ```
+
+- [ ] **FXChainPanel** - Genre-aware FX chain visualization
+  ```cpp
+  // Based on fx_definitions from genres.json:
+  // - soft_clip, analog_warmth, vinyl_crackle
+  // - sidechain_duck, slight_pump
+  // - room_reverb, hall_reverb, plate_reverb
+  // - bitcrush_light, tape_saturation
+  ```
+
+---
+
+### NB Phase 3: Plugin & Extension Integration
+**Status**: PLANNED  
+**Goal**: Professional plugin scanning and loading
+
+#### Planned Features:
+- [ ] VST3/AU plugin scanning and cataloging
+- [ ] Plugin preset browsing per genre
+- [ ] Instrument plugin hosting (sample libraries)
+- [ ] Effect plugin hosting (third-party FX)
+
+```cpp
+// Source/Plugins/PluginScanner.h
+class PluginScanner {
+public:
+    void scanVST3Directories();
+    void scanAUPlugins();  // macOS only
+    
+    juce::Array<PluginDescription> getInstruments();
+    juce::Array<PluginDescription> getEffects();
+    
+    // Plugin instantiation
+    std::unique_ptr<AudioPluginInstance> loadPlugin(
+        const PluginDescription& desc);
+};
+```
+
+---
+
+### NB Phase 4: Bidirectional Control & Streaming
+**Status**: PLANNED  
+**Goal**: Real-time parameter manipulation with live preview
+
+#### Enhanced OSC Protocol:
+```yaml
+# Real-time parameter updates (JUCE → Python)
+/params/set:
+  param_name: string    # "swing_amount", "hihat_density", etc.
+  value: float          # 0.0 - 1.0 normalized
+  
+/params/batch_update:
+  params: json          # {"swing": 0.15, "velocity_var": 0.12, ...}
+
+# Real-time feedback (Python → JUCE)
+/preview/update:
+  section: string       # Which section changed
+  midi_data: bytes      # Regenerated MIDI for preview
+  
+/suggestion:
+  type: string          # "next_section", "instrument_swap", "density_change"
+  options: json         # Array of suggestions with scores
+```
+
+#### Humanization Controls:
+```cpp
+// Source/UI/HumanizationPanel.h
+class HumanizationPanel : public juce::Component {
+    // Sliders mapped to genres.json humanization_profiles
+    juce::Slider velocityVariationSlider;   // 0.05 - 0.25
+    juce::Slider timingVariationSlider;     // 0.01 - 0.08
+    
+    // Presets from humanization_profiles
+    juce::ComboBox profileSelector;  // tight, natural, loose, live
+};
+```
+
+---
+
+### NB Phase 5: Industry-Standard Export & Humanization
+**Status**: PLANNED  
+**Goal**: Professional export formats with enhanced humanization
+
+#### MPC 3.x Compatibility:
+```python
+# multimodal_gen/mpc_exporter.py enhancements
+class MPCExporter:
+    def export_mpc3x_program(self, project):
+        """
+        MPC 3.x .xpm format with:
+        - Pad assignments per layer
+        - Velocity switching zones
+        - FX chain per pad (if MPC supports)
+        - Q-Link assignments for parameters
+        """
+        pass
+```
+
+#### Additional Export Formats:
+- [ ] Ableton Live Set (.als) - With arrangement and mixer
+- [ ] FL Studio Project (.flp) - Via MIDI + stems
+- [ ] Logic Pro X (.logicx) - Via AAF/OMF
+- [ ] Stems package (WAV + JSON metadata)
+
+---
+
+### Implementation Priority Matrix
+
+| Phase | Component | Priority | Effort | Dependencies |
+|-------|-----------|----------|--------|--------------|
+| NB1 | genres.json | ✅ DONE | ✅ | None |
+| NB1 | genre_intelligence.py | ✅ DONE | ✅ | genres.json |
+| NB1 | instrument_manager.py | ✅ DONE | ✅ | None |
+| NB2 | GenreSelector | HIGH | Low | genres.json |
+| NB2 | InstrumentBrowserPanel | HIGH | Medium | instrument_manager |
+| NB2 | InstrumentCard | MEDIUM | Low | InstrumentBrowserPanel |
+| NB2 | FXChainPanel | MEDIUM | Medium | genres.json |
+| NB3 | PluginScanner | LOW | High | None |
+| NB4 | Real-time params | MEDIUM | High | OSC protocol |
+| NB4 | HumanizationPanel | MEDIUM | Low | genres.json |
+| NB5 | MPC 3.x export | MEDIUM | Medium | mpc_exporter |
+| NB5 | Ableton export | LOW | High | None |
+
+---
+
+### Backward Compatibility Guarantee
+
+All NB Phase implementations MUST preserve existing functionality:
+
+```python
+# ✓ CLI mode still works unchanged
+python main.py "trap beat with 808s"
+
+# ✓ Server mode still works
+python main.py --server --port 9000
+
+# ✓ Existing JUCE UI continues to function
+# New components are ADDITIVE, not replacements
+```
+
+---
+
 ## 📚 Research & Best Practices Applied
 
 This TODO was enhanced with professional patterns from:

@@ -1,0 +1,696 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Genre Intelligence Template System v1.0 - Defines musical DNA for AI generation",
+  
+  "genres": {
+    "trap": {
+      "display_name": "Trap",
+      "color_theme": "#FF4444",
+      "icon": "trap_icon",
+      
+      "tempo": {
+        "bpm_range": [130, 170],
+        "default_bpm": 145,
+        "swing_amount": 0.0,
+        "groove_template": "straight_16th"
+      },
+      
+      "key": {
+        "preferred_keys": ["Cminor", "Dminor", "Aminor", "Fminor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["808", "kick", "snare", "hihat"],
+        "recommended": ["clap", "synth_lead", "piano"],
+        "forbidden": [],
+        "default_set": ["808", "kick", "snare", "clap", "hihat", "synth_lead"]
+      },
+      
+      "drums": {
+        "pattern_type": "trap_hihat",
+        "hihat_density": "16th",
+        "hihat_rolls": true,
+        "half_time_snare": true,
+        "velocity_variation": 0.15,
+        "timing_humanization": 0.02
+      },
+      
+      "fx_chain": {
+        "master": ["soft_clip", "stereo_width"],
+        "drums": ["parallel_compression"],
+        "bass": ["saturation", "sidechain_duck"],
+        "melodic": ["reverb_plate", "delay_eighth"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.9,
+        "brightness": 0.6,
+        "warmth": 0.4,
+        "808_character": "distorted"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 64,
+        "intro_bars": 8,
+        "verse_bars": 16,
+        "chorus_bars": 8,
+        "breakdown_style": "minimal_drums"
+      }
+    },
+    
+    "trap_soul": {
+      "display_name": "Trap Soul / R&B Trap",
+      "color_theme": "#9B59B6",
+      "icon": "trap_soul_icon",
+      
+      "tempo": {
+        "bpm_range": [80, 100],
+        "default_bpm": 87,
+        "swing_amount": 0.08,
+        "groove_template": "swung_8th"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Gminor", "Dminor", "Cminor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["808", "piano", "snare"],
+        "recommended": ["rhodes", "strings", "pad", "synth_lead"],
+        "forbidden": ["hihat_roll"],
+        "default_set": ["808", "kick", "snare", "clap", "hihat", "piano", "rhodes", "strings"]
+      },
+      
+      "drums": {
+        "pattern_type": "trap_soul",
+        "hihat_density": "8th",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.12,
+        "timing_humanization": 0.03
+      },
+      
+      "fx_chain": {
+        "master": ["soft_clip", "analog_warmth"],
+        "drums": ["light_compression"],
+        "bass": ["saturation"],
+        "melodic": ["reverb_hall", "chorus"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.75,
+        "brightness": 0.5,
+        "warmth": 0.7,
+        "808_character": "clean"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 64,
+        "intro_bars": 8,
+        "verse_bars": 16,
+        "chorus_bars": 8,
+        "breakdown_style": "pad_only"
+      }
+    },
+    
+    "g_funk": {
+      "display_name": "G-Funk / West Coast",
+      "color_theme": "#FFD700",
+      "icon": "gfunk_icon",
+      
+      "tempo": {
+        "bpm_range": [88, 105],
+        "default_bpm": 96,
+        "swing_amount": 0.15,
+        "groove_template": "funk_shuffle"
+      },
+      
+      "key": {
+        "preferred_keys": ["Cminor", "Gminor", "Fminor", "Aminor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["kick", "snare", "synth", "bass"],
+        "recommended": ["piano", "pad", "brass", "talk_box"],
+        "forbidden": ["hihat_roll", "trap_snare", "808_distorted"],
+        "default_set": ["kick", "snare", "hihat", "clap", "synth", "bass", "piano", "pad", "brass"]
+      },
+      
+      "drums": {
+        "pattern_type": "gfunk",
+        "hihat_density": "8th",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.10,
+        "timing_humanization": 0.025
+      },
+      
+      "fx_chain": {
+        "master": ["analog_warmth", "stereo_width"],
+        "drums": ["room_reverb", "tape_saturation"],
+        "bass": ["funk_envelope"],
+        "melodic": ["phaser", "chorus", "talk_box_filter"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.6,
+        "brightness": 0.65,
+        "warmth": 0.8,
+        "808_character": "clean_sine"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 64,
+        "intro_bars": 8,
+        "verse_bars": 16,
+        "chorus_bars": 8,
+        "breakdown_style": "synth_solo"
+      }
+    },
+    
+    "rnb": {
+      "display_name": "R&B / Neo-Soul",
+      "color_theme": "#E91E63",
+      "icon": "rnb_icon",
+      
+      "tempo": {
+        "bpm_range": [65, 95],
+        "default_bpm": 80,
+        "swing_amount": 0.08,
+        "groove_template": "soul_pocket"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Dminor", "Gminor", "Cmajor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["piano", "bass", "snare"],
+        "recommended": ["rhodes", "strings", "pad", "guitar"],
+        "forbidden": ["hihat_roll", "808_distorted"],
+        "default_set": ["kick", "snare", "hihat", "rim", "piano", "rhodes", "bass", "strings", "pad"]
+      },
+      
+      "drums": {
+        "pattern_type": "rnb",
+        "hihat_density": "8th",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.12,
+        "timing_humanization": 0.03
+      },
+      
+      "fx_chain": {
+        "master": ["analog_warmth", "gentle_compression"],
+        "drums": ["room_reverb"],
+        "bass": ["tube_saturation"],
+        "melodic": ["reverb_hall", "chorus", "tremolo"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.5,
+        "brightness": 0.55,
+        "warmth": 0.85,
+        "808_character": "none"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 64,
+        "intro_bars": 8,
+        "verse_bars": 16,
+        "chorus_bars": 8,
+        "breakdown_style": "vocal_breakdown"
+      }
+    },
+    
+    "lofi": {
+      "display_name": "Lo-Fi Hip Hop",
+      "color_theme": "#8B4513",
+      "icon": "lofi_icon",
+      
+      "tempo": {
+        "bpm_range": [70, 95],
+        "default_bpm": 85,
+        "swing_amount": 0.12,
+        "groove_template": "lazy_swing"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Dminor", "Eminor", "Fmajor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["piano", "kick", "snare"],
+        "recommended": ["rhodes", "guitar", "vinyl_crackle"],
+        "forbidden": ["hihat_roll", "synth_lead_bright"],
+        "default_set": ["kick", "snare", "hihat", "piano", "rhodes", "guitar"]
+      },
+      
+      "drums": {
+        "pattern_type": "lofi",
+        "hihat_density": "8th",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.15,
+        "timing_humanization": 0.04
+      },
+      
+      "fx_chain": {
+        "master": ["vinyl_crackle", "tape_saturation", "lowpass_filter"],
+        "drums": ["bitcrush_light", "room_reverb"],
+        "bass": ["tube_saturation"],
+        "melodic": ["reverb_plate", "chorus", "wow_flutter"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.4,
+        "brightness": 0.35,
+        "warmth": 0.9,
+        "808_character": "none"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 32,
+        "intro_bars": 4,
+        "verse_bars": 8,
+        "chorus_bars": 8,
+        "breakdown_style": "ambient_pad"
+      },
+      
+      "textures": {
+        "vinyl_crackle": { "enabled": true, "intensity": 0.3 },
+        "rain": { "enabled": false, "intensity": 0.2 },
+        "tape_hiss": { "enabled": true, "intensity": 0.15 }
+      }
+    },
+    
+    "boom_bap": {
+      "display_name": "Boom Bap / Classic Hip Hop",
+      "color_theme": "#D4AF37",
+      "icon": "boombap_icon",
+      
+      "tempo": {
+        "bpm_range": [85, 100],
+        "default_bpm": 92,
+        "swing_amount": 0.10,
+        "groove_template": "mpc_swing"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Cminor", "Dminor", "Gminor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["kick", "snare", "bass"],
+        "recommended": ["piano", "brass", "strings", "scratch"],
+        "forbidden": ["808_distorted", "hihat_roll"],
+        "default_set": ["kick", "snare", "hihat", "crash", "piano", "bass", "brass"]
+      },
+      
+      "drums": {
+        "pattern_type": "boom_bap",
+        "hihat_density": "8th",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.12,
+        "timing_humanization": 0.035
+      },
+      
+      "fx_chain": {
+        "master": ["analog_warmth", "vinyl_crackle_subtle"],
+        "drums": ["sp1200_crunch", "room_reverb"],
+        "bass": ["tube_saturation"],
+        "melodic": ["vinyl_eq", "tape_delay"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.5,
+        "brightness": 0.5,
+        "warmth": 0.75,
+        "808_character": "none"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 64,
+        "intro_bars": 8,
+        "verse_bars": 16,
+        "chorus_bars": 8,
+        "breakdown_style": "sample_chop"
+      }
+    },
+    
+    "house": {
+      "display_name": "House",
+      "color_theme": "#00BCD4",
+      "icon": "house_icon",
+      
+      "tempo": {
+        "bpm_range": [118, 130],
+        "default_bpm": 124,
+        "swing_amount": 0.0,
+        "groove_template": "four_on_floor"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Cmajor", "Fminor", "Gmajor"],
+        "scale_type": "minor",
+        "allow_modal": true
+      },
+      
+      "instruments": {
+        "mandatory": ["kick", "clap", "bass"],
+        "recommended": ["synth", "pad", "piano", "organ"],
+        "forbidden": ["808_trap", "trap_hihat"],
+        "default_set": ["kick", "clap", "hihat", "hihat_open", "bass", "synth", "pad"]
+      },
+      
+      "drums": {
+        "pattern_type": "house",
+        "hihat_density": "8th_offbeat",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.08,
+        "timing_humanization": 0.01
+      },
+      
+      "fx_chain": {
+        "master": ["stereo_width", "soft_clip"],
+        "drums": ["parallel_compression", "room_reverb"],
+        "bass": ["sidechain_duck", "saturation"],
+        "melodic": ["reverb_hall", "delay_dotted_eighth", "filter_sweep"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.7,
+        "brightness": 0.7,
+        "warmth": 0.5,
+        "808_character": "none"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 128,
+        "intro_bars": 16,
+        "verse_bars": 32,
+        "chorus_bars": 16,
+        "breakdown_style": "filter_sweep"
+      }
+    },
+    
+    "drill": {
+      "display_name": "Drill / UK Drill",
+      "color_theme": "#1A1A2E",
+      "icon": "drill_icon",
+      
+      "tempo": {
+        "bpm_range": [140, 150],
+        "default_bpm": 145,
+        "swing_amount": 0.0,
+        "groove_template": "drill_bounce"
+      },
+      
+      "key": {
+        "preferred_keys": ["Cminor", "Dminor", "Fminor", "Gminor"],
+        "scale_type": "minor",
+        "allow_modal": false
+      },
+      
+      "instruments": {
+        "mandatory": ["808", "kick", "snare", "hihat"],
+        "recommended": ["piano", "strings", "bell"],
+        "forbidden": [],
+        "default_set": ["808", "kick", "snare", "hihat", "piano", "strings"]
+      },
+      
+      "drums": {
+        "pattern_type": "drill",
+        "hihat_density": "16th",
+        "hihat_rolls": true,
+        "half_time_snare": true,
+        "velocity_variation": 0.12,
+        "timing_humanization": 0.015
+      },
+      
+      "fx_chain": {
+        "master": ["soft_clip", "stereo_width"],
+        "drums": ["parallel_compression"],
+        "bass": ["distortion_808"],
+        "melodic": ["reverb_dark", "delay_pingpong"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.95,
+        "brightness": 0.45,
+        "warmth": 0.3,
+        "808_character": "aggressive"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 64,
+        "intro_bars": 8,
+        "verse_bars": 16,
+        "chorus_bars": 8,
+        "breakdown_style": "slide_808"
+      }
+    },
+    
+    "ethiopian_traditional": {
+      "display_name": "Ethiopian Traditional",
+      "color_theme": "#228B22",
+      "icon": "ethiopian_icon",
+      
+      "tempo": {
+        "bpm_range": [80, 140],
+        "default_bpm": 110,
+        "swing_amount": 0.05,
+        "groove_template": "ethiopian_pulse"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Dminor"],
+        "scale_type": "minor",
+        "allow_modal": true,
+        "ethiopian_modes": ["tizita_major", "tizita_minor", "bati", "ambassel", "anchihoye"]
+      },
+      
+      "instruments": {
+        "mandatory": ["krar", "kebero"],
+        "recommended": ["masenqo", "washint", "begena"],
+        "forbidden": ["808", "synth_lead"],
+        "default_set": ["krar", "kebero", "masenqo", "washint"]
+      },
+      
+      "drums": {
+        "pattern_type": "kebero",
+        "hihat_density": "none",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.18,
+        "timing_humanization": 0.04
+      },
+      
+      "fx_chain": {
+        "master": ["analog_warmth"],
+        "drums": ["room_reverb_natural"],
+        "bass": [],
+        "melodic": ["reverb_hall_natural"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.3,
+        "brightness": 0.6,
+        "warmth": 0.8,
+        "808_character": "none"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 32,
+        "intro_bars": 4,
+        "verse_bars": 8,
+        "chorus_bars": 8,
+        "breakdown_style": "solo_instrument"
+      }
+    },
+    
+    "eskista": {
+      "display_name": "Eskista (Ethiopian Dance)",
+      "color_theme": "#FF6B00",
+      "icon": "eskista_icon",
+      
+      "tempo": {
+        "bpm_range": [120, 160],
+        "default_bpm": 140,
+        "swing_amount": 0.0,
+        "groove_template": "eskista_pulse"
+      },
+      
+      "key": {
+        "preferred_keys": ["Aminor", "Dminor", "Gminor"],
+        "scale_type": "minor",
+        "allow_modal": true,
+        "ethiopian_modes": ["bati", "anchihoye"]
+      },
+      
+      "instruments": {
+        "mandatory": ["krar", "kebero"],
+        "recommended": ["masenqo", "washint"],
+        "forbidden": ["808", "synth_lead"],
+        "default_set": ["krar", "kebero", "masenqo"]
+      },
+      
+      "drums": {
+        "pattern_type": "eskista",
+        "hihat_density": "none",
+        "hihat_rolls": false,
+        "half_time_snare": false,
+        "velocity_variation": 0.15,
+        "timing_humanization": 0.03
+      },
+      
+      "fx_chain": {
+        "master": ["analog_warmth"],
+        "drums": ["room_reverb_natural"],
+        "bass": [],
+        "melodic": ["reverb_plate"]
+      },
+      
+      "spectral_profile": {
+        "sub_bass_presence": 0.35,
+        "brightness": 0.65,
+        "warmth": 0.75,
+        "808_character": "none"
+      },
+      
+      "arrangement": {
+        "typical_length_bars": 32,
+        "intro_bars": 4,
+        "verse_bars": 8,
+        "chorus_bars": 8,
+        "breakdown_style": "call_response"
+      }
+    }
+  },
+  
+  "instrument_categories": {
+    "drums": {
+      "display_name": "Drums & Percussion",
+      "icon": "🥁",
+      "subcategories": ["kicks", "snares", "hihats", "claps", "percussion", "808s"]
+    },
+    "bass": {
+      "display_name": "Bass",
+      "icon": "🎸",
+      "subcategories": ["808_bass", "synth_bass", "acoustic_bass", "electric_bass"]
+    },
+    "keys": {
+      "display_name": "Keys & Pianos",
+      "icon": "🎹",
+      "subcategories": ["piano", "rhodes", "organ", "clavinet"]
+    },
+    "synths": {
+      "display_name": "Synthesizers",
+      "icon": "🎛️",
+      "subcategories": ["leads", "pads", "plucks", "arps"]
+    },
+    "strings": {
+      "display_name": "Strings & Orchestral",
+      "icon": "🎻",
+      "subcategories": ["strings", "brass", "woodwinds"]
+    },
+    "fx": {
+      "display_name": "FX & Textures",
+      "icon": "✨",
+      "subcategories": ["risers", "impacts", "textures", "vinyl", "rain"]
+    },
+    "ethiopian": {
+      "display_name": "Ethiopian Instruments",
+      "icon": "🇪🇹",
+      "subcategories": ["krar", "masenqo", "washint", "kebero", "begena"]
+    }
+  },
+  
+  "fx_definitions": {
+    "soft_clip": {
+      "type": "dynamics",
+      "description": "Gentle saturation preventing digital clipping",
+      "parameters": { "threshold_db": -3, "knee_db": 6 }
+    },
+    "analog_warmth": {
+      "type": "saturation",
+      "description": "Tube-style harmonic enhancement",
+      "parameters": { "drive": 0.3, "mix": 0.4 }
+    },
+    "vinyl_crackle": {
+      "type": "texture",
+      "description": "Lo-fi vinyl noise layer",
+      "parameters": { "intensity": 0.25, "frequency": "random" }
+    },
+    "sidechain_duck": {
+      "type": "dynamics",
+      "description": "Kick-triggered compression for pumping effect",
+      "parameters": { "attack_ms": 5, "release_ms": 100, "ratio": 4 }
+    },
+    "reverb_plate": {
+      "type": "reverb",
+      "description": "Classic plate reverb",
+      "parameters": { "decay_s": 1.5, "damping": 0.5, "mix": 0.25 }
+    },
+    "reverb_hall": {
+      "type": "reverb",
+      "description": "Large hall reverb",
+      "parameters": { "decay_s": 3.0, "damping": 0.4, "mix": 0.2 }
+    },
+    "delay_eighth": {
+      "type": "delay",
+      "description": "Tempo-synced eighth note delay",
+      "parameters": { "sync": "1/8", "feedback": 0.3, "mix": 0.2 }
+    },
+    "chorus": {
+      "type": "modulation",
+      "description": "Stereo chorus effect",
+      "parameters": { "rate_hz": 1.5, "depth": 0.4, "mix": 0.3 }
+    },
+    "tape_saturation": {
+      "type": "saturation",
+      "description": "Analog tape warmth and compression",
+      "parameters": { "drive": 0.4, "bias": 0.5 }
+    }
+  },
+  
+  "humanization_profiles": {
+    "tight": {
+      "velocity_variation": 0.08,
+      "timing_variation": 0.01,
+      "description": "Electronic/quantized feel"
+    },
+    "natural": {
+      "velocity_variation": 0.12,
+      "timing_variation": 0.025,
+      "description": "Human drummer feel"
+    },
+    "loose": {
+      "velocity_variation": 0.18,
+      "timing_variation": 0.04,
+      "description": "Lo-fi/drunk feel"
+    },
+    "live": {
+      "velocity_variation": 0.15,
+      "timing_variation": 0.035,
+      "description": "Live band feel"
+    }
+  },
+  
+  "version": "1.0.0",
+  "last_updated": "2025-12-29"
+}

@@ -11,14 +11,36 @@ Supported extractions:
 - Instruments and elements
 - Texture keywords (vinyl, rain, etc.)
 - Section hints (drop, breakdown, switch-up)
+
+Enhanced with Genre Intelligence:
+- Genre template validation (mandatory/forbidden elements)
+- FX chain recommendations
+- Spectral profile hints
+- Humanization profile selection
 """
 
 import re
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Tuple, Set
+from typing import List, Optional, Dict, Tuple, Set, Any
 from enum import Enum
 
 from .utils import ScaleType, GENRE_DEFAULTS, DEFAULT_CONFIG
+
+# Import genre intelligence for template-based validation
+try:
+    from .genre_intelligence import (
+        get_genre_intelligence, 
+        GenreIntelligence, 
+        GenreTemplate,
+        DrumConfig,
+        SpectralProfile,
+        HumanizationProfile
+    )
+    HAS_GENRE_INTELLIGENCE = True
+except ImportError:
+    HAS_GENRE_INTELLIGENCE = False
+    GenreIntelligence = None
+    GenreTemplate = None
 
 
 # =============================================================================
@@ -31,6 +53,7 @@ class ParsedPrompt:
     Structured result from parsing a natural language music prompt.
     
     All fields have sensible defaults for when extraction fails.
+    Enhanced with genre intelligence template data.
     """
     # Timing
     bpm: float = DEFAULT_CONFIG.default_bpm
@@ -71,6 +94,35 @@ class ParsedPrompt:
     raw_prompt: str = ''
     negative_prompt: str = ''
     
+    # === GENRE INTELLIGENCE ENHANCEMENTS ===
+    
+    # FX chain recommendations from genre template
+    fx_chain_master: List[str] = field(default_factory=list)
+    fx_chain_drums: List[str] = field(default_factory=list)
+    fx_chain_bass: List[str] = field(default_factory=list)
+    fx_chain_melodic: List[str] = field(default_factory=list)
+    
+    # Humanization settings from genre template
+    velocity_variation: float = 0.12
+    timing_humanization: float = 0.02
+    humanization_profile: str = 'natural'
+    
+    # Drum pattern configuration
+    hihat_density: str = '8th'
+    use_hihat_rolls: bool = True
+    use_half_time_snare: bool = False
+    
+    # Spectral profile hints
+    sub_bass_presence: float = 0.5
+    brightness: float = 0.5
+    warmth: float = 0.5
+    character_808: str = 'clean'
+    
+    # Validation results
+    validation_warnings: List[str] = field(default_factory=list)
+    forbidden_elements_used: List[str] = field(default_factory=list)
+    mandatory_elements_missing: List[str] = field(default_factory=list)
+    
     def __post_init__(self):
         """Apply defaults based on detected genre and filter exclusions."""
         if not self.instruments:
@@ -83,6 +135,9 @@ class ParsedPrompt:
             self.drum_elements = [d for d in self.drum_elements if d not in self.excluded_drums]
         if self.excluded_instruments:
             self.instruments = [i for i in self.instruments if i not in self.excluded_instruments]
+        
+        # Apply genre intelligence if available
+        self._apply_genre_intelligence()
     
     def _get_genre_instruments(self) -> List[str]:
         """Get default instruments for detected genre."""
@@ -121,6 +176,131 @@ class ParsedPrompt:
             'eskista': ['kebero', 'kick', 'snare', 'clap', 'shaker'],
         }
         return genre_drums.get(self.genre, ['kick', 'snare', 'hihat'])
+    
+    def _apply_genre_intelligence(self) -> None:
+        """
+        Apply genre intelligence template to enhance parsed prompt.
+        
+        This method loads the genre template and applies:
+        - FX chain recommendations
+        - Humanization settings
+        - Drum configuration
+        - Spectral profile hints
+        - Validation against mandatory/forbidden elements
+        """
+        if not HAS_GENRE_INTELLIGENCE:
+            return
+        
+        try:
+            gi = get_genre_intelligence()
+            template = gi.get_genre_template(self.genre)
+            
+            if template is None:
+                return
+            
+            # Apply FX chains
+            self.fx_chain_master = template.fx_chain.master
+            self.fx_chain_drums = template.fx_chain.drums
+            self.fx_chain_bass = template.fx_chain.bass
+            self.fx_chain_melodic = template.fx_chain.melodic
+            
+            # Apply drum configuration
+            self.hihat_density = template.drums.hihat_density
+            self.use_hihat_rolls = template.drums.hihat_rolls
+            self.use_half_time_snare = template.drums.half_time_snare
+            
+            # Apply humanization from template (unless already specified)
+            if self.velocity_variation == 0.12:  # Default, not user-specified
+                self.velocity_variation = template.drums.velocity_variation
+            if self.timing_humanization == 0.02:  # Default
+                self.timing_humanization = template.drums.timing_humanization
+            
+            # Get humanization profile name
+            humanization = gi.get_humanization_for_genre(self.genre)
+            if humanization:
+                self.humanization_profile = humanization.name
+            
+            # Apply spectral profile
+            self.sub_bass_presence = template.spectral_profile.sub_bass_presence
+            self.brightness = template.spectral_profile.brightness
+            self.warmth = template.spectral_profile.warmth
+            self.character_808 = template.spectral_profile.character_808.value
+            
+            # Apply swing from template if not already set
+            if not self.use_swing and template.tempo.swing_amount > 0:
+                self.use_swing = True
+                self.swing_amount = template.tempo.swing_amount
+            
+            # Validate prompt against genre rules
+            validation = gi.validate_prompt_against_genre(
+                self.genre,
+                self.instruments,
+                self.drum_elements
+            )
+            
+            self.forbidden_elements_used = validation.get('forbidden_used', [])
+            self.mandatory_elements_missing = validation.get('mandatory_missing', [])
+            self.validation_warnings = validation.get('warnings', [])
+            
+            # Warn if forbidden elements are used
+            if self.forbidden_elements_used:
+                warning = f"Genre '{self.genre}' typically doesn't use: {', '.join(self.forbidden_elements_used)}"
+                if warning not in self.validation_warnings:
+                    self.validation_warnings.append(warning)
+            
+            # Remove hi-hat rolls if genre forbids them
+            if not self.use_hihat_rolls and 'hihat_roll' in self.drum_elements:
+                self.drum_elements = [d for d in self.drum_elements if d != 'hihat_roll']
+            
+        except Exception as e:
+            # Don't fail parsing if genre intelligence has issues
+            print(f"Warning: Genre intelligence error: {e}")
+    
+    def get_fx_chain(self, bus: str = 'master') -> List[str]:
+        """Get FX chain for a specific bus."""
+        chains = {
+            'master': self.fx_chain_master,
+            'drums': self.fx_chain_drums,
+            'bass': self.fx_chain_bass,
+            'melodic': self.fx_chain_melodic,
+        }
+        return chains.get(bus, [])
+    
+    def get_humanization_params(self) -> Dict[str, Any]:
+        """Get humanization parameters as a dictionary."""
+        return {
+            'velocity_variation': self.velocity_variation,
+            'timing_humanization': self.timing_humanization,
+            'profile': self.humanization_profile,
+        }
+    
+    def get_spectral_profile(self) -> Dict[str, Any]:
+        """Get spectral profile as a dictionary."""
+        return {
+            'sub_bass_presence': self.sub_bass_presence,
+            'brightness': self.brightness,
+            'warmth': self.warmth,
+            '808_character': self.character_808,
+        }
+    
+    def has_validation_issues(self) -> bool:
+        """Check if there are any validation issues."""
+        return bool(self.forbidden_elements_used or self.mandatory_elements_missing)
+    
+    def get_validation_summary(self) -> str:
+        """Get a human-readable validation summary."""
+        issues = []
+        
+        if self.forbidden_elements_used:
+            issues.append(f"Unusual for {self.genre}: {', '.join(self.forbidden_elements_used)}")
+        
+        if self.mandatory_elements_missing:
+            issues.append(f"Consider adding: {', '.join(self.mandatory_elements_missing)}")
+        
+        if self.validation_warnings:
+            issues.extend(self.validation_warnings)
+        
+        return "; ".join(issues) if issues else "Valid configuration"
 
 
 # =============================================================================
@@ -751,11 +931,15 @@ if __name__ == '__main__':
         "hard trap beat 140 BPM with hihat rolls and 808 slides",
         "chill ambient pad in F major with reverb",
         "boom bap beat 92 BPM with piano chops and punchy drums",
+        "g-funk west coast beat with smooth synths",
+        "ethiopian eskista dance beat with kebero drums",
     ]
     
     parser = PromptParser()
     for prompt in test_prompts:
-        print(f"\nPrompt: {prompt}")
+        print(f"\n{'='*60}")
+        print(f"Prompt: {prompt}")
+        print(f"{'='*60}")
         result = parser.parse(prompt)
         print(f"  BPM: {result.bpm}")
         print(f"  Key: {result.key} {result.scale_type.name}")
@@ -764,3 +948,21 @@ if __name__ == '__main__':
         print(f"  Drums: {result.drum_elements}")
         print(f"  Textures: {result.textures}")
         print(f"  Mood: {result.mood}")
+        
+        # Genre Intelligence enhancements
+        if HAS_GENRE_INTELLIGENCE:
+            print(f"\n  [Genre Intelligence]")
+            print(f"  Hi-hat rolls: {'✓' if result.use_hihat_rolls else '✗'}")
+            print(f"  Hi-hat density: {result.hihat_density}")
+            print(f"  Half-time snare: {'✓' if result.use_half_time_snare else '✗'}")
+            print(f"  Swing: {result.swing_amount * 100:.0f}%")
+            print(f"  Humanization: {result.humanization_profile} (vel: {result.velocity_variation:.2f}, time: {result.timing_humanization:.3f})")
+            print(f"  Spectral: sub={result.sub_bass_presence:.1f} bright={result.brightness:.1f} warm={result.warmth:.1f}")
+            print(f"  808 character: {result.character_808}")
+            print(f"  FX chain (master): {result.fx_chain_master}")
+            print(f"  FX chain (drums): {result.fx_chain_drums}")
+            
+            if result.has_validation_issues():
+                print(f"  ⚠️  Validation: {result.get_validation_summary()}")
+            else:
+                print(f"  ✓ Validation: {result.get_validation_summary()}")
