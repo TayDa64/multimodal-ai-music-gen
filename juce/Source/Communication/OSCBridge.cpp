@@ -134,6 +134,52 @@ void OSCBridge::sendGetInstruments(const juce::StringArray& paths, const juce::S
 }
 
 //==============================================================================
+// Expansion management
+//==============================================================================
+
+void OSCBridge::sendExpansionList()
+{
+    sendMessage(OSCAddresses::expansionList);
+}
+
+void OSCBridge::sendExpansionInstruments(const juce::String& expansionId)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("expansion_id", expansionId);
+    sendMessage(OSCAddresses::expansionInstruments, juce::JSON::toString(juce::var(obj.get())));
+}
+
+void OSCBridge::sendExpansionResolve(const juce::String& instrument, const juce::String& genre)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("instrument", instrument);
+    obj->setProperty("genre", genre);
+    sendMessage(OSCAddresses::expansionResolve, juce::JSON::toString(juce::var(obj.get())));
+}
+
+void OSCBridge::sendExpansionImport(const juce::String& path)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("path", path);
+    sendMessage(OSCAddresses::expansionImport, juce::JSON::toString(juce::var(obj.get())));
+}
+
+void OSCBridge::sendExpansionScan(const juce::String& directory)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("directory", directory);
+    sendMessage(OSCAddresses::expansionScan, juce::JSON::toString(juce::var(obj.get())));
+}
+
+void OSCBridge::sendExpansionEnable(const juce::String& expansionId, bool enabled)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("expansion_id", expansionId);
+    obj->setProperty("enabled", enabled);
+    sendMessage(OSCAddresses::expansionEnable, juce::JSON::toString(juce::var(obj.get())));
+}
+
+//==============================================================================
 void OSCBridge::addListener(Listener* listener)
 {
     listeners.add(listener);
@@ -163,6 +209,13 @@ void OSCBridge::oscMessageReceived(const juce::OSCMessage& message)
         handleStatus(message);
     else if (address == OSCAddresses::instrumentsLoaded)
         handleInstrumentsLoaded(message);
+    // Expansion responses
+    else if (address == OSCAddresses::expansionListResponse)
+        handleExpansionList(message);
+    else if (address == OSCAddresses::expansionInstrumentsResponse)
+        handleExpansionInstruments(message);
+    else if (address == OSCAddresses::expansionResolveResponse)
+        handleExpansionResolve(message);
     else
         DBG("OSCBridge: Unknown address: " << address);
 }
@@ -286,6 +339,52 @@ void OSCBridge::handleInstrumentsLoaded(const juce::OSCMessage& message)
             l.onInstrumentsLoaded(count, categories);
         });
     }
+}
+
+//==============================================================================
+// Expansion handlers
+//==============================================================================
+
+void OSCBridge::handleExpansionList(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+    
+    auto jsonStr = message[0].getString();
+    DBG("OSCBridge: Received expansion list response");
+    
+    listeners.call([&](Listener& l)
+    {
+        l.onExpansionListReceived(jsonStr);
+    });
+}
+
+void OSCBridge::handleExpansionInstruments(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+    
+    auto jsonStr = message[0].getString();
+    DBG("OSCBridge: Received expansion instruments response");
+    
+    listeners.call([&](Listener& l)
+    {
+        l.onExpansionInstrumentsReceived(jsonStr);
+    });
+}
+
+void OSCBridge::handleExpansionResolve(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+    
+    auto jsonStr = message[0].getString();
+    DBG("OSCBridge: Received expansion resolve response");
+    
+    listeners.call([&](Listener& l)
+    {
+        l.onExpansionResolveReceived(jsonStr);
+    });
 }
 
 //==============================================================================

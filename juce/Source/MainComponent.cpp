@@ -99,6 +99,9 @@ MainComponent::~MainComponent()
     
     if (fxChainPanel)
         fxChainPanel->removeListener(this);
+    
+    if (expansionBrowser)
+        expansionBrowser->removeListener(this);
 }
 
 //==============================================================================
@@ -131,6 +134,11 @@ void MainComponent::setupBottomPanel()
     fxChainPanel->setVisible(false);  // Start hidden
     addAndMakeVisible(*fxChainPanel);
     
+    // Expansion Browser Panel
+    expansionBrowser = std::make_unique<ExpansionBrowserPanel>();
+    expansionBrowser->setVisible(false);  // Start hidden
+    addAndMakeVisible(*expansionBrowser);
+    
     // Tab buttons for bottom panel
     instrumentsTabButton.setRadioGroupId(100);
     instrumentsTabButton.setClickingTogglesState(true);
@@ -153,10 +161,24 @@ void MainComponent::setupBottomPanel()
     };
     addAndMakeVisible(fxTabButton);
     
+    expansionsTabButton.setRadioGroupId(100);
+    expansionsTabButton.setClickingTogglesState(true);
+    expansionsTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
+    expansionsTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
+    expansionsTabButton.onClick = [this]() {
+        currentBottomTab = 2;
+        updateBottomPanelTabs();
+        // Request expansion list when tab is opened
+        if (expansionBrowser)
+            expansionBrowser->requestExpansionList();
+    };
+    addAndMakeVisible(expansionsTabButton);
+    
     // Now add listeners AFTER all components are created
     genreSelector->addListener(this);
     instrumentBrowser->addListener(this);
     fxChainPanel->addListener(this);
+    expansionBrowser->addListener(this);
     
     // Set default genre (this triggers listener, but all components now exist)
     genreSelector->setSelectedGenre("trap");
@@ -169,6 +191,9 @@ void MainComponent::updateBottomPanelTabs()
     
     if (fxChainPanel)
         fxChainPanel->setVisible(currentBottomTab == 1);
+    
+    if (expansionBrowser)
+        expansionBrowser->setVisible(currentBottomTab == 2);
     
     resized();
     repaint();
@@ -266,6 +291,7 @@ void MainComponent::resized()
     int tabWidth = 100;
     instrumentsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
     fxTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
+    expansionsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
     
     // Bottom panel content
     bottomPanelArea = bottomArea.reduced(padding, 0);
@@ -273,6 +299,8 @@ void MainComponent::resized()
         instrumentBrowser->setBounds(bottomPanelArea);
     if (fxChainPanel && currentBottomTab == 1)
         fxChainPanel->setBounds(bottomPanelArea);
+    if (expansionBrowser && currentBottomTab == 2)
+        expansionBrowser->setBounds(bottomPanelArea);
     
     // Main content area - what remains
     auto contentArea = bounds.reduced(padding);
@@ -549,6 +577,99 @@ void MainComponent::fxChainChanged(FXChainPanel* panel)
     // oscBridge->sendFXChain(fxJson);
     
     repaint();
+}
+
+//==============================================================================
+// ExpansionBrowserPanel::Listener
+void MainComponent::requestExpansionListOSC()
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Requesting expansion list");
+        oscBridge->sendExpansionList();
+    }
+    else
+    {
+        DBG("MainComponent: Cannot request expansions - not connected");
+    }
+}
+
+void MainComponent::requestInstrumentsOSC(const juce::String& expansionId)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Requesting instruments for expansion: " + expansionId);
+        oscBridge->sendExpansionInstruments(expansionId);
+    }
+}
+
+void MainComponent::requestResolveOSC(const juce::String& instrument, const juce::String& genre)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Resolving instrument: " + instrument + " for genre: " + genre);
+        oscBridge->sendExpansionResolve(instrument, genre);
+    }
+}
+
+void MainComponent::requestImportExpansionOSC(const juce::String& path)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Importing expansion from: " + path);
+        oscBridge->sendExpansionImport(path);
+        
+        // Refresh list after import
+        juce::Timer::callAfterDelay(1000, [this]() {
+            requestExpansionListOSC();
+        });
+    }
+}
+
+void MainComponent::requestScanExpansionsOSC(const juce::String& directory)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Scanning expansions in: " + directory);
+        oscBridge->sendExpansionScan(directory);
+        
+        // Refresh list after scan
+        juce::Timer::callAfterDelay(2000, [this]() {
+            requestExpansionListOSC();
+        });
+    }
+}
+
+//==============================================================================
+// OSCBridge::Listener expansion callbacks
+void MainComponent::onExpansionListReceived(const juce::String& json)
+{
+    DBG("MainComponent: Received expansion list");
+    
+    juce::MessageManager::callAsync([this, json]() {
+        if (expansionBrowser)
+            expansionBrowser->loadExpansionsFromJSON(json);
+    });
+}
+
+void MainComponent::onExpansionInstrumentsReceived(const juce::String& json)
+{
+    DBG("MainComponent: Received expansion instruments");
+    
+    juce::MessageManager::callAsync([this, json]() {
+        if (expansionBrowser)
+            expansionBrowser->loadInstrumentsFromJSON(json);
+    });
+}
+
+void MainComponent::onExpansionResolveReceived(const juce::String& json)
+{
+    DBG("MainComponent: Received resolution result");
+    
+    juce::MessageManager::callAsync([this, json]() {
+        if (expansionBrowser)
+            expansionBrowser->showResolutionResult(json);
+    });
 }
 
 //==============================================================================

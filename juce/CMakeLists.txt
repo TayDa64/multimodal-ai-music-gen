@@ -149,6 +149,8 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/InstrumentBrowserPanel.h
     Source/UI/FXChainPanel.cpp
     Source/UI/FXChainPanel.h
+    Source/UI/ExpansionBrowserPanel.cpp
+    Source/UI/ExpansionBrowserPanel.h
     
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp

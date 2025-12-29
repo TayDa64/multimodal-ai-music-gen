@@ -232,6 +232,14 @@ namespace OSCAddresses
     static constexpr const char* ping = "/ping";
     static constexpr const char* shutdown = "/shutdown";
     
+    // Expansion management (Client → Server)
+    static constexpr const char* expansionList = "/expansion/list";
+    static constexpr const char* expansionInstruments = "/expansion/instruments";
+    static constexpr const char* expansionResolve = "/expansion/resolve";
+    static constexpr const char* expansionImport = "/expansion/import";
+    static constexpr const char* expansionScan = "/expansion/scan";
+    static constexpr const char* expansionEnable = "/expansion/enable";
+    
     // Server → Client
     static constexpr const char* progress = "/progress";
     static constexpr const char* complete = "/complete";
@@ -239,4 +247,9 @@ namespace OSCAddresses
     static constexpr const char* pong = "/pong";
     static constexpr const char* status = "/status";
     static constexpr const char* instrumentsLoaded = "/instruments_loaded";
+    
+    // Expansion responses (Server → Client)
+    static constexpr const char* expansionListResponse = "/expansion/list_response";
+    static constexpr const char* expansionInstrumentsResponse = "/expansion/instruments_response";
+    static constexpr const char* expansionResolveResponse = "/expansion/resolve_response";
 }

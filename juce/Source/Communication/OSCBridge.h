@@ -75,6 +75,11 @@ public:
         virtual void onGenerationComplete(const GenerationResult& result) {}
         virtual void onError(int code, const juce::String& message) {}
         virtual void onInstrumentsLoaded(int count, const juce::StringPairArray& categories) {}
+        
+        // Expansion callbacks
+        virtual void onExpansionListReceived(const juce::String& json) {}
+        virtual void onExpansionInstrumentsReceived(const juce::String& json) {}
+        virtual void onExpansionResolveReceived(const juce::String& json) {}
     };
     
     //==============================================================================
@@ -110,6 +115,14 @@ public:
     void sendShutdown();
     void sendGetInstruments(const juce::StringArray& paths, const juce::String& cacheDir = {});
     
+    // Expansion management
+    void sendExpansionList();
+    void sendExpansionInstruments(const juce::String& expansionId);
+    void sendExpansionResolve(const juce::String& instrument, const juce::String& genre);
+    void sendExpansionImport(const juce::String& path);
+    void sendExpansionScan(const juce::String& directory);
+    void sendExpansionEnable(const juce::String& expansionId, bool enabled);
+    
     //==============================================================================
     // Listeners
     void addListener(Listener* listener);
@@ -133,6 +146,11 @@ private:
     void handlePong(const juce::OSCMessage& message);
     void handleStatus(const juce::OSCMessage& message);
     void handleInstrumentsLoaded(const juce::OSCMessage& message);
+    
+    // Expansion handlers
+    void handleExpansionList(const juce::OSCMessage& message);
+    void handleExpansionInstruments(const juce::OSCMessage& message);
+    void handleExpansionResolve(const juce::OSCMessage& message);
     
     //==============================================================================
     void sendMessage(const juce::String& address, const juce::String& jsonPayload = {});

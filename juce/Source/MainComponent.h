@@ -25,6 +25,7 @@
 #include "UI/GenreSelector.h"
 #include "UI/InstrumentBrowserPanel.h"
 #include "UI/FXChainPanel.h"
+#include "UI/ExpansionBrowserPanel.h"
 
 //==============================================================================
 /**
@@ -51,6 +52,7 @@ class MainComponent : public juce::Component,
                       public GenreSelector::Listener,
                       public InstrumentBrowserPanel::Listener,
                       public FXChainPanel::Listener,
+                      public ExpansionBrowserPanel::Listener,
                       public juce::Timer
 {
 public:
@@ -91,6 +93,20 @@ public:
     void fxChainChanged(FXChainPanel* panel) override;
     
     //==============================================================================
+    // ExpansionBrowserPanel::Listener
+    void requestExpansionListOSC() override;
+    void requestInstrumentsOSC(const juce::String& expansionId) override;
+    void requestResolveOSC(const juce::String& instrument, const juce::String& genre) override;
+    void requestImportExpansionOSC(const juce::String& path) override;
+    void requestScanExpansionsOSC(const juce::String& directory) override;
+    
+    //==============================================================================
+    // OSCBridge::Listener expansion callbacks
+    void onExpansionListReceived(const juce::String& json) override;
+    void onExpansionInstrumentsReceived(const juce::String& json) override;
+    void onExpansionResolveReceived(const juce::String& json) override;
+    
+    //==============================================================================
     // Timer callback for UI updates
     void timerCallback() override;
 
@@ -114,11 +130,13 @@ private:
     std::unique_ptr<GenreSelector> genreSelector;
     std::unique_ptr<InstrumentBrowserPanel> instrumentBrowser;
     std::unique_ptr<FXChainPanel> fxChainPanel;
+    std::unique_ptr<ExpansionBrowserPanel> expansionBrowser;
     
     // Bottom panel tab buttons
     juce::TextButton instrumentsTabButton { "Instruments" };
     juce::TextButton fxTabButton { "FX Chain" };
-    int currentBottomTab = 0;  // 0 = Instruments, 1 = FX Chain
+    juce::TextButton expansionsTabButton { "Expansions" };
+    int currentBottomTab = 0;  // 0 = Instruments, 1 = FX Chain, 2 = Expansions
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;
