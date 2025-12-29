@@ -98,6 +98,14 @@ class OSCAddresses:
         /ping - Health check
         /shutdown - Graceful shutdown
         
+        Expansion management:
+        /expansion/list - List loaded expansions
+        /expansion/instruments - List instruments in an expansion
+        /expansion/resolve - Resolve instrument with intelligent matching
+        /expansion/import - Import a new expansion pack
+        /expansion/scan - Scan directory for expansions
+        /expansion/enable - Enable/disable an expansion
+        
     Server → Client (Python → JUCE):
         /progress - Generation progress update
         /complete - Generation complete with results
@@ -105,6 +113,11 @@ class OSCAddresses:
         /instruments_loaded - Instrument scan results
         /pong - Health check response
         /status - Server status update
+        
+        Expansion responses:
+        /expansion/list_response - Expansion list data
+        /expansion/instruments_response - Instruments in expansion
+        /expansion/resolve_response - Resolved instrument data
     """
     
     # Incoming (JUCE → Python)
@@ -115,6 +128,14 @@ class OSCAddresses:
     PING = "/ping"
     SHUTDOWN = "/shutdown"
     
+    # Expansion management (JUCE → Python)
+    EXPANSION_LIST = "/expansion/list"
+    EXPANSION_INSTRUMENTS = "/expansion/instruments"
+    EXPANSION_RESOLVE = "/expansion/resolve"
+    EXPANSION_IMPORT = "/expansion/import"
+    EXPANSION_SCAN = "/expansion/scan"
+    EXPANSION_ENABLE = "/expansion/enable"
+    
     # Outgoing (Python → JUCE)
     PROGRESS = "/progress"
     COMPLETE = "/complete"
@@ -122,6 +143,11 @@ class OSCAddresses:
     INSTRUMENTS_LOADED = "/instruments_loaded"
     PONG = "/pong"
     STATUS = "/status"
+    
+    # Expansion responses (Python → JUCE)
+    EXPANSION_LIST_RESPONSE = "/expansion/list_response"
+    EXPANSION_INSTRUMENTS_RESPONSE = "/expansion/instruments_response"
+    EXPANSION_RESOLVE_RESPONSE = "/expansion/resolve_response"
 
 
 # Generation Steps (for progress reporting)

@@ -37,6 +37,14 @@ from .worker import (
     InstrumentScanWorker,
 )
 
+# Try to import expansion manager
+try:
+    from ..expansion_manager import ExpansionManager
+    EXPANSION_AVAILABLE = True
+except ImportError:
+    ExpansionManager = None
+    EXPANSION_AVAILABLE = False
+
 
 class MusicGenOSCServer:
     """
@@ -88,6 +96,11 @@ class MusicGenOSCServer:
         self._gen_worker: Optional[GenerationWorker] = None
         self._instrument_worker: Optional[InstrumentScanWorker] = None
         
+        # Expansion Manager
+        self._expansion_manager: Optional[ExpansionManager] = None
+        if EXPANSION_AVAILABLE:
+            self._expansion_manager = ExpansionManager()
+        
         # State
         self._running = False
         self._server_thread: Optional[threading.Thread] = None
@@ -110,6 +123,14 @@ class MusicGenOSCServer:
         self._dispatcher.map(OSCAddresses.GET_INSTRUMENTS, self._handle_get_instruments)
         self._dispatcher.map(OSCAddresses.PING, self._handle_ping)
         self._dispatcher.map(OSCAddresses.SHUTDOWN, self._handle_shutdown)
+        
+        # Expansion handlers
+        self._dispatcher.map(OSCAddresses.EXPANSION_LIST, self._handle_expansion_list)
+        self._dispatcher.map(OSCAddresses.EXPANSION_INSTRUMENTS, self._handle_expansion_instruments)
+        self._dispatcher.map(OSCAddresses.EXPANSION_RESOLVE, self._handle_expansion_resolve)
+        self._dispatcher.map(OSCAddresses.EXPANSION_IMPORT, self._handle_expansion_import)
+        self._dispatcher.map(OSCAddresses.EXPANSION_SCAN, self._handle_expansion_scan)
+        self._dispatcher.map(OSCAddresses.EXPANSION_ENABLE, self._handle_expansion_enable)
         
         # Default handler for unknown messages
         self._dispatcher.set_default_handler(self._handle_unknown)
@@ -437,6 +458,207 @@ class MusicGenOSCServer:
     def _handle_unknown(self, address: str, *args):
         """Handle unknown OSC messages."""
         self._log(f"⚠️  Unknown message: {address} {args}")
+    
+    # =========================================================================
+    # Expansion Handlers
+    # =========================================================================
+    
+    def _handle_expansion_list(self, address: str, *args):
+        """Handle /expansion/list - return list of loaded expansions."""
+        self._log(f"📥 Received: {address}")
+        
+        if not self._expansion_manager:
+            self._send_error(ErrorCode.UNKNOWN, "Expansion manager not available")
+            return
+        
+        try:
+            expansions = self._expansion_manager.list_expansions()
+            categories = self._expansion_manager.get_categories()
+            
+            response = {
+                "expansions": expansions,
+                "categories": categories,
+            }
+            
+            self._send_message(OSCAddresses.EXPANSION_LIST_RESPONSE, json.dumps(response))
+            self._log(f"   Sent {len(expansions)} expansions")
+            
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, f"Failed to list expansions: {e}")
+    
+    def _handle_expansion_instruments(self, address: str, *args):
+        """
+        Handle /expansion/instruments - list instruments in an expansion.
+        
+        Expected args (JSON string):
+            {
+                "expansion_id": "funk_o_rama"
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        if not self._expansion_manager:
+            self._send_error(ErrorCode.UNKNOWN, "Expansion manager not available")
+            return
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            expansion_id = data.get("expansion_id", "")
+            
+            instruments = self._expansion_manager.list_instruments(expansion_id=expansion_id)
+            
+            self._send_message(OSCAddresses.EXPANSION_INSTRUMENTS_RESPONSE, json.dumps(instruments))
+            self._log(f"   Sent {len(instruments)} instruments for {expansion_id}")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, f"Failed to list instruments: {e}")
+    
+    def _handle_expansion_resolve(self, address: str, *args):
+        """
+        Handle /expansion/resolve - resolve instrument with intelligent matching.
+        
+        Expected args (JSON string):
+            {
+                "instrument": "krar",
+                "genre": "eskista"
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        if not self._expansion_manager:
+            self._send_error(ErrorCode.UNKNOWN, "Expansion manager not available")
+            return
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            instrument = data.get("instrument", "")
+            genre = data.get("genre", "")
+            
+            if not instrument:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "Instrument name required")
+                return
+            
+            result = self._expansion_manager.resolve_instrument(instrument, genre)
+            
+            self._send_message(OSCAddresses.EXPANSION_RESOLVE_RESPONSE, json.dumps(result.to_dict()))
+            self._log(f"   Resolved '{instrument}' -> '{result.name}' ({result.match_type.value})")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, f"Failed to resolve instrument: {e}")
+    
+    def _handle_expansion_import(self, address: str, *args):
+        """
+        Handle /expansion/import - import a new expansion pack.
+        
+        Expected args (JSON string):
+            {
+                "path": "/path/to/expansion"
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        if not self._expansion_manager:
+            self._send_error(ErrorCode.UNKNOWN, "Expansion manager not available")
+            return
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            path = data.get("path", "")
+            
+            if not path:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "Expansion path required")
+                return
+            
+            success = self._expansion_manager.add_expansion(path)
+            
+            if success:
+                self._send_status("expansion_imported", {"path": path})
+                self._log(f"   Imported expansion from: {path}")
+            else:
+                self._send_error(ErrorCode.UNKNOWN, f"Failed to import expansion from: {path}")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, f"Failed to import expansion: {e}")
+    
+    def _handle_expansion_scan(self, address: str, *args):
+        """
+        Handle /expansion/scan - scan directory for expansions.
+        
+        Expected args (JSON string):
+            {
+                "directory": "/path/to/expansions"
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        if not self._expansion_manager:
+            self._send_error(ErrorCode.UNKNOWN, "Expansion manager not available")
+            return
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            directory = data.get("directory", "")
+            
+            if not directory:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "Directory path required")
+                return
+            
+            count = self._expansion_manager.scan_expansions(directory)
+            
+            self._send_status("expansion_scan_complete", {
+                "directory": directory,
+                "count": count,
+            })
+            self._log(f"   Scanned {directory}: found {count} expansions")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, f"Failed to scan expansions: {e}")
+    
+    def _handle_expansion_enable(self, address: str, *args):
+        """
+        Handle /expansion/enable - enable or disable an expansion.
+        
+        Expected args (JSON string):
+            {
+                "expansion_id": "funk_o_rama",
+                "enabled": true
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        if not self._expansion_manager:
+            self._send_error(ErrorCode.UNKNOWN, "Expansion manager not available")
+            return
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            expansion_id = data.get("expansion_id", "")
+            enabled = data.get("enabled", True)
+            
+            if not expansion_id:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "Expansion ID required")
+                return
+            
+            self._expansion_manager.enable_expansion(expansion_id, enabled)
+            
+            self._send_status("expansion_enable_changed", {
+                "expansion_id": expansion_id,
+                "enabled": enabled,
+            })
+            self._log(f"   Expansion '{expansion_id}' enabled={enabled}")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, f"Failed to change expansion state: {e}")
     
     # =========================================================================
     # Worker Callbacks
