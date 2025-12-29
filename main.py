@@ -482,6 +482,20 @@ def run_generation(
         if default_instruments.exists() and any(default_instruments.iterdir()):
             print_info(f"Tip: Add samples to {default_instruments} or use --instruments <path>")
     
+    # Step 4.7: Load expansion packs for specialized instruments (Ethiopian, etc.)
+    expansion_manager = None
+    expansions_dir = Path(__file__).parent.parent / "expansions"
+    if expansions_dir.exists():
+        try:
+            from multimodal_gen import ExpansionManager
+            expansion_manager = ExpansionManager()
+            exp_count = expansion_manager.scan_expansions(str(expansions_dir))
+            if exp_count > 0 and verbose:
+                print_info(f"Loaded {exp_count} expansion pack(s) for specialized instruments")
+        except Exception as e:
+            if verbose:
+                print_warning(f"Expansion loading: {e}")
+    
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")
     report_progress("rendering_audio", 0.75, "Rendering audio...")
@@ -500,6 +514,7 @@ def run_generation(
     renderer = AudioRenderer(
         soundfont_path=soundfont_path,
         instrument_library=instrument_library,
+        expansion_manager=expansion_manager,
         genre=parsed.genre,
         mood=parsed.mood,
         use_bwf=use_bwf,

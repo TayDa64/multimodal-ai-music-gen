@@ -1201,7 +1201,7 @@ class ExpansionManager:
                 if expansion and expansion.instruments:
                     self.expansions[expansion.id] = expansion
                     count += 1
-                    print(f"  ✓ Loaded expansion: {expansion.name} ({len(expansion.instruments)} instruments)")
+                    print(f"  [+] Loaded expansion: {expansion.name} ({len(expansion.instruments)} instruments)")
         
         # Rebuild matcher
         self._rebuild_matcher()

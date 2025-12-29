@@ -1673,8 +1673,11 @@ def generate_krar_tone(
     output = lowpass_filter(output, 2000, sample_rate)  # Strong high rolloff
     output = highpass_filter(output, 70, sample_rate)  # Keep some low end
     
-    # Boost output level for proper magnitude in spectrum
-    return normalize_audio(output, 0.95 * velocity)
+    # Remove any DC offset
+    output = output - np.mean(output)
+    
+    # Output at moderate level to leave headroom for mixing (was 0.95)
+    return normalize_audio(output, 0.70 * velocity)
 
 
 def generate_masenqo_tone(
@@ -1816,30 +1819,22 @@ def generate_masenqo_tone(
     audio = lowpass_filter(audio, 5000, sample_rate)
     audio = highpass_filter(audio, 100, sample_rate)
     
-    # Remove any remaining DC offset after filtering
+    # Remove any remaining DC offset after filtering - CRITICAL
     audio = audio - np.mean(audio)
     
-    # Very gentle saturation for warmth
+    # Very gentle saturation for warmth (also helps symmetry)
     audio = np.tanh(audio * 1.1) / 1.1
     
-    # CRITICAL: Make waveform symmetric around zero
-    # The formant filtering creates asymmetric peaks, so we need to
-    # scale positive and negative parts independently to center it
-    pos_max = np.max(audio)
-    neg_min = np.min(audio)
-    if pos_max > 0 and neg_min < 0:
-        # Scale so positive and negative peaks are equal magnitude
-        max_mag = max(pos_max, abs(neg_min))
-        audio = np.where(audio >= 0, 
-                        audio * (max_mag / pos_max) if pos_max > 0 else audio,
-                        audio * (max_mag / abs(neg_min)) if neg_min < 0 else audio)
+    # Remove any final DC offset after saturation
+    audio = audio - np.mean(audio)
     
-    # Final normalization
+    # Final normalization to prevent clipping when mixed
     max_val = np.max(np.abs(audio))
     if max_val > 0:
         audio = audio / max_val
     
-    return audio * 0.78 * velocity
+    # Output at moderate level to leave headroom for mixing
+    return audio * 0.65 * velocity
 
 
 def generate_washint_tone(

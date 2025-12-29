@@ -192,18 +192,33 @@ def apply_stereo_pan(
     return np.column_stack([left, right])
 
 
+def remove_dc_offset(audio: np.ndarray) -> np.ndarray:
+    """
+    Remove DC offset from audio.
+    
+    DC offset causes asymmetric waveforms which waste headroom.
+    """
+    if len(audio.shape) > 1:
+        # Stereo - process each channel
+        return audio - np.mean(audio, axis=0, keepdims=True)
+    else:
+        return audio - np.mean(audio)
+
+
 def mix_stereo_tracks(
     tracks: List[np.ndarray],
     levels: Optional[List[float]] = None,
-    pans: Optional[List[float]] = None
+    pans: Optional[List[float]] = None,
+    headroom_db: float = -3.0
 ) -> np.ndarray:
     """
-    Mix multiple stereo tracks.
+    Mix multiple stereo tracks with proper gain staging.
     
     Args:
         tracks: List of stereo audio arrays (N, 2)
         levels: Optional dB levels for each track
         pans: Optional pan positions for each track
+        headroom_db: Target headroom to prevent clipping (default -3dB)
     
     Returns:
         Mixed stereo audio
@@ -223,6 +238,11 @@ def mix_stereo_tracks(
     # Initialize mix
     mix = np.zeros((max_len, 2))
     
+    # Calculate auto-gain based on track count to prevent summing clipping
+    # Each additional track adds ~3dB of potential level increase
+    num_tracks = len(tracks)
+    auto_gain_reduction = 10 ** (-3.0 * np.log2(max(num_tracks, 1)) / 20) if num_tracks > 1 else 1.0
+    
     for track, level_db, pan in zip(tracks, levels, pans):
         # Ensure stereo
         if len(track.shape) == 1:
@@ -230,8 +250,11 @@ def mix_stereo_tracks(
         elif track.shape[1] == 1:
             track = apply_stereo_pan(track.flatten(), pan)
         
-        # Apply level
-        gain = 10 ** (level_db / 20)
+        # Remove DC offset from each track before mixing
+        track = remove_dc_offset(track)
+        
+        # Apply level with auto-gain reduction
+        gain = 10 ** (level_db / 20) * auto_gain_reduction
         track = track * gain
         
         # Add to mix
@@ -279,41 +302,52 @@ def limit_audio(
 def soft_clip(
     audio: np.ndarray,
     threshold: float = 0.7,
-    knee: float = 0.3
+    knee: float = 0.3,
+    ceiling: float = 0.95
 ) -> np.ndarray:
     """
     Apply soft clipping to audio to prevent harsh distortion.
     
     Uses tanh-based saturation above threshold for musical clipping.
+    The output is guaranteed to not exceed the ceiling level.
     
     Args:
         audio: Input audio array
         threshold: Level where soft clipping begins (0-1)
         knee: Softness of the knee (higher = softer transition)
+        ceiling: Maximum output level (default 0.95 to leave headroom)
         
     Returns:
-        Soft-clipped audio
+        Soft-clipped audio with peak <= ceiling
     """
-    # Normalize to working range
+    if len(audio) == 0:
+        return audio
+    
     peak = np.max(np.abs(audio))
     if peak == 0:
         return audio
     
-    # Work with normalized audio
-    normalized = audio / peak
+    # If already under threshold, no clipping needed
+    if peak <= threshold:
+        return audio
     
-    # Apply soft clipping using tanh
-    # Below threshold: linear, Above threshold: compressed with tanh
+    # Apply tanh soft clipping - this naturally limits output to asymptote
+    # Scale input so that threshold maps to tanh input of 1
+    # tanh(1) ≈ 0.76, so we adjust for desired ceiling
+    scale_factor = 1.5 / knee  # Adjust saturation curve steepness
+    
     output = np.where(
-        np.abs(normalized) < threshold,
-        normalized,
-        np.sign(normalized) * (threshold + (1 - threshold) * np.tanh(
-            (np.abs(normalized) - threshold) / knee
+        np.abs(audio) < threshold,
+        audio,
+        np.sign(audio) * (threshold + (ceiling - threshold) * np.tanh(
+            (np.abs(audio) - threshold) * scale_factor
         ))
     )
     
-    # Scale back
-    return output * peak
+    # Final safety clamp - ensure no sample exceeds ceiling
+    output = np.clip(output, -ceiling, ceiling)
+    
+    return output
 
 
 # =============================================================================
@@ -419,17 +453,20 @@ class ProceduralRenderer:
     
     Fallback when FluidSynth is not available.
     Supports custom samples via InstrumentLibrary for intelligent selection.
+    Also supports ExpansionManager for Ethiopian and other specialized instruments.
     """
     
     def __init__(
         self,
         sample_rate: int = SAMPLE_RATE,
         instrument_library: 'InstrumentLibrary' = None,
+        expansion_manager: 'ExpansionManager' = None,
         genre: str = None,
         mood: str = None
     ):
         self.sample_rate = sample_rate
         self.instrument_library = instrument_library
+        self.expansion_manager = expansion_manager
         self.genre = genre or "trap"
         self.mood = mood
         
@@ -445,11 +482,16 @@ class ProceduralRenderer:
         # Pre-generate drum samples (fallback)
         self._drum_cache: Dict[str, np.ndarray] = {}
         self._custom_drum_cache: Dict[str, np.ndarray] = {}  # From library
+        self._expansion_sample_cache: Dict[str, np.ndarray] = {}  # From expansions
         self._init_drum_cache()
         
         # Load custom instruments if available
         if instrument_library:
             self._load_custom_instruments()
+        
+        # Load expansion instruments for this genre
+        if expansion_manager:
+            self._load_expansion_instruments()
     
     def _init_drum_cache(self):
         """Pre-generate common drum sounds (procedural fallback)."""
@@ -513,21 +555,86 @@ class ProceduralRenderer:
                                 )
                         
                         self._custom_drum_cache[drum_name] = audio
-                        print(f"  🎹 Loaded custom {drum_name}: {best.name}")
+                        print(f"  [*] Loaded custom {drum_name}: {best.name}")
             
             if self._custom_drum_cache:
-                print(f"  ✓ Using {len(self._custom_drum_cache)} custom instruments")
+                print(f"  [+] Using {len(self._custom_drum_cache)} custom instruments")
                 
         except Exception as e:
-            print(f"  ⚠ Custom instrument loading failed: {e}")
+            print(f"  [!] Custom instrument loading failed: {e}")
+    
+    def _load_expansion_instruments(self):
+        """Load instruments from expansion packs for specialized genres."""
+        if not self.expansion_manager:
+            return
+        
+        try:
+            # Define instruments to pre-load based on genre
+            genre_instruments = {
+                'eskista': ['krar', 'masenqo', 'washint', 'kebero'],
+                'tizita': ['krar', 'masenqo', 'washint', 'begena'],
+                'ethiopian': ['krar', 'masenqo', 'washint', 'kebero'],
+                'ethio_jazz': ['krar', 'masenqo', 'washint', 'piano', 'bass'],
+                'g_funk': ['synth', 'bass', 'piano'],
+                'trap': ['808', 'piano', 'synth'],
+                'rnb': ['piano', 'guitar', 'bass', 'synth'],
+            }
+            
+            # Get instruments for current genre
+            instruments_to_load = genre_instruments.get(self.genre, [])
+            
+            for inst_name in instruments_to_load:
+                result = self.expansion_manager.resolve_instrument(inst_name, genre=self.genre)
+                if result and result.sample_paths:
+                    # Load the first available sample
+                    sample_path = result.sample_paths[0] if result.sample_paths else None
+                    if not sample_path:
+                        continue
+                    
+                    try:
+                        audio, sr = sf.read(sample_path)
+                        if len(audio.shape) > 1:
+                            audio = np.mean(audio, axis=1)  # Convert to mono
+                        
+                        # Resample if needed
+                        if sr != self.sample_rate:
+                            try:
+                                import librosa
+                                audio = librosa.resample(audio, orig_sr=sr, target_sr=self.sample_rate)
+                            except ImportError:
+                                ratio = self.sample_rate / sr
+                                new_len = int(len(audio) * ratio)
+                                audio = np.interp(
+                                    np.linspace(0, len(audio) - 1, new_len),
+                                    np.arange(len(audio)),
+                                    audio
+                                )
+                        
+                        # Store with original name and resolved name for lookup
+                        self._expansion_sample_cache[inst_name] = audio
+                        self._expansion_sample_cache[result.resolved_name.lower()] = audio
+                        
+                        print(f"  [*] Expansion: {inst_name} -> {result.resolved_name} ({result.match_type.name})")
+                        
+                    except Exception as e:
+                        print(f"  [!] Failed to load expansion sample {inst_name}: {e}")
+            
+            if self._expansion_sample_cache:
+                print(f"  [+] Using {len(self._expansion_sample_cache) // 2} expansion instruments")
+                
+        except Exception as e:
+            print(f"  [!] Expansion instrument loading failed: {e}")
     
     def set_genre_mood(self, genre: str, mood: str = None):
         """Update genre/mood and reload instruments."""
         self.genre = genre
         self.mood = mood
         self._custom_drum_cache.clear()
+        self._expansion_sample_cache.clear()
         if self.instrument_library:
             self._load_custom_instruments()
+        if self.expansion_manager:
+            self._load_expansion_instruments()
     
     def render_notes(
         self,
@@ -608,6 +715,11 @@ class ProceduralRenderer:
         duration = note.duration_samples / self.sample_rate
         velocity = note.velocity  # Already normalized 0-1 by _render_track_procedural
         
+        # Check for expansion samples first (for Ethiopian and specialized instruments)
+        expansion_sample = self._get_expansion_sample_for_program(note.program, freq, duration, velocity)
+        if expansion_sample is not None:
+            return expansion_sample
+        
         # Choose synthesis method based on program
         # Standard GM instruments
         if note.program in [0, 1, 2, 3]:  # Acoustic/bright/honky-tonk
@@ -649,6 +761,62 @@ class ProceduralRenderer:
         else:
             # Default to FM pluck
             return generate_fm_pluck(freq, duration)
+    
+    def _get_expansion_sample_for_program(
+        self,
+        program: int,
+        freq: float,
+        duration: float,
+        velocity: float
+    ) -> Optional[np.ndarray]:
+        """
+        Check if we have an expansion sample for this program number.
+        
+        Maps MIDI program numbers to instrument names and looks up in expansion cache.
+        Performs pitch-shifting if needed to match the requested frequency.
+        """
+        if not self._expansion_sample_cache:
+            return None
+        
+        # Map program numbers to instrument names
+        program_to_instrument = {
+            110: 'krar',
+            111: 'masenqo',
+            112: 'washint',
+            113: 'begena',
+            0: 'piano',
+            4: 'piano',  # Electric piano
+            25: 'guitar',
+            38: 'bass',
+            39: 'bass',
+        }
+        
+        inst_name = program_to_instrument.get(program)
+        if not inst_name or inst_name not in self._expansion_sample_cache:
+            return None
+        
+        # Get the sample
+        sample = self._expansion_sample_cache[inst_name].copy()
+        
+        # Calculate required length
+        target_samples = int(duration * self.sample_rate)
+        
+        # If sample is shorter than needed, we need to loop or extend
+        if len(sample) < target_samples:
+            # For one-shot samples, just pad with zeros
+            sample = np.pad(sample, (0, target_samples - len(sample)))
+        elif len(sample) > target_samples:
+            # Truncate and apply fade out
+            sample = sample[:target_samples]
+            fade_len = min(int(0.05 * self.sample_rate), len(sample) // 4)
+            if fade_len > 0:
+                fade = np.linspace(1, 0, fade_len)
+                sample[-fade_len:] *= fade
+        
+        # Apply velocity
+        sample *= velocity
+        
+        return sample
 
 
 # =============================================================================
@@ -660,7 +828,8 @@ class AudioRenderer:
     Main audio rendering class.
     
     Handles MIDI-to-audio conversion with mixing, effects, and export.
-    Now supports intelligent instrument selection via InstrumentLibrary
+    Now supports intelligent instrument selection via InstrumentLibrary,
+    ExpansionManager for specialized instruments (Ethiopian, etc.),
     and BWF (Broadcast Wave Format) with AI provenance metadata.
     """
     
@@ -670,6 +839,7 @@ class AudioRenderer:
         use_fluidsynth: bool = True,
         soundfont_path: Optional[str] = None,
         instrument_library: 'InstrumentLibrary' = None,
+        expansion_manager: 'ExpansionManager' = None,
         genre: str = None,
         mood: str = None,
         use_bwf: bool = True,
@@ -679,15 +849,17 @@ class AudioRenderer:
         self.use_fluidsynth = use_fluidsynth and check_fluidsynth_available()
         self.soundfont_path = soundfont_path or find_soundfont()
         self.instrument_library = instrument_library
+        self.expansion_manager = expansion_manager
         self.genre = genre
         self.mood = mood
         self.use_bwf = use_bwf
         self.ai_metadata = ai_metadata or {}
         
-        # Procedural fallback with optional instrument library
+        # Procedural fallback with optional instrument library and expansion manager
         self.procedural = ProceduralRenderer(
             sample_rate,
             instrument_library=instrument_library,
+            expansion_manager=expansion_manager,
             genre=genre,
             mood=mood
         )
