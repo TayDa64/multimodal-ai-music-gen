@@ -15,6 +15,7 @@
 #include "Application/AppState.h"
 #include "Audio/AudioEngine.h"
 #include "Communication/OSCBridge.h"
+#include "Communication/PythonManager.h"
 #include "UI/TransportComponent.h"
 #include "UI/PromptPanel.h"
 #include "UI/ProgressOverlay.h"
@@ -80,6 +81,7 @@ private:
     // State
     AppState& appState;
     mmg::AudioEngine& audioEngine;
+    std::unique_ptr<PythonManager> pythonManager;
     std::unique_ptr<OSCBridge> oscBridge;
     
     //==============================================================================
@@ -109,6 +111,8 @@ private:
     juce::String currentStatus = "Ready";
     
     //==============================================================================
+    void startPythonServer();
+    void stopPythonServer();
     void setupOSCConnection();
     void drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area, 
                         const juce::String& label, juce::Colour colour);

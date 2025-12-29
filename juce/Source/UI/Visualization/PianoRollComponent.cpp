@@ -573,16 +573,20 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
     
     if (event.mods.isLeftButtonDown())
     {
-        isDragging = true;
+        // Track click start for potential drag detection
+        clickStartTime = juce::Time::currentTimeMillis();
         lastMousePos = event.position;
         
-        // Seek to position if clicking in note area (Ctrl/Cmd + click)
-        if (event.x > pianoKeyWidth && (event.mods.isCommandDown() || event.mods.isCtrlDown()))
+        // If clicking in the note area (not piano keys), prepare for potential seek
+        if (event.x > pianoKeyWidth)
         {
+            // Seek immediately on click (professional DAW behavior)
             double time = xToTime(event.position.x);
             audioEngine.setPlaybackPosition(time);
             listeners.call(&Listener::pianoRollSeekRequested, time);
         }
+        
+        isDragging = true;
     }
     else if (event.mods.isMiddleButtonDown())
     {

@@ -36,6 +36,8 @@ class GenerationRequest:
     Encapsulates all parameters for a generation request.
     
     Attributes:
+        request_id: Unique identifier for request/response correlation
+        schema_version: Protocol version for compatibility checking
         prompt: Natural language music description
         bpm: BPM override (0 = auto-detect from prompt)
         key: Key override (empty = auto-detect)
@@ -50,6 +52,8 @@ class GenerationRequest:
         verbose: Enable verbose output
     """
     prompt: str
+    request_id: str = ""  # UUID for request/response correlation
+    schema_version: int = 1  # Protocol version
     bpm: int = 0
     key: str = ""
     output_dir: str = ""
@@ -65,6 +69,8 @@ class GenerationRequest:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging/serialization."""
         return {
+            "request_id": self.request_id,
+            "schema_version": self.schema_version,
             "prompt": self.prompt,
             "bpm": self.bpm,
             "key": self.key,
@@ -82,7 +88,8 @@ class GenerationResult:
     Result of a completed generation task.
     
     Attributes:
-        task_id: Unique identifier for the task
+        task_id: Unique identifier for the task (internal)
+        request_id: Unique identifier for request/response correlation (from client)
         success: Whether generation succeeded
         midi_path: Path to generated MIDI file
         audio_path: Path to rendered audio (if applicable)
@@ -95,6 +102,7 @@ class GenerationResult:
     """
     task_id: str
     success: bool
+    request_id: str = ""  # For request/response correlation
     midi_path: str = ""
     audio_path: str = ""
     stems_path: str = ""
@@ -110,6 +118,7 @@ class GenerationResult:
         """Convert to dictionary for OSC transmission."""
         return {
             "task_id": self.task_id,
+            "request_id": self.request_id,
             "success": self.success,
             "midi_path": self.midi_path,
             "audio_path": self.audio_path,
@@ -135,6 +144,7 @@ class Task:
     """
     id: str
     request: GenerationRequest
+    request_id: str = ""  # Client-provided request_id for correlation
     status: TaskStatus = TaskStatus.PENDING
     future: Optional[Future] = None
     created_at: datetime = field(default_factory=datetime.now)
@@ -224,6 +234,7 @@ class GenerationWorker:
         task = Task(
             id=task_id,
             request=request,
+            request_id=request.request_id,  # Copy client's request_id for correlation
         )
         
         with self._lock:
@@ -325,7 +336,7 @@ class GenerationWorker:
             
             # Check for early cancellation
             if task.cancel_requested:
-                return self._create_cancelled_result(task.id, time.time() - start_time)
+                return self._create_cancelled_result(task.id, task.request_id, time.time() - start_time)
             
             # Import here to avoid circular imports
             from main import run_generation
@@ -362,6 +373,7 @@ class GenerationWorker:
             
             result = GenerationResult(
                 task_id=task.id,
+                request_id=task.request_id,  # Include client's request_id for correlation
                 success=True,
                 midi_path=results.get("midi", ""),
                 audio_path=results.get("audio", ""),
@@ -396,7 +408,7 @@ class GenerationWorker:
         except InterruptedError:
             # Cancelled
             duration = time.time() - start_time
-            result = self._create_cancelled_result(task.id, duration)
+            result = self._create_cancelled_result(task.id, task.request_id, duration)
             task.status = TaskStatus.CANCELLED
             task.result = result
             
@@ -415,6 +427,7 @@ class GenerationWorker:
             
             result = GenerationResult(
                 task_id=task.id,
+                request_id=task.request_id,  # Include client's request_id for correlation
                 success=False,
                 error_code=ErrorCode.GENERATION_FAILED,
                 error_message=error_msg,
@@ -444,10 +457,11 @@ class GenerationWorker:
             except Exception:
                 pass  # Don't let callback errors affect generation
     
-    def _create_cancelled_result(self, task_id: str, duration: float) -> GenerationResult:
+    def _create_cancelled_result(self, task_id: str, request_id: str, duration: float) -> GenerationResult:
         """Create a result for a cancelled task."""
         return GenerationResult(
             task_id=task_id,
+            request_id=request_id,  # Include client's request_id for correlation
             success=False,
             error_code=ErrorCode.GENERATION_CANCELLED,
             error_message="Generation cancelled by user",

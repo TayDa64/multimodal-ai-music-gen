@@ -192,5 +192,8 @@ class ErrorCode:
     SHUTDOWN_IN_PROGRESS = 902
 
 
+# Protocol Version
+SCHEMA_VERSION = 1  # Increment when breaking changes are made to OSC protocol
+
 # Default configuration instance
 DEFAULT_CONFIG = ServerConfig()

@@ -177,6 +177,7 @@ private:
     const MidiNoteEvent* hoveredNote = nullptr;
     juce::Point<float> lastMousePos;
     bool isDragging = false;
+    juce::int64 clickStartTime = 0;  // For distinguishing click vs drag
     
     // Generate track colors
     void assignTrackColors(int numTracks);

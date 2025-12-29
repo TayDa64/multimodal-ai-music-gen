@@ -795,6 +795,122 @@ def generate_pad_tone(
     return normalize_audio(audio, 0.7)
 
 
+def generate_piano_tone(
+    frequency: float,
+    duration: float = 0.6,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Generate a more piano-like tone (procedural fallback).
+
+    This is intentionally lightweight (numpy only) but aims to be less "toyish"
+    than FM plucks by modeling:
+    - Fast hammer transient (band-limited noise)
+    - Additive harmonic stack with faster decay for higher partials
+    - Slight inharmonicity and mild detune (chorus-like)
+    """
+    num_samples = max(1, int(duration * sample_rate))
+    t = np.arange(num_samples) / sample_rate
+
+    # Harmonic stack with mild inharmonicity (piano strings)
+    inharm = 0.00015 + (min(frequency, 1000) / 1000.0) * 0.00015
+    audio = np.zeros(num_samples, dtype=np.float64)
+
+    num_partials = 14
+    base_decay = 0.9 + 0.6 * (1.0 - min(frequency, 1000) / 1000.0)  # lower notes sustain longer
+
+    # Two slightly detuned layers (piano unison strings)
+    detunes = [1.0, 1.003]
+    for detune in detunes:
+        layer = np.zeros(num_samples, dtype=np.float64)
+        for n in range(1, num_partials + 1):
+            # Inharmonic partial frequency
+            partial_freq = frequency * detune * (n + inharm * (n ** 2))
+            if partial_freq > sample_rate / 2 - 200:
+                break
+
+            amp = (1.0 / n) ** 1.15
+            # Higher partials decay faster
+            decay = base_decay / (n ** 0.65)
+            env = np.exp(-t / max(0.05, decay))
+            layer += amp * np.sin(2 * np.pi * partial_freq * t) * env
+
+        audio += layer
+
+    audio /= len(detunes)
+
+    # Hammer noise transient (first ~12ms)
+    transient_len = min(num_samples, int(0.012 * sample_rate))
+    if transient_len > 8:
+        noise = np.random.randn(transient_len)
+        noise = bandpass_filter(noise, 900, 8000, sample_rate)
+        noise_env = np.exp(-np.arange(transient_len) / (0.004 * sample_rate))
+        noise = noise * noise_env * 0.12
+        audio[:transient_len] += noise
+
+    # Envelope: fast attack, gentle release
+    attack = int(0.003 * sample_rate)
+    decay = int(0.18 * sample_rate)
+    sustain_level = 0.25
+    release = int(0.22 * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
+
+    # Warmth + gentle saturation
+    audio = lowpass_filter(audio, 9000, sample_rate)
+    audio = add_saturation(audio, 0.12)
+
+    # Velocity scaling and normalization
+    audio = normalize_audio(audio, target_peak=0.85) * float(np.clip(velocity, 0.0, 1.0))
+    return audio.astype(np.float32)
+
+
+def generate_lead_tone(
+    frequency: float,
+    duration: float = 0.4,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Generate a trap-friendly synth lead (procedural fallback).
+
+    Designed to avoid the "toy xylophone" vibe when MIDI uses GM lead programs.
+    Pulse/saw hybrid with mild vibrato, short attack, and controlled brightness.
+    """
+    num_samples = max(1, int(duration * sample_rate))
+    t = np.arange(num_samples) / sample_rate
+
+    # Mild vibrato
+    vib_rate = 5.5
+    vib_depth = 0.004  # ~0.4%
+    inst_freq = frequency * (1.0 + vib_depth * np.sin(2 * np.pi * vib_rate * t))
+    phase = 2 * np.pi * np.cumsum(inst_freq) / sample_rate
+
+    # Pulse + saw-ish harmonic stack
+    pulse = np.sign(np.sin(phase))
+    saw = np.zeros(num_samples, dtype=np.float64)
+    for n in range(1, 10):
+        saw += (1.0 / n) * np.sin(phase * n)
+    saw *= 0.55
+
+    audio = 0.55 * pulse + 0.45 * saw
+
+    # Envelope: fast attack, medium decay, short release
+    attack = int(0.005 * sample_rate)
+    decay = int(0.08 * sample_rate)
+    sustain_level = 0.55
+    release = int(0.10 * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
+
+    # Tone shaping
+    audio = lowpass_filter(audio, 6000, sample_rate)
+    audio = highpass_filter(audio, 120, sample_rate)
+    audio = add_saturation(audio, 0.18)
+
+    audio = normalize_audio(audio, 0.85) * float(np.clip(velocity, 0.0, 1.0))
+    return audio.astype(np.float32)
+
+
 # =============================================================================
 # ETHIOPIAN INSTRUMENT SYNTHESIS
 # =============================================================================

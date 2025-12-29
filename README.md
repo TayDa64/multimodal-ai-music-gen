@@ -121,6 +121,64 @@ Check the `output/` folder for your generated files!
 
 ---
 
+## 🎹 Using an MPC (MIDI Controller Recording)
+
+If you have an Akai MPC Studio (or any MIDI controller) connected, you can record your own drums/keys/lead and let the generator build the rest around it.
+
+### 1) Install live MIDI backend
+
+On Windows/macOS, `mido` typically needs `python-rtmidi` to see hardware ports:
+
+```bash
+pip install python-rtmidi
+```
+
+### 2) List MIDI inputs
+
+```bash
+python main.py --list-midi
+```
+
+### 3) Record a part and generate
+
+Record drums from your MPC pads (replaces the generated drum lane):
+
+```bash
+python main.py "hard trap beat at 140 BPM in D minor, zaytoven church pianist" \
+    --bpm 140 \
+    --record-part drums \
+    --midi-in "MPC" \
+    --record-bars 8 \
+    --count-in 1 \
+    --quantize 1/16
+```
+
+Record keys (replaces the generated chord lane):
+
+```bash
+python main.py "trap soul at 87 BPM in C minor" \
+    --bpm 87 \
+    --record-part keys \
+    --midi-in "MPC" \
+    --record-bars 8
+```
+
+Record a lead (replaces the generated melody lane):
+
+```bash
+python main.py "trap beat at 140 BPM in D minor" \
+    --bpm 140 \
+    --record-part lead \
+    --midi-in "MPC" \
+    --record-bars 8
+```
+
+Notes:
+- Use `--midi-in` as an exact name or a substring match.
+- The app re-renders the WAV after swapping in your recorded MIDI so the audio matches what you played.
+
+---
+
 ## 🏗️ Architecture
 
 ### System Overview

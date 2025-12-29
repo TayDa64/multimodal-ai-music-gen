@@ -48,6 +48,10 @@ class ParsedPrompt:
     instruments: List[str] = field(default_factory=list)
     drum_elements: List[str] = field(default_factory=list)
     
+    # Negative/exclusion elements (from negative prompts)
+    excluded_drums: List[str] = field(default_factory=list)
+    excluded_instruments: List[str] = field(default_factory=list)
+    
     # Textures & FX
     textures: List[str] = field(default_factory=list)
     
@@ -65,19 +69,28 @@ class ParsedPrompt:
     
     # Raw prompt for reference
     raw_prompt: str = ''
+    negative_prompt: str = ''
     
     def __post_init__(self):
-        """Apply defaults based on detected genre."""
+        """Apply defaults based on detected genre and filter exclusions."""
         if not self.instruments:
             self.instruments = self._get_genre_instruments()
         if not self.drum_elements:
             self.drum_elements = self._get_genre_drums()
+        
+        # Apply exclusions from negative prompt
+        if self.excluded_drums:
+            self.drum_elements = [d for d in self.drum_elements if d not in self.excluded_drums]
+        if self.excluded_instruments:
+            self.instruments = [i for i in self.instruments if i not in self.excluded_instruments]
     
     def _get_genre_instruments(self) -> List[str]:
         """Get default instruments for detected genre."""
         genre_instruments = {
             'trap': ['808', 'synth_lead'],
             'trap_soul': ['808', 'piano', 'rhodes', 'strings'],
+            'rnb': ['piano', 'rhodes', 'bass', 'strings', 'pad'],
+            'g_funk': ['synth', 'bass', 'piano', 'pad', 'brass'],  # G-Funk: synths, bass, keys
             'lofi': ['piano', 'rhodes', 'guitar'],
             'boom_bap': ['piano', 'bass', 'brass'],
             'house': ['bass', 'synth', 'pad'],
@@ -95,6 +108,8 @@ class ParsedPrompt:
         genre_drums = {
             'trap': ['kick', '808', 'snare', 'clap', 'hihat', 'hihat_roll'],
             'trap_soul': ['kick', '808', 'snare', 'clap', 'hihat'],
+            'rnb': ['kick', 'snare', 'hihat', 'rim'],  # Smoother, no hi-hat rolls
+            'g_funk': ['kick', 'snare', 'hihat', 'clap'],  # G-Funk: clean, groovy drums
             'lofi': ['kick', 'snare', 'hihat'],
             'boom_bap': ['kick', 'snare', 'hihat', 'crash'],
             'house': ['kick', 'clap', 'hihat_open', 'hihat'],
@@ -131,9 +146,21 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'trap', 'atlanta', 'drill', 'uk drill', 'phonk', 'rage',
         'hard trap', 'dark trap'
     ],
+    'rnb': [
+        'rnb', 'r&b', 'r and b', 'rhythm and blues', 'neo soul', 'neo-soul',
+        'contemporary rnb', 'modern rnb', 'soul', 'soulful', 'usher',
+        'the weeknd', 'frank ocean', 'daniel caesar', 'h.e.r', 'summer walker',
+        'slow jam', 'slow jams', 'groove', 'groovy'
+    ],
     'trap_soul': [
         'trap soul', 'trapsoul', 'rnb trap', 'r&b trap', 'soul trap',
         'emotional trap', 'melodic trap', 'bryson', 'sza', '6lack'
+    ],
+    'g_funk': [
+        'g-funk', 'g funk', 'gfunk', 'west coast', 'westcoast', 'dr dre',
+        'snoop', 'snoop dogg', 'warren g', 'nate dogg', 'death row',
+        'california', 'la hip hop', 'gangsta funk', '213', 'doggystyle',
+        'the chronic', 'regulate', 'long beach'
     ],
     'lofi': [
         'lofi', 'lo-fi', 'lo fi', 'chillhop', 'jazzhop', 'study',
@@ -310,6 +337,15 @@ SECTION_KEYWORDS: Dict[str, List[str]] = {
 }
 
 
+# Style modifiers (non-genre, performance/aesthetic cues)
+STYLE_KEYWORDS: Dict[str, List[str]] = {
+    'church': ['church', 'praise', 'worship', 'gospel', 'choir', 'hymn'],
+    'gospel': ['gospel', 'praise', 'worship'],
+    'zaytoven': ['zaytoven'],
+    'staccato_keys': ['staccato piano', 'staccato keys', 'staccato'],
+}
+
+
 # =============================================================================
 # PARSER CLASS
 # =============================================================================
@@ -341,9 +377,14 @@ class PromptParser:
         Returns:
             ParsedPrompt with extracted parameters
         """
-        prompt_lower = prompt.lower().strip()
+        # Extract negative prompt section first
+        main_prompt, negative_prompt = self._extract_negative_prompt(prompt)
+        prompt_lower = main_prompt.lower().strip()
         
-        # Extract each parameter
+        # Parse negative elements (what to exclude)
+        excluded_drums, excluded_instruments = self._parse_negative_elements(negative_prompt)
+        
+        # Extract each parameter from main prompt
         bpm = self._extract_bpm(prompt_lower)
         key, scale_type = self._extract_key(prompt_lower)
         genre = self._extract_genre(prompt_lower)
@@ -352,6 +393,7 @@ class PromptParser:
         textures = self._extract_textures(prompt_lower)
         mood = self._extract_mood(prompt_lower)
         sections = self._extract_sections(prompt_lower)
+        style_modifiers = self._extract_style_modifiers(prompt_lower)
         
         # Apply genre defaults if BPM not specified
         if bpm is None:
@@ -379,8 +421,11 @@ class PromptParser:
             key=key,
             scale_type=scale_type,
             genre=genre,
+            style_modifiers=style_modifiers,
             instruments=instruments,
             drum_elements=drum_elements,
+            excluded_drums=excluded_drums,
+            excluded_instruments=excluded_instruments,
             textures=textures,
             mood=mood,
             section_hints=sections,
@@ -388,7 +433,23 @@ class PromptParser:
             use_swing=use_swing,
             swing_amount=swing_amount,
             raw_prompt=prompt,
+            negative_prompt=negative_prompt,
         )
+
+    def _extract_style_modifiers(self, prompt: str) -> List[str]:
+        """Extract style modifiers (e.g., church/gospel performance cues)."""
+        modifiers: List[str] = []
+        for name, keywords in STYLE_KEYWORDS.items():
+            if any(kw in prompt for kw in keywords):
+                modifiers.append(name)
+        # De-duplicate while preserving order
+        seen = set()
+        out: List[str] = []
+        for m in modifiers:
+            if m not in seen:
+                out.append(m)
+                seen.add(m)
+        return out
     
     def _extract_bpm(self, prompt: str) -> Optional[float]:
         """Extract BPM from prompt."""
@@ -444,12 +505,15 @@ class PromptParser:
         before 'ethiopian_traditional') to avoid false matches.
         """
         # Define priority order - more specific genres first
+        # IMPORTANT: trap_soul MUST come before rnb because 'soul' is in both
         priority_order = [
+            'g_funk',  # G-Funk / West Coast - check before trap
             'eskista',  # Specific Ethiopian dance style
             'ethio_jazz',  # Specific Ethiopian fusion
             'ethiopian_traditional',  # Traditional with instruments
             'ethiopian',  # General Ethiopian
-            'trap_soul',  # More specific than trap
+            'trap_soul',  # MUST be before rnb (both have 'soul' keyword)
+            'rnb',  # R&B
             'trap',
             'lofi',
             'boom_bap',
@@ -502,6 +566,108 @@ class PromptParser:
                         found.append(element)
                     break
         return found
+    
+    def _extract_negative_prompt(self, full_prompt: str) -> Tuple[str, str]:
+        """
+        Extract negative prompt section from full prompt.
+        
+        Supports formats:
+        - "positive prompt negative prompt: no rolling notes"
+        - "positive prompt --no rolling notes"
+        - "positive prompt | no rolling notes"
+        
+        Returns:
+            Tuple of (main_prompt, negative_prompt)
+        """
+        # Pattern: "negative prompt:" or "negative:" followed by content
+        neg_pattern = r'(?:negative\s*prompt\s*:|negative:|--no|--neg)\s*(.+?)(?:$|positive\s*prompt\s*:)'
+        match = re.search(neg_pattern, full_prompt, re.IGNORECASE)
+        
+        if match:
+            negative = match.group(1).strip()
+            # Remove the negative prompt part from main prompt
+            main = re.sub(neg_pattern, '', full_prompt, flags=re.IGNORECASE).strip()
+            return main, negative
+        
+        # Alternative: pipe separator
+        if '|' in full_prompt:
+            parts = full_prompt.split('|', 1)
+            if len(parts) == 2:
+                return parts[0].strip(), parts[1].strip()
+        
+        return full_prompt, ''
+    
+    def _parse_negative_elements(self, negative_prompt: str) -> Tuple[List[str], List[str]]:
+        """
+        Parse negative prompt to find excluded drums and instruments.
+        
+        Supports patterns like:
+        - "no rolling notes"
+        - "no hihat roll"
+        - "without 808"
+        - "exclude hi-hat rolls"
+        
+        Returns:
+            Tuple of (excluded_drums, excluded_instruments)
+        """
+        if not negative_prompt:
+            return [], []
+        
+        neg_lower = negative_prompt.lower()
+        excluded_drums: List[str] = []
+        excluded_instruments: List[str] = []
+        
+        # Patterns that indicate exclusion
+        exclusion_patterns = [
+            r'(?:no|without|exclude|remove|avoid|skip|dont|don\'t|not)\s+(.+?)(?:$|,|\s+and\s+)',
+        ]
+        
+        # Find all exclusion targets
+        targets: List[str] = []
+        for pattern in exclusion_patterns:
+            matches = re.findall(pattern, neg_lower)
+            targets.extend(matches)
+        
+        # If no pattern matched, treat entire negative prompt as exclusion list
+        if not targets:
+            targets = [t.strip() for t in neg_lower.replace(',', ' ').split()]
+        
+        # Map targets to drum elements
+        roll_keywords = ['roll', 'rolls', 'rolling', 'rapid', 'triplet', 'double']
+        hihat_roll_keywords = ['hihat roll', 'hi-hat roll', 'hat roll', 'rolling note', 
+                              'rolling notes', 'hihat rolls', 'rolling hats']
+        
+        for target in targets:
+            target = target.strip()
+            
+            # Check for hi-hat roll exclusion (most common request)
+            if any(kw in target for kw in hihat_roll_keywords) or \
+               ('roll' in target and any(h in target for h in ['hi', 'hat', 'hh'])):
+                if 'hihat_roll' not in excluded_drums:
+                    excluded_drums.append('hihat_roll')
+                continue
+            
+            # Check for general roll exclusion
+            if any(kw in target for kw in roll_keywords):
+                if 'hihat_roll' not in excluded_drums:
+                    excluded_drums.append('hihat_roll')
+                continue
+            
+            # Check against drum keywords
+            for drum_type, keywords in DRUM_KEYWORDS.items():
+                if any(kw in target for kw in keywords) or drum_type in target:
+                    if drum_type not in excluded_drums:
+                        excluded_drums.append(drum_type)
+                    break
+            
+            # Check against instrument keywords
+            for inst_type, keywords in INSTRUMENT_KEYWORDS.items():
+                if any(kw in target for kw in keywords) or inst_type in target:
+                    if inst_type not in excluded_instruments:
+                        excluded_instruments.append(inst_type)
+                    break
+        
+        return excluded_drums, excluded_instruments
     
     def _extract_textures(self, prompt: str) -> List[str]:
         """Extract texture/FX keywords from prompt."""

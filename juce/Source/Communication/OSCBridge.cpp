@@ -21,6 +21,7 @@ OSCBridge::OSCBridge(int receivePort_, int sendPort_, const juce::String& host_)
 
 OSCBridge::~OSCBridge()
 {
+    stopTimer();
     disconnect();
     receiver.removeListener(this);
 }
@@ -32,7 +33,7 @@ bool OSCBridge::connect()
     if (!receiver.connect(receivePort))
     {
         DBG("OSCBridge: Failed to listen on port " << receivePort);
-        setConnected(false);
+        setConnectionState(ConnectionState::Error);
         return false;
     }
     
@@ -41,33 +42,58 @@ bool OSCBridge::connect()
     {
         DBG("OSCBridge: Failed to connect sender to " << host << ":" << sendPort);
         receiver.disconnect();
-        setConnected(false);
+        setConnectionState(ConnectionState::Error);
         return false;
     }
     
     DBG("OSCBridge: Connected - listening on " << receivePort << ", sending to " << host << ":" << sendPort);
     
-    // Send ping to verify server is running
+    // Set state to connecting (waiting for pong)
+    setConnectionState(ConnectionState::Connecting);
+    
+    // Send initial ping and start timer for heartbeat/timeout
+    lastPingSentTime = juce::Time::currentTimeMillis();
     sendPing();
+    
+    // Start timer for ping/timeout monitoring
+    startTimer(1000);  // Check every second
     
     return true;
 }
 
 void OSCBridge::disconnect()
 {
+    stopTimer();
     receiver.disconnect();
     sender.disconnect();
-    setConnected(false);
+    currentRequestId.clear();
+    resetReconnectBackoff();
+    setConnectionState(ConnectionState::Disconnected);
 }
 
 //==============================================================================
 void OSCBridge::sendGenerate(const GenerationRequest& request)
 {
-    sendMessage(OSCAddresses::generate, request.toJson());
+    // Ensure request has a unique ID for correlation
+    GenerationRequest mutableRequest = request;
+    if (mutableRequest.requestId.isEmpty())
+        mutableRequest.generateRequestId();
+    
+    // Track current request
+    currentRequestId = mutableRequest.requestId;
+    
+    DBG("OSCBridge: Sending generate with request_id: " << mutableRequest.requestId);
+    
+    // Update state to generating
+    setConnectionState(ConnectionState::Generating);
+    
+    sendMessage(OSCAddresses::generate, mutableRequest.toJson());
 }
 
 void OSCBridge::sendCancel(const juce::String& taskId)
 {
+    setConnectionState(ConnectionState::Canceling);
+    
     if (taskId.isNotEmpty())
         sendMessage(OSCAddresses::cancel, taskId);
     else
@@ -76,12 +102,19 @@ void OSCBridge::sendCancel(const juce::String& taskId)
 
 void OSCBridge::sendPing()
 {
+    lastPingSentTime = juce::Time::currentTimeMillis();
     sendMessage(OSCAddresses::ping);
 }
 
 void OSCBridge::sendShutdown()
 {
-    sendMessage(OSCAddresses::shutdown);
+    // Create shutdown request with request_id for acknowledgment
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    juce::String shutdownRequestId = juce::Uuid().toString();
+    obj->setProperty("request_id", shutdownRequestId);
+    
+    DBG("OSCBridge: Sending shutdown with request_id: " << shutdownRequestId);
+    sendMessage(OSCAddresses::shutdown, juce::JSON::toString(juce::var(obj.get())));
 }
 
 void OSCBridge::sendGetInstruments(const juce::StringArray& paths, const juce::String& cacheDir)
@@ -168,6 +201,10 @@ void OSCBridge::handleComplete(const juce::OSCMessage& message)
     auto jsonStr = message[0].getString();
     auto result = GenerationResult::fromJson(jsonStr);
     
+    // Clear current request and return to connected state
+    currentRequestId.clear();
+    setConnectionState(ConnectionState::Connected);
+    
     listeners.call([&](Listener& l)
     {
         l.onGenerationComplete(result);
@@ -182,6 +219,13 @@ void OSCBridge::handleError(const juce::OSCMessage& message)
     auto jsonStr = message[0].getString();
     auto error = ErrorResponse::fromJson(jsonStr);
     
+    // If error is related to current generation, clear request and return to connected
+    if (error.requestId == currentRequestId || currentRequestId.isEmpty())
+    {
+        currentRequestId.clear();
+        setConnectionState(ConnectionState::Connected);
+    }
+    
     listeners.call([&](Listener& l)
     {
         l.onError(error.code, error.message);
@@ -191,7 +235,17 @@ void OSCBridge::handleError(const juce::OSCMessage& message)
 void OSCBridge::handlePong(const juce::OSCMessage& message)
 {
     lastPongTime = juce::Time::currentTimeMillis();
-    setConnected(true);
+    
+    // Reset reconnect backoff on successful pong
+    resetReconnectBackoff();
+    
+    // If we were connecting or disconnected, we're now connected
+    if (connectionState == ConnectionState::Connecting ||
+        connectionState == ConnectionState::Disconnected ||
+        connectionState == ConnectionState::Error)
+    {
+        setConnectionState(ConnectionState::Connected);
+    }
     
     DBG("OSCBridge: Received pong - server is alive");
 }
@@ -247,15 +301,120 @@ void OSCBridge::sendMessage(const juce::String& address, const juce::String& jso
     }
 }
 
-void OSCBridge::setConnected(bool isConnected)
+void OSCBridge::setConnectionState(ConnectionState newState)
 {
-    if (connected != isConnected)
+    if (connectionState != newState)
     {
-        connected = isConnected;
+        auto oldState = connectionState;
+        connectionState = newState;
         
-        listeners.call([isConnected](Listener& l)
+        // Update legacy connected flag
+        bool nowConnected = (newState == ConnectionState::Connected ||
+                            newState == ConnectionState::Generating);
+        bool wasConnected = (oldState == ConnectionState::Connected ||
+                            oldState == ConnectionState::Generating);
+        
+        if (connected != nowConnected)
         {
-            l.onConnectionStatusChanged(isConnected);
+            connected = nowConnected;
+        }
+        
+        DBG("OSCBridge: State changed from " << connectionStateToString(oldState)
+            << " to " << connectionStateToString(newState));
+        
+        // Notify listeners
+        listeners.call([newState](Listener& l)
+        {
+            l.onConnectionStateChanged(newState);
         });
+        
+        // Also call legacy callback for backward compatibility
+        if (wasConnected != nowConnected)
+        {
+            listeners.call([nowConnected](Listener& l)
+            {
+                l.onConnectionStatusChanged(nowConnected);
+            });
+        }
     }
+}
+
+void OSCBridge::timerCallback()
+{
+    auto now = juce::Time::currentTimeMillis();
+    auto lastPong = lastPongTime.load();
+    auto lastPing = lastPingSentTime.load();
+    
+    // Check for ping timeout
+    if (connectionState == ConnectionState::Connecting)
+    {
+        // If we've been waiting too long for initial pong, connection failed
+        if (now - lastPing > PingTimeoutMs)
+        {
+            DBG("OSCBridge: Ping timeout - server not responding");
+            setConnectionState(ConnectionState::Disconnected);
+            attemptReconnect();
+            return;
+        }
+    }
+    else if (connectionState == ConnectionState::Connected ||
+             connectionState == ConnectionState::Generating)
+    {
+        // Check if we haven't received a pong recently
+        if (lastPong > 0 && now - lastPong > PingTimeoutMs)
+        {
+            DBG("OSCBridge: Lost connection - no pong received for " << PingTimeoutMs << "ms");
+            setConnectionState(ConnectionState::Disconnected);
+            attemptReconnect();
+            return;
+        }
+        
+        // Send periodic ping to keep connection alive
+        if (now - lastPing > PingIntervalMs)
+        {
+            lastPingSentTime = now;
+            sendPing();
+        }
+    }
+    else if (connectionState == ConnectionState::Disconnected && reconnectScheduled)
+    {
+        // Attempt reconnect after backoff delay
+        reconnectScheduled = false;
+        
+        DBG("OSCBridge: Attempting reconnect after " << reconnectDelayMs << "ms backoff");
+        
+        // Increase backoff for next time (exponential backoff)
+        reconnectDelayMs = juce::jmin(reconnectDelayMs * 2, MaxReconnectBackoffMs);
+        
+        // Try to reconnect
+        receiver.disconnect();
+        sender.disconnect();
+        
+        if (receiver.connect(receivePort) && sender.connect(host, sendPort))
+        {
+            setConnectionState(ConnectionState::Connecting);
+            lastPingSentTime = juce::Time::currentTimeMillis();
+            sendPing();
+        }
+        else
+        {
+            // Schedule another reconnect attempt
+            attemptReconnect();
+        }
+    }
+}
+
+void OSCBridge::attemptReconnect()
+{
+    if (!reconnectScheduled)
+    {
+        reconnectScheduled = true;
+        DBG("OSCBridge: Scheduling reconnect in " << reconnectDelayMs << "ms");
+    }
+}
+
+void OSCBridge::resetReconnectBackoff()
+{
+    reconnectDelayMs = InitialReconnectDelayMs;
+    reconnectScheduled = false;
 }

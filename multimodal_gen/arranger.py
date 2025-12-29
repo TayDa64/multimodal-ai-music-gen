@@ -70,15 +70,15 @@ class SectionConfig:
 SECTION_CONFIGS: Dict[SectionType, SectionConfig] = {
     SectionType.INTRO: SectionConfig(
         typical_bars=8,
-        energy_level=0.3,
-        drum_density=0.3,
-        instrument_density=0.3,
+        energy_level=0.4,
+        drum_density=0.4,
+        instrument_density=0.4,
         texture_amount=0.8,
         filter_cutoff=0.5,
-        enable_kick=False,
+        enable_kick=True,    # Sparse kick to establish groove early
         enable_snare=False,
         enable_hihat=True,
-        enable_bass=False,
+        enable_bass=True,    # Subtle bass intro
         enable_chords=True,
         enable_melody=False,
         enable_textures=True,
@@ -140,29 +140,29 @@ SECTION_CONFIGS: Dict[SectionType, SectionConfig] = {
     ),
     SectionType.BREAKDOWN: SectionConfig(
         typical_bars=8,
-        energy_level=0.2,
-        drum_density=0.2,
-        instrument_density=0.4,
+        energy_level=0.3,
+        drum_density=0.3,
+        instrument_density=0.5,
         texture_amount=0.9,
         filter_cutoff=0.6,
-        enable_kick=False,
-        enable_snare=False,
-        enable_hihat=False,
-        enable_bass=False,
+        enable_kick=True,    # Keep sparse kick for groove
+        enable_snare=False,  # No snare for tension
+        enable_hihat=True,   # Light hi-hats for continuity
+        enable_bass=True,    # Keep bass for foundation
         enable_chords=True,
         enable_textures=True,
     ),
     SectionType.BUILDUP: SectionConfig(
         typical_bars=4,
         energy_level=0.6,
-        drum_density=0.5,
-        instrument_density=0.4,
+        drum_density=0.6,
+        instrument_density=0.5,
         texture_amount=0.5,
         filter_cutoff=0.7,
         enable_kick=True,
-        enable_snare=False,
+        enable_snare=True,   # Snare rolls for tension
         enable_hihat=True,
-        enable_bass=False,
+        enable_bass=True,    # Keep bass during buildup
         enable_chords=True,
     ),
     SectionType.BRIDGE: SectionConfig(
@@ -180,15 +180,15 @@ SECTION_CONFIGS: Dict[SectionType, SectionConfig] = {
     ),
     SectionType.OUTRO: SectionConfig(
         typical_bars=8,
-        energy_level=0.3,
-        drum_density=0.3,
-        instrument_density=0.3,
+        energy_level=0.4,
+        drum_density=0.4,
+        instrument_density=0.4,
         texture_amount=0.7,
         filter_cutoff=0.5,
         enable_kick=True,
-        enable_snare=False,
+        enable_snare=True,   # Keep snare for groove
         enable_hihat=True,
-        enable_bass=False,
+        enable_bass=True,    # Keep bass to the end
         enable_chords=True,
         enable_textures=True,
     ),
@@ -271,6 +271,17 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
         (SectionType.BREAKDOWN, 8),
         (SectionType.BUILDUP, 4),
         (SectionType.DROP, 8),
+        (SectionType.OUTRO, 4),
+    ],
+    'rnb': [
+        # R&B arrangement - continuous, flowing sections without big gaps
+        (SectionType.INTRO, 4),
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.BRIDGE, 4),
+        (SectionType.CHORUS, 8),
         (SectionType.OUTRO, 4),
     ],
     'trap': [

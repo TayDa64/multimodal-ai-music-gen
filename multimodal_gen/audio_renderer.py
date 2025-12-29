@@ -50,6 +50,8 @@ from .assets_gen import (
     generate_vinyl_crackle,
     generate_rain,
     generate_fm_pluck,
+    generate_piano_tone,
+    generate_lead_tone,
     generate_pad_tone,
     generate_sine_tone,
     # Ethiopian instruments
@@ -608,8 +610,15 @@ class ProceduralRenderer:
         
         # Choose synthesis method based on program
         # Standard GM instruments
-        if note.program in [0, 1, 2, 3, 4, 5, 6, 7]:  # Piano/Rhodes
+        if note.program in [0, 1, 2, 3]:  # Acoustic/bright/honky-tonk
+            return generate_piano_tone(freq, duration, velocity, self.sample_rate)
+        elif note.program in [4, 5, 6, 7]:  # Electric pianos
             return generate_fm_pluck(freq, duration)
+        elif 80 <= note.program <= 87:  # Synth leads
+            return generate_lead_tone(freq, duration, velocity, self.sample_rate)
+        elif 12 <= note.program <= 15:  # Chromatic percussion (vibe/marimba/xylophone)
+            # Avoid toy mallet timbres in procedural mode; render as soft keys instead.
+            return generate_piano_tone(freq, duration, velocity * 0.75, self.sample_rate)
         elif note.program in [38, 39]:  # Synth Bass
             return generate_808_kick(duration, freq * 4, freq)
         elif note.program >= 88 and note.program <= 95:  # Pads

@@ -138,8 +138,13 @@ class ReferenceAnalysis:
     # Raw features for advanced use
     raw_features: Dict[str, Any] = field(default_factory=dict)
     
-    def to_prompt_hints(self) -> str:
-        """Convert analysis to natural language hints for prompt enhancement."""
+    def to_prompt_hints(self, include_genre: bool = False) -> str:
+        """Convert analysis to natural language hints for prompt enhancement.
+
+        Args:
+            include_genre: If True, include the analyzer's estimated genre.
+                Default is False to avoid overriding an explicitly user-requested genre.
+        """
         hints = []
         
         # BPM
@@ -148,8 +153,8 @@ class ReferenceAnalysis:
         # Key
         hints.append(f"in {self.key} {self.mode}")
         
-        # Genre
-        if self.estimated_genre:
+        # Genre (optional; can easily override user intent)
+        if include_genre and self.estimated_genre:
             hints.append(f"{self.estimated_genre.replace('_', ' ')} style")
         
         # Groove
@@ -1081,7 +1086,7 @@ def reference_to_prompt(url: str, base_prompt: str = "") -> str:
         Enhanced prompt string
     """
     analysis = analyze_reference(url, verbose=True)
-    hints = analysis.to_prompt_hints()
+    hints = analysis.to_prompt_hints(include_genre=False)
     
     if base_prompt:
         return f"{base_prompt}, {hints}"

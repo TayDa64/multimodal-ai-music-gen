@@ -5,6 +5,9 @@
 mido>=1.3.0                    # MIDI file I/O and message handling
 pretty_midi>=0.2.10            # High-level MIDI manipulation
 
+# Live MIDI device backend (pygame has pre-built Windows wheels, no compilation needed)
+pygame>=2.0.0
+
 # Audio Processing & Synthesis
 numpy>=1.24.0                  # Numerical operations for audio synthesis
 scipy>=1.11.0                  # Signal processing (filters, envelopes)

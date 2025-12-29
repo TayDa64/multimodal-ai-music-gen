@@ -45,8 +45,17 @@ public:
     /** Get the current prompt text */
     juce::String getPromptText() const;
     
+    /** Get the current negative prompt text */
+    juce::String getNegativePromptText() const;
+    
+    /** Get combined prompt (main + negative for Python backend) */
+    juce::String getCombinedPrompt() const;
+    
     /** Set the prompt text */
     void setPromptText(const juce::String& text);
+    
+    /** Set the negative prompt text */
+    void setNegativePromptText(const juce::String& text);
     
     /** Enable/disable the generate button */
     void setGenerateEnabled(bool enabled);
@@ -54,6 +63,7 @@ public:
 private:
     //==============================================================================
     void setupPromptInput();
+    void setupNegativePromptInput();
     void setupGenreSelector();
     void setupDurationControls();
     void setupGenerateButton();
@@ -70,9 +80,13 @@ private:
     AppState& appState;
     juce::ListenerList<Listener> listeners;
     
-    // Prompt input
+    // Prompt input (main/positive prompt)
     juce::TextEditor promptInput;
     juce::Label promptLabel;
+    
+    // Negative prompt input (exclusions)
+    juce::TextEditor negativePromptInput;
+    juce::Label negativePromptLabel;
     
     // Genre selector
     juce::ComboBox genreSelector;

@@ -19,6 +19,10 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     // Set size FIRST
     setSize(1280, 800);
     
+    // Create Python manager and attempt to auto-start the server
+    pythonManager = std::make_unique<PythonManager>();
+    startPythonServer();
+    
     // Create UI components
     transportBar = std::make_unique<TransportComponent>(appState, audioEngine);
     transportBar->setVisible(true);
@@ -74,6 +78,9 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
 MainComponent::~MainComponent()
 {
     stopTimer();
+    
+    // Send graceful shutdown to Python server before cleaning up
+    stopPythonServer();
     
     if (oscBridge)
         oscBridge->removeListener(this);
@@ -380,6 +387,49 @@ void MainComponent::fileSelected(const juce::File& file)
     {
         repaint();
     });
+}
+
+//==============================================================================
+void MainComponent::startPythonServer()
+{
+    if (pythonManager && !pythonManager->isRunning())
+    {
+        DBG("MainComponent: Attempting to auto-start Python server...");
+        
+        // Try to start the server on port 9000 (OSC receive port)
+        bool started = pythonManager->startServer({}, {}, 9000, true);  // verbose=true
+        
+        if (started)
+        {
+            DBG("MainComponent: Python server started successfully");
+            currentStatus = "Server starting...";
+        }
+        else
+        {
+            DBG("MainComponent: Could not auto-start Python server");
+            currentStatus = "Server not found - start manually with: python main.py --server";
+        }
+    }
+}
+
+void MainComponent::stopPythonServer()
+{
+    // Send graceful shutdown via OSC first
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Sending shutdown command to Python server...");
+        oscBridge->sendShutdown();
+        
+        // Give the server a moment to process the shutdown
+        juce::Thread::sleep(500);
+    }
+    
+    // Then stop the managed process
+    if (pythonManager)
+    {
+        DBG("MainComponent: Stopping Python server process...");
+        pythonManager->stopServer();
+    }
 }
 
 //==============================================================================

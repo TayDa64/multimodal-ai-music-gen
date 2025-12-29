@@ -14,10 +14,19 @@
 
 //==============================================================================
 /**
+    Protocol version for OSC message compatibility.
+    Increment when making breaking changes to message structure.
+*/
+static constexpr int SCHEMA_VERSION = 1;
+
+//==============================================================================
+/**
     Request to generate music from a text prompt.
 */
 struct GenerationRequest
 {
+    juce::String requestId;         // UUID for request/response correlation
+    int schemaVersion = SCHEMA_VERSION;
     juce::String prompt;
     int bpm = 0;                    // 0 = auto-detect
     int bars = 8;                   // Number of bars to generate
@@ -31,10 +40,20 @@ struct GenerationRequest
     bool exportMpc = false;
     bool verbose = false;
     
+    /**
+        Generate a new unique request ID using UUID.
+    */
+    void generateRequestId()
+    {
+        requestId = juce::Uuid().toString();
+    }
+    
     juce::String toJson() const
     {
         juce::DynamicObject::Ptr obj = new juce::DynamicObject();
         
+        obj->setProperty("request_id", requestId);
+        obj->setProperty("schema_version", schemaVersion);
         obj->setProperty("prompt", prompt);
         obj->setProperty("bpm", bpm);
         obj->setProperty("bars", bars);
@@ -63,6 +82,7 @@ struct GenerationRequest
 struct GenerationResult
 {
     juce::String taskId;
+    juce::String requestId;         // Correlates with original request
     bool success = false;
     
     juce::String midiPath;
@@ -97,6 +117,7 @@ struct GenerationResult
             return result;
         
         result.taskId = obj->getProperty("task_id").toString();
+        result.requestId = obj->getProperty("request_id").toString();
         result.success = obj->getProperty("success");
         
         result.midiPath = obj->getProperty("midi_path").toString();
@@ -145,6 +166,7 @@ struct GenerationResult
 */
 struct ProgressUpdate
 {
+    juce::String requestId;         // Correlates with original request
     juce::String step;
     float percent = 0.0f;
     juce::String message;
@@ -156,6 +178,7 @@ struct ProgressUpdate
         auto json = juce::JSON::parse(jsonStr);
         if (auto* obj = json.getDynamicObject())
         {
+            update.requestId = obj->getProperty("request_id").toString();
             update.step = obj->getProperty("step").toString();
             update.percent = obj->getProperty("percent");
             update.message = obj->getProperty("message").toString();
@@ -171,6 +194,7 @@ struct ProgressUpdate
 */
 struct ErrorResponse
 {
+    juce::String requestId;         // Correlates with original request
     int code = 0;
     juce::String message;
     bool recoverable = true;
@@ -182,6 +206,7 @@ struct ErrorResponse
         auto json = juce::JSON::parse(jsonStr);
         if (auto* obj = json.getDynamicObject())
         {
+            error.requestId = obj->getProperty("request_id").toString();
             error.code = obj->getProperty("code");
             error.message = obj->getProperty("message").toString();
             error.recoverable = obj->getProperty("recoverable");

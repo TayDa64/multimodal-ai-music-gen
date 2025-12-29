@@ -28,6 +28,7 @@ from .config import (
     GenerationStep,
     ErrorCode,
     DEFAULT_CONFIG,
+    SCHEMA_VERSION,
 )
 from .worker import (
     GenerationWorker,
@@ -91,6 +92,7 @@ class MusicGenOSCServer:
         self._running = False
         self._server_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
+        self._current_request_id: Optional[str] = None  # Track current request for correlation
         
         # Callbacks for external integration (optional)
         self.on_generation_start: Optional[callable] = None
@@ -236,6 +238,8 @@ class MusicGenOSCServer:
         
         Expected args (JSON string):
             {
+                "request_id": "uuid",  // For request/response correlation
+                "schema_version": 1,   // Protocol version
                 "prompt": "G-Funk beat with smooth synths",
                 "bpm": 0,           // 0 = auto
                 "key": "",          // Empty = auto
@@ -248,31 +252,52 @@ class MusicGenOSCServer:
         """
         self._log(f"📥 Received: {address}")
         
+        # Parse request_id early for error correlation
+        request_id = ""
+        try:
+            if args:
+                data = json.loads(args[0]) if isinstance(args[0], str) else {}
+                request_id = data.get("request_id", "")
+                self._current_request_id = request_id
+        except:
+            pass
+        
         # Check if already busy
         if self._gen_worker and self._gen_worker.is_busy():
             self._send_error(
                 ErrorCode.SERVER_BUSY,
-                "Server is busy with another generation"
+                "Server is busy with another generation",
+                request_id=request_id
             )
             return
         
         try:
             # Parse JSON argument
             if not args:
-                self._send_error(ErrorCode.MISSING_PARAMETER, "No parameters provided")
+                self._send_error(ErrorCode.MISSING_PARAMETER, "No parameters provided", request_id=request_id)
                 return
             
             data = json.loads(args[0]) if isinstance(args[0], str) else {}
             
+            # Extract and validate request_id
+            request_id = data.get("request_id", "")
+            schema_version = data.get("schema_version", 1)
+            
+            # Log protocol info
+            if schema_version != SCHEMA_VERSION:
+                self._log(f"   ⚠️ Schema version mismatch: client={schema_version}, server={SCHEMA_VERSION}")
+            
             # Validate prompt
             prompt = data.get("prompt", "").strip()
             if not prompt:
-                self._send_error(ErrorCode.INVALID_PROMPT, "Prompt is required")
+                self._send_error(ErrorCode.INVALID_PROMPT, "Prompt is required", request_id=request_id)
                 return
             
-            # Build request
+            # Build request with request_id
             request = GenerationRequest(
                 prompt=prompt,
+                request_id=request_id,
+                schema_version=schema_version,
                 bpm=int(data.get("bpm", 0)),
                 key=data.get("key", ""),
                 output_dir=data.get("output_dir", self.config.default_output_dir),
@@ -285,6 +310,7 @@ class MusicGenOSCServer:
                 verbose=data.get("verbose", self.config.verbose),
             )
             
+            self._log(f"   Request ID: {request_id}" if request_id else "   Request ID: (none)")
             self._log(f"   Prompt: \"{request.prompt[:50]}...\"" if len(request.prompt) > 50 else f"   Prompt: \"{request.prompt}\"")
             
             # Optional callback
@@ -295,8 +321,8 @@ class MusicGenOSCServer:
             task_id = self._gen_worker.submit(request)
             self._log(f"   Task ID: {task_id}")
             
-            # Send acknowledgment
-            self._send_status("generation_started", {"task_id": task_id})
+            # Send acknowledgment with request_id
+            self._send_status("generation_started", {"task_id": task_id, "request_id": request_id})
             
         except json.JSONDecodeError as e:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
@@ -370,15 +396,41 @@ class MusicGenOSCServer:
             "status": "ok",
             "busy": self._gen_worker.is_busy() if self._gen_worker else False,
             "timestamp": time.time(),
+            "schema_version": SCHEMA_VERSION,
         }))
     
     def _handle_shutdown(self, address: str, *args):
-        """Handle /shutdown message for graceful shutdown."""
-        self._log(f"📥 Received: {address}")
-        self._send_status("shutdown_started", {})
+        """
+        Handle /shutdown message for graceful shutdown.
         
-        # Schedule shutdown on main thread
-        threading.Thread(target=self.stop, daemon=True).start()
+        Expected args (JSON string):
+            {
+                "request_id": "uuid"  // For acknowledgment correlation
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        # Parse request_id from shutdown request
+        request_id = ""
+        try:
+            if args:
+                data = json.loads(args[0]) if isinstance(args[0], str) else {}
+                request_id = data.get("request_id", "")
+        except:
+            pass
+        
+        # Send acknowledgment with request_id
+        self._send_status("shutdown_acknowledged", {
+            "request_id": request_id,
+            "timestamp": time.time(),
+        })
+        
+        # Schedule shutdown on main thread (allow time for ack to be sent)
+        def delayed_shutdown():
+            time.sleep(0.5)  # Give 500ms for acknowledgment to be sent
+            self.stop()
+        
+        threading.Thread(target=delayed_shutdown, daemon=True).start()
     
     def _handle_unknown(self, address: str, *args):
         """Handle unknown OSC messages."""
@@ -391,6 +443,7 @@ class MusicGenOSCServer:
     def _on_progress(self, step: str, percent: float, message: str):
         """Called by worker to report progress."""
         self._send_message(OSCAddresses.PROGRESS, json.dumps({
+            "request_id": self._current_request_id or "",
             "step": step,
             "percent": percent,
             "message": message,
@@ -403,15 +456,17 @@ class MusicGenOSCServer:
             self._log(f"   [{bar}] {percent*100:5.1f}% - {message}", end="\r")
             if percent >= 1.0:
                 print()  # New line after completion
-    
+
     def _on_generation_complete(self, result: GenerationResult):
         """Called by worker when generation completes."""
         self._send_message(OSCAddresses.COMPLETE, json.dumps(result.to_dict()))
         
+        # Clear current request_id after completion
+        self._current_request_id = None
+        
         self._log(f"✅ Generation complete: {result.task_id}")
-        if result.midi_path:
-            self._log(f"   MIDI: {Path(result.midi_path).name}")
-        if result.audio_path:
+        if result.request_id:
+            self._log(f"   Request ID: {result.request_id}")
             self._log(f"   Audio: {Path(result.audio_path).name}")
         
         if self.on_generation_complete:
@@ -445,11 +500,15 @@ class MusicGenOSCServer:
             except Exception as e:
                 self._log(f"⚠️  Failed to send message: {e}")
     
-    def _send_error(self, code: int, message: str):
-        """Send an error message to the client."""
+    def _send_error(self, code: int, message: str, request_id: str = ""):
+        """Send an error message to the client with request_id correlation."""
         self._log(f"❌ Error [{code}]: {message}")
         
+        # Use provided request_id or fall back to current request
+        req_id = request_id or self._current_request_id or ""
+        
         self._send_message(OSCAddresses.ERROR, json.dumps({
+            "request_id": req_id,
             "code": code,
             "message": message,
             "recoverable": code not in (

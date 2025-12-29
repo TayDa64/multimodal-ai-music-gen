@@ -65,7 +65,11 @@ def print_banner():
 ║      Professional Humanization • CPU-Only • Offline-First     ║
 ╚════════════════════════════════════════════════════════════════╝
     """
-    print(f"{Fore.CYAN}{banner}{Style.RESET_ALL}")
+    try:
+        print(f"{Fore.CYAN}{banner}{Style.RESET_ALL}")
+    except Exception:
+        # Fallback for redirected output or colorama issues
+        print(banner)
 
 
 def print_step(step: str, message: str):
@@ -220,6 +224,9 @@ def run_generation(
     
     reference_info = None
     instrument_library = None
+
+    # Preserve user prompt before any reference-based enhancement.
+    base_prompt = prompt
     
     # Step 0: Analyze reference track if provided
     if reference_url:
@@ -246,7 +253,8 @@ def run_generation(
                 "mode": analysis.mode,
                 "genre": analysis.estimated_genre,
                 "style_tags": analysis.style_tags,
-                "prompt_hints": analysis.to_prompt_hints(),
+                # Store the hints actually used to enhance the prompt (genre excluded by default)
+                "prompt_hints": analysis.to_prompt_hints(include_genre=False),
             }
             
             reference_info = {
@@ -261,7 +269,7 @@ def run_generation(
             print_info(f"Detected: {analysis.bpm:.0f} BPM, {analysis.key} {analysis.mode}, {analysis.estimated_genre}")
             
             # Enhance prompt with reference analysis
-            enhanced_hints = analysis.to_prompt_hints()
+            enhanced_hints = analysis.to_prompt_hints(include_genre=False)
             prompt = f"{prompt}, {enhanced_hints}"
             if verbose:
                 print_info(f"Enhanced prompt: {prompt}")
@@ -288,7 +296,17 @@ def run_generation(
     print_step("1/6", "Parsing prompt...")
     report_progress("parsing", 0.05, "Parsing prompt...")
     parser = PromptParser()
+    base_parsed = parser.parse(base_prompt)
     parsed = parser.parse(prompt)
+
+    # If the user explicitly asked for a genre/instruments in the original prompt,
+    # do not let reference-based hinting override that intent.
+    if base_parsed.genre and base_parsed.genre != parsed.genre:
+        parsed.genre = base_parsed.genre
+
+    if getattr(base_parsed, 'instruments', None):
+        if base_parsed.instruments and (not parsed.instruments or base_parsed.instruments != parsed.instruments):
+            parsed.instruments = base_parsed.instruments
     
     # Apply overrides
     if bpm_override:
@@ -818,6 +836,51 @@ Server Mode (for JUCE integration):
         type=str,
         help="YouTube URL or audio file path to analyze for style reference",
     )
+
+    # MIDI controller integration (e.g., MPC Studio)
+    parser.add_argument(
+        "--list-midi",
+        action="store_true",
+        help="List available MIDI input devices and exit",
+    )
+    parser.add_argument(
+        "--midi-in",
+        type=str,
+        default=None,
+        help="MIDI input device name (exact or substring match). Used with --record-part",
+    )
+    parser.add_argument(
+        "--record-part",
+        type=str,
+        choices=["drums", "keys", "lead"],
+        default=None,
+        help="Record a live part from a MIDI controller (replaces the generated part)",
+    )
+    parser.add_argument(
+        "--record-bars",
+        type=int,
+        default=8,
+        help="Bars to record (default: 8). Ignored if --record-seconds is set",
+    )
+    parser.add_argument(
+        "--record-seconds",
+        type=float,
+        default=None,
+        help="Seconds to record (overrides --record-bars)",
+    )
+    parser.add_argument(
+        "--count-in",
+        type=int,
+        default=1,
+        help="Count-in bars before recording starts (default: 1)",
+    )
+    parser.add_argument(
+        "--quantize",
+        type=str,
+        choices=["off", "1/16", "1/8"],
+        default="1/16",
+        help="Quantize recorded notes to a grid (default: 1/16)",
+    )
     
     # Music parameters
     parser.add_argument(
@@ -905,6 +968,22 @@ Server Mode (for JUCE integration):
     )
     
     args = parser.parse_args()
+
+    # MIDI device listing is a standalone action
+    if args.list_midi:
+        try:
+            from multimodal_gen import list_midi_inputs
+            inputs = list_midi_inputs()
+            if not inputs:
+                print("No MIDI input devices detected.")
+            else:
+                print("Available MIDI inputs:")
+                for name in inputs:
+                    print(f"  - {name}")
+            return 0
+        except Exception as e:
+            print_error(str(e))
+            return 1
     
     # Handle server mode
     if args.server:
@@ -999,11 +1078,52 @@ Server Mode (for JUCE integration):
             print_info(f"Reference: {args.reference}")
         if args.instruments:
             print_info(f"Instruments: {args.instruments}")
+        if args.record_part:
+            print_info(f"Record part: {args.record_part} (MIDI in: {args.midi_in or 'NOT SET'})")
         if args.seed:
             print_info(f"Seed: {args.seed} (reproducible generation enabled)")
         print()
     
     try:
+        recorded_midi_path = None
+        record_channel = None
+
+        if args.record_part:
+            if not args.midi_in:
+                raise ValueError("--midi-in is required when using --record-part")
+
+            from multimodal_gen import (
+                RecordConfig,
+                record_midi_to_file,
+            )
+
+            # Record at the intended BPM (args.bpm overrides prompt parsing)
+            # If BPM isn't provided, we let parsing decide later, but recording still needs a BPM.
+            # We'll default to 140 for trap-like usability if not specified.
+            record_bpm = float(args.bpm) if args.bpm else 140.0
+            record_channel = 9 if args.record_part == 'drums' else (2 if args.record_part == 'keys' else 3)
+
+            recorded_midi_path = str(output_dir / f"recorded_{args.record_part}.mid")
+
+            def rec_progress(msg: str):
+                if not args.json:
+                    print_info(msg)
+
+            cfg = RecordConfig(
+                port_name=args.midi_in,
+                bpm=record_bpm,
+                part=args.record_part,
+                bars=args.record_bars,
+                seconds=args.record_seconds,
+                count_in_bars=args.count_in,
+                quantize=args.quantize,
+            )
+
+            print_step("0/6", f"Recording {args.record_part} from MIDI controller...")
+            record_midi_to_file(cfg, recorded_midi_path, progress=rec_progress)
+            if not args.json:
+                print_success(f"Recorded MIDI saved: {Path(recorded_midi_path).name}")
+
         # Run generation pipeline
         results = run_generation(
             prompt=args.prompt,
@@ -1020,6 +1140,29 @@ Server Mode (for JUCE integration):
             seed=args.seed,
             use_bwf=not args.no_bwf,
         )
+
+        # Replace generated part with recorded performance (if present)
+        if recorded_midi_path and results.get('midi'):
+            from multimodal_gen import replace_channel_in_midi
+
+            print_step("5.5/6", f"Applying recorded {args.record_part} to arrangement...")
+            replace_channel_in_midi(
+                midi_path=results['midi'],
+                replacement_midi_path=recorded_midi_path,
+                channel=int(record_channel),
+                output_path=results['midi'],
+                replacement_track_name=f"Recorded {args.record_part}",
+            )
+
+            # Re-render audio so the WAV reflects the new MIDI
+            print_step("5.7/6", "Re-rendering audio with recorded MIDI...")
+            renderer = AudioRenderer(
+                soundfont_path=args.soundfont,
+                output_dir=str(output_dir),
+                verbose=args.verbose,
+                use_bwf=not args.no_bwf,
+            )
+            results['audio'] = renderer.render_midi_to_audio(results['midi'])
         
         # Parse prompt again for metadata (could optimize)
         parser_instance = PromptParser()

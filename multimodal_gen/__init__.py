@@ -60,6 +60,16 @@ from .utils import (
     get_scale_notes,
 )
 
+from .midi_recording import (
+    list_midi_inputs,
+    list_midi_devices_detailed,
+    record_midi_to_file,
+    replace_channel_in_midi,
+    RecordConfig,
+    MidiRecordingError,
+    MidiDeviceInfo,
+)
+
 __all__ = [
     "PromptParser",
     "ParsedPrompt",
@@ -105,4 +115,12 @@ __all__ = [
     "bars_to_ticks",
     "note_name_to_midi",
     "get_scale_notes",
+    # MIDI recording
+    "list_midi_inputs",
+    "list_midi_devices_detailed",
+    "record_midi_to_file",
+    "replace_channel_in_midi",
+    "RecordConfig",
+    "MidiRecordingError",
+    "MidiDeviceInfo",
 ]

@@ -3,7 +3,7 @@
 
     RecentFilesPanel.cpp
     
-    Implementation of the recent files browser panel.
+    Implementation of the recent files browser panel with file management.
 
   ==============================================================================
 */
@@ -94,14 +94,22 @@ void RecentFilesPanel::FileListBox::paintListBoxItem(int rowNumber, juce::Graphi
     g.drawText(details, bounds, juce::Justification::centredLeft);
 }
 
-void RecentFilesPanel::FileListBox::listBoxItemClicked(int row, const juce::MouseEvent&)
+void RecentFilesPanel::FileListBox::listBoxItemClicked(int row, const juce::MouseEvent& e)
 {
-    DBG("RecentFilesPanel: Single-click on row " << row);
+    DBG("RecentFilesPanel: Click on row " << row);
     owner.selectedRow = row;
     repaint();
     
-    // Load file on single click for immediate feedback
-    owner.loadSelectedFile();
+    // Right-click shows context menu
+    if (e.mods.isRightButtonDown() || e.mods.isPopupMenu())
+    {
+        owner.showContextMenu(row);
+    }
+    else
+    {
+        // Left-click loads file
+        owner.loadSelectedFile();
+    }
 }
 
 void RecentFilesPanel::FileListBox::listBoxItemDoubleClicked(int row, const juce::MouseEvent&)
@@ -116,7 +124,7 @@ void RecentFilesPanel::FileListBox::listBoxItemDoubleClicked(int row, const juce
 juce::String RecentFilesPanel::FileListBox::getTooltipForRow(int row)
 {
     if (row >= 0 && row < owner.files.size())
-        return owner.files[row].file.getFullPathName();
+        return owner.files[row].file.getFullPathName() + "\n\nRight-click for options";
     return {};
 }
 
@@ -142,12 +150,16 @@ RecentFilesPanel::RecentFilesPanel(AppState& state, mmg::AudioEngine& engine)
     // Open folder button
     openFolderButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     openFolderButton.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
-    openFolderButton.setTooltip("Open output folder");
-    openFolderButton.onClick = [this] {
-        if (outputDirectory.isDirectory())
-            outputDirectory.startAsProcess();
-    };
+    openFolderButton.setTooltip("Open output folder in Explorer");
+    openFolderButton.onClick = [this] { revealInExplorer(); };
     addAndMakeVisible(openFolderButton);
+    
+    // Delete button
+    deleteButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
+    deleteButton.setColour(juce::TextButton::textColourOffId, AppColours::error);
+    deleteButton.setTooltip("Delete selected file");
+    deleteButton.onClick = [this] { deleteSelectedFile(); };
+    addAndMakeVisible(deleteButton);
     
     // File list
     fileList = std::make_unique<FileListBox>(*this);
@@ -169,8 +181,8 @@ RecentFilesPanel::RecentFilesPanel(AppState& state, mmg::AudioEngine& engine)
     if (possibleOutputDir.isDirectory())
         setOutputDirectory(possibleOutputDir);
     
-    // Start auto-refresh timer (every 5 seconds)
-    startTimerHz(1); // Check every second, but only scan if directory modified
+    // Start auto-refresh timer (check every 2 seconds for new files)
+    startTimer(2000);
 }
 
 RecentFilesPanel::~RecentFilesPanel()
@@ -196,9 +208,13 @@ void RecentFilesPanel::resized()
     
     // Header row
     auto headerRow = bounds.removeFromTop(28);
-    titleLabel.setBounds(headerRow.removeFromLeft(150));
+    titleLabel.setBounds(headerRow.removeFromLeft(120));
     
+    // Buttons on the right
+    deleteButton.setBounds(headerRow.removeFromRight(32).withHeight(24));
+    headerRow.removeFromRight(4);
     openFolderButton.setBounds(headerRow.removeFromRight(32).withHeight(24));
+    headerRow.removeFromRight(4);
     refreshButton.setBounds(headerRow.removeFromRight(32).withHeight(24));
     
     bounds.removeFromTop(8);
@@ -219,25 +235,32 @@ void RecentFilesPanel::setOutputDirectory(const juce::File& directory)
     if (directory.isDirectory())
     {
         outputDirectory = directory;
+        DBG("RecentFilesPanel: Set output directory to " << directory.getFullPathName());
         scanDirectory();
     }
 }
 
 void RecentFilesPanel::refresh()
 {
+    DBG("RecentFilesPanel: Manual refresh triggered");
     scanDirectory();
 }
 
 void RecentFilesPanel::scanDirectory()
 {
     if (!outputDirectory.isDirectory())
+    {
+        DBG("RecentFilesPanel: Output directory not set or invalid");
         return;
+    }
     
     files.clear();
     
     // Find all MIDI files
     auto midiFiles = outputDirectory.findChildFiles(
         juce::File::findFiles, false, "*.mid;*.midi");
+    
+    DBG("RecentFilesPanel: Found " << midiFiles.size() << " MIDI files in " << outputDirectory.getFullPathName());
     
     // Sort by date (newest first)
     midiFiles.sort();
@@ -255,6 +278,7 @@ void RecentFilesPanel::scanDirectory()
     }
     
     lastScanTime = juce::Time::getCurrentTime();
+    lastFileCount = midiFiles.size();
     
     if (fileList)
     {
@@ -264,8 +288,10 @@ void RecentFilesPanel::scanDirectory()
     
     // Update empty state visibility
     bool hasFiles = !files.isEmpty();
-    fileList->setVisible(hasFiles);
+    if (fileList) fileList->setVisible(hasFiles);
     emptyLabel.setVisible(!hasFiles);
+    
+    DBG("RecentFilesPanel: Scan complete, showing " << files.size() << " files");
 }
 
 RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& file)
@@ -390,14 +416,258 @@ void RecentFilesPanel::loadSelectedFile()
 }
 
 //==============================================================================
+// File Management Operations
+//==============================================================================
+void RecentFilesPanel::showContextMenu(int row)
+{
+    if (row < 0 || row >= files.size())
+        return;
+    
+    selectedRow = row;
+    const auto& info = files[row];
+    
+    juce::PopupMenu menu;
+    menu.addItem(1, "Load File", true);
+    menu.addSeparator();
+    menu.addItem(2, "Show in Explorer", true);
+    menu.addItem(3, "Export to...", true);
+    menu.addItem(4, "Rename...", true);
+    menu.addSeparator();
+    menu.addItem(5, "Delete", true);
+    menu.addSeparator();
+    menu.addItem(6, "Delete ALL Files...", true);
+    
+    menu.showMenuAsync(juce::PopupMenu::Options(),
+        [this, info](int result) {
+            switch (result)
+            {
+                case 1: loadSelectedFile(); break;
+                case 2: revealInExplorer(); break;
+                case 3: exportSelectedFile(); break;
+                case 4: renameSelectedFile(); break;
+                case 5: deleteSelectedFile(); break;
+                case 6: deleteAllFiles(); break;
+                default: break;
+            }
+        });
+}
+
+void RecentFilesPanel::deleteSelectedFile()
+{
+    if (selectedRow < 0 || selectedRow >= files.size())
+        return;
+    
+    const auto fileToDelete = files[selectedRow].file;
+    const auto fileName = fileToDelete.getFileName();
+    
+    // Use async confirmation dialog
+    juce::AlertWindow::showAsync(
+        juce::MessageBoxOptions()
+            .withIconType(juce::MessageBoxIconType::WarningIcon)
+            .withTitle("Delete File")
+            .withMessage("Are you sure you want to delete:\n\n" + fileName + "\n\nThis will move the file to Recycle Bin.")
+            .withButton("Delete")
+            .withButton("Cancel"),
+        [this, fileToDelete](int result)
+        {
+            if (result == 1)  // Delete button clicked
+            {
+                // Move to recycle bin instead of permanent delete
+                if (fileToDelete.moveToTrash())
+                {
+                    DBG("RecentFilesPanel: Moved to trash: " << fileToDelete.getFullPathName());
+                    refresh();
+                }
+                else
+                {
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::MessageBoxIconType::WarningIcon,
+                        "Delete Failed",
+                        "Could not delete the file. It may be in use by another application."
+                    );
+                }
+            }
+        });
+}
+
+void RecentFilesPanel::exportSelectedFile()
+{
+    if (selectedRow < 0 || selectedRow >= files.size())
+        return;
+    
+    const auto srcFile = files[selectedRow].file;
+    
+    auto chooser = std::make_shared<juce::FileChooser>(
+        "Export MIDI File",
+        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+            .getChildFile(srcFile.getFileName()),
+        "*.mid"
+    );
+    
+    chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser, srcFile](const juce::FileChooser& fc)
+        {
+            auto destFile = fc.getResult();
+            if (destFile != juce::File{})
+            {
+                // Ensure .mid extension
+                if (!destFile.hasFileExtension(".mid"))
+                    destFile = destFile.withFileExtension(".mid");
+                
+                if (srcFile.copyFileTo(destFile))
+                {
+                    DBG("RecentFilesPanel: Exported to: " << destFile.getFullPathName());
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::MessageBoxIconType::InfoIcon,
+                        "Export Complete",
+                        "File exported successfully to:\n\n" + destFile.getFullPathName()
+                    );
+                }
+                else
+                {
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::MessageBoxIconType::WarningIcon,
+                        "Export Failed",
+                        "Could not export the file. Please check the destination path."
+                    );
+                }
+            }
+        });
+}
+
+void RecentFilesPanel::revealInExplorer()
+{
+    if (selectedRow >= 0 && selectedRow < files.size())
+    {
+        // Reveal specific file
+        files[selectedRow].file.revealToUser();
+    }
+    else if (outputDirectory.isDirectory())
+    {
+        // Open folder
+        outputDirectory.startAsProcess();
+    }
+}
+
+void RecentFilesPanel::renameSelectedFile()
+{
+    if (selectedRow < 0 || selectedRow >= files.size())
+        return;
+    
+    const auto& info = files[selectedRow];
+    
+    // Create input dialog
+    auto* aw = new juce::AlertWindow("Rename File", 
+                                     "Enter new name:", 
+                                     juce::AlertWindow::QuestionIcon);
+    aw->addTextEditor("newName", info.file.getFileNameWithoutExtension(), "New name:");
+    aw->addButton("Rename", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    aw->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    
+    aw->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, aw, info](int result) {
+            if (result == 1)
+            {
+                auto newName = aw->getTextEditorContents("newName").trim();
+                if (newName.isNotEmpty())
+                {
+                    auto newFile = info.file.getParentDirectory()
+                                       .getChildFile(newName + ".mid");
+                    
+                    if (newFile.exists())
+                    {
+                        juce::AlertWindow::showMessageBoxAsync(
+                            juce::MessageBoxIconType::WarningIcon,
+                            "Rename Failed",
+                            "A file with that name already exists."
+                        );
+                    }
+                    else if (info.file.moveFileTo(newFile))
+                    {
+                        DBG("RecentFilesPanel: Renamed to: " << newFile.getFullPathName());
+                        this->refresh();
+                    }
+                    else
+                    {
+                        juce::AlertWindow::showMessageBoxAsync(
+                            juce::MessageBoxIconType::WarningIcon,
+                            "Rename Failed",
+                            "Could not rename the file."
+                        );
+                    }
+                }
+            }
+            delete aw;
+        }), true);
+}
+
+void RecentFilesPanel::deleteAllFiles()
+{
+    if (files.isEmpty())
+        return;
+    
+    const int fileCount = files.size();
+    
+    // Collect all file paths before showing dialog (since files array may change)
+    juce::Array<juce::File> filesToDelete;
+    for (const auto& info : files)
+        filesToDelete.add(info.file);
+    
+    // Confirm deletion with count using async dialog
+    juce::AlertWindow::showAsync(
+        juce::MessageBoxOptions()
+            .withIconType(juce::MessageBoxIconType::WarningIcon)
+            .withTitle("Delete All Files")
+            .withMessage("Are you sure you want to delete ALL " + juce::String(fileCount) + " MIDI files?\n\n"
+                        "Files will be moved to the Recycle Bin.")
+            .withButton("Delete All")
+            .withButton("Cancel"),
+        [this, filesToDelete](int result)
+        {
+            if (result == 1)  // Delete All clicked
+            {
+                int deleted = 0;
+                int failed = 0;
+                
+                for (const auto& file : filesToDelete)
+                {
+                    if (file.moveToTrash())
+                        deleted++;
+                    else
+                        failed++;
+                }
+                
+                DBG("RecentFilesPanel: Deleted " << deleted << " files, " << failed << " failed");
+                
+                if (failed > 0)
+                {
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::MessageBoxIconType::WarningIcon,
+                        "Partial Deletion",
+                        "Deleted " + juce::String(deleted) + " files.\n" +
+                        juce::String(failed) + " files could not be deleted (may be in use)."
+                    );
+                }
+                
+                refresh();
+            }
+        });
+}
+
+//==============================================================================
 void RecentFilesPanel::timerCallback()
 {
-    // Check if directory has been modified
+    // Check if directory has new files by counting
     if (outputDirectory.isDirectory())
     {
-        auto dirModTime = outputDirectory.getLastModificationTime();
-        if (dirModTime > lastScanTime)
+        auto midiFiles = outputDirectory.findChildFiles(
+            juce::File::findFiles, false, "*.mid;*.midi");
+        
+        // Refresh if file count changed
+        if (midiFiles.size() != lastFileCount)
         {
+            DBG("RecentFilesPanel: File count changed from " << lastFileCount 
+                << " to " << midiFiles.size() << ", refreshing...");
             scanDirectory();
         }
     }

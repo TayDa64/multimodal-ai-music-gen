@@ -16,6 +16,7 @@ PromptPanel::PromptPanel(AppState& state)
     : appState(state)
 {
     setupPromptInput();
+    setupNegativePromptInput();
     setupGenreSelector();
     setupDurationControls();
     setupGenerateButton();
@@ -41,7 +42,7 @@ void PromptPanel::setupPromptInput()
     promptInput.setReturnKeyStartsNewLine(false);
     promptInput.setScrollbarsShown(true);
     promptInput.setPopupMenuEnabled(true);
-    promptInput.setTextToShowWhenEmpty("Describe the music you want to generate...", 
+    promptInput.setTextToShowWhenEmpty("Describe the music you want to generate (genre, mood, instruments, BPM)...", 
                                        AppColours::textSecondary);
     promptInput.setFont(juce::Font(14.0f));
     
@@ -49,11 +50,43 @@ void PromptPanel::setupPromptInput()
     promptInput.onReturnKey = [this] {
         if (!isGenerating && isConnected && promptInput.getText().isNotEmpty())
         {
-            listeners.call(&Listener::generateRequested, promptInput.getText());
+            listeners.call(&Listener::generateRequested, getCombinedPrompt());
         }
     };
     
     addAndMakeVisible(promptInput);
+}
+
+void PromptPanel::setupNegativePromptInput()
+{
+    // Label with muted styling
+    negativePromptLabel.setText("Exclude (optional)", juce::dontSendNotification);
+    negativePromptLabel.setFont(juce::Font(12.0f));
+    negativePromptLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    addAndMakeVisible(negativePromptLabel);
+    
+    // Compact text editor for negative prompt
+    negativePromptInput.setMultiLine(false);
+    negativePromptInput.setReturnKeyStartsNewLine(false);
+    negativePromptInput.setScrollbarsShown(false);
+    negativePromptInput.setPopupMenuEnabled(true);
+    negativePromptInput.setTextToShowWhenEmpty("e.g. rolling notes, hi-hat rolls, 808...", 
+                                               AppColours::textSecondary.withAlpha(0.6f));
+    negativePromptInput.setFont(juce::Font(13.0f));
+    
+    // Slightly darker background to differentiate from main prompt
+    negativePromptInput.setColour(juce::TextEditor::backgroundColourId, 
+                                  AppColours::surface.darker(0.15f));
+    
+    // Handle Enter key - also triggers generate
+    negativePromptInput.onReturnKey = [this] {
+        if (!isGenerating && isConnected && promptInput.getText().isNotEmpty())
+        {
+            listeners.call(&Listener::generateRequested, getCombinedPrompt());
+        }
+    };
+    
+    addAndMakeVisible(negativePromptInput);
 }
 
 void PromptPanel::setupGenreSelector()
@@ -132,15 +165,26 @@ void PromptPanel::setupGenerateButton()
     generateButton.onClick = [this] {
         if (!isGenerating && promptInput.getText().isNotEmpty())
         {
+            // Start with combined prompt (main + negative)
+            juce::String finalPrompt = getCombinedPrompt();
+            
             // Append genre suffix if not custom
-            juce::String finalPrompt = promptInput.getText();
             int selectedIndex = genreSelector.getSelectedId() - 1;
             if (selectedIndex >= 0 && selectedIndex < (int)genrePresets.size())
             {
                 auto& preset = genrePresets[selectedIndex];
                 if (preset.promptSuffix.isNotEmpty())
                 {
-                    finalPrompt += " " + preset.promptSuffix;
+                    // Insert genre suffix before negative prompt section
+                    if (finalPrompt.contains(" negative prompt:"))
+                    {
+                        int negIdx = finalPrompt.indexOf(" negative prompt:");
+                        finalPrompt = finalPrompt.substring(0, negIdx) + " " + preset.promptSuffix + finalPrompt.substring(negIdx);
+                    }
+                    else
+                    {
+                        finalPrompt += " " + preset.promptSuffix;
+                    }
                 }
             }
             
@@ -179,35 +223,42 @@ void PromptPanel::resized()
     auto bounds = getLocalBounds().reduced(16);
     
     // Title
-    promptLabel.setBounds(bounds.removeFromTop(24));
+    promptLabel.setBounds(bounds.removeFromTop(20));
+    bounds.removeFromTop(4);
+    
+    // Prompt input (main area - takes proportionally more space)
+    auto availableHeight = bounds.getHeight() - 140; // Reserve space for other controls
+    auto mainPromptHeight = juce::jmax(50, (int)(availableHeight * 0.75f));
+    promptInput.setBounds(bounds.removeFromTop(mainPromptHeight));
     bounds.removeFromTop(8);
     
-    // Prompt input (takes most of the space)
-    auto inputHeight = juce::jmax(60, bounds.getHeight() - 120);
-    promptInput.setBounds(bounds.removeFromTop(inputHeight));
-    bounds.removeFromTop(12);
+    // Negative prompt section (smaller, single line)
+    negativePromptLabel.setBounds(bounds.removeFromTop(18));
+    bounds.removeFromTop(2);
+    negativePromptInput.setBounds(bounds.removeFromTop(26));
+    bounds.removeFromTop(10);
     
     // Genre row
-    auto genreRow = bounds.removeFromTop(28);
-    genreLabel.setBounds(genreRow.removeFromLeft(45).withHeight(28));
-    genreSelector.setBounds(genreRow.removeFromLeft(120).withHeight(28));
+    auto genreRow = bounds.removeFromTop(26);
+    genreLabel.setBounds(genreRow.removeFromLeft(45).withHeight(26));
+    genreSelector.setBounds(genreRow.removeFromLeft(120).withHeight(26));
     
-    bounds.removeFromTop(8);
+    bounds.removeFromTop(6);
     
     // Duration row (separate line for clarity)
-    auto durationRow = bounds.removeFromTop(28);
-    durationLabel.setBounds(durationRow.removeFromLeft(60).withHeight(28));
-    durationSlider.setBounds(durationRow.withHeight(28)); // Takes remaining width
+    auto durationRow = bounds.removeFromTop(26);
+    durationLabel.setBounds(durationRow.removeFromLeft(60).withHeight(26));
+    durationSlider.setBounds(durationRow.withHeight(26)); // Takes remaining width
     
-    bounds.removeFromTop(12);
+    bounds.removeFromTop(10);
     
     // Generate button row
-    auto buttonRow = bounds.removeFromTop(36);
+    auto buttonRow = bounds.removeFromTop(34);
     auto buttonWidth = 140;
     
     // Center the button
     auto buttonX = (buttonRow.getWidth() - buttonWidth) / 2;
-    generateButton.setBounds(buttonRow.withX(buttonRow.getX() + buttonX).withWidth(buttonWidth).withHeight(32));
+    generateButton.setBounds(buttonRow.withX(buttonRow.getX() + buttonX).withWidth(buttonWidth).withHeight(30));
     cancelButton.setBounds(generateButton.getBounds());
 }
 
@@ -217,9 +268,34 @@ juce::String PromptPanel::getPromptText() const
     return promptInput.getText();
 }
 
+juce::String PromptPanel::getNegativePromptText() const
+{
+    return negativePromptInput.getText();
+}
+
+juce::String PromptPanel::getCombinedPrompt() const
+{
+    juce::String combined = promptInput.getText();
+    juce::String negative = negativePromptInput.getText().trim();
+    
+    // Only append negative prompt section if user entered something
+    if (negative.isNotEmpty())
+    {
+        // Use the established "negative prompt:" syntax for Python backend
+        combined += " negative prompt: " + negative;
+    }
+    
+    return combined;
+}
+
 void PromptPanel::setPromptText(const juce::String& text)
 {
     promptInput.setText(text);
+}
+
+void PromptPanel::setNegativePromptText(const juce::String& text)
+{
+    negativePromptInput.setText(text);
 }
 
 void PromptPanel::setGenerateEnabled(bool enabled)
@@ -235,6 +311,7 @@ void PromptPanel::onGenerationStarted()
         generateButton.setVisible(false);
         cancelButton.setVisible(true);
         promptInput.setEnabled(false);
+        negativePromptInput.setEnabled(false);
         genreSelector.setEnabled(false);
         durationSlider.setEnabled(false);
     });
@@ -261,6 +338,7 @@ void PromptPanel::onGenerationCompleted(const juce::File& /*outputFile*/)
         
         // Re-enable all input controls
         promptInput.setEnabled(true);
+        negativePromptInput.setEnabled(true);
         genreSelector.setEnabled(true);
         durationSlider.setEnabled(true);
         
@@ -285,6 +363,7 @@ void PromptPanel::onGenerationError(const juce::String& /*error*/)
         
         // Re-enable all input controls
         promptInput.setEnabled(true);
+        negativePromptInput.setEnabled(true);
         genreSelector.setEnabled(true);
         durationSlider.setEnabled(true);
         

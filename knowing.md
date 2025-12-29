@@ -1,7 +1,7 @@
 # 🎵 AI Music Generator - Project Knowledge Base
 
 > **Reference document for continuing development across chat sessions**  
-> **Last Updated**: December 22, 2025
+> **Last Updated**: December 29, 2025
 
 ---
 
@@ -14,9 +14,10 @@
 5. [File Structure](#-file-structure)
 6. [Key Technical Details](#-key-technical-details)
 7. [Known Issues & Fixes](#-known-issues--fixes)
-8. [Next Steps](#-next-steps)
-9. [Build & Run Instructions](#-build--run-instructions)
-10. [Quick Reference](#-quick-reference)
+8. [Research & Best Practices](#-research--best-practices)
+9. [Next Steps](#-next-steps)
+10. [Build & Run Instructions](#-build--run-instructions)
+11. [Quick Reference](#-quick-reference)
 
 ---
 
@@ -364,45 +365,139 @@ multimodal-ai-music-gen/
 
 ---
 
+## 📚 Research & Best Practices
+
+### Audio Processing Architecture (JUCE AudioProcessorGraph)
+**Source**: [JUCE AudioProcessorGraph Tutorial](https://juce.com/tutorials/cascading_audio_processors/)
+
+**Key Patterns:**
+1. **ProcessorBase** - Base class reducing AudioProcessor boilerplate:
+   - Returns 2-channel stereo configuration
+   - Empty implementations for non-essential methods
+   - Used by all channel strip processors
+
+2. **GainProcessor** - Wraps `juce::dsp::Gain<float>`:
+   ```cpp
+   dsp::Gain<float> gain;
+   gain.setGainDecibels(volumeDb);
+   gain.setRampDurationSeconds(0.02);  // 20ms anti-click
+   ```
+
+3. **PanProcessor** - Wraps `juce::dsp::Panner<float>`:
+   ```cpp
+   dsp::Panner<float> panner;
+   panner.setRule(dsp::PannerRule::balanced);
+   panner.setPan(panValue);  // -1.0 to +1.0
+   ```
+
+4. **AudioProcessorGraph** - Node-based routing:
+   ```cpp
+   AudioProcessorGraph graph;
+   auto gainNode = graph.addNode(std::make_unique<GainProcessor>());
+   auto panNode = graph.addNode(std::make_unique<PanProcessor>());
+   graph.addConnection({{gainNode->nodeID, 0}, {panNode->nodeID, 0}});
+   ```
+
+### VU Meter Standards
+**Source**: ANSI C16.5-1942 (Volume Unit Meters)
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Rise Time | 300ms | Time to reach 99% of step input |
+| Fall Time | 300ms | Symmetrical decay |
+| Reference Level | 0 VU = +4 dBu | Professional standard |
+| Averaging | RMS | Not peak detection |
+| Peak Hold | 2000ms | Modern DAW convention |
+
+**Implementation:**
+```cpp
+// Ballistic filter for VU behavior
+float attackCoeff = std::exp(-1.0f / (sampleRate * 0.3f));  // 300ms
+float releaseCoeff = std::exp(-1.0f / (sampleRate * 0.3f)); // 300ms
+
+// RMS calculation
+float rms = std::sqrt(sumOfSquares / numSamples);
+```
+
+### Command Pattern for Undo/Redo
+**Source**: Gang of Four Design Patterns
+
+**Architecture:**
+- Abstract `Command` base class with `execute()` and `undo()` methods
+- `UndoManager` with stack of 50 commands
+- Command merging for typing operations
+- Transaction support (group related commands)
+
+**Benefits:**
+- Clean separation of concerns
+- Extensible for new operations
+- Supports macro recording
+
+### Plugin Development (VST3/AU)
+**Source**: JUCE AudioProcessor documentation
+
+**Key Integration Points:**
+- `AudioPlayHead` for DAW transport synchronization
+- State serialization via `getStateInformation()` / `setStateInformation()`
+- Parameter automation with `AudioProcessorParameter`
+- Preset management with chunked XML
+
+---
+
 ## 🚀 Next Steps
 
-### Phase 8: Track Mixer (NEXT)
-**Goal**: Per-track volume, pan, mute/solo
+### Phase 8: Track Mixer (NEXT) - ENHANCED
+**Goal**: Professional per-track mixing with AudioProcessorGraph-based routing
 
-Tasks:
-- [ ] Create `MixerComponent`
-- [ ] Create `ChannelStrip` with faders
-- [ ] Create `LevelMeter` (VU meters)
-- [ ] Implement audio routing per track
-- [ ] Solo/mute logic
-- [ ] Mixer state persistence
+**Key Architecture Decisions (from JUCE AudioProcessorGraph tutorial):**
+- Use `AudioProcessorGraph` for per-track audio processing chain
+- Each track gets: `GainProcessor` → `PanProcessor` → `LevelMeter`
+- Master bus with final gain and metering
+- `ProcessorBase` pattern reduces boilerplate
+
+**Technical Specs:**
+| Parameter | Value | Source |
+|-----------|-------|--------|
+| Volume Range | -∞ to +12 dB | Industry standard |
+| Pan Range | -1.0 to +1.0 | dsp::Panner balanced law |
+| VU Ballistics | 300ms attack/release | ANSI C16.5-1942 |
+| Peak Hold | 2000ms hold + 300ms decay | Professional metering |
+| Gain Ramping | 20ms | Click-free transitions |
+
+**Tasks:**
+- ProcessorBase class (reduces AudioProcessor boilerplate)
+- GainProcessor wrapping dsp::Gain
+- PanProcessor wrapping dsp::Panner
+- MixerGraph (AudioProcessorGraph wrapper)
+- LevelMeter with VU ballistics
+- ChannelStrip component (fader + knob + buttons + meter)
+- MixerComponent container with horizontal scrolling
+- Solo/mute logic (solo overrides mute)
+- State persistence (JSON)
 
 ### Phase 9: Instrument Browser
-**Goal**: Browse and select custom instruments
-- Tree view by category
-- Waveform preview
+- InstrumentDatabase with scanning and indexing
+- CategoryTreeComponent for folder navigation
+- InstrumentListComponent with AI match badges
+- SamplePreviewComponent with waveform + audition
 - Drag-and-drop to tracks
-- AI recommendations
 
 ### Phase 10: Project Management
-**Goal**: Save, load, manage projects
-- `.mmg` project file format
-- Undo/redo (command pattern)
-- Recent projects menu
-- Auto-save
+- Command pattern for undo/redo (50 level stack)
+- Project class with .mmg format (JSON)
+- Auto-save every 2 minutes
+- Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y)
 
 ### Phase 11: VST3/AU Plugin
-**Goal**: Run inside DAWs
-- `PluginProcessor` class
-- DAW transport sync
-- Sidechain input
-- Plugin installer
+- PluginProcessor with host transport sync
+- PluginEditor embedding MainComponent
+- State serialization
+- DAW testing (Ableton, FL Studio, Logic, Cubase, Reaper)
 
 ### Phase 12: Advanced Features
-- Vocal input processing
-- AI harmonization
-- Real-time suggestions
-- Collaborative features
+- Vocal pitch detection (pYIN algorithm)
+- AI harmonization (chord suggestion, bass generation)
+- MIDI Learn for hardware controllers
 
 ---
 

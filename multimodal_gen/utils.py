@@ -530,6 +530,16 @@ GENRE_DEFAULTS = {
         'hihat_rolls': True,
         'emphasis': '808',
     },
+    'rnb': {
+        'bpm_range': (65, 95),
+        'default_bpm': 80,
+        'scale': ScaleType.MINOR,
+        'swing': 0.08,
+        'hihat_rolls': False,
+        'emphasis': 'chords',
+        'groove': True,
+        'smooth': True,
+    },
     'trap_soul': {
         'bpm_range': (80, 100),
         'default_bpm': 87,
@@ -537,6 +547,16 @@ GENRE_DEFAULTS = {
         'swing': 0.08,
         'hihat_rolls': True,
         'emphasis': 'chords',
+    },
+    'g_funk': {
+        'bpm_range': (88, 105),
+        'default_bpm': 96,
+        'scale': ScaleType.MINOR,
+        'swing': 0.15,
+        'hihat_rolls': False,  # G-Funk uses clean hi-hats, not rolls
+        'emphasis': 'synth',
+        'funk_bass': True,
+        'west_coast': True,
     },
     'lofi': {
         'bpm_range': (70, 95),

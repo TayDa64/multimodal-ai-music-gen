@@ -5,6 +5,11 @@
     
     Displays recent MIDI/audio files from the output folder for easy access.
     Users can click to load and play files directly.
+    
+    Features:
+    - File management: delete, export, reveal in explorer
+    - Right-click context menu for file operations
+    - Auto-refresh when new files appear
 
   ==============================================================================
 */
@@ -23,6 +28,7 @@
     - Scans output directory for .mid files
     - Shows file info (name, date, size)
     - Click to load into player
+    - Right-click context menu for file operations
     - Auto-refreshes when new files appear
 */
 class RecentFilesPanel : public juce::Component,
@@ -115,6 +121,7 @@ private:
     juce::Label titleLabel { {}, "Recent Files" };
     juce::TextButton refreshButton { juce::CharPointer_UTF8("\xe2\x9f\xb3") }; // ⟳ refresh icon
     juce::TextButton openFolderButton { juce::CharPointer_UTF8("\xf0\x9f\x93\x82") }; // 📂 folder icon
+    juce::TextButton deleteButton { juce::CharPointer_UTF8("\xf0\x9f\x97\x91") }; // 🗑 delete icon
     std::unique_ptr<FileListBox> fileList;
     juce::Label emptyLabel { {}, "No files found.\nGenerate some music!" };
     
@@ -124,6 +131,7 @@ private:
     juce::Array<FileInfo> files;
     juce::Time lastScanTime;
     int selectedRow = -1;
+    int lastFileCount = 0;  // Track file count for change detection
     
     //==============================================================================
     void scanDirectory();
@@ -131,6 +139,14 @@ private:
     juce::String formatRelativeDate(const juce::Time& time);
     juce::String formatFileSize(juce::int64 bytes);
     void loadSelectedFile();
+    
+    // File management operations
+    void showContextMenu(int row);
+    void deleteSelectedFile();
+    void exportSelectedFile();
+    void revealInExplorer();
+    void renameSelectedFile();
+    void deleteAllFiles();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RecentFilesPanel)
 };

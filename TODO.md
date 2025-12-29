@@ -724,277 +724,1550 @@ multimodal_gen/
 ---
 
 ### Phase 8: Track Mixer
-**Duration**: 4-5 days  
+**Duration**: 5-7 days  
 **Risk Level**: 🟡 Medium  
-**Goal**: Per-track volume, pan, and mute/solo
+**Goal**: Professional per-track mixing with AudioProcessorGraph-based routing
+**Status**: 🔲 NOT STARTED
+
+#### Architecture: AudioProcessorGraph-Based Mixer
+
+Based on the JUCE AudioProcessorGraph tutorial, Phase 8 implements a **channel strip architecture** where each MIDI track is processed through a dedicated audio processor chain:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          MIXER AUDIO GRAPH                                   │
+│                                                                             │
+│  ┌─────────┐    ┌─────────────────────────────────────────────────────┐    │
+│  │  MIDI   │    │              CHANNEL STRIP (per track)              │    │
+│  │ Track 1 │───▶│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │    │
+│  └─────────┘    │  │ Synth/   │→│   Gain   │→│  Panner  │→│ Level  │ │    │
+│                 │  │ Sampler  │ │ (Volume) │ │ (Pan)    │ │ Meter  │ │    │
+│  ┌─────────┐    │  └──────────┘ └──────────┘ └──────────┘ └────────┘ │    │
+│  │  MIDI   │    └─────────────────────────────────────────────────────┘    │
+│  │ Track 2 │───▶ ... (same chain per track)                                │
+│  └─────────┘                                                               │
+│                                     │                                       │
+│                                     ▼                                       │
+│                         ┌─────────────────────┐                             │
+│                         │   MASTER BUS        │                             │
+│                         │ ┌───────┐ ┌───────┐ │                             │
+│                         │ │ Gain  │→│ Meter │ │──────▶ Audio Output         │
+│                         │ └───────┘ └───────┘ │                             │
+│                         └─────────────────────┘                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 #### Tasks
-- [ ] **8.1** Create Mixer Component
+
+- [ ] **8.1** Create ProcessorBase Class (from JUCE tutorial pattern)
+  ```cpp
+  // Source/Audio/Processors/ProcessorBase.h
+  // Base class for all mixer processors, reducing boilerplate
+  class ProcessorBase : public juce::AudioProcessor {
+  public:
+      ProcessorBase()
+          : AudioProcessor(BusesProperties()
+              .withInput("Input", juce::AudioChannelSet::stereo())
+              .withOutput("Output", juce::AudioChannelSet::stereo()))
+      {}
+      
+      // Default implementations for non-essential overrides
+      void prepareToPlay(double, int) override {}
+      void releaseResources() override {}
+      void processBlock(juce::AudioSampleBuffer&, juce::MidiBuffer&) override {}
+      
+      juce::AudioProcessorEditor* createEditor() override { return nullptr; }
+      bool hasEditor() const override { return false; }
+      const juce::String getName() const override { return {}; }
+      bool acceptsMidi() const override { return false; }
+      bool producesMidi() const override { return false; }
+      double getTailLengthSeconds() const override { return 0; }
+      int getNumPrograms() override { return 0; }
+      int getCurrentProgram() override { return 0; }
+      void setCurrentProgram(int) override {}
+      const juce::String getProgramName(int) override { return {}; }
+      void changeProgramName(int, const juce::String&) override {}
+      void getStateInformation(juce::MemoryBlock&) override {}
+      void setStateInformation(const void*, int) override {}
+      
+  private:
+      JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorBase)
+  };
+  ```
+
+- [ ] **8.2** Create GainProcessor (dsp::Gain wrapper)
+  ```cpp
+  // Source/Audio/Processors/GainProcessor.h
+  class GainProcessor : public ProcessorBase {
+  public:
+      GainProcessor() { gain.setGainDecibels(0.0f); }
+      
+      void setGainDecibels(float dB) { gain.setGainDecibels(dB); }
+      float getGainDecibels() const { return gain.getGainDecibels(); }
+      void setRampDurationSeconds(double duration) { 
+          gain.setRampDurationSeconds(duration); 
+      }
+      
+      void prepareToPlay(double sampleRate, int samplesPerBlock) override {
+          juce::dsp::ProcessSpec spec { sampleRate, 
+              static_cast<juce::uint32>(samplesPerBlock), 2 };
+          gain.prepare(spec);
+      }
+      
+      void processBlock(juce::AudioSampleBuffer& buffer, 
+                        juce::MidiBuffer&) override {
+          juce::dsp::AudioBlock<float> block(buffer);
+          juce::dsp::ProcessContextReplacing<float> context(block);
+          gain.process(context);
+      }
+      
+      void reset() override { gain.reset(); }
+      const juce::String getName() const override { return "Gain"; }
+      
+  private:
+      juce::dsp::Gain<float> gain;
+  };
+  ```
+
+- [ ] **8.3** Create PanProcessor (dsp::Panner wrapper)
+  ```cpp
+  // Source/Audio/Processors/PanProcessor.h
+  class PanProcessor : public ProcessorBase {
+  public:
+      PanProcessor() { 
+          panner.setRule(juce::dsp::PannerRule::balanced);
+          panner.setPan(0.0f); // Center
+      }
+      
+      // Pan: -1.0 (hard left) to +1.0 (hard right)
+      void setPan(float newPan) { panner.setPan(newPan); }
+      float getPan() const { return currentPan; }
+      
+      void prepareToPlay(double sampleRate, int samplesPerBlock) override {
+          juce::dsp::ProcessSpec spec { sampleRate, 
+              static_cast<juce::uint32>(samplesPerBlock), 2 };
+          panner.prepare(spec);
+      }
+      
+      void processBlock(juce::AudioSampleBuffer& buffer, 
+                        juce::MidiBuffer&) override {
+          juce::dsp::AudioBlock<float> block(buffer);
+          juce::dsp::ProcessContextReplacing<float> context(block);
+          panner.process(context);
+      }
+      
+      void reset() override { panner.reset(); }
+      const juce::String getName() const override { return "Pan"; }
+      
+  private:
+      juce::dsp::Panner<float> panner;
+      float currentPan = 0.0f;
+  };
+  ```
+
+- [ ] **8.4** Create MixerGraph (AudioProcessorGraph-based)
+  ```cpp
+  // Source/Audio/MixerGraph.h
+  class MixerGraph {
+  public:
+      using AudioGraphIOProcessor = juce::AudioProcessorGraph::AudioGraphIOProcessor;
+      using Node = juce::AudioProcessorGraph::Node;
+      
+      MixerGraph() : mainProcessor(new juce::AudioProcessorGraph()) {}
+      
+      void prepareToPlay(double sampleRate, int samplesPerBlock);
+      void processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi);
+      void releaseResources();
+      
+      // Track management
+      void addTrack(int trackIndex, const juce::String& name);
+      void removeTrack(int trackIndex);
+      
+      // Per-track controls
+      void setTrackVolume(int trackIndex, float dB);
+      void setTrackPan(int trackIndex, float pan);
+      void setTrackMute(int trackIndex, bool muted);
+      void setTrackSolo(int trackIndex, bool soloed);
+      
+      // Level metering (call from audio thread)
+      float getTrackLevel(int trackIndex, int channel) const;
+      float getMasterLevel(int channel) const;
+      
+  private:
+      std::unique_ptr<juce::AudioProcessorGraph> mainProcessor;
+      
+      Node::Ptr audioInputNode;
+      Node::Ptr audioOutputNode;
+      Node::Ptr midiInputNode;
+      Node::Ptr midiOutputNode;
+      
+      struct ChannelStrip {
+          Node::Ptr gainNode;
+          Node::Ptr panNode;
+          float lastLevel[2] = { 0.0f, 0.0f };
+          bool muted = false;
+          bool soloed = false;
+      };
+      std::map<int, ChannelStrip> channelStrips;
+      
+      void connectAudioNodes();
+      void updateGraph();
+  };
+  ```
+
+- [ ] **8.5** Create LevelMeter Component (VU-style)
+  ```cpp
+  // Source/UI/Mixer/LevelMeter.h
+  // Professional VU meter following industry standards:
+  // - 300ms rise/fall time (VU ballistic)
+  // - RMS averaging (not peak)
+  // - Peak hold with decay (optional)
+  // - -60dB to +6dB range
+  class LevelMeter : public juce::Component, public juce::Timer {
+  public:
+      LevelMeter();
+      
+      // Called from audio thread via lock-free atomic
+      void setLevel(float leftRMS, float rightRMS, 
+                   float leftPeak = 0.0f, float rightPeak = 0.0f);
+      
+      void timerCallback() override;  // 60fps refresh
+      void paint(juce::Graphics& g) override;
+      
+      // Display modes
+      enum class Mode { VU, Peak, Both };
+      void setMode(Mode m) { mode = m; repaint(); }
+      
+  private:
+      // VU ballistics: 300ms attack/release (ANSI standard)
+      static constexpr float vuRiseTimeMs = 300.0f;
+      static constexpr float vuFallTimeMs = 300.0f;
+      
+      // Peak hold: 2 second hold, then decay
+      static constexpr float peakHoldTimeMs = 2000.0f;
+      static constexpr float peakDecayTimeMs = 300.0f;
+      
+      std::atomic<float> inputLevelL { 0.0f };
+      std::atomic<float> inputLevelR { 0.0f };
+      std::atomic<float> inputPeakL { 0.0f };
+      std::atomic<float> inputPeakR { 0.0f };
+      
+      float displayLevelL = 0.0f;
+      float displayLevelR = 0.0f;
+      float peakHoldL = 0.0f;
+      float peakHoldR = 0.0f;
+      float peakHoldTimeL = 0.0f;
+      float peakHoldTimeR = 0.0f;
+      
+      Mode mode = Mode::Both;
+      
+      void updateBallistics();
+      void drawMeter(juce::Graphics& g, juce::Rectangle<float> bounds, 
+                     float level, float peak);
+      float dBToPixels(float dB, float height) const;
+  };
+  ```
+
+- [ ] **8.6** Create ChannelStrip Component
+  ```cpp
+  // Source/UI/Mixer/ChannelStrip.h
+  class ChannelStrip : public juce::Component,
+                       public juce::Slider::Listener,
+                       public juce::Button::Listener {
+  public:
+      ChannelStrip(MixerGraph& graph, int trackIndex, 
+                   const juce::String& trackName);
+      
+      void resized() override;
+      void paint(juce::Graphics& g) override;
+      
+      // Update from audio levels
+      void setLevels(float left, float right);
+      
+      class Listener {
+      public:
+          virtual ~Listener() = default;
+          virtual void channelStripChanged(ChannelStrip*) = 0;
+      };
+      void addListener(Listener* l) { listeners.add(l); }
+      
+  private:
+      MixerGraph& mixerGraph;
+      int trackIndex;
+      
+      juce::Label trackLabel;
+      
+      // Volume: Vertical fader, -∞ to +12dB
+      juce::Slider volumeFader { juce::Slider::LinearVertical, 
+                                 juce::Slider::TextBoxBelow };
+      
+      // Pan: Rotary knob, -1 to +1 (L/R)
+      juce::Slider panKnob { juce::Slider::RotaryHorizontalVerticalDrag,
+                             juce::Slider::NoTextBox };
+      
+      // Mute/Solo buttons
+      juce::TextButton muteButton { "M" };
+      juce::TextButton soloButton { "S" };
+      
+      // Level meters (stereo)
+      LevelMeter levelMeter;
+      
+      // Listener pattern
+      juce::ListenerList<Listener> listeners;
+      
+      void sliderValueChanged(juce::Slider* slider) override;
+      void buttonClicked(juce::Button* button) override;
+  };
+  ```
+
+- [ ] **8.7** Create MixerComponent (main container)
   ```cpp
   // Source/UI/Mixer/MixerComponent.h
-  class MixerComponent : public juce::Component {
+  class MixerComponent : public juce::Component,
+                         public ChannelStrip::Listener,
+                         public juce::Timer {
   public:
-      MixerComponent(AudioEngine& engine);
+      MixerComponent(MixerGraph& graph);
       
       void setTracks(const juce::Array<TrackInfo>& tracks);
       void resized() override;
+      void timerCallback() override;  // Update levels
       
   private:
+      MixerGraph& mixerGraph;
+      
       juce::OwnedArray<ChannelStrip> channelStrips;
-      MasterStrip masterStrip;
+      std::unique_ptr<ChannelStrip> masterStrip;
+      
+      juce::Viewport scrollView;  // Horizontal scroll for many tracks
+      juce::Component stripContainer;
+      
+      static constexpr int stripWidth = 80;
+      static constexpr int masterWidth = 100;
+      
+      void channelStripChanged(ChannelStrip* strip) override;
   };
   ```
 
-- [ ] **8.2** Create Channel Strip
+- [ ] **8.8** Implement Solo/Mute Logic
   ```cpp
-  // Source/UI/Mixer/ChannelStrip.h
-  class ChannelStrip : public juce::Component {
-  public:
-      ChannelStrip(const juce::String& trackName);
+  // Solo logic: When any track is soloed, mute all non-soloed tracks
+  // Mute logic: Track is silent unless it's soloed while muted
+  void MixerGraph::updateSoloMuteState() {
+      bool anySoloed = false;
+      for (const auto& [index, strip] : channelStrips) {
+          if (strip.soloed) { anySoloed = true; break; }
+      }
       
-      float getVolume() const;
-      float getPan() const;
-      bool isMuted() const;
-      bool isSoloed() const;
-      
-  private:
-      juce::Slider volumeSlider;  // Vertical fader
-      juce::Slider panKnob;       // Rotary
-      juce::TextButton muteButton, soloButton;
-      juce::Label trackNameLabel;
-      LevelMeter levelMeter;      // VU meter
-  };
+      for (auto& [index, strip] : channelStrips) {
+          bool shouldBeSilent = strip.muted;
+          
+          if (anySoloed && !strip.soloed) {
+              shouldBeSilent = true;  // Silence non-soloed when any is soloed
+          }
+          if (anySoloed && strip.soloed) {
+              shouldBeSilent = false;  // Soloed track plays even if muted
+          }
+          
+          // Apply by bypassing the gain node
+          if (strip.gainNode)
+              strip.gainNode->setBypassed(shouldBeSilent);
+      }
+  }
   ```
 
-- [ ] **8.3** Implement audio routing
-  - Separate MIDI tracks to audio channels
-  - Apply volume/pan per channel
-  - Mix to stereo master output
-  - Solo/mute logic (solo overrides mute)
-
-- [ ] **8.4** Create VU Meter
+- [ ] **8.9** Integrate with AudioEngine
   ```cpp
-  // Source/UI/Mixer/LevelMeter.h
-  class LevelMeter : public juce::Component, public juce::Timer {
-  public:
-      void setLevel(float leftLevel, float rightLevel);
-      void timerCallback() override;
-      void paint(juce::Graphics& g) override;
+  // Modify AudioEngine to use MixerGraph
+  // In AudioEngine::getNextAudioBlock():
+  void getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill) {
+      // Get audio from MidiPlayer
+      midiPlayer.getNextAudioBlock(bufferToFill);
       
-  private:
-      float leftLevel = 0.0f, rightLevel = 0.0f;
-      float leftPeak = 0.0f, rightPeak = 0.0f;
-  };
+      // Process through mixer graph
+      juce::MidiBuffer emptyMidi;
+      mixerGraph.processBlock(*bufferToFill.buffer, emptyMidi);
+      
+      // Send to visualization listeners
+      notifyVisualizationListeners(*bufferToFill.buffer);
+  }
   ```
 
-- [ ] **8.5** Implement mixer state persistence
-  - Save mixer settings to project file
-  - Recall on project load
-  - Reset to default option
+- [ ] **8.10** Implement Mixer State Persistence
+  ```cpp
+  // Source/Audio/MixerState.h
+  struct TrackMixerState {
+      int trackIndex;
+      float volumeDb = 0.0f;  // -∞ to +12
+      float pan = 0.0f;       // -1 to +1
+      bool muted = false;
+      bool soloed = false;
+  };
+  
+  struct MixerState {
+      juce::Array<TrackMixerState> tracks;
+      float masterVolumeDb = 0.0f;
+      
+      juce::String toJSON() const;
+      static MixerState fromJSON(const juce::String& json);
+  };
+  ```
 
 #### Success Criteria
-- [ ] Volume changes affect audio output
-- [ ] Pan moves sound left/right
-- [ ] Mute/solo work correctly
-- [ ] VU meters respond to audio
-- [ ] Mixer state saves with project
+- [ ] Volume fader changes affect audio output with smooth ramping
+- [ ] Pan knob moves sound between L/R channels (balanced panning law)
+- [ ] Mute silences track; Solo plays only soloed tracks
+- [ ] VU meters respond to audio with correct 300ms ballistics
+- [ ] Peak hold indicators show transients with 2s decay
+- [ ] Mixer state persists with project save/load
+- [ ] No audio glitches during parameter changes (gain ramping)
+- [ ] CPU usage remains under 15% with 8-track mixer
+
+#### Technical Specifications
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Volume Range | -∞ to +12 dB | Fader with infinity at bottom |
+| Pan Range | -1.0 to +1.0 | Balanced panning law |
+| VU Ballistics | 300ms attack/release | ANSI C16.5 standard |
+| Peak Hold | 2000ms hold + 300ms decay | Industry standard |
+| Meter Range | -60 dB to +6 dB | With 0 dB reference line |
+| Refresh Rate | 60 fps | Timer-based UI update |
+| Gain Ramping | 20ms | Prevent clicks/pops |
+
+#### File Structure After Phase 8
+```
+juce/Source/
+├── Audio/
+│   ├── MixerGraph.h/cpp           # NEW: AudioProcessorGraph wrapper
+│   ├── MixerState.h/cpp           # NEW: State persistence
+│   └── Processors/
+│       ├── ProcessorBase.h        # NEW: Base class
+│       ├── GainProcessor.h/cpp    # NEW: dsp::Gain wrapper
+│       └── PanProcessor.h/cpp     # NEW: dsp::Panner wrapper
+└── UI/
+    └── Mixer/
+        ├── MixerComponent.h/cpp   # NEW: Main mixer container
+        ├── ChannelStrip.h/cpp     # NEW: Per-track strip
+        └── LevelMeter.h/cpp       # NEW: VU meter component
+```
 
 ---
 
-### Phase 9: Instrument Browser
+### Phase 9: Instrument Browser & Sample Audition
+**Duration**: 5-6 days  
+**Risk Level**: 🟢 Low  
+**Goal**: Browse, preview, and select instruments with AI-powered recommendations
+
+#### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      INSTRUMENT BROWSER PANEL                                │
+│  ┌───────────────────┬──────────────────────────────────────────────────┐   │
+│  │   Category Tree   │              Instrument List                      │   │
+│  │  ─────────────── │  ┌────────────────────────────────────────────┐   │   │
+│  │  📁 Bass         │  │ 🎵 808-Sub      │ Trap │ ★★★★☆ │ AI Match │   │   │
+│  │  📁 Brass        │  │ 🎵 Reese-Bass   │ DnB  │ ★★★☆☆ │          │   │   │
+│  │  📁 Drums        │  │ 🎵 Synth-Bass   │ House│ ★★★★★ │ AI Match │   │   │
+│  │    ├ 808s        │  │ ...                                         │   │   │
+│  │    ├ Kicks       │  └────────────────────────────────────────────┘   │   │
+│  │    ├ Snares      │                                                    │   │
+│  │    ├ Hihats      │  ┌────────────────────────────────────────────┐   │   │
+│  │    └ Claps       │  │           PREVIEW PANEL                     │   │   │
+│  │  📁 Keys         │  │  ┌─────────────────────────────────────┐   │   │   │
+│  │  📁 Synths       │  │  │    [Waveform Thumbnail]             │   │   │   │
+│  │  📁 Strings      │  │  │    ▶ Play  ■ Stop                   │   │   │   │
+│  │  📁 FX           │  │  └─────────────────────────────────────┘   │   │   │
+│  │                  │  │  Name: 808-Sub-C.wav                       │   │   │
+│  │  ─────────────── │  │  Key: C2  |  BPM: --  |  Duration: 1.2s    │   │   │
+│  │  🔍 Search...    │  │  Source: instruments/bass/808s/            │   │   │
+│  └───────────────────┴──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Tasks
+
+- [ ] **9.1** Create InstrumentDatabase
+  ```cpp
+  // Source/Instruments/InstrumentDatabase.h
+  struct InstrumentInfo {
+      juce::String name;
+      juce::String path;
+      juce::String category;       // "kick", "snare", "bass", etc.
+      juce::String genre;          // AI-detected genre affinity
+      juce::String detectedKey;    // Pitch-detected root note
+      double detectedBPM = 0.0;    // Tempo-detected (for loops)
+      float duration = 0.0f;       // Length in seconds
+      int sampleRate = 44100;
+      float aiMatchScore = 0.0f;   // 0.0-1.0 AI recommendation
+      juce::Image waveformThumbnail;
+  };
+  
+  class InstrumentDatabase {
+  public:
+      void scanDirectories(const juce::StringArray& paths);
+      juce::Array<InstrumentInfo> getByCategory(const juce::String& category);
+      juce::Array<InstrumentInfo> search(const juce::String& query);
+      juce::Array<InstrumentInfo> getAIRecommendations(
+          const juce::String& genre, 
+          const juce::String& mood,
+          int maxResults = 10);
+      
+  private:
+      juce::HashMap<juce::String, juce::Array<InstrumentInfo>> categoryIndex;
+      void analyzeFile(const juce::File& file);
+      void generateThumbnail(InstrumentInfo& info);
+  };
+  ```
+
+- [ ] **9.2** Create CategoryTreeComponent
+  ```cpp
+  // Source/UI/InstrumentBrowser/CategoryTreeComponent.h
+  class CategoryTreeComponent : public juce::TreeView {
+  public:
+      CategoryTreeComponent(InstrumentDatabase& db);
+      
+      class Listener {
+      public:
+          virtual ~Listener() = default;
+          virtual void categorySelected(const juce::String& category) = 0;
+      };
+      void addListener(Listener* l) { listeners.add(l); }
+      
+  private:
+      class CategoryItem : public juce::TreeViewItem {
+          // Expandable tree items for category hierarchy
+      };
+  };
+  ```
+
+- [ ] **9.3** Create InstrumentListComponent
+  ```cpp
+  // Source/UI/InstrumentBrowser/InstrumentListComponent.h
+  class InstrumentListComponent : public juce::ListBox,
+                                  public juce::ListBoxModel {
+  public:
+      void setInstruments(const juce::Array<InstrumentInfo>& instruments);
+      
+      // ListBoxModel overrides
+      int getNumRows() override;
+      void paintListBoxItem(int rowNumber, juce::Graphics& g,
+                            int width, int height, bool selected) override;
+      
+      class Listener {
+      public:
+          virtual ~Listener() = default;
+          virtual void instrumentSelected(const InstrumentInfo& info) = 0;
+          virtual void instrumentDoubleClicked(const InstrumentInfo& info) = 0;
+      };
+      
+  private:
+      juce::Array<InstrumentInfo> instruments;
+      void drawAIMatchBadge(juce::Graphics& g, const InstrumentInfo& info,
+                            juce::Rectangle<float> bounds);
+  };
+  ```
+
+- [ ] **9.4** Create SamplePreviewComponent
+  ```cpp
+  // Source/UI/InstrumentBrowser/SamplePreviewComponent.h
+  class SamplePreviewComponent : public juce::Component,
+                                 public juce::Button::Listener {
+  public:
+      SamplePreviewComponent(juce::AudioDeviceManager& deviceManager);
+      
+      void setInstrument(const InstrumentInfo& info);
+      void play();
+      void stop();
+      
+  private:
+      juce::AudioThumbnail thumbnail;
+      juce::TextButton playButton { "▶" };
+      juce::TextButton stopButton { "■" };
+      juce::Label nameLabel, keyLabel, bpmLabel, durationLabel;
+      
+      // Audio preview engine (separate from main playback)
+      juce::AudioTransportSource transport;
+      std::unique_ptr<juce::AudioFormatReaderSource> readerSource;
+  };
+  ```
+
+- [ ] **9.5** Create InstrumentBrowserPanel (main container)
+  ```cpp
+  // Source/UI/InstrumentBrowser/InstrumentBrowserPanel.h
+  class InstrumentBrowserPanel : public juce::Component,
+                                 public CategoryTreeComponent::Listener,
+                                 public InstrumentListComponent::Listener {
+  public:
+      InstrumentBrowserPanel(InstrumentDatabase& db, 
+                             juce::AudioDeviceManager& deviceManager);
+      
+      void refresh();
+      void setGenreFilter(const juce::String& genre);
+      
+      class Listener {
+      public:
+          virtual ~Listener() = default;
+          virtual void instrumentChosen(const InstrumentInfo& info) = 0;
+      };
+      
+  private:
+      InstrumentDatabase& database;
+      CategoryTreeComponent categoryTree;
+      InstrumentListComponent instrumentList;
+      SamplePreviewComponent previewPanel;
+      juce::TextEditor searchBox;
+      
+      void categorySelected(const juce::String& category) override;
+      void instrumentSelected(const InstrumentInfo& info) override;
+      void instrumentDoubleClicked(const InstrumentInfo& info) override;
+  };
+  ```
+
+- [ ] **9.6** Integrate with OSCBridge for AI Recommendations
+  ```cpp
+  // Request AI recommendations from Python backend
+  // /get_instrument_recommendations
+  void requestAIRecommendations(const juce::String& genre, 
+                                 const juce::String& mood) {
+      oscBridge.send("/get_instrument_recommendations", 
+                     genre.toStdString(), 
+                     mood.toStdString());
+  }
+  
+  // Handle response
+  // /instrument_recommendations [{name, path, score}, ...]
+  void handleInstrumentRecommendations(const juce::StringArray& recommendations) {
+      // Update instrument list with AI match scores
+  }
+  ```
+
+- [ ] **9.7** Add Drag-and-Drop Support
+  ```cpp
+  // InstrumentListComponent as drag source
+  juce::var getDragSourceDescription(const juce::SparseSet<int>& selectedRows) override {
+      // Return instrument path for drop onto piano roll or track
+  }
+  
+  // PianoRollComponent as drop target
+  bool isInterestedInDragSource(const SourceDetails& details) override;
+  void itemDropped(const SourceDetails& details) override {
+      // Add instrument sample at drop position
+  }
+  ```
+
+#### Success Criteria
+- [ ] All instruments from configured paths displayed in tree
+- [ ] Search filters instruments by name, category, genre
+- [ ] Preview plays audio with waveform visualization
+- [ ] AI recommendations sorted by match score
+- [ ] Drag-and-drop to piano roll/track functional
+- [ ] Key/BPM detection displayed for relevant samples
+- [ ] Smooth scrolling with 1000+ instruments
+
+#### File Structure After Phase 9
+```
+juce/Source/
+├── Instruments/
+│   ├── InstrumentDatabase.h/cpp    # NEW: Sample catalog
+│   ├── InstrumentAnalyzer.h/cpp    # NEW: Key/BPM detection
+│   └── WaveformThumbnailCache.h    # NEW: Thumbnail caching
+└── UI/
+    └── InstrumentBrowser/
+        ├── InstrumentBrowserPanel.h/cpp  # NEW: Main container
+        ├── CategoryTreeComponent.h/cpp   # NEW: Folder tree
+        ├── InstrumentListComponent.h/cpp # NEW: Sample list
+        └── SamplePreviewComponent.h/cpp  # NEW: Audio preview
+
+---
+
+### Phase 10: Project Management & Undo/Redo
 **Duration**: 4-5 days  
 **Risk Level**: 🟢 Low  
-**Goal**: Browse and select custom instruments
+**Goal**: Complete project lifecycle with undo/redo using Command Pattern
+
+#### Architecture: Command Pattern for Undo/Redo
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          COMMAND PATTERN                                     │
+│                                                                             │
+│  User Action         Command Object           Undo Stack                    │
+│  ───────────────────────────────────────────────────────────────────────── │
+│  Set Track Volume → VolumeChangeCommand ───┐                                │
+│                     ├── previousValue     ├──▶ [cmd1, cmd2, cmd3, ...]    │
+│                     ├── newValue          │     ▲                          │
+│                     ├── execute()         │     │ undo()                   │
+│                     └── undo()            │     │                          │
+│                                           │                                 │
+│  Move MIDI Note   → NoteMoveCommand ──────┘    Redo Stack                  │
+│                     ├── noteId                  [cmd4, cmd5, ...]          │
+│                     ├── oldPosition                                        │
+│                     ├── newPosition                                        │
+│                     └── execute() / undo()                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 #### Tasks
-- [ ] **9.1** Create Instrument Browser Panel
+
+- [ ] **10.1** Create Command Interface & Manager
   ```cpp
-  // Source/UI/InstrumentBrowserComponent.h
-  class InstrumentBrowserComponent : public juce::Component {
+  // Source/Project/Command.h
+  class Command {
   public:
-      InstrumentBrowserComponent(OSCBridge& bridge);
+      virtual ~Command() = default;
+      virtual void execute() = 0;
+      virtual void undo() = 0;
+      virtual juce::String getDescription() const = 0;
       
-      void setInstrumentPaths(const juce::StringArray& paths);
-      void refresh();
+      // For command merging (e.g., continuous slider movements)
+      virtual bool mergeWith(const Command* other) { return false; }
+      virtual juce::int64 getCommandId() const { return 0; }
+  };
+  
+  // Source/Project/UndoManager.h
+  class UndoManager {
+  public:
+      void execute(std::unique_ptr<Command> cmd);
+      bool undo();   // Returns false if nothing to undo
+      bool redo();   // Returns false if nothing to redo
+      
+      bool canUndo() const { return !undoStack.empty(); }
+      bool canRedo() const { return !redoStack.empty(); }
+      
+      juce::String getUndoDescription() const;
+      juce::String getRedoDescription() const;
+      
+      void clear();
+      void beginTransaction(const juce::String& name);
+      void endTransaction();  // Groups commands into single undo step
       
   private:
-      juce::TreeView categoryTree;
-      juce::ListBox instrumentList;
-      InstrumentPreview previewPanel;
-      juce::TextButton addFolderButton;
+      std::vector<std::unique_ptr<Command>> undoStack;
+      std::vector<std::unique_ptr<Command>> redoStack;
+      
+      static constexpr size_t maxUndoLevels = 50;
+      
+      std::vector<std::unique_ptr<Command>> currentTransaction;
+      juce::String transactionName;
+      bool inTransaction = false;
   };
   ```
 
-- [ ] **9.2** Create Instrument Preview
-  - Waveform thumbnail
-  - Play button to audition
-  - Metadata display (BPM, key if detected)
+- [ ] **10.2** Create Specific Commands
+  ```cpp
+  // Source/Project/Commands/MixerCommands.h
+  class VolumeChangeCommand : public Command {
+  public:
+      VolumeChangeCommand(MixerGraph& mixer, int track, 
+                          float oldVolume, float newVolume);
+      void execute() override;
+      void undo() override;
+      juce::String getDescription() const override { 
+          return "Change Volume"; 
+      }
+      bool mergeWith(const Command* other) override;
+      juce::int64 getCommandId() const override;
+  };
+  
+  class PanChangeCommand : public Command { /* ... */ };
+  class MuteToggleCommand : public Command { /* ... */ };
+  class SoloToggleCommand : public Command { /* ... */ };
+  
+  // Source/Project/Commands/ProjectCommands.h
+  class BpmChangeCommand : public Command { /* ... */ };
+  class KeyChangeCommand : public Command { /* ... */ };
+  ```
 
-- [ ] **9.3** Implement category filtering
-  - Filter by category (kick, snare, hihat, etc.)
-  - Search by name
-  - Filter by source folder
-
-- [ ] **9.4** Add drag-and-drop support
-  - Drag instrument to track
-  - Drag instrument to piano roll (future editing)
-  - Drag from file explorer to add
-
-- [ ] **9.5** Integrate with Python matcher
-  - Show AI recommendations
-  - Highlight best matches for current genre
-  - Sort by match score
-
-#### Success Criteria
-- [ ] All instruments from paths displayed
-- [ ] Preview plays sample audio
-- [ ] Search and filter work
-- [ ] AI recommendations shown
-- [ ] Drag-and-drop functional
-
----
-
-### Phase 10: Project Management
-**Duration**: 3-4 days  
-**Risk Level**: 🟢 Low  
-**Goal**: Save, load, and manage projects
-
-#### Tasks
-- [ ] **10.1** Implement Project class
+- [ ] **10.3** Create Project Class
   ```cpp
   // Source/Project/Project.h
   class Project {
   public:
-      bool save(const juce::File& file);
+      // File operations
+      bool saveAs(const juce::File& file);
+      bool save();  // Save to current location
       bool load(const juce::File& file);
+      bool isModified() const;
+      juce::File getCurrentFile() const;
+      
+      // Project file format (.mmg - Multimodal Music Generator)
+      // Uses JSON internally for human readability
       
       // Project data
       juce::String prompt;
+      juce::String genre;
+      float bpm = 120.0f;
+      juce::String key = "C";
+      
       GenerationResult generationResult;
       MixerState mixerState;
       juce::Array<Section> arrangement;
-      // ...
+      
+      // Instrument assignments
+      struct InstrumentAssignment {
+          int trackIndex;
+          juce::String instrumentPath;
+          juce::String instrumentName;
+      };
+      juce::Array<InstrumentAssignment> instrumentAssignments;
+      
+      // Undo/redo
+      UndoManager& getUndoManager() { return undoManager; }
+      
+  private:
+      juce::File currentFile;
+      bool modified = false;
+      UndoManager undoManager;
+      
+      juce::String toJSON() const;
+      static Project fromJSON(const juce::String& json);
   };
   ```
 
-- [ ] **10.2** Create file dialogs
-  - Save As dialog
-  - Open dialog with recent files
-  - Export dialog (WAV, stems, MPC)
+- [ ] **10.4** Create Project File Format (.mmg)
+  ```json
+  // Example: my_track.mmg
+  {
+    "version": "1.0",
+    "created": "2025-12-22T14:30:00Z",
+    "modified": "2025-12-22T15:45:00Z",
+    
+    "generation": {
+      "prompt": "G-Funk beat with smooth synths",
+      "genre": "g_funk",
+      "bpm": 87,
+      "key": "Em",
+      "scale": "minor"
+    },
+    
+    "files": {
+      "midi": "relative/path/to/track.mid",
+      "audio": "relative/path/to/track.wav",
+      "stems": "relative/path/to/stems/"
+    },
+    
+    "arrangement": [
+      {"name": "intro", "startBar": 0, "lengthBars": 4},
+      {"name": "verse", "startBar": 4, "lengthBars": 8}
+    ],
+    
+    "mixer": {
+      "master": {"volume": 0.0},
+      "tracks": [
+        {"name": "Drums", "volume": -3.0, "pan": 0.0, "muted": false},
+        {"name": "Bass", "volume": -6.0, "pan": 0.1, "muted": false}
+      ]
+    },
+    
+    "instruments": [
+      {"track": 0, "path": "instruments/drums/kicks/808.wav"},
+      {"track": 1, "path": "instruments/bass/synth/reese.wav"}
+    ]
+  }
+  ```
 
-- [ ] **10.3** Implement undo/redo
-  - Command pattern for all state changes
-  - Undo stack with reasonable limit (50 actions)
-  - Keyboard shortcuts (Ctrl+Z, Ctrl+Y)
+- [ ] **10.5** Create File Dialogs
+  ```cpp
+  // Source/UI/Dialogs/ProjectDialogs.h
+  class ProjectDialogs {
+  public:
+      // Returns selected file, or empty if cancelled
+      static juce::File showSaveAsDialog(juce::Component* parent);
+      static juce::File showOpenDialog(juce::Component* parent);
+      
+      // Export dialogs
+      static juce::File showExportWavDialog(juce::Component* parent);
+      static juce::File showExportMpcDialog(juce::Component* parent);
+      static juce::File showExportStemsDialog(juce::Component* parent);
+      
+      // Unsaved changes dialog
+      enum class SaveResult { Save, DontSave, Cancel };
+      static SaveResult showUnsavedChangesDialog(juce::Component* parent);
+  };
+  ```
 
-- [ ] **10.4** Add recent projects menu
-  - Track last 10 projects
-  - Quick access from File menu
-  - Pin favorite projects
+- [ ] **10.6** Create Recent Projects Menu
+  ```cpp
+  // Source/Application/RecentProjects.h
+  class RecentProjects {
+  public:
+      void addRecentFile(const juce::File& file);
+      juce::Array<juce::File> getRecentFiles(int maxCount = 10) const;
+      void clearRecentFiles();
+      
+      // Persistence
+      void saveToProperties(juce::PropertiesFile& props);
+      void loadFromProperties(const juce::PropertiesFile& props);
+      
+  private:
+      juce::StringArray recentPaths;
+      static constexpr int maxRecentFiles = 10;
+  };
+  ```
 
-- [ ] **10.5** Auto-save implementation
-  - Save draft every 2 minutes
-  - Recover from crash on next launch
-  - User preference to enable/disable
+- [ ] **10.7** Implement Auto-Save
+  ```cpp
+  // Source/Application/AutoSave.h
+  class AutoSave : public juce::Timer {
+  public:
+      AutoSave(Project& project, int intervalMs = 120000); // 2 minutes
+      
+      void enable(bool enabled);
+      bool isEnabled() const;
+      
+      void timerCallback() override;
+      
+      // Recovery on crash
+      static juce::File getAutoSaveFile();
+      static bool hasAutoSaveRecovery();
+      static void clearAutoSave();
+      
+  private:
+      Project& project;
+      juce::File autoSaveFile;
+  };
+  ```
+
+- [ ] **10.8** Add Keyboard Shortcuts
+  ```cpp
+  // In MainComponent or Application
+  void registerKeyboardShortcuts() {
+      // File operations
+      addKeyCommand(juce::KeyPress('s', juce::ModifierKeys::ctrlModifier, 0), 
+                    "Save", [this] { project.save(); });
+      addKeyCommand(juce::KeyPress('s', juce::ModifierKeys::ctrlModifier | 
+                                        juce::ModifierKeys::shiftModifier, 0),
+                    "Save As", [this] { saveAs(); });
+      addKeyCommand(juce::KeyPress('o', juce::ModifierKeys::ctrlModifier, 0),
+                    "Open", [this] { openProject(); });
+      
+      // Undo/Redo
+      addKeyCommand(juce::KeyPress('z', juce::ModifierKeys::ctrlModifier, 0),
+                    "Undo", [this] { project.getUndoManager().undo(); });
+      addKeyCommand(juce::KeyPress('y', juce::ModifierKeys::ctrlModifier, 0),
+                    "Redo", [this] { project.getUndoManager().redo(); });
+      addKeyCommand(juce::KeyPress('z', juce::ModifierKeys::ctrlModifier | 
+                                        juce::ModifierKeys::shiftModifier, 0),
+                    "Redo", [this] { project.getUndoManager().redo(); });
+  }
+  ```
 
 #### Success Criteria
-- [ ] Project saves and loads correctly
-- [ ] Undo/redo work for mixer changes
-- [ ] Recent projects menu populated
-- [ ] Auto-save prevents data loss
+- [ ] Project saves all state to .mmg file (JSON format)
+- [ ] Project loads and restores complete state
+- [ ] Undo/redo works for mixer changes (Ctrl+Z/Ctrl+Y)
+- [ ] Recent projects menu shows last 10 projects
+- [ ] Auto-save creates recovery file every 2 minutes
+- [ ] Crash recovery prompts to restore auto-save on launch
+- [ ] Keyboard shortcuts work globally
+
+#### File Structure After Phase 10
+```
+juce/Source/
+├── Project/
+│   ├── Project.h/cpp           # NEW: Project state management
+│   ├── UndoManager.h/cpp       # NEW: Undo/redo stack
+│   ├── Command.h               # NEW: Command interface
+│   └── Commands/
+│       ├── MixerCommands.h/cpp # NEW: Mixer undo commands
+│       └── ProjectCommands.h   # NEW: Project undo commands
+├── Application/
+│   ├── RecentProjects.h/cpp    # NEW: Recent files tracking
+│   └── AutoSave.h/cpp          # NEW: Auto-save timer
+└── UI/
+    └── Dialogs/
+        └── ProjectDialogs.h/cpp # NEW: File dialogs
 
 ---
 
 ### Phase 11: VST3/AU Plugin Format
-**Duration**: 5-7 days  
-**Risk Level**: 🟠 Medium-High  
-**Goal**: Run as plugin inside DAW
+**Duration**: 7-10 days  
+**Risk Level**: 🔴 High  
+**Goal**: Package application as DAW plugin with full DAW integration
+
+#### Architecture: Plugin Wrapper
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              DAW HOST                                        │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                    Plugin Instance                                      │ │
+│  │  ┌──────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                 PluginProcessor : AudioProcessor                  │  │ │
+│  │  │  ┌───────────────┐  ┌────────────────┐  ┌────────────────────┐   │  │ │
+│  │  │  │ AudioEngine   │  │ MixerGraph     │  │ OSCBridge          │   │  │ │
+│  │  │  │ (Playback)    │  │ (Per-track)    │  │ (→Python Backend)  │   │  │ │
+│  │  │  └───────────────┘  └────────────────┘  └────────────────────┘   │  │ │
+│  │  │                                                                   │  │ │
+│  │  │  Transport Sync: Read host BPM, position, playing state          │  │ │
+│  │  │  MIDI Sync: Forward host MIDI to internal synth                  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  │                                                                         │ │
+│  │  ┌──────────────────────────────────────────────────────────────────┐  │ │
+│  │  │                 PluginEditor : AudioProcessorEditor               │  │ │
+│  │  │  ┌────────────────────────────────────────────────────────────┐  │  │ │
+│  │  │  │              MainComponent (Embedded)                       │  │  │ │
+│  │  │  │  Same UI as standalone, but resizable within DAW window    │  │  │ │
+│  │  │  └────────────────────────────────────────────────────────────┘  │  │ │
+│  │  └──────────────────────────────────────────────────────────────────┘  │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 #### Tasks
+
 - [ ] **11.1** Create PluginProcessor
   ```cpp
   // Source/Plugin/PluginProcessor.h
   class MusicGenPluginProcessor : public juce::AudioProcessor {
   public:
+      MusicGenPluginProcessor();
+      ~MusicGenPluginProcessor() override;
+      
+      // AudioProcessor overrides
       void prepareToPlay(double sampleRate, int samplesPerBlock) override;
+      void releaseResources() override;
       void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
       
+      // Editor
       juce::AudioProcessorEditor* createEditor() override;
+      bool hasEditor() const override { return true; }
       
-      // Sync with DAW transport
+      // State
+      void getStateInformation(juce::MemoryBlock& destData) override;
+      void setStateInformation(const void* data, int sizeInBytes) override;
+      
+      // Transport sync
       void syncToHostTransport();
       
+      // Plugin info
+      const juce::String getName() const override { return "AI Music Generator"; }
+      bool acceptsMidi() const override { return true; }
+      bool producesMidi() const override { return true; }
+      bool isMidiEffect() const override { return false; }
+      double getTailLengthSeconds() const override { return 0.0; }
+      
+      // Programs (presets)
+      int getNumPrograms() override { return 1; }
+      int getCurrentProgram() override { return 0; }
+      void setCurrentProgram(int) override {}
+      const juce::String getProgramName(int) override { return {}; }
+      void changeProgramName(int, const juce::String&) override {}
+      
+      // Bus layout
+      bool isBusesLayoutSupported(const BusesLayout& layouts) const override;
+      
+      // Access for editor
+      AudioEngine& getAudioEngine() { return *audioEngine; }
+      OSCBridge& getOSCBridge() { return *oscBridge; }
+      AppState& getAppState() { return *appState; }
+      
   private:
-      AudioEngine audioEngine;
-      OSCBridge oscBridge;
+      std::unique_ptr<AudioEngine> audioEngine;
+      std::unique_ptr<OSCBridge> oscBridge;
+      std::unique_ptr<AppState> appState;
+      std::unique_ptr<Project> project;
+      
+      // Host transport tracking
+      juce::Optional<juce::AudioPlayHead::PositionInfo> lastPosition;
+      void updateFromHostTransport(const juce::AudioPlayHead::PositionInfo& pos);
   };
   ```
 
 - [ ] **11.2** Create PluginEditor
-  - Embed MainComponent in plugin window
-  - Handle resize constraints
-  - DAW-specific styling
+  ```cpp
+  // Source/Plugin/PluginEditor.h
+  class MusicGenPluginEditor : public juce::AudioProcessorEditor,
+                                public juce::Timer {
+  public:
+      MusicGenPluginEditor(MusicGenPluginProcessor& processor);
+      ~MusicGenPluginEditor() override;
+      
+      void paint(juce::Graphics&) override;
+      void resized() override;
+      void timerCallback() override;
+      
+      // Resizable within DAW constraints
+      bool isResizable() const { return true; }
+      
+  private:
+      MusicGenPluginProcessor& processorRef;
+      
+      // Embed the main component
+      std::unique_ptr<MainComponent> mainComponent;
+      
+      // Plugin-specific sizing
+      static constexpr int defaultWidth = 1200;
+      static constexpr int defaultHeight = 800;
+      static constexpr int minWidth = 800;
+      static constexpr int minHeight = 600;
+  };
+  ```
 
-- [ ] **11.3** Implement DAW transport sync
-  - Read host BPM
-  - Sync playhead to host position
-  - Start/stop with host transport
+- [ ] **11.3** Implement Host Transport Sync
+  ```cpp
+  // In PluginProcessor::processBlock()
+  void MusicGenPluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                              juce::MidiBuffer& midiMessages) {
+      // Sync with host transport
+      if (auto* playHead = getPlayHead()) {
+          if (auto pos = playHead->getPosition()) {
+              updateFromHostTransport(*pos);
+          }
+      }
+      
+      // Forward MIDI to internal synth
+      if (midiMessages.getNumEvents() > 0) {
+          audioEngine->getMidiPlayer().addMidiEvents(midiMessages);
+      }
+      
+      // Process audio through our engine
+      audioEngine->processBlock(buffer, midiMessages);
+  }
+  
+  void MusicGenPluginProcessor::updateFromHostTransport(
+      const juce::AudioPlayHead::PositionInfo& pos) {
+      
+      // Sync BPM
+      if (pos.getBpm().hasValue()) {
+          double hostBpm = *pos.getBpm();
+          if (hostBpm != appState->getBpm()) {
+              appState->setBpm(static_cast<float>(hostBpm));
+          }
+      }
+      
+      // Sync playback position
+      if (pos.getTimeInSamples().hasValue()) {
+          auto samples = *pos.getTimeInSamples();
+          // Convert to our internal position format
+      }
+      
+      // Sync play/stop state
+      if (pos.getIsPlaying()) {
+          if (!audioEngine->isPlaying()) {
+              audioEngine->play();
+          }
+      } else {
+          if (audioEngine->isPlaying()) {
+              audioEngine->pause();
+          }
+      }
+  }
+  ```
 
-- [ ] **11.4** Add sidechain input
-  - Sidechain for future vocal input
-  - Route external audio to analysis
+- [ ] **11.4** Implement State Save/Restore
+  ```cpp
+  void MusicGenPluginProcessor::getStateInformation(juce::MemoryBlock& destData) {
+      // Serialize project state to XML
+      auto state = project->toJSON();
+      juce::MemoryOutputStream stream(destData, false);
+      stream.writeString(state);
+  }
+  
+  void MusicGenPluginProcessor::setStateInformation(const void* data, 
+                                                     int sizeInBytes) {
+      // Deserialize project state
+      juce::MemoryInputStream stream(data, static_cast<size_t>(sizeInBytes), false);
+      auto state = stream.readString();
+      project = Project::fromJSON(state);
+      
+      // Restore audio engine state
+      if (!project->generationResult.midiPath.isEmpty()) {
+          audioEngine->loadMidiFile(juce::File(project->generationResult.midiPath));
+      }
+  }
+  ```
 
-- [ ] **11.5** Test in major DAWs
-  - Ableton Live
-  - FL Studio
-  - Logic Pro
-  - Cubase
-  - Reaper
+- [ ] **11.5** Add Sidechain Input (Future: Vocal Analysis)
+  ```cpp
+  // In PluginProcessor constructor
+  MusicGenPluginProcessor::MusicGenPluginProcessor()
+      : AudioProcessor(BusesProperties()
+          .withInput("Input", juce::AudioChannelSet::stereo(), true)
+          .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+          .withInput("Sidechain", juce::AudioChannelSet::mono(), false)) // Optional sidechain
+  {
+      // Sidechain can be used for:
+      // - Vocal pitch detection → melody generation
+      // - Beat detection → tempo sync
+      // - Ducking/sidechain compression
+  }
+  ```
 
-- [ ] **11.6** Create plugin installer
-  - Windows installer (VST3)
-  - macOS installer (VST3 + AU)
-  - Linux (VST3)
+- [ ] **11.6** Update CMakeLists.txt for Plugin Build
+  ```cmake
+  # CMakeLists.txt additions for plugin
+  
+  # Plugin target (VST3 + AU)
+  juce_add_plugin(MusicGenPlugin
+      PLUGIN_MANUFACTURER_CODE MGen
+      PLUGIN_CODE MMGn
+      FORMATS VST3 AU Standalone
+      PRODUCT_NAME "AI Music Generator"
+      COMPANY_NAME "Your Name"
+      IS_SYNTH TRUE
+      NEEDS_MIDI_INPUT TRUE
+      NEEDS_MIDI_OUTPUT TRUE
+      IS_MIDI_EFFECT FALSE
+      EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+  )
+  
+  target_sources(MusicGenPlugin PRIVATE
+      Source/Plugin/PluginProcessor.cpp
+      Source/Plugin/PluginEditor.cpp
+      # ... all other sources
+  )
+  
+  target_link_libraries(MusicGenPlugin PRIVATE
+      juce::juce_audio_basics
+      juce::juce_audio_devices
+      juce::juce_audio_formats
+      juce::juce_audio_plugin_client
+      juce::juce_audio_processors
+      juce::juce_audio_utils
+      juce::juce_core
+      juce::juce_graphics
+      juce::juce_gui_basics
+      juce::juce_gui_extra
+      juce::juce_osc
+      juce::juce_dsp
+  )
+  ```
+
+- [ ] **11.7** Test in Major DAWs
+  
+  | DAW | Platform | Test Cases |
+  |-----|----------|------------|
+  | **Ableton Live** | Win/Mac | Load, transport sync, parameter automation |
+  | **FL Studio** | Win | Load, MIDI routing, mixer integration |
+  | **Logic Pro** | Mac | AU validation, transport, state save |
+  | **Cubase/Nuendo** | Win/Mac | VST3 validation, automation |
+  | **Reaper** | Win/Mac/Linux | Load, multi-instance, state |
+  | **Pro Tools** | Win/Mac | AAX (future), basic load test |
+  
+  **Test Checklist:**
+  - [ ] Plugin loads without crash
+  - [ ] UI renders correctly at various sizes
+  - [ ] Transport syncs with host BPM
+  - [ ] Play/Stop syncs with host transport
+  - [ ] State saves and restores correctly
+  - [ ] Multiple instances work simultaneously
+  - [ ] CPU usage is reasonable
+  - [ ] No audio dropouts under load
+
+- [ ] **11.8** Create Plugin Installers
+  ```
+  Windows:
+  └── Installer.exe (Inno Setup or WiX)
+      ├── VST3: C:\Program Files\Common Files\VST3\
+      └── Standalone: C:\Program Files\AI Music Generator\
+  
+  macOS:
+  └── Installer.pkg (pkgbuild)
+      ├── VST3: /Library/Audio/Plug-Ins/VST3/
+      ├── AU: /Library/Audio/Plug-Ins/Components/
+      └── Standalone: /Applications/
+  
+  Linux:
+  └── .deb / .rpm / AppImage
+      └── VST3: ~/.vst3/
+  ```
 
 #### Success Criteria
-- [ ] Plugin loads in all tested DAWs
-- [ ] Transport syncs correctly
-- [ ] Audio output works
-- [ ] No crashes or audio dropouts
-- [ ] Installer works cleanly
+- [ ] Plugin loads in Ableton, FL Studio, Logic, Cubase, Reaper
+- [ ] Transport syncs correctly (BPM, position, play/stop)
+- [ ] State persists across DAW sessions
+- [ ] UI is responsive and resizable
+- [ ] No audio dropouts or crashes
+- [ ] Multiple instances work correctly
+- [ ] Installer works cleanly on Win/Mac
+
+#### Technical Specifications
+| Parameter | Value |
+|-----------|-------|
+| Plugin Format | VST3, AU (Mac), Standalone |
+| Min JUCE Version | 7.0 |
+| Default Size | 1200 x 800 |
+| Min Size | 800 x 600 |
+| Resizable | Yes |
+| MIDI I/O | Yes |
+| Sidechain | Optional mono input |
+
+#### File Structure After Phase 11
+```
+juce/Source/
+└── Plugin/
+    ├── PluginProcessor.h/cpp    # NEW: AudioProcessor implementation
+    └── PluginEditor.h/cpp       # NEW: AudioProcessorEditor wrapper
+
+juce/Installer/
+├── Windows/
+│   └── installer.iss            # Inno Setup script
+└── macOS/
+    └── installer.pkgproj        # Packages project
 
 ---
 
-### Phase 12: Advanced Features (Future)
+### Phase 12: Advanced Features & AI Enhancements
 **Duration**: Ongoing  
 **Risk Level**: 🟡 Variable  
-**Goal**: Vocal-to-orchestration and beyond
+**Goal**: Vocal-to-orchestration, AI harmonization, collaborative features
 
-#### Tasks
-- [ ] **12.1** Vocal input processing
-  - Pitch detection (using pYIN or similar)
-  - Melody transcription
-  - Send to Python for harmonization
+#### 12.1 Vocal Input & Melody Transcription
+**Goal**: Transform sung/hummed melodies into MIDI and harmonized arrangements
 
-- [ ] **12.2** AI harmonization
-  - Generate chord progression from melody
-  - Create bass line that follows chords
-  - Add counter-melodies
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      VOCAL → MIDI PIPELINE                                   │
+│                                                                             │
+│  🎤 Audio Input    →    Pitch Detection    →    MIDI Transcription         │
+│  (Microphone/File)      (pYIN Algorithm)        (Note Events)               │
+│                              ↓                        ↓                      │
+│                         Onset Detection         Quantization                │
+│                         (Transients)           (Beat Grid Snap)             │
+│                              ↓                        ↓                      │
+│                         Segmentation              AI Harmony                │
+│                        (Phrase Detection)        (Chord Suggestion)         │
+│                                                       ↓                      │
+│                                              Accompaniment Generation        │
+│                                              (Bass, Chords, Drums)           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-- [ ] **12.3** Real-time suggestion engine
-  - Suggest next section based on current arrangement
-  - Suggest instrument variations
-  - Suggest automation curves
+**Tasks:**
+- [ ] **12.1.1** Implement Pitch Detection (Python)
+  ```python
+  # multimodal_gen/vocal/pitch_detector.py
+  import librosa
+  
+  class VocalPitchDetector:
+      def __init__(self, sr=44100):
+          self.sr = sr
+          
+      def detect_pitches(self, audio: np.ndarray) -> List[PitchEvent]:
+          """
+          Uses pYIN algorithm for monophonic pitch detection.
+          Returns list of (time_seconds, midi_note, confidence)
+          """
+          f0, voiced_flag, voiced_prob = librosa.pyin(
+              audio, fmin=60, fmax=800, sr=self.sr
+          )
+          return self._convert_to_events(f0, voiced_prob)
+      
+      def transcribe_to_midi(self, audio: np.ndarray) -> mido.MidiFile:
+          """Convert detected pitches to MIDI file."""
+          pass
+  ```
 
-- [ ] **12.4** Collaborative features
-  - Share project via link
-  - Real-time collaboration (like Google Docs)
-  - Community preset sharing
+- [ ] **12.1.2** Implement Real-time Pitch Display (JUCE)
+  ```cpp
+  // Source/UI/VocalInput/PitchDisplayComponent.h
+  class PitchDisplayComponent : public juce::Component, 
+                                 public juce::Timer {
+  public:
+      void setCurrentPitch(float midiNote, float confidence);
+      void paint(juce::Graphics& g) override;
+      
+  private:
+      float currentPitch = 0.0f;
+      float confidence = 0.0f;
+      juce::Path pitchHistory;  // Rolling display
+  };
+  ```
 
-- [ ] **12.5** Hardware integration
-  - MIDI controller mapping
-  - MPC hardware direct sync
-  - Ableton Push/Launchpad support
+- [ ] **12.1.3** Integrate with OSC for Processing
+  ```python
+  # OSC messages for vocal processing
+  # /vocal/start_listening - Begin pitch capture
+  # /vocal/stop_listening - End capture, process
+  # /vocal/pitch {midi_note, confidence} - Real-time pitch updates
+  # /vocal/transcribed {midi_path} - Transcription complete
+  ```
+
+#### 12.2 AI Harmonization
+**Goal**: Generate chord progressions and accompaniment from melody
+
+**Tasks:**
+- [ ] **12.2.1** Chord Suggestion Engine
+  ```python
+  # multimodal_gen/harmony/chord_suggester.py
+  class ChordSuggester:
+      def suggest_chords(self, melody_notes: List[int], 
+                         key: str, scale: str) -> List[Chord]:
+          """
+          Suggests chord progression based on:
+          - Melody note patterns
+          - Key and scale
+          - Genre-specific voice leading rules
+          """
+          pass
+      
+      def harmonize_melody(self, melody: MidiTrack, 
+                           chord_progression: List[Chord]) -> MidiFile:
+          """
+          Generates full arrangement:
+          - Bass line following chord roots
+          - Chord voicings (piano/synth)
+          - Optional counter-melodies
+          """
+          pass
+  ```
+
+- [ ] **12.2.2** Bass Line Generator
+  ```python
+  # multimodal_gen/harmony/bass_generator.py
+  class BassLineGenerator:
+      def generate(self, chords: List[Chord], 
+                   genre: str, bpm: float) -> MidiTrack:
+          """
+          Generates bass line that:
+          - Follows chord root movement
+          - Applies genre-specific patterns (walking, syncopated, etc.)
+          - Humanizes timing and velocity
+          """
+          pass
+  ```
+
+#### 12.3 Real-time Suggestion Engine
+**Goal**: Context-aware musical suggestions during composition
+
+**Tasks:**
+- [ ] **12.3.1** Next Section Predictor
+  ```python
+  # Suggest next section based on current arrangement
+  class SectionPredictor:
+      def predict_next(self, current_sections: List[Section], 
+                       genre: str) -> List[SectionSuggestion]:
+          """
+          Based on genre conventions:
+          - After intro → verse
+          - After verse → chorus or pre-chorus
+          - After chorus → verse2 or bridge
+          """
+          pass
+  ```
+
+- [ ] **12.3.2** Instrument Variation Suggester
+  ```python
+  # Suggest variations on current instruments
+  class VariationSuggester:
+      def suggest_variations(self, current_instruments: List[Instrument],
+                             mood_change: str) -> List[Instrument]:
+          """
+          Suggests instrument swaps for:
+          - Energy increase (add brass, strings)
+          - Energy decrease (remove drums, add pads)
+          - Genre fusion (add unexpected instruments)
+          """
+          pass
+  ```
+
+#### 12.4 Collaborative Features
+**Goal**: Share and collaborate on projects
+
+**Tasks:**
+- [ ] **12.4.1** Project Export/Import
+  ```python
+  # Export project as shareable archive
+  def export_project_archive(project: Project, output_path: str) -> str:
+      """
+      Creates .mmgz archive containing:
+      - Project JSON
+      - MIDI files
+      - Audio stems
+      - Custom instrument samples (optional)
+      """
+      pass
+  ```
+
+- [ ] **12.4.2** Community Preset Sharing
+  ```cpp
+  // Future: Cloud-based preset sharing
+  class PresetCloud {
+  public:
+      void uploadPreset(const GenrePreset& preset);
+      std::vector<GenrePreset> searchPresets(const juce::String& query);
+      void downloadPreset(const juce::String& presetId);
+  };
+  ```
+
+#### 12.5 Hardware Integration
+**Goal**: MIDI controller and MPC hardware support
+
+**Tasks:**
+- [ ] **12.5.1** MIDI Learn for Parameters
+  ```cpp
+  // Source/MIDI/MidiLearn.h
+  class MidiLearn {
+  public:
+      void startLearning(juce::Slider* targetSlider);
+      void handleMidiMessage(const juce::MidiMessage& msg);
+      
+      // Save/load mappings
+      void saveMappings(const juce::File& file);
+      void loadMappings(const juce::File& file);
+      
+  private:
+      std::map<int, juce::Slider*> ccToSlider;  // CC# → Slider mapping
+  };
+  ```
+
+- [ ] **12.5.2** Pad Controller Support
+  ```cpp
+  // Support for drum pads (MPC, Launchpad, etc.)
+  class PadController {
+  public:
+      void handleNoteOn(int note, int velocity);
+      void handleNoteOff(int note);
+      
+      // Map pads to instrument triggers
+      void mapPadToInstrument(int padIndex, const InstrumentInfo& inst);
+  };
+  ```
+
+- [ ] **12.5.3** MPC Hardware Sync
+  ```python
+  # Direct MPC hardware communication
+  # - Tempo sync via MIDI clock
+  # - Program export to MPC SD card
+  # - Sample transfer
+  ```
+
+#### Success Criteria (Variable by Feature)
+
+| Feature | Priority | Complexity | Success Metric |
+|---------|----------|------------|----------------|
+| Pitch Detection | High | Medium | 95% accuracy on clean vocals |
+| Melody Transcription | High | Medium | Usable MIDI from hummed melody |
+| AI Harmonization | Medium | High | Musically sensible chord suggestions |
+| Bass Generation | Medium | Medium | Genre-appropriate bass lines |
+| Next Section Prediction | Low | Low | 3+ relevant suggestions |
+| MIDI Learn | Medium | Low | Any CC maps to any slider |
+| Pad Support | Low | Low | Basic pad triggering works |
+
+#### File Structure After Phase 12
+```
+multimodal_gen/
+├── vocal/
+│   ├── pitch_detector.py      # NEW: pYIN pitch detection
+│   ├── transcriber.py         # NEW: Audio → MIDI
+│   └── onset_detector.py      # NEW: Note onset detection
+├── harmony/
+│   ├── chord_suggester.py     # NEW: AI chord suggestions
+│   ├── bass_generator.py      # NEW: Bass line generation
+│   └── harmonizer.py          # NEW: Full harmonization
+└── collaboration/
+    └── project_archive.py     # NEW: Project sharing format
+
+juce/Source/
+├── MIDI/
+│   ├── MidiLearn.h/cpp        # NEW: MIDI CC learning
+│   └── PadController.h/cpp    # NEW: Pad input handling
+└── UI/
+    └── VocalInput/
+        └── PitchDisplayComponent.h/cpp  # NEW: Real-time pitch display
+```
 
 ---
 
@@ -1348,4 +2621,41 @@ The following features were implemented ahead of schedule:
 
 ---
 
-*Last Updated: December 11, 2025*
+*Last Updated: December 29, 2025*
+
+---
+
+## 📚 Research & Best Practices Applied
+
+This TODO was enhanced with professional patterns from:
+
+### AudioProcessorGraph Tutorial (JUCE Official)
+- **ProcessorBase pattern**: Reduces boilerplate for custom audio processors
+- **Node connection management**: Proper `addNode()` → `addConnection()` workflow
+- **Dynamic graph updates**: Check state changes before rebuilding graph
+- **Graph I/O processors**: `AudioGraphIOProcessor` for input/output routing
+
+### VU Meter Standards (ANSI C16.5-1942 / IEC 60268-17)
+- **300ms rise/fall time**: Standard VU ballistics for perceived loudness
+- **RMS averaging**: Not peak detection (different from PPM)
+- **Reference level**: 0 VU = +4 dBu (professional standard)
+- **Headroom**: Design for +6dB to +10dB above reference
+- **Peak hold**: 2 second hold with 300ms decay (industry convention)
+
+### JUCE DSP Module
+- **dsp::Gain**: Smoothed gain with `setRampDurationSeconds()` for click-free changes
+- **dsp::Panner**: Balanced panning law (`PannerRule::balanced`)
+- **dsp::ProcessSpec**: Standard way to pass sample rate/block size
+- **dsp::ProcessContextReplacing**: In-place audio processing pattern
+
+### Command Pattern (Gang of Four)
+- **Undo/Redo stack**: Maximum 50 levels, clear on save
+- **Command merging**: Group continuous slider movements into single undo
+- **Transactions**: Group multiple commands into single undoable action
+- **Serialization**: Commands can describe themselves for UI display
+
+### Plugin Development (VST3/AU)
+- **AudioPlayHead::PositionInfo**: Proper DAW transport sync
+- **State save/restore**: JSON serialization for human-readable project files
+- **Sidechain input**: Optional mono input for future vocal analysis
+- **Multi-instance support**: Stateless design for multiple plugin instances

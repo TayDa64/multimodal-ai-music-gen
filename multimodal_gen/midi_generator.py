@@ -51,6 +51,7 @@ from .utils import (
     get_chord_progression,
     get_chord_notes,
     note_name_to_midi,
+    midi_to_note_name,
 )
 from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SongSection, SectionType
@@ -170,28 +171,145 @@ def generate_trap_snare_pattern(
     bars: int,
     variation: int = 0,
     base_velocity: int = 100,
-    add_ghost_notes: bool = True
+    add_ghost_notes: bool = True,
+    half_time: bool = True
 ) -> List[Tuple[int, int, int]]:
-    """Generate trap-style snare/clap pattern (on beats 2 and 4)."""
+    """Generate trap-style snare/clap pattern.
+
+    Default is half-time (primary hit on beat 3), which is common for modern
+    trap at ~130-170 BPM.
+    """
+    pattern = []
+    ticks_per_bar = TICKS_PER_BAR_4_4
+    
+    for bar in range(bars):
+        bar_offset = bar * ticks_per_bar
+
+        # Main snares
+        if half_time:
+            # Beat 3 (0-indexed beat start = 2)
+            tick = bar_offset + beats_to_ticks(2)
+            vel = humanize_velocity(base_velocity, variation=0.1)
+            pattern.append((tick, TICKS_PER_8TH, vel))
+
+            # Optional late-clap / secondary hit for variation
+            if variation % 4 == 1 and random.random() < 0.35:
+                tick2 = bar_offset + beats_to_ticks(3)
+                vel2 = humanize_velocity(max(60, base_velocity - 15), variation=0.12)
+                pattern.append((tick2, TICKS_PER_16TH, vel2))
+        else:
+            # Backbeat (beats 2 and 4)
+            for beat in [2, 4]:
+                tick = bar_offset + beats_to_ticks(beat - 1)  # 0-indexed
+                vel = humanize_velocity(base_velocity, variation=0.1)
+                pattern.append((tick, TICKS_PER_8TH, vel))
+        
+        # Ghost notes (soft snare hits around the main hit)
+        if add_ghost_notes and random.random() < 0.55:
+            if half_time:
+                ghost_positions = [2.5, 2.75, 3.5]  # around beat 3
+                ghost_pos = random.choice(ghost_positions)
+                tick = bar_offset + beats_to_ticks(ghost_pos)
+            else:
+                ghost_positions = [1.5, 2.5, 3.5]
+                ghost_pos = random.choice(ghost_positions)
+                tick = bar_offset + beats_to_ticks(ghost_pos - 1)
+
+            ghost_vel = humanize_velocity(48, variation=0.18)
+            pattern.append((tick, TICKS_PER_16TH, ghost_vel))
+    
+    return pattern
+
+
+def generate_standard_hihat_pattern(
+    bars: int,
+    density: str = '8th',  # '8th', '16th', or 'sparse'
+    base_velocity: int = 75,
+    swing: float = 0.0,
+    include_rolls: bool = False
+) -> List[Tuple[int, int, int]]:
+    """
+    Generate standard hi-hat pattern with configurable density.
+    
+    This is the DEFAULT hi-hat generator for most genres.
+    Only use generate_trap_hihat_pattern for trap/drill specific needs.
+    
+    NOTE: This function applies MINIMAL timing variation to avoid collision
+    with other drum elements that may be generated separately. The main
+    collision resolution happens in _resolve_drum_collisions().
+    
+    Args:
+        density: '8th' (default, clean), '16th' (busier), 'sparse' (minimal)
+        include_rolls: Only adds rolls if True AND genre specifically needs them
+    """
     pattern = []
     ticks_per_bar = TICKS_PER_BAR_4_4
     
     for bar in range(bars):
         bar_offset = bar * ticks_per_bar
         
-        # Main snares on 2 and 4
-        for beat in [2, 4]:
-            tick = bar_offset + beats_to_ticks(beat - 1)  # 0-indexed
-            vel = humanize_velocity(base_velocity, variation=0.1)
-            pattern.append((tick, TICKS_PER_8TH, vel))
+        if density == 'sparse':
+            # Very minimal - just on beats 2 and 4
+            for beat in [1, 3]:  # 0-indexed
+                tick = bar_offset + beats_to_ticks(beat)
+                vel = humanize_velocity(base_velocity - 10, variation=0.1)
+                pattern.append((tick, TICKS_PER_8TH, vel))
         
-        # Ghost notes (soft snare hits between main hits)
-        if add_ghost_notes and random.random() < 0.5:
-            ghost_positions = [1.5, 2.5, 3.5]
-            ghost_pos = random.choice(ghost_positions)
-            tick = bar_offset + beats_to_ticks(ghost_pos - 1)
-            ghost_vel = humanize_velocity(50, variation=0.15)
-            pattern.append((tick, TICKS_PER_16TH, ghost_vel))
+        elif density == '8th':
+            # Clean 8th note pattern - professional standard for most genres
+            for eighth in range(8):
+                base_tick = bar_offset + (eighth * TICKS_PER_8TH)
+                is_offbeat = eighth % 2 == 1
+                
+                # Apply swing only to offbeats, no additional timing jitter
+                # This reduces collisions with separately-generated kicks/snares
+                if swing > 0 and is_offbeat:
+                    swing_offset = int(TICKS_PER_8TH * swing)
+                    tick = base_tick + swing_offset
+                else:
+                    tick = base_tick
+                
+                # Accent on beats, lighter on offbeats
+                if eighth % 2 == 0:
+                    vel = humanize_velocity(base_velocity, variation=0.08)
+                else:
+                    vel = humanize_velocity(base_velocity - 15, variation=0.12)
+                
+                pattern.append((tick, TICKS_PER_8TH // 2, vel))
+        
+        elif density == '16th':
+            # 16th notes - only for very specific genres (handled by trap pattern)
+            for sixteenth in range(16):
+                base_tick = bar_offset + (sixteenth * TICKS_PER_16TH)
+                is_offbeat = sixteenth % 2 == 1
+                
+                # Apply swing deterministically, no random jitter
+                if swing > 0 and is_offbeat:
+                    swing_offset = int(TICKS_PER_16TH * swing)
+                    tick = base_tick + swing_offset
+                else:
+                    tick = base_tick
+                
+                if sixteenth % 4 == 0:
+                    vel = humanize_velocity(base_velocity, variation=0.08)
+                elif sixteenth % 2 == 0:
+                    vel = humanize_velocity(base_velocity - 15, variation=0.1)
+                else:
+                    vel = humanize_velocity(base_velocity - 25, variation=0.12)
+                
+                pattern.append((tick, TICKS_PER_16TH // 2, vel))
+        
+        # Only add rolls if explicitly requested AND it makes sense
+        if include_rolls and density == '16th' and random.random() < 0.25:
+            roll_start_beat = random.choice([2, 3])  # More musical placement
+            roll_start_tick = bar_offset + beats_to_ticks(roll_start_beat)
+            roll_length = random.choice([3, 6])  # Shorter rolls
+            
+            ticks_per_triplet = TICKS_PER_8TH // 3
+            for i in range(roll_length):
+                roll_tick = roll_start_tick + (i * ticks_per_triplet)
+                roll_vel = humanize_velocity(55 + (i * 4), variation=0.1)
+                pattern.append((roll_tick, ticks_per_triplet // 2, roll_vel))
     
     return pattern
 
@@ -253,6 +371,90 @@ def generate_trap_hihat_pattern(
     return pattern
 
 
+def generate_rnb_drum_pattern(
+    bars: int,
+    swing: float = 0.08,
+    base_velocity: int = 80
+) -> Dict[str, List[Tuple[int, int, int]]]:
+    """
+    Generate R&B style drum pattern.
+    
+    Characteristics:
+    - Smoother, groove-oriented feel
+    - No hi-hat rolls (clean, understated)
+    - Emphasis on the pocket/groove
+    - Lighter touch on drums
+    - Occasional rim shots for texture
+    
+    IMPORTANT: Uses shared groove timing to prevent "flamming" effects
+    where kick/snare/hihat land at slightly different times.
+    """
+    ticks_per_bar = TICKS_PER_BAR_4_4
+    
+    kicks = []
+    snares = []
+    hihats = []
+    rims = []
+    
+    for bar in range(bars):
+        bar_offset = bar * ticks_per_bar
+        
+        # Pre-calculate groove offsets for each 8th note position
+        # This ensures all drums hitting at the same time share the same groove
+        groove_offsets = {}
+        for eighth in range(8):
+            base_tick = bar_offset + (eighth * TICKS_PER_8TH)
+            is_offbeat = eighth % 2 == 1
+            # Calculate humanized tick ONCE per grid position
+            humanized = humanize_timing(base_tick, swing=swing, timing_variation=0.02, is_offbeat=is_offbeat)
+            groove_offsets[eighth] = humanized
+        
+        # R&B kick pattern - simpler, groove-focused
+        # Pattern varies every 2 bars for interest
+        if bar % 4 < 2:
+            kick_positions = [0, 2.5]  # Basic groove
+        else:
+            kick_positions = [0, 2.25, 3.5]  # Slight variation
+        
+        for pos in kick_positions:
+            # Map to nearest 8th note position for groove alignment
+            eighth_pos = int(pos * 2)  # Convert beats to 8th note index
+            if eighth_pos in groove_offsets:
+                tick = groove_offsets[eighth_pos]
+            else:
+                tick = bar_offset + beats_to_ticks(pos)
+            vel = humanize_velocity(base_velocity, variation=0.08)
+            kicks.append((tick, TICKS_PER_8TH, vel))
+        
+        # Snare on 2 and 4 - classic R&B backbeat
+        for beat in [2, 4]:
+            eighth_pos = (beat - 1) * 2  # Beat 2 = 8th position 2, Beat 4 = 8th position 6
+            tick = groove_offsets.get(eighth_pos, bar_offset + beats_to_ticks(beat - 1))
+            vel = humanize_velocity(base_velocity - 5, variation=0.1)
+            snares.append((tick, TICKS_PER_8TH, vel))
+        
+        # Clean 8th note hi-hats - use pre-calculated groove
+        for eighth in range(8):
+            tick = groove_offsets[eighth]
+            
+            # Subtle accent pattern - lighter touch
+            if eighth % 2 == 0:
+                vel = humanize_velocity(base_velocity - 20, variation=0.1)
+            else:
+                vel = humanize_velocity(base_velocity - 30, variation=0.12)
+            
+            hihats.append((tick, TICKS_PER_8TH // 2, vel))
+        
+        # Occasional rim shot for R&B texture (every 4 bars)
+        if bar % 4 == 2:
+            # Rim on the "and" of beat 2 (8th position 3)
+            rim_tick = groove_offsets.get(3, bar_offset + beats_to_ticks(1.5))
+            rim_vel = humanize_velocity(55, variation=0.15)
+            rims.append((rim_tick, TICKS_PER_16TH, rim_vel))
+    
+    return {'kick': kicks, 'snare': snares, 'hihat': hihats, 'rim': rims}
+
+
 def generate_lofi_drum_pattern(
     bars: int,
     swing: float = 0.12,
@@ -265,6 +467,9 @@ def generate_lofi_drum_pattern(
     - Strong swing feel
     - Softer, more relaxed velocities
     - Simpler patterns
+    
+    IMPORTANT: Uses shared groove timing to prevent "flamming" effects
+    where kick/snare/hihat land at slightly different times.
     """
     ticks_per_bar = TICKS_PER_BAR_4_4
     
@@ -275,26 +480,32 @@ def generate_lofi_drum_pattern(
     for bar in range(bars):
         bar_offset = bar * ticks_per_bar
         
-        # Simple kick pattern
-        kick_positions = [0, 2.5] if bar % 2 == 0 else [0, 2.75]
-        for pos in kick_positions:
-            tick = bar_offset + beats_to_ticks(pos)
-            tick = humanize_timing(tick, swing=0, timing_variation=0.03)
+        # Pre-calculate groove offsets for each 8th note position
+        # This ensures all drums hitting at the same time share the same groove
+        groove_offsets = {}
+        for eighth in range(8):
+            base_tick = bar_offset + (eighth * TICKS_PER_8TH)
+            is_offbeat = eighth % 2 == 1
+            # Calculate humanized tick ONCE per grid position
+            humanized = humanize_timing(base_tick, swing=swing, timing_variation=0.02, is_offbeat=is_offbeat)
+            groove_offsets[eighth] = humanized
+        
+        # Simple kick pattern - use groove from 8th note grid
+        kick_positions = [(0, 0), (2.5, 5)] if bar % 2 == 0 else [(0, 0), (2.75, 5)]  # (beat_pos, nearest_8th)
+        for beat_pos, eighth_pos in kick_positions:
+            tick = groove_offsets.get(eighth_pos, bar_offset + beats_to_ticks(beat_pos))
             vel = humanize_velocity(base_velocity, variation=0.1)
             kicks.append((tick, TICKS_PER_8TH, vel))
         
-        # Snare on 2 and 4
-        for beat in [2, 4]:
-            tick = bar_offset + beats_to_ticks(beat - 1)
-            tick = humanize_timing(tick, swing=0, timing_variation=0.04)
+        # Snare on 2 and 4 - use groove from 8th note grid
+        for beat, eighth_pos in [(2, 2), (4, 6)]:
+            tick = groove_offsets.get(eighth_pos, bar_offset + beats_to_ticks(beat - 1))
             vel = humanize_velocity(base_velocity - 10, variation=0.12)
             snares.append((tick, TICKS_PER_8TH, vel))
         
-        # Swung hi-hats
+        # Swung hi-hats - use pre-calculated groove
         for eighth in range(8):
-            tick = bar_offset + (eighth * TICKS_PER_8TH)
-            is_offbeat = eighth % 2 == 1
-            tick = humanize_timing(tick, swing=swing, timing_variation=0.02, is_offbeat=is_offbeat)
+            tick = groove_offsets[eighth]
             
             # Accent pattern
             if eighth % 2 == 0:
@@ -305,6 +516,94 @@ def generate_lofi_drum_pattern(
             hihats.append((tick, TICKS_PER_8TH // 2, vel))
     
     return {'kick': kicks, 'snare': snares, 'hihat': hihats}
+
+
+def generate_gfunk_drum_pattern(
+    bars: int,
+    swing: float = 0.15,
+    base_velocity: int = 85
+) -> Dict[str, List[Tuple[int, int, int]]]:
+    """
+    Generate G-Funk style drum pattern.
+    
+    Characteristics:
+    - Bouncy, laid-back west coast feel
+    - Clean 8th note hi-hats (NO rapid rolls)
+    - Strong swing/shuffle
+    - Emphasis on the groove pocket
+    - Influenced by funk and P-Funk
+    - Think Dr. Dre's "The Chronic" era
+    
+    IMPORTANT: Uses shared groove timing to prevent "flamming" effects
+    where kick/snare/hihat land at slightly different times.
+    """
+    ticks_per_bar = TICKS_PER_BAR_4_4
+    
+    kicks = []
+    snares = []
+    hihats = []
+    claps = []
+    
+    for bar in range(bars):
+        bar_offset = bar * ticks_per_bar
+        
+        # Pre-calculate groove offsets for each 8th note position
+        # This ensures all drums hitting at the same time share the same groove
+        groove_offsets = {}
+        for eighth in range(8):
+            base_tick = bar_offset + (eighth * TICKS_PER_8TH)
+            is_offbeat = eighth % 2 == 1
+            # Calculate humanized tick ONCE per grid position
+            humanized = humanize_timing(base_tick, swing=swing, timing_variation=0.02, is_offbeat=is_offbeat)
+            groove_offsets[eighth] = humanized
+        
+        # G-Funk kick pattern - funky, syncopated
+        # Classic west coast bounce pattern
+        if bar % 4 < 2:
+            # Pattern A: Standard funk-influenced
+            kick_eighths = [0, 3, 4, 6]  # Beat 1, "and" of 2, Beat 3, Beat 4
+        else:
+            # Pattern B: Variation for movement
+            kick_eighths = [0, 2, 3, 6]  # Beat 1, Beat 2, "and" of 2, Beat 4
+        
+        for eighth in kick_eighths:
+            tick = groove_offsets.get(eighth, bar_offset + (eighth * TICKS_PER_8TH))
+            vel = humanize_velocity(base_velocity + 5, variation=0.08)
+            kicks.append((tick, TICKS_PER_8TH, vel))
+        
+        # Snare on 2 and 4 (classic backbeat)
+        for eighth_pos in [2, 6]:  # Beat 2 and Beat 4
+            tick = groove_offsets.get(eighth_pos, bar_offset + (eighth_pos * TICKS_PER_8TH))
+            vel = humanize_velocity(base_velocity, variation=0.1)
+            snares.append((tick, TICKS_PER_8TH, vel))
+        
+        # Clap layered on beat 4 for extra punch (every other bar)
+        if bar % 2 == 1:
+            tick = groove_offsets.get(6, bar_offset + beats_to_ticks(3))
+            vel = humanize_velocity(base_velocity - 10, variation=0.12)
+            claps.append((tick, TICKS_PER_8TH, vel))
+        
+        # G-Funk hi-hats: CLEAN 8th notes with swing (NOT 16th notes!)
+        # This is the key difference from trap - laid back, groovy, not busy
+        for eighth in range(8):
+            tick = groove_offsets[eighth]
+            
+            # Accent pattern: stronger on downbeats
+            if eighth % 2 == 0:  # Downbeat
+                vel = humanize_velocity(base_velocity - 10, variation=0.1)
+            else:  # Offbeat (swung)
+                vel = humanize_velocity(base_velocity - 25, variation=0.12)
+            
+            hihats.append((tick, TICKS_PER_8TH // 2, vel))
+        
+        # Occasional open hi-hat on the "and" of 4 for G-Funk flavor
+        if random.random() < 0.4:
+            tick = groove_offsets.get(7, bar_offset + beats_to_ticks(3.5))
+            vel = humanize_velocity(base_velocity - 15, variation=0.15)
+            # Mark as open (will be processed separately)
+            hihats.append((tick, TICKS_PER_8TH, vel))
+    
+    return {'kick': kicks, 'snare': snares, 'hihat': hihats, 'clap': claps}
 
 
 def generate_house_drum_pattern(
@@ -554,7 +853,8 @@ def generate_808_bass_pattern(
     root: str,
     scale_type: ScaleType,
     octave: int = 1,
-    base_velocity: int = 100
+    base_velocity: int = 100,
+    genre: Optional[str] = None
 ) -> List[Tuple[int, int, int, int]]:
     """
     Generate 808 bass pattern.
@@ -569,24 +869,65 @@ def generate_808_bass_pattern(
     scale_notes = get_scale_notes(root, scale_type, octave=octave, num_octaves=1)
     root_note = scale_notes[0]
     fifth_note = scale_notes[4] if len(scale_notes) > 4 else root_note
+    seventh_note = scale_notes[6] if len(scale_notes) > 6 else fifth_note
     
     for bar in range(bars):
         bar_offset = bar * ticks_per_bar
-        
-        # 808 pattern following kick pattern roughly
-        # Long sustained notes with occasional pitch changes
-        positions = [
-            (0, TICKS_PER_BEAT * 2, root_note),  # Hold for 2 beats
-            (beats_to_ticks(2.5), TICKS_PER_BEAT, root_note),  # Short hit
-        ]
-        
-        # Add variation every other bar
-        if bar % 2 == 1:
-            positions.append((beats_to_ticks(3.5), TICKS_PER_8TH, fifth_note))
-        
-        for tick_offset, duration, pitch in positions:
-            vel = humanize_velocity(base_velocity, variation=0.08)
-            pattern.append((bar_offset + tick_offset, duration, pitch, vel))
+
+        is_trap_like = (genre in ['trap', 'drill'])
+
+        if is_trap_like:
+            # Trap 808: half-time oriented, more syncopated + occasional approach notes.
+            # Always anchor the downbeat.
+            events: List[Tuple[float, int, int]] = []  # (beat_pos, duration_ticks, pitch)
+
+            # Downbeat sustain (1-2 beats)
+            down_dur = random.choice([TICKS_PER_BEAT, TICKS_PER_BEAT * 2])
+            events.append((0.0, down_dur, root_note))
+
+            # Mid-bar hits (typical trap placements)
+            candidate_beats = [1.5, 1.75, 2.0, 2.5, 3.0, 3.25, 3.5]
+            random.shuffle(candidate_beats)
+            num_extra = random.randint(2, 4)
+            for b in candidate_beats[:num_extra]:
+                dur = random.choice([TICKS_PER_16TH * 3, TICKS_PER_8TH, TICKS_PER_BEAT])
+                pitch = random.choices(
+                    [root_note, fifth_note, seventh_note],
+                    weights=[0.65, 0.25, 0.10],
+                    k=1
+                )[0]
+                events.append((b, dur, pitch))
+
+            # Sort by time
+            events.sort(key=lambda x: x[0])
+
+            # Emit notes, with occasional approach "slides" (chromatic 16th before the note)
+            for beat_pos, duration, pitch in events:
+                tick_offset = beats_to_ticks(beat_pos)
+
+                if random.random() < 0.22 and tick_offset >= TICKS_PER_16TH:
+                    approach_tick = tick_offset - TICKS_PER_16TH
+                    approach_pitch = pitch + random.choice([-1, 1])
+                    approach_vel = humanize_velocity(max(45, base_velocity - 35), variation=0.15)
+                    pattern.append((bar_offset + approach_tick, TICKS_PER_16TH, approach_pitch, approach_vel))
+
+                vel = humanize_velocity(base_velocity, variation=0.08)
+                pattern.append((bar_offset + tick_offset, duration, pitch, vel))
+
+        else:
+            # Simpler 808 pattern (legacy)
+            positions = [
+                (0, TICKS_PER_BEAT * 2, root_note),  # Hold for 2 beats
+                (beats_to_ticks(2.5), TICKS_PER_BEAT, root_note),  # Short hit
+            ]
+
+            # Add variation every other bar
+            if bar % 2 == 1:
+                positions.append((beats_to_ticks(3.5), TICKS_PER_8TH, fifth_note))
+
+            for tick_offset, duration, pitch in positions:
+                vel = humanize_velocity(base_velocity, variation=0.08)
+                pattern.append((bar_offset + tick_offset, duration, pitch, vel))
     
     return pattern
 
@@ -598,7 +939,8 @@ def generate_chord_progression_midi(
     progression: List[int] = None,
     octave: int = 4,
     base_velocity: int = 85,
-    rhythm_style: str = 'block'
+    rhythm_style: str = 'block',
+    chord_color: bool = False
 ) -> List[Tuple[int, int, int, int]]:
     """
     Generate chord progression MIDI.
@@ -624,7 +966,24 @@ def generate_chord_progression_midi(
     
     pattern = []
     ticks_per_bar = TICKS_PER_BAR_4_4
-    chords = get_chord_progression(key, scale_type, progression, octave)
+
+    if chord_color:
+        # Rebuild progression here so we can use 7ths/9ths for gospel/church color.
+        scale_notes = get_scale_notes(key, scale_type, octave, 1)
+        if scale_type in [ScaleType.MAJOR, ScaleType.MIXOLYDIAN, ScaleType.LYDIAN]:
+            qualities = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'dim7']
+        else:
+            qualities = ['m7', 'dim7', 'maj7', 'm7', 'm7', 'maj7', '7']
+
+        chords = []
+        for degree in progression:
+            if 1 <= degree <= 7:
+                root_note = scale_notes[degree - 1]
+                root_name, _ = midi_to_note_name(root_note)
+                quality = qualities[degree - 1]
+                chords.append(get_chord_notes(root_name, quality, octave))
+    else:
+        chords = get_chord_progression(key, scale_type, progression, octave)
     
     # How many bars per chord
     bars_per_chord = max(1, bars // len(progression))
@@ -662,6 +1021,20 @@ def generate_chord_progression_midi(
                 for pitch in chord_notes:
                     vel = humanize_velocity(base_velocity, variation=0.08)
                     pattern.append((tick, TICKS_PER_8TH, pitch, vel))
+
+        elif rhythm_style == 'trap_staccato':
+            # Trap/church keys: staccato hits with a bit of syncopation.
+            # Keep it sparse so it reads like a pianist riffing, not pads.
+            hit_positions = [0.0, 0.5, 1.5, 2.5, 3.25, 3.5]
+            # Pick 3-4 hits per bar
+            random.shuffle(hit_positions)
+            chosen = sorted(hit_positions[:random.randint(3, 4)])
+            for pos in chosen:
+                tick = bar_offset + beats_to_ticks(pos)
+                dur = random.choice([TICKS_PER_16TH * 3, TICKS_PER_8TH])
+                for pitch in chord_notes:
+                    vel = humanize_velocity(base_velocity, variation=0.10)
+                    pattern.append((tick, dur, pitch, vel))
     
     return pattern
 
@@ -785,6 +1158,13 @@ class MidiGenerator:
         if any(inst in parsed.instruments for inst in chord_instruments):
             chord_track = self._create_chord_track(arrangement, parsed)
             mid.tracks.append(chord_track)
+
+        # Optional: Organ bed for churchy trap keys
+        wants_church = any(m in parsed.style_modifiers for m in ['church', 'gospel', 'zaytoven']) or ('zaytoven' in (parsed.raw_prompt or '').lower())
+        if parsed.genre in ['trap', 'trap_soul'] and wants_church:
+            organ_track = self._create_organ_track(arrangement, parsed)
+            if len(organ_track) > 1:
+                mid.tracks.append(organ_track)
         
         # Track 4: Melody (optional) - especially for Ethiopian flute/lead
         melody_instruments = ['washint', 'flute', 'synth_lead', 'synth']
@@ -888,8 +1268,10 @@ class MidiGenerator:
         config = section.config
         
         # Determine pattern type based on genre and section
-        if parsed.genre in ['trap', 'trap_soul']:
-            # Generate trap-style drums
+        # CRITICAL: Only pure trap/drill get dense 16th note hi-hats
+        # trap_soul, rnb, lofi, etc. should use cleaner patterns
+        if parsed.genre == 'trap':
+            # Full trap pattern with 16th notes - only for pure trap
             if config.enable_kick:
                 kicks = generate_trap_kick_pattern(
                     section.bars,
@@ -910,7 +1292,8 @@ class MidiGenerator:
                     section.bars,
                     variation=section.pattern_variation,
                     base_velocity=int(95 * config.drum_density),
-                    add_ghost_notes=config.drum_density > 0.5
+                    add_ghost_notes=config.drum_density > 0.5,
+                    half_time=True
                 )
                 for tick, dur, vel in snares:
                     notes.append(NoteEvent(
@@ -920,8 +1303,21 @@ class MidiGenerator:
                         velocity=vel,
                         channel=GM_DRUM_CHANNEL
                     ))
+
+                if 'clap' in parsed.drum_elements:
+                    for tick, dur, vel in snares:
+                        if dur >= TICKS_PER_16TH:
+                            clap_vel = humanize_velocity(max(50, int(vel * 0.90)), variation=0.10)
+                            notes.append(NoteEvent(
+                                pitch=GM_DRUM_NOTES['clap'],
+                                start_tick=section.start_tick + tick,
+                                duration_ticks=max(TICKS_PER_16TH, dur // 2),
+                                velocity=clap_vel,
+                                channel=GM_DRUM_CHANNEL
+                            ))
             
             if config.enable_hihat:
+                # For trap: dense 16th notes, rolls only if explicitly requested
                 include_rolls = (
                     'hihat_roll' in parsed.drum_elements and 
                     section.section_type in [SectionType.DROP, SectionType.CHORUS]
@@ -936,6 +1332,143 @@ class MidiGenerator:
                 for tick, dur, vel in hihats:
                     notes.append(NoteEvent(
                         pitch=GM_DRUM_NOTES['hihat_closed'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+
+                # Open hats for trap
+                if section.section_type in [SectionType.DROP, SectionType.VARIATION, SectionType.BUILDUP]:
+                    for bar in range(section.bars):
+                        bar_offset = section.start_tick + bar * TICKS_PER_BAR_4_4
+                        if random.random() < 0.55:
+                            for pos in [1.5, 3.5]:
+                                tick = bar_offset + beats_to_ticks(pos)
+                                vel = humanize_velocity(int(60 * config.drum_density), variation=0.15)
+                                notes.append(NoteEvent(
+                                    pitch=GM_DRUM_NOTES['hihat_open'],
+                                    start_tick=tick,
+                                    duration_ticks=TICKS_PER_8TH,
+                                    velocity=vel,
+                                    channel=GM_DRUM_CHANNEL
+                                ))
+
+                if 'crash' in parsed.drum_elements and section.section_type in [SectionType.DROP, SectionType.CHORUS]:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['crash'],
+                        start_tick=section.start_tick,
+                        duration_ticks=TICKS_PER_BEAT,
+                        velocity=humanize_velocity(int(85 * config.drum_density), variation=0.10),
+                        channel=GM_DRUM_CHANNEL
+                    ))
+        
+        elif parsed.genre == 'trap_soul':
+            # Trap Soul: CLEANER than trap - 8th note hi-hats, groove focus
+            if config.enable_kick:
+                kicks = generate_trap_kick_pattern(
+                    section.bars,
+                    variation=section.pattern_variation,
+                    base_velocity=int(90 * config.drum_density)
+                )
+                for tick, dur, vel in kicks:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['kick'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            if config.enable_snare:
+                snares = generate_trap_snare_pattern(
+                    section.bars,
+                    variation=section.pattern_variation,
+                    base_velocity=int(85 * config.drum_density),
+                    add_ghost_notes=False,  # Cleaner for trap_soul
+                    half_time=False
+                )
+                for tick, dur, vel in snares:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['snare'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+
+                if 'clap' in parsed.drum_elements:
+                    for tick, dur, vel in snares:
+                        if dur >= TICKS_PER_16TH:
+                            notes.append(NoteEvent(
+                                pitch=GM_DRUM_NOTES['clap'],
+                                start_tick=section.start_tick + tick,
+                                duration_ticks=dur // 2,
+                                velocity=humanize_velocity(int(vel * 0.85), variation=0.10),
+                                channel=GM_DRUM_CHANNEL
+                            ))
+            
+            if config.enable_hihat:
+                # Trap Soul: Use standard 8th note pattern - NOT 16th note trap pattern
+                hihats = generate_standard_hihat_pattern(
+                    section.bars,
+                    density='8th',  # Clean 8th notes, not dense 16ths
+                    base_velocity=int(70 * config.drum_density),
+                    swing=parsed.swing_amount or 0.08,
+                    include_rolls=False  # No rolls for trap_soul
+                )
+                for tick, dur, vel in hihats:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['hihat_closed'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+        
+        elif parsed.genre == 'rnb':
+            # R&B smooth groove pattern (no hi-hat rolls, clean feel)
+            patterns = generate_rnb_drum_pattern(
+                section.bars,
+                swing=parsed.swing_amount or 0.08,
+                base_velocity=int(80 * config.drum_density)
+            )
+            
+            if config.enable_kick:
+                for tick, dur, vel in patterns['kick']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['kick'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            if config.enable_snare:
+                for tick, dur, vel in patterns['snare']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['snare'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            if config.enable_hihat:
+                for tick, dur, vel in patterns['hihat']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['hihat_closed'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            # Add rim shots for R&B texture
+            if 'rim' in patterns:
+                for tick, dur, vel in patterns['rim']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['snare_rim'],
                         start_tick=section.start_tick + tick,
                         duration_ticks=dur,
                         velocity=vel,
@@ -974,6 +1507,55 @@ class MidiGenerator:
                 for tick, dur, vel in patterns['hihat']:
                     notes.append(NoteEvent(
                         pitch=GM_DRUM_NOTES['hihat_closed'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+        
+        elif parsed.genre == 'g_funk':
+            # G-Funk west coast pattern - bouncy, clean, laid-back
+            patterns = generate_gfunk_drum_pattern(
+                section.bars,
+                swing=parsed.swing_amount or 0.15,
+                base_velocity=int(85 * config.drum_density)
+            )
+            
+            if config.enable_kick:
+                for tick, dur, vel in patterns['kick']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['kick'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            if config.enable_snare:
+                for tick, dur, vel in patterns['snare']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['snare'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            if config.enable_hihat:
+                for tick, dur, vel in patterns['hihat']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['hihat_closed'],
+                        start_tick=section.start_tick + tick,
+                        duration_ticks=dur,
+                        velocity=vel,
+                        channel=GM_DRUM_CHANNEL
+                    ))
+            
+            # Add claps for G-Funk punch
+            if 'clap' in patterns and 'clap' in parsed.drum_elements:
+                for tick, dur, vel in patterns['clap']:
+                    notes.append(NoteEvent(
+                        pitch=GM_DRUM_NOTES['clap'],
                         start_tick=section.start_tick + tick,
                         duration_ticks=dur,
                         velocity=vel,
@@ -1068,7 +1650,8 @@ class MidiGenerator:
                     parsed.key,
                     parsed.scale_type,
                     octave=1,
-                    base_velocity=int(100 * section.config.energy_level)
+                    base_velocity=int(100 * section.config.energy_level),
+                    genre=parsed.genre
                 )
                 
                 for tick, dur, pitch, vel in bass_pattern:
@@ -1131,8 +1714,9 @@ class MidiGenerator:
         all_notes = []
         
         # Determine chord style based on genre
+        wants_church = any(m in parsed.style_modifiers for m in ['church', 'gospel', 'zaytoven']) or ('zaytoven' in (parsed.raw_prompt or '').lower())
         if parsed.genre in ['trap', 'trap_soul']:
-            rhythm_style = 'block'
+            rhythm_style = 'trap_staccato' if wants_church else 'block'
         elif parsed.genre == 'lofi':
             rhythm_style = 'arpeggiate'
         elif parsed.genre == 'house':
@@ -1148,7 +1732,8 @@ class MidiGenerator:
                     parsed.scale_type,
                     octave=4,
                     base_velocity=int(85 * section.config.instrument_density),
-                    rhythm_style=rhythm_style
+                    rhythm_style=rhythm_style,
+                    chord_color=wants_church
                 )
                 
                 for tick, dur, pitch, vel in chord_pattern:
@@ -1162,6 +1747,48 @@ class MidiGenerator:
         
         self._notes_to_track(all_notes, track, channel=2)
         
+        return track
+
+    def _create_organ_track(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt
+    ) -> MidiTrack:
+        """Generate an organ bed (church feel) under the piano."""
+        track = MidiTrack()
+        track.append(MetaMessage('track_name', name='Organ', time=0))
+        track.append(Message('program_change', program=16, channel=4, time=0))
+
+        all_notes = []
+        for section in arrangement.sections:
+            # Keep organ mostly in drops/choruses; avoid clutter in intro/breakdown
+            if section.section_type not in [SectionType.DROP, SectionType.CHORUS, SectionType.VARIATION]:
+                continue
+            if not section.config.enable_chords:
+                continue
+
+            chord_pattern = generate_chord_progression_midi(
+                section.bars,
+                parsed.key,
+                parsed.scale_type,
+                octave=3,
+                base_velocity=int(55 * section.config.instrument_density),
+                rhythm_style='block',
+                chord_color=True
+            )
+            for tick, dur, pitch, vel in chord_pattern:
+                # Reduce density: only keep lower notes to avoid masking piano
+                if pitch > note_name_to_midi(parsed.key, 4):
+                    continue
+                all_notes.append(NoteEvent(
+                    pitch=pitch,
+                    start_tick=section.start_tick + tick,
+                    duration_ticks=dur,
+                    velocity=max(35, int(vel * 0.75)),
+                    channel=4
+                ))
+
+        self._notes_to_track(all_notes, track, channel=4)
         return track
     
     def _create_melody_track(
@@ -1228,11 +1855,19 @@ class MidiGenerator:
         """
         Convert list of NoteEvents to MIDI track messages.
         
-        Handles delta time calculation and proper note-off ordering.
+        Handles delta time calculation, proper note-off ordering,
+        and collision resolution to prevent "flamming" effects.
+        
+        For drum tracks (channel 9), notes within a small timing window
+        are snapped to the same tick to prevent rapid-fire triggering.
         """
         if not notes:
             track.append(MetaMessage('end_of_track', time=0))
             return
+        
+        # For drum channel, apply collision resolution
+        if channel == GM_DRUM_CHANNEL:
+            notes = self._resolve_drum_collisions(notes)
         
         # Create note-on and note-off events
         events = []
@@ -1269,6 +1904,78 @@ class MidiGenerator:
         
         # End of track
         track.append(MetaMessage('end_of_track', time=0))
+    
+    def _resolve_drum_collisions(
+        self,
+        notes: List[NoteEvent],
+        collision_window: int = 30  # ~1/64th note at 480 ticks/beat
+    ) -> List[NoteEvent]:
+        """
+        Resolve timing collisions between different drum sounds.
+        
+        When different drum elements (kick, snare, hihat) land within
+        a small time window of each other due to independent humanization,
+        snap them to the same tick to prevent the "machine gun" / "flamming" effect.
+        
+        Args:
+            notes: List of drum NoteEvents
+            collision_window: Maximum ticks apart for notes to be considered "same beat"
+        
+        Returns:
+            Corrected list of NoteEvents with resolved collisions
+        """
+        if not notes:
+            return notes
+        
+        # Sort by start tick
+        sorted_notes = sorted(notes, key=lambda n: n.start_tick)
+        
+        # Group notes that should play together (within collision window)
+        # and snap them to a common time
+        result = []
+        i = 0
+        
+        while i < len(sorted_notes):
+            # Start a new group with this note
+            group_start = sorted_notes[i].start_tick
+            group = [sorted_notes[i]]
+            
+            # Find all notes within the collision window
+            j = i + 1
+            while j < len(sorted_notes):
+                if sorted_notes[j].start_tick - group_start <= collision_window:
+                    group.append(sorted_notes[j])
+                    j += 1
+                else:
+                    break
+            
+            # If group has multiple drum types, snap to common time
+            if len(group) > 1:
+                # Find unique pitches in the group
+                unique_pitches = set(n.pitch for n in group)
+                
+                # Only snap if we have DIFFERENT drum sounds colliding
+                # (same pitch collision = intentional roll or repeat)
+                if len(unique_pitches) > 1:
+                    # Snap all to the earliest tick (preserves groove feel)
+                    snap_tick = min(n.start_tick for n in group)
+                    for note in group:
+                        result.append(NoteEvent(
+                            pitch=note.pitch,
+                            start_tick=snap_tick,
+                            duration_ticks=note.duration_ticks,
+                            velocity=note.velocity,
+                            channel=note.channel
+                        ))
+                else:
+                    # Same pitch - keep original timing (intentional repetition)
+                    result.extend(group)
+            else:
+                result.extend(group)
+            
+            i = j
+        
+        return result
 
 
 # =============================================================================
