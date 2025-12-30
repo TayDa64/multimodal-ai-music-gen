@@ -462,6 +462,51 @@ void MainComponent::onError(int code, const juce::String& message)
     });
 }
 
+void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
+{
+    currentStatus = "Analysis complete";
+
+    juce::MessageManager::callAsync([this, result]()
+    {
+        juce::String msg;
+        msg += "Analysis complete!\n\n";
+        if (result.bpm > 0.0f)
+            msg += "BPM: " + juce::String(result.bpm, 1) + " (conf " + juce::String(result.bpmConfidence, 2) + ")\n";
+        if (result.key.isNotEmpty())
+            msg += "Key: " + result.key + " " + result.mode + " (conf " + juce::String(result.keyConfidence, 2) + ")\n";
+        if (result.estimatedGenre.isNotEmpty())
+            msg += "Estimated genre: " + result.estimatedGenre + " (conf " + juce::String(result.genreConfidence, 2) + ")\n";
+        if (result.styleTags.size() > 0)
+            msg += "Style tags: " + result.styleTags.joinIntoString(", ") + "\n";
+        if (result.promptHints.isNotEmpty())
+            msg += "\nPrompt hints: " + result.promptHints;
+
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::InfoIcon,
+            "Analyze",
+            msg
+        );
+
+        repaint();
+    });
+}
+
+void MainComponent::onAnalyzeError(int code, const juce::String& message)
+{
+    currentStatus = "Analyze error";
+
+    juce::MessageManager::callAsync([this, code, message]()
+    {
+        juce::ignoreUnused(code);
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Analyze Error",
+            message
+        );
+        repaint();
+    });
+}
+
 //==============================================================================
 // PromptPanel::Listener
 void MainComponent::generateRequested(const juce::String& prompt)
@@ -533,6 +578,26 @@ void MainComponent::fileSelected(const juce::File& file)
     {
         repaint();
     });
+}
+
+void MainComponent::analyzeFileRequested(const juce::File& file)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        currentStatus = "Analyzing: " + file.getFileName();
+        oscBridge->sendAnalyzeFile(file, false);
+        repaint();
+    }
+    else
+    {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Not Connected",
+            "Python backend is not connected.\n\n"
+            "Start the server with:\n"
+            "python main.py --server --verbose"
+        );
+    }
 }
 
 //==============================================================================

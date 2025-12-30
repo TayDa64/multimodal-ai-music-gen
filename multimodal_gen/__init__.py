@@ -81,6 +81,25 @@ from .midi_recording import (
     MidiDeviceInfo,
 )
 
+from .session_graph import (
+    SessionGraphBuilder,
+    SessionGraph,
+    create_session_graph,
+    load_session,
+    save_session,
+)
+from .genre_rules import (
+    validate_generation,
+    repair_violations,
+    get_genre_rules,
+)
+from .take_generator import (
+    TakeGenerator,
+    TakeConfig,
+    TakeLane,
+    take_to_midi_track,
+)
+
 __all__ = [
     "PromptParser",
     "ParsedPrompt",
@@ -144,4 +163,17 @@ __all__ = [
     "RecordConfig",
     "MidiRecordingError",
     "MidiDeviceInfo",
+    # New modules
+    "SessionGraphBuilder",
+    "SessionGraph",
+    "create_session_graph",
+    "load_session",
+    "save_session",
+    "validate_generation",
+    "repair_violations",
+    "get_genre_rules",
+    "TakeGenerator",
+    "TakeConfig",
+    "TakeLane",
+    "take_to_midi_track",
 ]

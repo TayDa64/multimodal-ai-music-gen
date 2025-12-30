@@ -70,6 +70,8 @@ public:
     void onProgress(float percent, const juce::String& step, const juce::String& message) override;
     void onGenerationComplete(const GenerationResult& result) override;
     void onError(int code, const juce::String& message) override;
+    void onAnalyzeResultReceived(const AnalyzeResult& result) override;
+    void onAnalyzeError(int code, const juce::String& message) override;
     
     //==============================================================================
     // PromptPanel::Listener
@@ -79,6 +81,7 @@ public:
     //==============================================================================
     // VisualizationPanel::Listener
     void fileSelected(const juce::File& file) override;
+    void analyzeFileRequested(const juce::File& file) override;
     
     //==============================================================================
     // GenreSelector::Listener

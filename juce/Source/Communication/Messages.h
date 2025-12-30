@@ -220,6 +220,107 @@ struct ErrorResponse
 
 //==============================================================================
 /**
+    Request to analyze an audio reference (local file path or URL).
+
+    This is used by the /analyze endpoint.
+*/
+struct AnalyzeRequest
+{
+    juce::String requestId;         // UUID for request/response correlation
+    int schemaVersion = SCHEMA_VERSION;
+    juce::String path;              // Local file path (optional)
+    juce::String url;               // URL (optional)
+    bool verbose = false;
+
+    void generateRequestId()
+    {
+        requestId = juce::Uuid().toString();
+    }
+
+    juce::String toJson() const
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+
+        obj->setProperty("request_id", requestId);
+        obj->setProperty("schema_version", schemaVersion);
+        obj->setProperty("path", path);
+        obj->setProperty("url", url);
+        obj->setProperty("verbose", verbose);
+
+        return juce::JSON::toString(juce::var(obj.get()), true);
+    }
+};
+
+//==============================================================================
+/**
+    Result from /analyze.
+
+    The full analysis is returned in JSON; this struct extracts common fields
+    for quick UI display.
+*/
+struct AnalyzeResult
+{
+    juce::String requestId;
+    bool success = false;
+
+    // Convenience fields
+    float bpm = 0.0f;
+    float bpmConfidence = 0.0f;
+    juce::String key;
+    juce::String mode;
+    float keyConfidence = 0.0f;
+    juce::String estimatedGenre;
+    float genreConfidence = 0.0f;
+    juce::String promptHints;
+    juce::StringArray styleTags;
+
+    // Full JSON for advanced UI usage
+    juce::String rawJson;
+
+    static AnalyzeResult fromJson(const juce::String& jsonStr)
+    {
+        AnalyzeResult result;
+        result.rawJson = jsonStr;
+
+        auto json = juce::JSON::parse(jsonStr);
+        if (!json.isObject())
+            return result;
+
+        auto* obj = json.getDynamicObject();
+        if (!obj)
+            return result;
+
+        result.requestId = obj->getProperty("request_id").toString();
+        result.success = obj->getProperty("success");
+        result.promptHints = obj->getProperty("prompt_hints").toString();
+
+        if (auto analysis = obj->getProperty("analysis"); analysis.isObject())
+        {
+            auto* a = analysis.getDynamicObject();
+            if (a)
+            {
+                result.bpm = (float) a->getProperty("bpm");
+                result.bpmConfidence = (float) a->getProperty("bpm_confidence");
+                result.key = a->getProperty("key").toString();
+                result.mode = a->getProperty("mode").toString();
+                result.keyConfidence = (float) a->getProperty("key_confidence");
+                result.estimatedGenre = a->getProperty("estimated_genre").toString();
+                result.genreConfidence = (float) a->getProperty("genre_confidence");
+
+                if (auto tags = a->getProperty("style_tags"); tags.isArray())
+                {
+                    for (int i = 0; i < tags.size(); ++i)
+                        result.styleTags.add(tags[i].toString());
+                }
+            }
+        }
+
+        return result;
+    }
+};
+
+//==============================================================================
+/**
     OSC address constants (must match Python backend).
 */
 namespace OSCAddresses
@@ -243,6 +344,7 @@ namespace OSCAddresses
     // Server → Client
     static constexpr const char* progress = "/progress";
     static constexpr const char* complete = "/complete";
+    static constexpr const char* analyzeResult = "/analyze_result";
     static constexpr const char* error = "/error";
     static constexpr const char* pong = "/pong";
     static constexpr const char* status = "/status";

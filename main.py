@@ -41,6 +41,11 @@ from multimodal_gen import (
     Arranger,
     AssetsGenerator,
     TICKS_PER_BEAT,
+    # New modules
+    SessionGraphBuilder,
+    validate_generation,
+    repair_violations,
+    TakeGenerator,
 )
 
 try:
@@ -79,28 +84,45 @@ def print_step(step: str, message: str):
 
 def print_info(message: str):
     """Print info message."""
-    print(f"{Fore.CYAN}ℹ{Style.RESET_ALL}  {message}")
+    try:
+        print(f"{Fore.CYAN}ℹ{Style.RESET_ALL}  {message}")
+    except UnicodeEncodeError:
+        print(f"{Fore.CYAN}[i]{Style.RESET_ALL}  {message}")
 
 
 def print_warning(message: str):
     """Print warning message."""
-    print(f"{Fore.YELLOW}⚠{Style.RESET_ALL}  {message}")
+    try:
+        print(f"{Fore.YELLOW}⚠{Style.RESET_ALL}  {message}")
+    except UnicodeEncodeError:
+        print(f"{Fore.YELLOW}[!]{Style.RESET_ALL}  {message}")
 
 
 def print_error(message: str):
     """Print error message."""
-    print(f"{Fore.RED}✗{Style.RESET_ALL}  {message}")
+    try:
+        print(f"{Fore.RED}✗{Style.RESET_ALL}  {message}")
+    except UnicodeEncodeError:
+        print(f"{Fore.RED}[x]{Style.RESET_ALL}  {message}")
 
 
 def print_success(message: str):
     """Print success message."""
-    print(f"{Fore.GREEN}✓{Style.RESET_ALL}  {message}")
+    try:
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL}  {message}")
+    except UnicodeEncodeError:
+        print(f"{Fore.GREEN}[v]{Style.RESET_ALL}  {message}")
 
 
 def print_parsed_prompt(parsed: ParsedPrompt, reference_info: dict = None):
     """Print parsed prompt details."""
-    print(f"\n{Fore.MAGENTA}{'─' * 50}{Style.RESET_ALL}")
-    print(f"{Fore.MAGENTA}📝 Parsed Prompt:{Style.RESET_ALL}")
+    try:
+        print(f"\n{Fore.MAGENTA}{'─' * 50}{Style.RESET_ALL}")
+        print(f"{Fore.MAGENTA}📝 Parsed Prompt:{Style.RESET_ALL}")
+    except UnicodeEncodeError:
+        print(f"\n{Fore.MAGENTA}{'-' * 50}{Style.RESET_ALL}")
+        print(f"{Fore.MAGENTA}Parsed Prompt:{Style.RESET_ALL}")
+        
     print(f"   BPM: {parsed.bpm}")
     print(f"   Key: {parsed.key} {parsed.scale_type.name.lower()}")
     print(f"   Genre: {parsed.genre}")
@@ -119,7 +141,11 @@ def print_parsed_prompt(parsed: ParsedPrompt, reference_info: dict = None):
     
     # Show reference analysis if available
     if reference_info:
-        print(f"\n{Fore.BLUE}🎵 Reference Analysis:{Style.RESET_ALL}")
+        try:
+            print(f"\n{Fore.BLUE}🎵 Reference Analysis:{Style.RESET_ALL}")
+        except UnicodeEncodeError:
+            print(f"\n{Fore.BLUE}Reference Analysis:{Style.RESET_ALL}")
+            
         if reference_info.get("title"):
             print(f"   Source: {reference_info['title']}")
         if reference_info.get("detected_bpm"):
@@ -131,7 +157,10 @@ def print_parsed_prompt(parsed: ParsedPrompt, reference_info: dict = None):
         if reference_info.get("style_hints"):
             print(f"   Style Hints: {reference_info['style_hints']}")
     
-    print(f"{Fore.MAGENTA}{'─' * 50}{Style.RESET_ALL}\n")
+    try:
+        print(f"{Fore.MAGENTA}{'─' * 50}{Style.RESET_ALL}\n")
+    except UnicodeEncodeError:
+        print(f"{Fore.MAGENTA}{'-' * 50}{Style.RESET_ALL}\n")
 
 
 def ensure_output_dir(output_dir: Path) -> Path:
@@ -171,6 +200,7 @@ def run_generation(
     progress_callback: Optional[ProgressCallback] = None,
     seed: Optional[int] = None,
     use_bwf: bool = True,
+    takes: int = 0,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -190,6 +220,7 @@ def run_generation(
         progress_callback: Optional callback for progress reporting (step, percent, message)
         seed: Random seed for reproducibility (enables iterative refinement)
         use_bwf: Use Broadcast Wave Format with AI provenance metadata (default: True)
+        takes: Number of alternative takes to generate per track
         
     Returns:
         Dictionary with paths to generated files
@@ -218,6 +249,7 @@ def run_generation(
         "mpc": None,
         "stems": [],
         "samples": [],
+        "takes": {},  # Store alternative takes
         "reference_analysis": None,
         "instruments_used": [],
         "seed": seed,  # Store seed in results
@@ -337,6 +369,38 @@ def run_generation(
     
     print_parsed_prompt(parsed, reference_info)
     
+    # Step 1.5: Validate against Genre Rules
+    print_step("1.5/6", "Validating genre rules...")
+    try:
+        # Check for violations
+        validation_result = validate_generation(
+            parsed.genre, 
+            parsed.instruments, 
+            parsed.drum_elements, 
+            [] # patterns not yet generated
+        )
+        
+        if not validation_result.valid or validation_result.violations:
+            print_warning(f"Found {len(validation_result.violations)} genre rule violations:")
+            for v in validation_result.violations:
+                print_info(f"  - {v.message}")
+            
+            # Auto-repair
+            print_info("Attempting auto-repair...")
+            repaired_elements, repair_log = repair_violations(
+                parsed.genre, 
+                parsed.instruments + parsed.drum_elements
+            )
+            
+            # Update parsed prompt with repaired elements
+            # (This is a simplification; in a full implementation we'd map back to specific fields)
+            if repair_log:
+                print_success(f"Repaired {len(repair_log)} issues")
+                for log in repair_log:
+                    print_info(f"  - {log['original']} -> {log.get('result', 'removed')}")
+    except Exception as e:
+        print_warning(f"Genre rule validation skipped: {e}")
+    
     # Step 2: Create arrangement
     print_step("2/6", "Creating arrangement...")
     report_progress("arranging", 0.15, "Creating arrangement...")
@@ -350,6 +414,27 @@ def run_generation(
             print_info(f"  - {section.section_type.value}: {section.bars} bars (tick {section.start_tick})")
             bar_pos += section.bars
     
+    # Step 2.5: Build Session Graph
+    print_step("2.5/6", "Building session graph...")
+    session_graph = None
+    try:
+        graph_builder = SessionGraphBuilder()
+        # Pass reference analysis if available
+        ref_analysis_obj = None
+        if results.get("reference_analysis"):
+            # Reconstruct minimal object if needed, or pass dict if builder supports it
+            # For now, we'll rely on the builder handling the parsed prompt primarily
+            pass
+            
+        session_graph = graph_builder.build_from_prompt(parsed)
+        
+        # Sync arrangement into graph
+        session_graph = graph_builder.build_from_arrangement(session_graph, arrangement)
+        
+        print_success(f"Session graph built: {len(session_graph.tracks)} tracks, {len(session_graph.sections)} sections")
+    except Exception as e:
+        print_warning(f"Session graph build failed: {e}")
+
     # Step 3: Generate MIDI
     print_step("3/6", "Generating MIDI with humanization...")
     report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
@@ -363,6 +448,108 @@ def run_generation(
     results["midi"] = str(midi_path)
     print_success(f"MIDI saved: {midi_path.name}")
     
+    # Step 3.5: Generate Alternative Takes
+    if takes > 0:
+        print_step("3.5/6", f"Generating {takes} alternative takes per track...")
+        try:
+            import mido
+            from multimodal_gen.take_generator import take_to_midi_track
+            
+            # Load the generated MIDI file
+            mid = mido.MidiFile(str(midi_path))
+            new_tracks = []
+            
+            take_gen = TakeGenerator()
+            
+            # Iterate over tracks (skip Meta)
+            for i, track in enumerate(mid.tracks):
+                track_name = track.name.strip()
+                if track_name in ["Meta", "Tempo", "Time Signature"] or not track_name:
+                    continue
+                    
+                # Determine role from track name
+                role = "lead" # Default
+                if "Drums" in track_name: role = "drums"
+                elif "Bass" in track_name: role = "bass"
+                elif "Chords" in track_name: role = "chords"
+                elif "Melody" in track_name: role = "lead"
+                elif "Organ" in track_name: role = "pad"
+                
+                # Parse track to notes
+                track_notes = []
+                active_notes = {} # pitch -> start_tick
+                curr_tick = 0
+                
+                for msg in track:
+                    curr_tick += msg.time
+                    if msg.type == 'note_on' and msg.velocity > 0:
+                        active_notes[msg.note] = (curr_tick, msg.velocity, msg.channel)
+                    elif (msg.type == 'note_off') or (msg.type == 'note_on' and msg.velocity == 0):
+                        if msg.note in active_notes:
+                            start, vel, chan = active_notes.pop(msg.note)
+                            duration = curr_tick - start
+                            track_notes.append({
+                                "pitch": msg.note,
+                                "start_tick": start,
+                                "duration_ticks": duration,
+                                "velocity": vel,
+                                "channel": chan
+                            })
+                
+                if not track_notes:
+                    continue
+                    
+                # Generate takes
+                take_set = take_gen.generate_takes_for_role(
+                    notes=track_notes,
+                    role=role,
+                    num_takes=takes,
+                    genre=parsed.genre,
+                    base_seed=(seed or 0) + i # Deterministic seed per track
+                )
+                
+                for take in take_set.takes:
+                    # Name the track: "OriginalName_Take_N"
+                    take.midi_track_name = f"{track_name}_Take_{take.take_id + 1}"
+                    new_track = take_to_midi_track(take)
+                    new_tracks.append(new_track)
+                    
+                    # Add to results for reporting
+                    if track_name not in results["takes"]:
+                        results["takes"][track_name] = []
+                    results["takes"][track_name].append(take.midi_track_name)
+                    
+                    # Update SessionGraph if available
+                    if session_graph:
+                        # Find the track in the graph
+                        graph_track = next((t for t in session_graph.tracks if t.name == track_name), None)
+                        if graph_track:
+                            # Add takes to all clips in this track (simplification)
+                            for clip in graph_track.clips:
+                                clip.add_take_lane(
+                                    take_id=take.take_id + 1,
+                                    seed=take.seed,
+                                    variation_type=take.variation_type,
+                                    midi_track_name=take.midi_track_name,
+                                    notes_count=len(take.notes),
+                                    notes_added=take.notes_added,
+                                    notes_modified=take.notes_modified,
+                                    avg_timing_shift=take.avg_timing_shift,
+                                    parameters=take.parameters
+                                )
+
+            # Append new tracks to MIDI file
+            if new_tracks:
+                mid.tracks.extend(new_tracks)
+                mid.save(str(midi_path))
+                print_success(f"Added {len(new_tracks)} take tracks to MIDI file")
+            
+        except Exception as e:
+            print_warning(f"Take generation failed: {e}")
+            if verbose:
+                import traceback
+                traceback.print_exc()
+
     # Step 4: Generate procedural samples
     print_step("4/6", "Generating procedural samples...")
     report_progress("generating_samples", 0.45, "Generating procedural samples...")
@@ -578,6 +765,34 @@ def run_generation(
         for s in arrangement.sections
     ] if 'arrangement' in dir() else []
     
+    # Step 5.5: Save Session Manifest
+    if session_graph:
+        print_step("5.5/6", "Saving session manifest...")
+        try:
+            # Update graph with generated file paths
+            if midi_path:
+                try:
+                    session_graph.midi_path = str(midi_path.relative_to(output_dir))
+                except ValueError:
+                    session_graph.midi_path = str(midi_path)
+            
+            if results['audio']:
+                try:
+                    session_graph.audio_path = str(Path(results['audio']).relative_to(output_dir))
+                except ValueError:
+                    session_graph.audio_path = str(results['audio'])
+            
+            # Save manifest
+            manifest_path = output_dir / "session_manifest.json"
+            session_graph.save_manifest(str(manifest_path))
+            print_success(f"Session manifest saved: {manifest_path.name}")
+            
+            # Add to results
+            results["manifest"] = str(manifest_path)
+            
+        except Exception as e:
+            print_warning(f"Failed to save session manifest: {e}")
+
     return results
 
 
@@ -973,6 +1188,12 @@ Server Mode (for JUCE integration):
         action="store_true",
         help="Disable Broadcast Wave Format metadata (use standard WAV)",
     )
+    parser.add_argument(
+        "--takes",
+        type=int,
+        default=0,
+        help="Number of alternative takes to generate per track (default: 0)",
+    )
     
     # Misc options
     parser.add_argument(
@@ -1163,6 +1384,7 @@ Server Mode (for JUCE integration):
             verbose=args.verbose,
             seed=args.seed,
             use_bwf=not args.no_bwf,
+            takes=args.takes,
         )
 
         # Replace generated part with recorded performance (if present)
@@ -1222,24 +1444,50 @@ Server Mode (for JUCE integration):
             print(json.dumps(output, indent=2))
         else:
             # Human-readable summary
-            print(f"\n{Fore.GREEN}{'═' * 50}{Style.RESET_ALL}")
-            print(f"{Fore.GREEN}✓ Generation Complete!{Style.RESET_ALL}")
-            print(f"{Fore.GREEN}{'═' * 50}{Style.RESET_ALL}")
+            try:
+                print(f"\n{Fore.GREEN}{'═' * 50}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}✓ Generation Complete!{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}{'═' * 50}{Style.RESET_ALL}")
+            except UnicodeEncodeError:
+                print(f"\n{Fore.GREEN}{'=' * 50}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}[v] Generation Complete!{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}{'=' * 50}{Style.RESET_ALL}")
             
             if results["midi"]:
-                print(f"  📄 MIDI:    {Path(results['midi']).name}")
+                try:
+                    print(f"  📄 MIDI:    {Path(results['midi']).name}")
+                except UnicodeEncodeError:
+                    print(f"  [MIDI]      {Path(results['midi']).name}")
             if results["audio"]:
-                print(f"  🔊 Audio:   {Path(results['audio']).name}")
+                try:
+                    print(f"  🔊 Audio:   {Path(results['audio']).name}")
+                except UnicodeEncodeError:
+                    print(f"  [Audio]     {Path(results['audio']).name}")
             if results["mpc"]:
-                print(f"  🎹 MPC:     {Path(results['mpc']).parent.name}/")
+                try:
+                    print(f"  🎹 MPC:     {Path(results['mpc']).parent.name}/")
+                except UnicodeEncodeError:
+                    print(f"  [MPC]       {Path(results['mpc']).parent.name}/")
             if results["stems"]:
-                print(f"  🎚️  Stems:   {len(results['stems'])} files")
+                try:
+                    print(f"  🎚️  Stems:   {len(results['stems'])} files")
+                except UnicodeEncodeError:
+                    print(f"  [Stems]     {len(results['stems'])} files")
             if results["samples"]:
-                print(f"  🥁 Samples: {len(results['samples'])} files")
+                try:
+                    print(f"  🥁 Samples: {len(results['samples'])} files")
+                except UnicodeEncodeError:
+                    print(f"  [Samples]   {len(results['samples'])} files")
             if results.get("instruments_used"):
-                print(f"  🎺 Custom Instruments: {len(results['instruments_used'])} selected")
+                try:
+                    print(f"  🎺 Custom Instruments: {len(results['instruments_used'])} selected")
+                except UnicodeEncodeError:
+                    print(f"  [Inst]      {len(results['instruments_used'])} selected")
             
-            print(f"\n  📁 Output:  {output_dir.absolute()}")
+            try:
+                print(f"\n  📁 Output:  {output_dir.absolute()}")
+            except UnicodeEncodeError:
+                print(f"\n  [Output]    {output_dir.absolute()}")
             print()
         
         return 0

@@ -14,6 +14,8 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import dataclasses
+from enum import Enum
 
 try:
     from pythonosc import dispatcher, osc_server, udp_client
@@ -97,7 +99,8 @@ class MusicGenOSCServer:
         self._instrument_worker: Optional[InstrumentScanWorker] = None
         
         # Expansion Manager
-        self._expansion_manager: Optional[ExpansionManager] = None
+        # ExpansionManager is an optional dependency in some environments; keep annotation permissive
+        self._expansion_manager: Optional[Any] = None
         if EXPANSION_AVAILABLE:
             self._expansion_manager = ExpansionManager()
         
@@ -372,12 +375,93 @@ class MusicGenOSCServer:
     def _handle_analyze(self, address: str, *args):
         """Handle /analyze message for analyzing existing files."""
         self._log(f"📥 Received: {address}")
-        
-        # TODO: Implement file analysis
-        self._send_error(
-            ErrorCode.UNKNOWN,
-            "Analyze feature not yet implemented"
-        )
+
+        # Parse request_id early for error correlation
+        request_id = ""
+        try:
+            if args:
+                data = json.loads(args[0]) if isinstance(args[0], str) else {}
+                request_id = data.get("request_id", "")
+        except Exception:
+            data = {}
+
+        try:
+            if not args:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "No parameters provided", request_id=request_id)
+                return
+
+            data = json.loads(args[0]) if isinstance(args[0], str) else {}
+
+            request_id = data.get("request_id", "")
+            schema_version = int(data.get("schema_version", 1))
+
+            if schema_version != SCHEMA_VERSION:
+                self._log(f"   ⚠️ Schema version mismatch: client={schema_version}, server={SCHEMA_VERSION}")
+
+            source_url = (data.get("url") or "").strip()
+            source_path = (data.get("path") or "").strip()
+            verbose = bool(data.get("verbose", self.config.verbose))
+
+            if not source_url and not source_path:
+                self._send_error(
+                    ErrorCode.MISSING_PARAMETER,
+                    "Analyze requires either 'url' or 'path'",
+                    request_id=request_id,
+                )
+                return
+
+            # Import lazily so missing optional deps only affect /analyze
+            from ..reference_analyzer import ReferenceAnalyzer
+
+            analyzer = ReferenceAnalyzer(verbose=verbose)
+
+            if source_path:
+                path = Path(source_path)
+                if not path.exists():
+                    self._send_error(
+                        ErrorCode.FILE_NOT_FOUND,
+                        f"File not found: {source_path}",
+                        request_id=request_id,
+                    )
+                    return
+                analysis = analyzer.analyze_file(str(path))
+                source_kind = "file"
+            else:
+                analysis = analyzer.analyze_url(source_url)
+                source_kind = "url"
+
+            def _to_jsonable(obj: Any) -> Any:
+                if dataclasses.is_dataclass(obj):
+                    return {k: _to_jsonable(v) for k, v in dataclasses.asdict(obj).items()}
+                if isinstance(obj, Enum):
+                    return obj.value
+                if isinstance(obj, (list, tuple)):
+                    return [_to_jsonable(v) for v in obj]
+                if isinstance(obj, dict):
+                    return {str(k): _to_jsonable(v) for k, v in obj.items()}
+                return obj
+
+            analysis_dict = _to_jsonable(analysis)
+
+            response: Dict[str, Any] = {
+                "request_id": request_id,
+                "schema_version": schema_version,
+                "success": True,
+                "source_kind": source_kind,
+                "analysis": analysis_dict,
+                "prompt_hints": analysis.to_prompt_hints(include_genre=False),
+                "generation_params": analysis.to_generation_params(),
+            }
+
+            self._send_message(OSCAddresses.ANALYZE_RESULT, json.dumps(response))
+
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}", request_id=request_id)
+        except ImportError as e:
+            # librosa / yt-dlp are optional; surface a clear message
+            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
     
     def _handle_get_instruments(self, address: str, *args):
         """

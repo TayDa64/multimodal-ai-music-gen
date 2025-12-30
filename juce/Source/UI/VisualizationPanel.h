@@ -71,6 +71,7 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void fileSelected(const juce::File& file) = 0;
+      virtual void analyzeFileRequested(const juce::File& file) { juce::ignoreUnused(file); }
     };
     
     void addListener(Listener* listener);
@@ -80,6 +81,7 @@ private:
     //==============================================================================
     // RecentFilesPanel::Listener
     void fileSelected(const juce::File& file) override;
+    void analyzeFileRequested(const juce::File& file) override;
     
     // PianoRollComponent::Listener
     void pianoRollNoteHovered(const MidiNoteEvent* note) override;

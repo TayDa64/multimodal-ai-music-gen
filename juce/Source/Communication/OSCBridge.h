@@ -75,6 +75,10 @@ public:
         virtual void onGenerationComplete(const GenerationResult& result) {}
         virtual void onError(int code, const juce::String& message) {}
         virtual void onInstrumentsLoaded(int count, const juce::StringPairArray& categories) {}
+
+        // Analyze callbacks
+        virtual void onAnalyzeResultReceived(const AnalyzeResult& result) {}
+        virtual void onAnalyzeError(int code, const juce::String& message) { juce::ignoreUnused(code, message); }
         
         // Expansion callbacks
         virtual void onExpansionListReceived(const juce::String& json) {}
@@ -110,6 +114,8 @@ public:
     //==============================================================================
     // Outgoing messages
     void sendGenerate(const GenerationRequest& request);
+    void sendAnalyzeFile(const juce::File& file, bool verbose = false);
+    void sendAnalyzeUrl(const juce::String& url, bool verbose = false);
     void sendCancel(const juce::String& taskId = {});
     void sendPing();
     void sendShutdown();
@@ -146,6 +152,9 @@ private:
     void handlePong(const juce::OSCMessage& message);
     void handleStatus(const juce::OSCMessage& message);
     void handleInstrumentsLoaded(const juce::OSCMessage& message);
+
+    // Analyze handlers
+    void handleAnalyzeResult(const juce::OSCMessage& message);
     
     // Expansion handlers
     void handleExpansionList(const juce::OSCMessage& message);
@@ -172,6 +181,7 @@ private:
     
     // Request tracking
     juce::String currentRequestId;
+    juce::String currentAnalyzeRequestId;
     
     // Timing
     std::atomic<int64_t> lastPongTime { 0 };

@@ -57,6 +57,9 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void fileSelected(const juce::File& file) = 0;
+
+        // Optional: request analysis of an audio file via OSC
+        virtual void analyzeFileRequested(const juce::File& file) { juce::ignoreUnused(file); }
     };
     
     //==============================================================================

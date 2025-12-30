@@ -90,6 +90,41 @@ void OSCBridge::sendGenerate(const GenerationRequest& request)
     sendMessage(OSCAddresses::generate, mutableRequest.toJson());
 }
 
+void OSCBridge::sendAnalyzeFile(const juce::File& file, bool verbose)
+{
+    if (!file.existsAsFile())
+    {
+        DBG("OSCBridge: Analyze file does not exist: " << file.getFullPathName());
+        return;
+    }
+
+    AnalyzeRequest request;
+    request.generateRequestId();
+    request.path = file.getFullPathName();
+    request.verbose = verbose;
+
+    currentAnalyzeRequestId = request.requestId;
+
+    DBG("OSCBridge: Sending analyze (file) with request_id: " << request.requestId);
+    sendMessage(OSCAddresses::analyze, request.toJson());
+}
+
+void OSCBridge::sendAnalyzeUrl(const juce::String& url, bool verbose)
+{
+    if (url.isEmpty())
+        return;
+
+    AnalyzeRequest request;
+    request.generateRequestId();
+    request.url = url;
+    request.verbose = verbose;
+
+    currentAnalyzeRequestId = request.requestId;
+
+    DBG("OSCBridge: Sending analyze (url) with request_id: " << request.requestId);
+    sendMessage(OSCAddresses::analyze, request.toJson());
+}
+
 void OSCBridge::sendCancel(const juce::String& taskId)
 {
     setConnectionState(ConnectionState::Canceling);
@@ -209,6 +244,8 @@ void OSCBridge::oscMessageReceived(const juce::OSCMessage& message)
         handleStatus(message);
     else if (address == OSCAddresses::instrumentsLoaded)
         handleInstrumentsLoaded(message);
+    else if (address == OSCAddresses::analyzeResult)
+        handleAnalyzeResult(message);
     // Expansion responses
     else if (address == OSCAddresses::expansionListResponse)
         handleExpansionList(message);
@@ -278,7 +315,19 @@ void OSCBridge::handleError(const juce::OSCMessage& message)
         currentRequestId.clear();
         setConnectionState(ConnectionState::Connected);
     }
-    
+
+    // If error is related to analyze request, just clear that request id
+    if (error.requestId == currentAnalyzeRequestId)
+    {
+        currentAnalyzeRequestId.clear();
+
+        listeners.call([&](Listener& l)
+        {
+            l.onAnalyzeError(error.code, error.message);
+        });
+        return;
+    }
+
     listeners.call([&](Listener& l)
     {
         l.onError(error.code, error.message);
@@ -339,6 +388,27 @@ void OSCBridge::handleInstrumentsLoaded(const juce::OSCMessage& message)
             l.onInstrumentsLoaded(count, categories);
         });
     }
+}
+
+//==============================================================================
+// Analyze handlers
+//==============================================================================
+
+void OSCBridge::handleAnalyzeResult(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+
+    auto jsonStr = message[0].getString();
+    auto result = AnalyzeResult::fromJson(jsonStr);
+
+    if (result.requestId == currentAnalyzeRequestId)
+        currentAnalyzeRequestId.clear();
+
+    listeners.call([&](Listener& l)
+    {
+        l.onAnalyzeResultReceived(result);
+    });
 }
 
 //==============================================================================

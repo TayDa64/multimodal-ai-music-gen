@@ -109,6 +109,7 @@ class OSCAddresses:
     Server → Client (Python → JUCE):
         /progress - Generation progress update
         /complete - Generation complete with results
+        /analyze_result - Analysis response payload
         /error - Error notification
         /instruments_loaded - Instrument scan results
         /pong - Health check response
@@ -139,6 +140,7 @@ class OSCAddresses:
     # Outgoing (Python → JUCE)
     PROGRESS = "/progress"
     COMPLETE = "/complete"
+    ANALYZE_RESULT = "/analyze_result"
     ERROR = "/error"
     INSTRUMENTS_LOADED = "/instruments_loaded"
     PONG = "/pong"

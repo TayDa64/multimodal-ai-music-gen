@@ -106,3 +106,5 @@ audio_test.py
 # But allow audio in the showcase example
 !output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.wav
 !output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.WAV
+
+test_output_integration/

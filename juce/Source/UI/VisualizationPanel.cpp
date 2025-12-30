@@ -267,6 +267,12 @@ void VisualizationPanel::fileSelected(const juce::File& file)
     }
 }
 
+void VisualizationPanel::analyzeFileRequested(const juce::File& file)
+{
+    // Forward to our listeners
+    listeners.call([&file](Listener& l) { l.analyzeFileRequested(file); });
+}
+
 void VisualizationPanel::pianoRollNoteHovered(const MidiNoteEvent* note)
 {
     if (currentTab == 0)

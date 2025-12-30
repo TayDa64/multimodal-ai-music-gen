@@ -255,30 +255,30 @@ void RecentFilesPanel::scanDirectory()
     }
     
     files.clear();
-    
-    // Find all MIDI files
-    auto midiFiles = outputDirectory.findChildFiles(
-        juce::File::findFiles, false, "*.mid;*.midi");
-    
-    DBG("RecentFilesPanel: Found " << midiFiles.size() << " MIDI files in " << outputDirectory.getFullPathName());
-    
+
+    // Find recent MIDI + audio files
+    auto foundFiles = outputDirectory.findChildFiles(
+        juce::File::findFiles,
+        false,
+        "*.mid;*.midi;*.wav;*.mp3;*.flac;*.ogg;*.aiff;*.aif;*.m4a");
+
+    DBG("RecentFilesPanel: Found " << foundFiles.size() << " files in " << outputDirectory.getFullPathName());
+
     // Sort by date (newest first)
-    midiFiles.sort();
-    std::sort(midiFiles.begin(), midiFiles.end(), 
+    foundFiles.sort();
+    std::sort(foundFiles.begin(), foundFiles.end(),
               [](const juce::File& a, const juce::File& b) {
                   return a.getLastModificationTime() > b.getLastModificationTime();
               });
-    
+
     // Limit to most recent 50 files
-    int maxFiles = juce::jmin(50, midiFiles.size());
-    
+    int maxFiles = juce::jmin(50, foundFiles.size());
+
     for (int i = 0; i < maxFiles; ++i)
-    {
-        files.add(parseFileInfo(midiFiles[i]));
-    }
-    
+        files.add(parseFileInfo(foundFiles[i]));
+
     lastScanTime = juce::Time::getCurrentTime();
-    lastFileCount = midiFiles.size();
+    lastFileCount = foundFiles.size();
     
     if (fileList)
     {
@@ -398,8 +398,11 @@ void RecentFilesPanel::loadSelectedFile()
         auto& info = files[selectedRow];
         DBG("  Loading file: " << info.file.getFullPathName());
         
-        bool loaded = audioEngine.loadMidiFile(info.file);
-        DBG("  AudioEngine load result: " << (loaded ? "SUCCESS" : "FAILED"));
+        if (info.file.hasFileExtension(".mid;.midi"))
+        {
+            bool loaded = audioEngine.loadMidiFile(info.file);
+            DBG("  AudioEngine load result: " << (loaded ? "SUCCESS" : "FAILED"));
+        }
         
         // Always notify listeners so piano roll can load the file directly too
         listeners.call(&Listener::fileSelected, info.file);
@@ -425,9 +428,13 @@ void RecentFilesPanel::showContextMenu(int row)
     
     selectedRow = row;
     const auto& info = files[row];
+
+    const bool isAudio = info.file.hasFileExtension(".wav;.mp3;.flac;.ogg;.aiff;.aif;.m4a");
     
     juce::PopupMenu menu;
     menu.addItem(1, "Load File", true);
+    if (isAudio)
+        menu.addItem(7, "Analyze (BPM/Key/Groove)", true);
     menu.addSeparator();
     menu.addItem(2, "Show in Explorer", true);
     menu.addItem(3, "Export to...", true);
@@ -442,6 +449,7 @@ void RecentFilesPanel::showContextMenu(int row)
             switch (result)
             {
                 case 1: loadSelectedFile(); break;
+                case 7: listeners.call(&Listener::analyzeFileRequested, info.file); break;
                 case 2: revealInExplorer(); break;
                 case 3: exportSelectedFile(); break;
                 case 4: renameSelectedFile(); break;
@@ -496,23 +504,25 @@ void RecentFilesPanel::exportSelectedFile()
         return;
     
     const auto srcFile = files[selectedRow].file;
+    const auto srcExt = srcFile.getFileExtension();
+    const bool isMidi = srcFile.hasFileExtension(".mid;.midi");
     
     auto chooser = std::make_shared<juce::FileChooser>(
-        "Export MIDI File",
+        isMidi ? "Export MIDI File" : "Export File",
         juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
             .getChildFile(srcFile.getFileName()),
-        "*.mid"
+        isMidi ? "*.mid;*.midi" : (srcExt.isNotEmpty() ? ("*" + srcExt) : "*.*")
     );
     
     chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-        [this, chooser, srcFile](const juce::FileChooser& fc)
+        [this, chooser, srcFile, srcExt](const juce::FileChooser& fc)
         {
             auto destFile = fc.getResult();
             if (destFile != juce::File{})
             {
-                // Ensure .mid extension
-                if (!destFile.hasFileExtension(".mid"))
-                    destFile = destFile.withFileExtension(".mid");
+                // Preserve source extension if user didn't provide one
+                if (destFile.getFileExtension().isEmpty() && srcExt.isNotEmpty())
+                    destFile = destFile.withFileExtension(srcExt.substring(1));
                 
                 if (srcFile.copyFileTo(destFile))
                 {
@@ -660,14 +670,16 @@ void RecentFilesPanel::timerCallback()
     // Check if directory has new files by counting
     if (outputDirectory.isDirectory())
     {
-        auto midiFiles = outputDirectory.findChildFiles(
-            juce::File::findFiles, false, "*.mid;*.midi");
-        
+        auto foundFiles = outputDirectory.findChildFiles(
+            juce::File::findFiles,
+            false,
+            "*.mid;*.midi;*.wav;*.mp3;*.flac;*.ogg;*.aiff;*.aif;*.m4a");
+
         // Refresh if file count changed
-        if (midiFiles.size() != lastFileCount)
+        if (foundFiles.size() != lastFileCount)
         {
             DBG("RecentFilesPanel: File count changed from " << lastFileCount 
-                << " to " << midiFiles.size() << ", refreshing...");
+                << " to " << foundFiles.size() << ", refreshing...");
             scanDirectory();
         }
     }
