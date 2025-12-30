@@ -789,6 +789,9 @@ class ProceduralRenderer:
             25: 'guitar',
             38: 'bass',
             39: 'bass',
+            80: 'synth', # Lead 1 (square)
+            81: 'synth', # Lead 2 (sawtooth)
+            87: 'synth', # Lead 8 (bass+lead)
         }
         
         inst_name = program_to_instrument.get(program)

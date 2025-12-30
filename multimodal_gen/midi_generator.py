@@ -1096,6 +1096,133 @@ def generate_melody(
     return pattern
 
 
+def generate_gfunk_bass_pattern(
+    bars: int,
+    root: str,
+    scale_type: ScaleType,
+    octave: int = 1,
+    base_velocity: int = 100
+) -> List[Tuple[int, int, int, int]]:
+    """
+    Generate G-Funk style bass pattern.
+    
+    Characteristics:
+    - Deep, rolling, legato feel
+    - Octave jumps (low root -> high octave -> slide down)
+    - Syncopated 16th notes but always anchoring the 1
+    - Funk influence (Bootsy Collins / Parliament style adapted for synth)
+    """
+    pattern = []
+    ticks_per_bar = TICKS_PER_BAR_4_4
+    
+    scale_notes = get_scale_notes(root, scale_type, octave=octave, num_octaves=2)
+    root_low = scale_notes[0]
+    root_high = scale_notes[7] if len(scale_notes) > 7 else root_low + 12
+    fifth = scale_notes[4] if len(scale_notes) > 4 else root_low + 7
+    flat_seven = scale_notes[6] if len(scale_notes) > 6 else root_low + 10
+    
+    for bar in range(bars):
+        bar_offset = bar * ticks_per_bar
+        
+        # G-Funk bass usually anchors the downbeat heavily
+        # Pattern A: The "One"
+        pattern.append((bar_offset, TICKS_PER_8TH * 3, root_low, humanize_velocity(base_velocity, variation=0.05)))
+        
+        # Variation per bar
+        if bar % 4 == 0:
+            # Classic rolling line
+            # Beat 2.5 (and of 2)
+            pattern.append((bar_offset + beats_to_ticks(2.5), TICKS_PER_16TH, root_high, humanize_velocity(base_velocity - 10, variation=0.1)))
+            # Beat 3
+            pattern.append((bar_offset + beats_to_ticks(3), TICKS_PER_8TH, flat_seven, humanize_velocity(base_velocity - 5, variation=0.1)))
+            # Beat 4
+            pattern.append((bar_offset + beats_to_ticks(4), TICKS_PER_8TH, fifth, humanize_velocity(base_velocity - 5, variation=0.1)))
+            
+        elif bar % 4 == 1:
+            # Octave jump focus
+            pattern.append((bar_offset + beats_to_ticks(1.5), TICKS_PER_16TH, root_low, humanize_velocity(base_velocity - 15, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(2), TICKS_PER_8TH, root_high, humanize_velocity(base_velocity, variation=0.08)))
+            pattern.append((bar_offset + beats_to_ticks(3.5), TICKS_PER_8TH, fifth, humanize_velocity(base_velocity - 10, variation=0.1)))
+            
+        elif bar % 4 == 2:
+            # Syncopated funk
+            pattern.append((bar_offset + beats_to_ticks(1.75), TICKS_PER_16TH, root_low, humanize_velocity(base_velocity - 10, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(2), TICKS_PER_16TH, root_low, humanize_velocity(base_velocity - 10, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(2.5), TICKS_PER_8TH, flat_seven, humanize_velocity(base_velocity - 5, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(3.5), TICKS_PER_8TH, root_high, humanize_velocity(base_velocity, variation=0.08)))
+            
+        else:
+            # Turnaround / Fill
+            pattern.append((bar_offset + beats_to_ticks(2), TICKS_PER_16TH, fifth, humanize_velocity(base_velocity - 10, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(2.25), TICKS_PER_16TH, flat_seven, humanize_velocity(base_velocity - 5, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(2.5), TICKS_PER_16TH, root_high, humanize_velocity(base_velocity, variation=0.05)))
+            pattern.append((bar_offset + beats_to_ticks(3), TICKS_PER_8TH, flat_seven, humanize_velocity(base_velocity - 10, variation=0.1)))
+            pattern.append((bar_offset + beats_to_ticks(3.5), TICKS_PER_8TH, fifth, humanize_velocity(base_velocity - 10, variation=0.1)))
+
+    return pattern
+
+
+def generate_gfunk_lead_pattern(
+    bars: int,
+    key: str,
+    scale_type: ScaleType,
+    octave: int = 5,
+    base_velocity: int = 95
+) -> List[Tuple[int, int, int, int]]:
+    """
+    Generate G-Funk high synth lead (whine).
+    
+    Characteristics:
+    - High pitch (octave 5/6)
+    - Long sustained notes (whole notes, tied notes)
+    - Portamento/Gliding feel (simulated by overlapping or close notes)
+    - Simple melodic contour (often just Root, 7th, 5th)
+    - Call and response
+    """
+    pattern = []
+    ticks_per_bar = TICKS_PER_BAR_4_4
+    
+    scale_notes = get_scale_notes(key, scale_type, octave=octave, num_octaves=2)
+    root = scale_notes[0]
+    fifth = scale_notes[4] if len(scale_notes) > 4 else root + 7
+    flat_seven = scale_notes[6] if len(scale_notes) > 6 else root + 10
+    high_root = scale_notes[7] if len(scale_notes) > 7 else root + 12
+    
+    # G-Funk leads are sparse. Usually one long phrase every 2 or 4 bars.
+    
+    for bar in range(0, bars, 4): # Process in 4-bar chunks
+        bar_offset = bar * ticks_per_bar
+        remaining_bars = min(4, bars - bar)
+        
+        if remaining_bars < 2:
+            continue
+            
+        # Phrase 1: The "Whine" - High sustained root or fifth
+        # Start on beat 2 of first bar, hold for 2 bars
+        start_tick = bar_offset + beats_to_ticks(1)
+        duration = TICKS_PER_BAR_4_4 * 1.5
+        pitch = random.choice([high_root, fifth])
+        
+        pattern.append((start_tick, int(duration), pitch, humanize_velocity(base_velocity, variation=0.05)))
+        
+        # Phrase 2: The "Comedown" - Descending line in 3rd/4th bar
+        if remaining_bars >= 4:
+            descent_start = bar_offset + (2 * TICKS_PER_BAR_4_4) + beats_to_ticks(2)
+            
+            # Simple descending motif
+            motif = [
+                (0, TICKS_PER_BEAT, flat_seven),
+                (1, TICKS_PER_BEAT, fifth),
+                (2, TICKS_PER_BEAT * 2, root)
+            ]
+            
+            for beat_offset, dur, p in motif:
+                tick = descent_start + beats_to_ticks(beat_offset)
+                pattern.append((tick, int(dur), p, humanize_velocity(base_velocity - 5, variation=0.1)))
+
+    return pattern
+
+
 # =============================================================================
 # MAIN MIDI GENERATOR CLASS
 # =============================================================================
@@ -1645,14 +1772,23 @@ class MidiGenerator:
         
         for section in arrangement.sections:
             if section.config.enable_bass:
-                bass_pattern = generate_808_bass_pattern(
-                    section.bars,
-                    parsed.key,
-                    parsed.scale_type,
-                    octave=1,
-                    base_velocity=int(100 * section.config.energy_level),
-                    genre=parsed.genre
-                )
+                if parsed.genre == 'g_funk':
+                    bass_pattern = generate_gfunk_bass_pattern(
+                        section.bars,
+                        parsed.key,
+                        parsed.scale_type,
+                        octave=1,
+                        base_velocity=int(100 * section.config.energy_level)
+                    )
+                else:
+                    bass_pattern = generate_808_bass_pattern(
+                        section.bars,
+                        parsed.key,
+                        parsed.scale_type,
+                        octave=1,
+                        base_velocity=int(100 * section.config.energy_level),
+                        genre=parsed.genre
+                    )
                 
                 for tick, dur, pitch, vel in bass_pattern:
                     all_notes.append(NoteEvent(
@@ -1824,14 +1960,23 @@ class MidiGenerator:
             if section.config.enable_melody and section.section_type in [
                 SectionType.CHORUS, SectionType.DROP, SectionType.VARIATION
             ]:
-                melody = generate_melody(
-                    section.bars,
-                    parsed.key,
-                    parsed.scale_type,
-                    octave=5,
-                    density=section.config.instrument_density * 0.5,
-                    base_velocity=int(90 * section.config.energy_level)
-                )
+                if parsed.genre == 'g_funk':
+                    melody = generate_gfunk_lead_pattern(
+                        section.bars,
+                        parsed.key,
+                        parsed.scale_type,
+                        octave=5,
+                        base_velocity=int(95 * section.config.energy_level)
+                    )
+                else:
+                    melody = generate_melody(
+                        section.bars,
+                        parsed.key,
+                        parsed.scale_type,
+                        octave=5,
+                        density=section.config.instrument_density * 0.5,
+                        base_velocity=int(90 * section.config.energy_level)
+                    )
                 
                 for tick, dur, pitch, vel in melody:
                     all_notes.append(NoteEvent(
