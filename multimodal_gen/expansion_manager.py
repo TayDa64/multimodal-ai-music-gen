@@ -454,6 +454,7 @@ class ExpansionLoader:
         # Scan for WAV and XPM files
         self._scan_wav_files(expansion, path)
         self._scan_xpm_files(expansion, path)
+        self._scan_xpj_files(expansion, path)
         
         # Infer target genres from naming
         expansion.target_genres = self._infer_genres(expansion)
@@ -522,6 +523,36 @@ class ExpansionLoader:
                 expansion.instruments[inst_id] = instrument
                 self._index_instrument(expansion, instrument)
     
+    def _scan_xpj_files(self, expansion: ExpansionPack, path: Path):
+        """Scan for MPC .xpj project files."""
+        for xpj_path in path.rglob("*.xpj"):
+            # Skip previews
+            if "[Previews]" in str(xpj_path):
+                continue
+            
+            inst_id = xpj_path.stem.lower().replace(" ", "_")
+            
+            # Check if already added
+            if inst_id in expansion.instruments:
+                continue
+
+            instrument = ExpansionInstrument(
+                id=inst_id,
+                name=xpj_path.stem,
+                path=str(xpj_path),
+                expansion_id=expansion.id,
+                category="projects",
+                subcategory="mpc_project",
+                tags=['project', 'mpc', 'kit'],
+                is_program=True
+            )
+            
+            # Parse metadata
+            self._parse_instrument_metadata(instrument, xpj_path)
+            
+            expansion.instruments[inst_id] = instrument
+            self._index_instrument(expansion, instrument)
+
     def _parse_xpm(self, xpm_path: Path) -> Optional[Dict]:
         """Parse an MPC .xpm file for sample paths."""
         try:
@@ -1177,12 +1208,16 @@ class ExpansionManager:
         if self.expansions_dir:
             self.scan_expansions(str(self.expansions_dir))
     
-    def scan_expansions(self, directory: str) -> int:
+    def scan_expansions(self, directory: str, max_depth: int = 5) -> int:
         """
-        Scan a directory for expansion packs.
+        Scan a directory for expansion packs recursively.
+        
+        This handles nested directory structures like:
+        expansions/funk_o_rama/Funk o Rama-1.0.5/Funk o Rama/expansion.json
         
         Args:
             directory: Path to scan
+            max_depth: Maximum depth to search for expansion.json files
             
         Returns:
             Number of expansions loaded
@@ -1194,14 +1229,47 @@ class ExpansionManager:
         
         count = 0
         
-        # Scan each subdirectory as potential expansion
-        for item in directory.iterdir():
-            if item.is_dir():
-                expansion = self.loader.load_expansion(str(item))
+        # First, look for expansion.json files recursively to find actual expansion directories
+        expansion_dirs = set()
+        
+        def find_expansion_dirs(path: Path, depth: int = 0):
+            """Recursively find directories containing expansion.json."""
+            if depth > max_depth:
+                return
+            
+            try:
+                for item in path.iterdir():
+                    if item.is_file() and item.name == "expansion.json":
+                        # Found an expansion - use parent directory
+                        expansion_dirs.add(item.parent)
+                    elif item.is_dir() and not item.name.startswith('.') and not item.name.startswith('['):
+                        find_expansion_dirs(item, depth + 1)
+            except PermissionError:
+                pass
+        
+        find_expansion_dirs(directory)
+        
+        # If no expansion.json files found, fall back to scanning immediate subdirectories
+        if not expansion_dirs:
+            print(f"  No expansion.json files found, scanning subdirectories...")
+            for item in directory.iterdir():
+                if item.is_dir():
+                    expansion = self.loader.load_expansion(str(item))
+                    if expansion and expansion.instruments:
+                        self.expansions[expansion.id] = expansion
+                        count += 1
+                        print(f"  [+] Loaded expansion: {expansion.name} ({len(expansion.instruments)} instruments)")
+        else:
+            # Load each discovered expansion
+            for exp_dir in expansion_dirs:
+                expansion = self.loader.load_expansion(str(exp_dir))
                 if expansion and expansion.instruments:
                     self.expansions[expansion.id] = expansion
                     count += 1
                     print(f"  [+] Loaded expansion: {expansion.name} ({len(expansion.instruments)} instruments)")
+        
+        # Load persisted enable state
+        self._load_expansion_state()
         
         # Rebuild matcher
         self._rebuild_matcher()
@@ -1234,10 +1302,52 @@ class ExpansionManager:
         return False
     
     def enable_expansion(self, expansion_id: str, enabled: bool = True):
-        """Enable or disable an expansion."""
+        """Enable or disable an expansion and persist the state."""
         if expansion_id in self.expansions:
             self.expansions[expansion_id].enabled = enabled
             self._rebuild_matcher()
+            # Persist enable state to disk
+            self._save_expansion_state()
+    
+    def _save_expansion_state(self):
+        """Save expansion enable states to a JSON config file."""
+        try:
+            state = {
+                exp_id: {"enabled": exp.enabled}
+                for exp_id, exp in self.expansions.items()
+            }
+            config_path = Path(self.cache_dir) / "expansion_state.json" if self.cache_dir else None
+            if not config_path:
+                # Try to save next to first expansion or in user home
+                for exp in self.expansions.values():
+                    if exp.path:
+                        config_path = Path(exp.path).parent / "expansion_state.json"
+                        break
+            if config_path:
+                config_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(config_path, 'w') as f:
+                    json.dump(state, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Could not save expansion state: {e}")
+    
+    def _load_expansion_state(self):
+        """Load expansion enable states from config file."""
+        try:
+            config_path = Path(self.cache_dir) / "expansion_state.json" if self.cache_dir else None
+            if not config_path:
+                for exp in self.expansions.values():
+                    if exp.path:
+                        config_path = Path(exp.path).parent / "expansion_state.json"
+                        break
+            if config_path and config_path.exists():
+                with open(config_path, 'r') as f:
+                    state = json.load(f)
+                for exp_id, exp_state in state.items():
+                    if exp_id in self.expansions:
+                        self.expansions[exp_id].enabled = exp_state.get("enabled", True)
+                self._rebuild_matcher()
+        except Exception as e:
+            print(f"Warning: Could not load expansion state: {e}")
     
     def resolve_instrument(
         self,
@@ -1439,7 +1549,17 @@ def create_expansion_manager(
         project_root / "expansions",
         project_root.parent / "expansions",
         Path.home() / ".aitk" / "expansions",
+        Path.home() / "Documents" / "Expansions",
+        Path.home() / "Documents" / "MPC Expansions",
     ]
+    
+    # On Windows, also check common MPC/Akai install locations
+    import platform
+    if platform.system() == "Windows":
+        expansions_dirs.extend([
+            Path.home() / "Documents" / "Akai" / "Expansions",
+            Path("C:/Users/Public/Documents/Akai/Expansions"),
+        ])
     
     default_instruments = project_root / "instruments"
     

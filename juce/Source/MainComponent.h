@@ -27,6 +27,7 @@
 #include "UI/FXChainPanel.h"
 #include "UI/ExpansionBrowserPanel.h"
 #include "UI/Mixer/MixerComponent.h"
+#include "UI/Theme/LayoutConstants.h"
 
 //==============================================================================
 /**
@@ -54,6 +55,7 @@ class MainComponent : public juce::Component,
                       public InstrumentBrowserPanel::Listener,
                       public FXChainPanel::Listener,
                       public ExpansionBrowserPanel::Listener,
+                      public TimelineComponent::Listener,
                       public Project::ProjectState::Listener,
                       public juce::Timer
 {
@@ -74,6 +76,7 @@ public:
     void onError(int code, const juce::String& message) override;
     void onAnalyzeResultReceived(const AnalyzeResult& result) override;
     void onAnalyzeError(int code, const juce::String& message) override;
+    void onSchemaVersionWarning(int clientVersion, int serverVersion, const juce::String& message) override;
     
     //==============================================================================
     // OSCBridge::Listener - Instruments
@@ -83,6 +86,7 @@ public:
     // PromptPanel::Listener
     void generateRequested(const juce::String& prompt) override;
     void cancelRequested() override;
+    void analyzeUrlRequested(const juce::String& url) override;
     
     //==============================================================================
     // VisualizationPanel::Listener
@@ -109,6 +113,7 @@ public:
     void requestResolveOSC(const juce::String& instrument, const juce::String& genre) override;
     void requestImportExpansionOSC(const juce::String& path) override;
     void requestScanExpansionsOSC(const juce::String& directory) override;
+    void requestExpansionEnableOSC(const juce::String& expansionId, bool enabled) override;
     
     //==============================================================================
     // OSCBridge::Listener expansion callbacks
@@ -123,6 +128,11 @@ public:
     void valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override;
     void valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhichHasChanged, int oldIndex, int newIndex) override {}
     void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) override {}
+    
+    //==============================================================================
+    // TimelineComponent::Listener overrides
+    void timelineSeekRequested(double positionSeconds) override;
+    void loopRegionChanged(double startSeconds, double endSeconds) override;
 
     //==============================================================================
     // Timer callback for UI updates
@@ -167,12 +177,12 @@ private:
     juce::Rectangle<int> bottomPanelArea;
     
     //==============================================================================
-    // Layout constants
-    static constexpr int transportHeight = 50;
-    static constexpr int timelineHeight = 65;
-    static constexpr int promptPanelWidth = 320;
-    // static constexpr int bottomPanelHeight = 150; // Removed in favor of dynamic sizing
-    static constexpr int padding = 4;
+    // Layout constants - now use Layout:: namespace from LayoutConstants.h
+    // These are kept for backward compatibility but prefer using Layout:: directly
+    static constexpr int transportHeight = Layout::transportHeightDefault;
+    static constexpr int timelineHeight = Layout::timelineHeightDefault;
+    static constexpr int promptPanelWidth = Layout::sidebarWidthDefault;
+    static constexpr int padding = Layout::paddingSM;
     
     //==============================================================================
     // State
@@ -181,6 +191,7 @@ private:
     juce::String currentStatus = "Ready";
     juce::String currentGenre = "trap";  // Default genre (synced with GenreSelector)
     bool initialInstrumentsRequested = false;
+    AnalyzeResult lastAnalyzeResult;  // Store last analysis for Apply action
     
     //==============================================================================
     void startPythonServer();
@@ -189,6 +200,7 @@ private:
     void setupBottomPanel();
     void updateBottomPanelTabs();
     void applyGenreTheme(const juce::String& genreId);
+    void applyAnalysisResult(const AnalyzeResult& result);
     void drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area, 
                         const juce::String& label, juce::Colour colour);
     

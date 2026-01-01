@@ -93,6 +93,28 @@ void OSCBridge::sendGenerate(const GenerationRequest& request)
     sendMessage(OSCAddresses::generate, mutableRequest.toJson());
 }
 
+void OSCBridge::sendRegenerate(const RegenerationRequest& request)
+{
+    // Ensure request has a unique ID for correlation
+    RegenerationRequest mutableRequest = request;
+    if (mutableRequest.requestId.isEmpty())
+        mutableRequest.generateRequestId();
+    
+    // Track current request (uses same field as generate)
+    currentRequestId = mutableRequest.requestId;
+    isRequestAcknowledged = false;
+    generationStartTime = juce::Time::currentTimeMillis();
+    lastMessageReceivedTime = generationStartTime.load();
+    
+    DBG("OSCBridge: Sending regenerate with request_id: " << mutableRequest.requestId
+        << ", bars " << mutableRequest.startBar << "-" << mutableRequest.endBar);
+    
+    // Update state to generating
+    setConnectionState(ConnectionState::Generating);
+    
+    sendMessage(OSCAddresses::regenerate, mutableRequest.toJson());
+}
+
 void OSCBridge::sendAnalyzeFile(const juce::File& file, bool verbose)
 {
     if (!file.existsAsFile())
@@ -171,6 +193,18 @@ void OSCBridge::sendGetInstruments(const juce::StringArray& paths, const juce::S
     sendMessage(OSCAddresses::getInstruments, juce::JSON::toString(juce::var(obj.get())));
 }
 
+void OSCBridge::sendFXChain(const juce::String& fxChainJson)
+{
+    // Send FX chain configuration to Python backend for offline render parity
+    // The server will store this and apply it during the next generation
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("schema_version", SCHEMA_VERSION);
+    obj->setProperty("fx_chain", juce::JSON::parse(fxChainJson));
+    
+    DBG("OSCBridge: Sending FX chain configuration");
+    sendMessage(OSCAddresses::fxChain, juce::JSON::toString(juce::var(obj.get())));
+}
+
 //==============================================================================
 // Expansion management
 //==============================================================================
@@ -218,6 +252,43 @@ void OSCBridge::sendExpansionEnable(const juce::String& expansionId, bool enable
 }
 
 //==============================================================================
+// Take management
+//==============================================================================
+
+void OSCBridge::sendSelectTake(const juce::String& track, const juce::String& takeId)
+{
+    TakeSelectRequest request;
+    request.generateRequestId();
+    request.track = track;
+    request.takeId = takeId;
+    
+    DBG("OSCBridge: Sending select take - track: " << track << ", take: " << takeId);
+    sendMessage(OSCAddresses::selectTake, request.toJson());
+}
+
+void OSCBridge::sendCompTakes(const TakeCompRequest& request)
+{
+    TakeCompRequest mutableRequest = request;
+    if (mutableRequest.requestId.isEmpty())
+        mutableRequest.generateRequestId();
+    
+    DBG("OSCBridge: Sending comp takes - track: " << request.track 
+        << ", regions: " << request.regions.size());
+    sendMessage(OSCAddresses::compTakes, mutableRequest.toJson());
+}
+
+void OSCBridge::sendRenderTake(const TakeRenderRequest& request)
+{
+    TakeRenderRequest mutableRequest = request;
+    if (mutableRequest.requestId.isEmpty())
+        mutableRequest.generateRequestId();
+    
+    DBG("OSCBridge: Sending render take - track: " << request.track 
+        << ", take: " << (request.useComp ? "comp" : request.takeId));
+    sendMessage(OSCAddresses::renderTake, mutableRequest.toJson());
+}
+
+//==============================================================================
 void OSCBridge::addListener(Listener* listener)
 {
     listeners.add(listener);
@@ -257,6 +328,13 @@ void OSCBridge::oscMessageReceived(const juce::OSCMessage& message)
         handleExpansionInstruments(message);
     else if (address == OSCAddresses::expansionResolveResponse)
         handleExpansionResolve(message);
+    // Take responses
+    else if (address == OSCAddresses::takesAvailable)
+        handleTakesAvailable(message);
+    else if (address == OSCAddresses::takeSelected)
+        handleTakeSelected(message);
+    else if (address == OSCAddresses::takeRendered)
+        handleTakeRendered(message);
     else
         DBG("OSCBridge: Unknown address: " << address);
 }
@@ -301,6 +379,13 @@ void OSCBridge::handleComplete(const juce::OSCMessage& message)
     
     auto jsonStr = message[0].getString();
     auto result = GenerationResult::fromJson(jsonStr);
+    
+    // Protocol hardening: Validate request_id correlation
+    if (currentRequestId.isNotEmpty() && result.requestId.isNotEmpty() && result.requestId != currentRequestId)
+    {
+        DBG("OSCBridge: Ignoring /complete for mismatched request ID: " << result.requestId << " (expected: " << currentRequestId << ")");
+        return;
+    }
     
     // Clear current request and return to connected state
     currentRequestId.clear();
@@ -385,6 +470,31 @@ void OSCBridge::handleStatus(const juce::OSCMessage& message)
                 DBG("OSCBridge: Generation request acknowledged");
             }
         }
+        else if (status == "cancelled")
+        {
+            // Handle cancel acknowledgment
+            if (reqId == currentRequestId || currentRequestId.isEmpty())
+            {
+                currentRequestId.clear();
+                setConnectionState(ConnectionState::Connected);
+                DBG("OSCBridge: Cancellation confirmed");
+            }
+        }
+        else if (status == "schema_version_warning")
+        {
+            // Surface schema version mismatch to UI
+            int clientVersion = obj->getProperty("client_version");
+            int serverVersion = obj->getProperty("server_version");
+            juce::String warningMsg = obj->getProperty("message");
+            
+            DBG("OSCBridge: Schema version warning - " << warningMsg);
+            
+            // Notify listeners about the schema mismatch (non-blocking warning)
+            listeners.call([clientVersion, serverVersion, warningMsg](Listener& l)
+            {
+                l.onSchemaVersionWarning(clientVersion, serverVersion, warningMsg);
+            });
+        }
     }
 }
 
@@ -466,6 +576,66 @@ void OSCBridge::handleExpansionResolve(const juce::OSCMessage& message)
     {
         l.onExpansionResolveReceived(jsonStr);
     });
+}
+
+//==============================================================================
+// Take handlers
+//==============================================================================
+
+void OSCBridge::handleTakesAvailable(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+    
+    auto jsonStr = message[0].getString();
+    DBG("OSCBridge: Received takes available response");
+    
+    listeners.call([&](Listener& l)
+    {
+        l.onTakesAvailable(jsonStr);
+    });
+}
+
+void OSCBridge::handleTakeSelected(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+    
+    auto jsonStr = message[0].getString();
+    DBG("OSCBridge: Received take selected response");
+    
+    auto json = juce::JSON::parse(jsonStr);
+    if (auto* obj = json.getDynamicObject())
+    {
+        juce::String track = obj->getProperty("track");
+        juce::String takeId = obj->getProperty("take_id");
+        
+        listeners.call([track, takeId](Listener& l)
+        {
+            l.onTakeSelected(track, takeId);
+        });
+    }
+}
+
+void OSCBridge::handleTakeRendered(const juce::OSCMessage& message)
+{
+    if (message.isEmpty())
+        return;
+    
+    auto jsonStr = message[0].getString();
+    DBG("OSCBridge: Received take rendered response");
+    
+    auto json = juce::JSON::parse(jsonStr);
+    if (auto* obj = json.getDynamicObject())
+    {
+        juce::String track = obj->getProperty("track");
+        juce::String outputPath = obj->getProperty("output_path");
+        
+        listeners.call([track, outputPath](Listener& l)
+        {
+            l.onTakeRendered(track, outputPath);
+        });
+    }
 }
 
 //==============================================================================

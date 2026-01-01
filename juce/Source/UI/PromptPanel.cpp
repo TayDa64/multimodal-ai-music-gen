@@ -10,6 +10,7 @@
 
 #include "PromptPanel.h"
 #include "Theme/ColourScheme.h"
+#include "Theme/LayoutConstants.h"
 
 //==============================================================================
 PromptPanel::PromptPanel(AppState& state)
@@ -174,6 +175,46 @@ void PromptPanel::setupGenerateButton()
     };
     cancelButton.setVisible(false);
     addChildComponent(cancelButton); // Use addChildComponent since it starts hidden
+    
+    // Analyze Reference button - opens file chooser or URL dialog
+    analyzeButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.1f));
+    analyzeButton.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
+    analyzeButton.setTooltip("Analyze a reference audio file or URL to extract BPM, key, and prompt hints");
+    analyzeButton.onClick = [this] {
+        // Show popup menu with File/URL options
+        juce::PopupMenu menu;
+        menu.addItem(1, "Analyze Local File...");
+        menu.addItem(2, "Analyze URL...");
+        menu.addSeparator();
+        menu.addItem(3, "Drop audio file here", false, false); // Hint item, disabled
+        
+        menu.showMenuAsync(juce::PopupMenu::Options()
+            .withTargetComponent(&analyzeButton),
+            [this](int result) {
+                if (result == 1) {
+                    // Open file chooser
+                    auto chooser = std::make_unique<juce::FileChooser>(
+                        "Select Audio File to Analyze",
+                        juce::File::getSpecialLocation(juce::File::userMusicDirectory),
+                        "*.wav;*.mp3;*.flac;*.aiff;*.ogg;*.m4a;*.mid;*.midi");
+                    
+                    chooser->launchAsync(juce::FileBrowserComponent::openMode | 
+                                        juce::FileBrowserComponent::canSelectFiles,
+                        [this](const juce::FileChooser& fc) {
+                            auto file = fc.getResult();
+                            if (file.existsAsFile()) {
+                                listeners.call(&Listener::analyzeFileRequested, file);
+                            }
+                        });
+                    // Keep chooser alive until dialog closes
+                    juce::MessageManager::callAsync([c = std::move(chooser)]() mutable { c.reset(); });
+                }
+                else if (result == 2) {
+                    showAnalyzeUrlDialog();
+                }
+            });
+    };
+    addAndMakeVisible(analyzeButton);
 }
 
 //==============================================================================
@@ -183,48 +224,81 @@ void PromptPanel::paint(juce::Graphics& g)
     g.setColour(AppColours::surface);
     g.fillRoundedRectangle(getLocalBounds().toFloat(), 8.0f);
     
-    // Border
-    g.setColour(AppColours::border);
-    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 8.0f, 1.0f);
+    // Border - highlight when dragging audio file over
+    if (isDragOver)
+    {
+        g.setColour(AppColours::accent);
+        g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.5f), 8.0f, 3.0f);
+        
+        // Draw drop hint overlay
+        g.setColour(AppColours::accent.withAlpha(0.1f));
+        g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(2.0f), 8.0f);
+        
+        // Drop hint text
+        g.setColour(AppColours::accent);
+        g.setFont(juce::Font(16.0f, juce::Font::bold));
+        g.drawText("Drop audio file to analyze", getLocalBounds(), juce::Justification::centred);
+    }
+    else
+    {
+        g.setColour(AppColours::border);
+        g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(0.5f), 8.0f, 1.0f);
+    }
 }
 
 void PromptPanel::resized()
 {
-    auto bounds = getLocalBounds().reduced(16);
+    auto bounds = getLocalBounds().reduced(Layout::paddingXL);
+    const int windowHeight = getParentHeight();
     
-    // Title
-    promptLabel.setBounds(bounds.removeFromTop(20));
-    bounds.removeFromTop(4);
+    // Use FlexBox for vertical layout to handle variable heights gracefully
+    juce::FlexBox mainFlex = Layout::createColumnFlex();
+    mainFlex.justifyContent = juce::FlexBox::JustifyContent::flexStart;
     
-    // Prompt input (main area - takes proportionally more space)
-    auto availableHeight = bounds.getHeight() - 140; // Reserve space for other controls
-    auto mainPromptHeight = juce::jmax(50, (int)(availableHeight * 0.75f));
-    promptInput.setBounds(bounds.removeFromTop(mainPromptHeight));
-    bounds.removeFromTop(8);
+    // Title row (fixed height)
+    auto titleRow = bounds.removeFromTop(20);
+    promptLabel.setBounds(titleRow);
+    bounds.removeFromTop(Layout::paddingSM);
     
-    // Negative prompt section (smaller, single line)
+    // Calculate available height for prompt input
+    // Reserve: negative prompt label (18) + input (26) + gap (10) + 
+    //          duration row (26) + gap (10) + button row (34) + margins
+    int reservedHeight = 18 + 26 + 10 + 26 + 10 + 34 + Layout::paddingMD * 3;
+    int availableForPrompt = bounds.getHeight() - reservedHeight;
+    
+    // Prompt input - use more space on taller windows
+    int promptHeight = juce::jmax(50, availableForPrompt);
+    promptInput.setBounds(bounds.removeFromTop(promptHeight));
+    bounds.removeFromTop(Layout::paddingMD);
+    
+    // Negative prompt section
     negativePromptLabel.setBounds(bounds.removeFromTop(18));
     bounds.removeFromTop(2);
     negativePromptInput.setBounds(bounds.removeFromTop(26));
-    bounds.removeFromTop(10);
+    bounds.removeFromTop(Layout::paddingMD);
     
-    // Genre row - hidden (using main GenreSelector)
-    // Skip layout for genre controls
-    
-    // Duration row (separate line for clarity)
+    // Duration row using FlexBox for responsive spacing
     auto durationRow = bounds.removeFromTop(26);
-    durationLabel.setBounds(durationRow.removeFromLeft(60).withHeight(26));
-    durationSlider.setBounds(durationRow.withHeight(26)); // Takes remaining width
     
-    bounds.removeFromTop(10);
+    juce::FlexBox durationFlex = Layout::createRowFlex();
+    durationFlex.items.add(juce::FlexItem(durationLabel).withWidth(60.0f).withHeight(26.0f));
+    durationFlex.items.add(juce::FlexItem(durationSlider).withFlex(1.0f).withHeight(26.0f));
+    durationFlex.performLayout(durationRow);
     
-    // Generate button row
-    auto buttonRow = bounds.removeFromTop(34);
-    auto buttonWidth = 140;
+    bounds.removeFromTop(Layout::paddingMD);
     
-    // Center the button
-    auto buttonX = (buttonRow.getWidth() - buttonWidth) / 2;
-    generateButton.setBounds(buttonRow.withX(buttonRow.getX() + buttonX).withWidth(buttonWidth).withHeight(30));
+    // Button row - Generate + Analyze buttons using FlexBox
+    auto buttonRow = bounds.removeFromTop(Layout::buttonHeightLG);
+    int generateWidth = juce::jmin(140, (buttonRow.getWidth() - Layout::paddingMD) / 2);
+    int analyzeWidth = juce::jmin(160, (buttonRow.getWidth() - Layout::paddingMD) / 2);
+    
+    juce::FlexBox buttonFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::center);
+    buttonFlex.items.add(juce::FlexItem(generateButton).withWidth((float)generateWidth).withHeight((float)Layout::buttonHeightMD));
+    buttonFlex.items.add(juce::FlexItem().withWidth((float)Layout::paddingMD)); // Spacer
+    buttonFlex.items.add(juce::FlexItem(analyzeButton).withWidth((float)analyzeWidth).withHeight((float)Layout::buttonHeightMD));
+    buttonFlex.performLayout(buttonRow);
+    
+    // Cancel button shares position with generate button
     cancelButton.setBounds(generateButton.getBounds());
 }
 
@@ -257,6 +331,14 @@ juce::String PromptPanel::getCombinedPrompt() const
 void PromptPanel::setPromptText(const juce::String& text)
 {
     promptInput.setText(text);
+}
+
+void PromptPanel::appendToPrompt(const juce::String& text)
+{
+    juce::String current = promptInput.getText();
+    if (current.isNotEmpty() && !current.endsWithChar(' '))
+        current += " ";
+    promptInput.setText(current + text);
 }
 
 void PromptPanel::setNegativePromptText(const juce::String& text)
@@ -357,4 +439,79 @@ void PromptPanel::addListener(Listener* listener)
 void PromptPanel::removeListener(Listener* listener)
 {
     listeners.remove(listener);
+}
+
+//==============================================================================
+// FileDragAndDropTarget implementation
+bool PromptPanel::isInterestedInFileDrag(const juce::StringArray& files)
+{
+    // Accept drag if any file is an audio/MIDI file
+    for (const auto& path : files)
+    {
+        juce::File file(path);
+        if (isAudioFile(file))
+            return true;
+    }
+    return false;
+}
+
+void PromptPanel::fileDragEnter(const juce::StringArray& /*files*/, int /*x*/, int /*y*/)
+{
+    isDragOver = true;
+    repaint();
+}
+
+void PromptPanel::fileDragExit(const juce::StringArray& /*files*/)
+{
+    isDragOver = false;
+    repaint();
+}
+
+void PromptPanel::filesDropped(const juce::StringArray& files, int /*x*/, int /*y*/)
+{
+    isDragOver = false;
+    repaint();
+    
+    // Analyze the first valid audio file
+    for (const auto& path : files)
+    {
+        juce::File file(path);
+        if (isAudioFile(file) && file.existsAsFile())
+        {
+            listeners.call(&Listener::analyzeFileRequested, file);
+            break;
+        }
+    }
+}
+
+bool PromptPanel::isAudioFile(const juce::File& file) const
+{
+    auto ext = file.getFileExtension().toLowerCase();
+    return ext == ".wav" || ext == ".mp3" || ext == ".flac" || 
+           ext == ".aiff" || ext == ".aif" || ext == ".ogg" || 
+           ext == ".m4a" || ext == ".mid" || ext == ".midi";
+}
+
+void PromptPanel::showAnalyzeUrlDialog()
+{
+    auto* dialog = new juce::AlertWindow("Analyze URL", 
+        "Enter a URL to analyze (YouTube, SoundCloud, etc.)",
+        juce::MessageBoxIconType::QuestionIcon);
+    
+    dialog->addTextEditor("url", "", "URL:");
+    dialog->addButton("Analyze", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    dialog->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+    
+    dialog->enterModalState(true, juce::ModalCallbackFunction::create(
+        [this, dialog](int result) {
+            if (result == 1)
+            {
+                auto url = dialog->getTextEditorContents("url").trim();
+                if (url.isNotEmpty())
+                {
+                    listeners.call(&Listener::analyzeUrlRequested, url);
+                }
+            }
+            delete dialog;
+        }), true);
 }

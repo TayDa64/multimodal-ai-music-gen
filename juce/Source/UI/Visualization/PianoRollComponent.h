@@ -84,6 +84,18 @@ public:
     void setBPM(int bpm);
     
     //==============================================================================
+    // Loop Region
+    void setLoopRegion(double startSeconds, double endSeconds);
+    void clearLoopRegion();
+    bool hasLoopRegion() const { return loopRegionStart >= 0 && loopRegionEnd > loopRegionStart; }
+    
+    //==============================================================================
+    // Note Release Visualization
+    /** Enable/disable note release tail visualization (ADSR decay) */
+    void setShowReleaseTails(bool show) { showReleaseTails = show; repaint(); }
+    bool isShowingReleaseTails() const { return showReleaseTails; }
+    
+    //==============================================================================
     // Zoom controls
     void setHorizontalZoom(float zoom);  // 0.1 to 10.0
     void setVerticalZoom(float zoom);    // 0.5 to 4.0
@@ -148,6 +160,7 @@ private:
     void drawBackground(juce::Graphics& g);
     void drawPianoKeys(juce::Graphics& g);
     void drawGridLines(juce::Graphics& g);
+    void drawLoopRegion(juce::Graphics& g);
     void drawNotes(juce::Graphics& g);
     void drawPlayhead(juce::Graphics& g);
     void drawNoteTooltip(juce::Graphics& g);
@@ -213,6 +226,14 @@ private:
     juce::Point<float> dragStartPos;
     double dragStartNoteStart = 0.0;
     int dragStartNoteNum = 0;
+    
+    // Loop region
+    double loopRegionStart = -1.0;
+    double loopRegionEnd = -1.0;
+    
+    // Note visualization options
+    bool showReleaseTails = true;  // Show note release/decay tails
+    static constexpr double defaultReleaseTime = 0.1;  // 100ms default release
     
     // Generate track colors
     void assignTrackColors(int numTracks);

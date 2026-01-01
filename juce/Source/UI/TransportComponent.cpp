@@ -10,6 +10,7 @@
 
 #include "TransportComponent.h"
 #include "Theme/ColourScheme.h"
+#include "Theme/LayoutConstants.h"
 #include "AudioSettingsDialog.h"
 
 //==============================================================================
@@ -213,52 +214,62 @@ void TransportComponent::paint(juce::Graphics& g)
 
 void TransportComponent::resized()
 {
-    auto bounds = getLocalBounds().reduced(8, 4);
-    auto buttonHeight = 28;
-    auto buttonWidth = 60;
-    auto centerY = bounds.getCentreY() - buttonHeight / 2;
+    auto bounds = getLocalBounds().reduced(Layout::paddingMD, Layout::paddingSM);
+    const int buttonHeight = Layout::buttonHeightMD;
+    const int buttonWidth = 60;
+    const int smallButtonWidth = 50;
+    const int centerY = bounds.getCentreY() - buttonHeight / 2;
     
-    // Left section - transport buttons + load MIDI + settings
-    auto leftSection = bounds.removeFromLeft(320);
+    // Use FlexBox for responsive layout
+    // Left section - transport buttons
+    juce::FlexBox leftFlex = Layout::createRowFlex();
+    leftFlex.items.add(juce::FlexItem(playButton).withWidth((float)buttonWidth).withHeight((float)buttonHeight));
+    leftFlex.items.add(juce::FlexItem().withWidth(4.0f));  // Gap
+    leftFlex.items.add(juce::FlexItem(pauseButton).withWidth((float)buttonWidth).withHeight((float)buttonHeight));
+    leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
+    leftFlex.items.add(juce::FlexItem(stopButton).withWidth((float)buttonWidth).withHeight((float)buttonHeight));
+    leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
+    leftFlex.items.add(juce::FlexItem(loopButton).withWidth((float)smallButtonWidth).withHeight((float)buttonHeight));
+    leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
+    leftFlex.items.add(juce::FlexItem(loadMidiButton).withWidth(70.0f).withHeight((float)buttonHeight));
+    leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
+    leftFlex.items.add(juce::FlexItem(audioSettingsButton).withWidth(30.0f).withHeight((float)buttonHeight));
     
-    playButton.setBounds(leftSection.getX(), centerY, buttonWidth, buttonHeight);
-    pauseButton.setBounds(leftSection.getX() + buttonWidth + 4, centerY, buttonWidth, buttonHeight);
-    stopButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 2, centerY, buttonWidth, buttonHeight);
-    
-    loopButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3, centerY, 50, buttonHeight);
-    
-    loadMidiButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3 + 54, centerY, 70, buttonHeight);
-    audioSettingsButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3 + 54 + 74, centerY, 30, buttonHeight);
+    // Calculate left section width
+    int leftSectionWidth = juce::jmin(340, bounds.getWidth() / 3);
+    auto leftSection = bounds.removeFromLeft(leftSectionWidth);
+    leftFlex.performLayout(leftSection.withY(centerY).withHeight(buttonHeight));
     
     // Right section - Status, BPM, test tone
-    auto rightSection = bounds.removeFromRight(340);
+    int rightSectionWidth = juce::jmin(360, bounds.getWidth() / 3);
+    auto rightSection = bounds.removeFromRight(rightSectionWidth);
     
-    // Status label (right-aligned) - shows "Ready", "Playing", "Loaded: file.mid"
-    statusLabel.setBounds(rightSection.removeFromRight(140).withHeight(20).withY(centerY + 4));
-    rightSection.removeFromRight(8);
+    juce::FlexBox rightFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::flexEnd);
+    rightFlex.items.add(juce::FlexItem(bpmLabel).withWidth(35.0f).withHeight(20.0f));
+    rightFlex.items.add(juce::FlexItem(bpmSlider).withWidth(100.0f).withHeight(20.0f));
+    rightFlex.items.add(juce::FlexItem().withWidth(8.0f));
+    rightFlex.items.add(juce::FlexItem(testToneButton).withWidth(90.0f).withHeight(20.0f));
+    rightFlex.items.add(juce::FlexItem().withWidth(8.0f));
+    rightFlex.items.add(juce::FlexItem(statusLabel).withWidth(140.0f).withHeight(20.0f));
+    rightFlex.performLayout(rightSection.withY(centerY + 4).withHeight(20));
     
-    // Test tone button
-    testToneButton.setBounds(rightSection.removeFromRight(90).withHeight(20).withY(centerY + 4));
-    rightSection.removeFromRight(8);
+    // Center section - time display and position slider
+    bounds.removeFromLeft(Layout::paddingLG);
+    bounds.removeFromRight(Layout::paddingLG);
     
-    // BPM control
-    bpmLabel.setBounds(rightSection.removeFromLeft(35).withHeight(20).withY(centerY + 4));
-    bpmSlider.setBounds(rightSection.removeFromLeft(100).withHeight(20).withY(centerY + 4));
-    
-    // Center section - time display, bar:beat, and position slider
-    bounds.removeFromLeft(16);
-    bounds.removeFromRight(16);
-    
-    // Time display
+    // Time display section (fixed width)
     auto timeSection = bounds.removeFromLeft(130);
-    timeDisplay.setBounds(timeSection.removeFromLeft(45).withHeight(20).withY(centerY + 4));
-    durationDisplay.setBounds(timeSection.removeFromLeft(45).withHeight(20).withY(centerY + 4));
-    barBeatDisplay.setBounds(timeSection.withHeight(20).withY(centerY + 4));
     
-    bounds.removeFromLeft(8);
+    juce::FlexBox timeFlex = Layout::createRowFlex();
+    timeFlex.items.add(juce::FlexItem(timeDisplay).withWidth(45.0f).withHeight(20.0f));
+    timeFlex.items.add(juce::FlexItem(durationDisplay).withWidth(45.0f).withHeight(20.0f));
+    timeFlex.items.add(juce::FlexItem(barBeatDisplay).withFlex(1.0f).withHeight(20.0f));
+    timeFlex.performLayout(timeSection.withY(centerY + 4).withHeight(20));
+    
+    bounds.removeFromLeft(Layout::paddingMD);
     
     // Position slider (fills remaining space)
-    positionSlider.setBounds(bounds.withHeight(20).withY(centerY + 4));
+    positionSlider.setBounds(bounds.withY(centerY + 4).withHeight(20));
 }
 
 //==============================================================================
@@ -356,8 +367,17 @@ void TransportComponent::onGenerationCompleted(const juce::File& outputFile)
         statusLabel.setText("Ready: " + outputFile.getFileName(), juce::dontSendNotification);
         statusLabel.setColour(juce::Label::textColourId, AppColours::success);
         
-        // TODO: Get actual duration from audio file
-        totalDuration = (double)appState.getDurationBars() * 60.0 / (double)appState.getBPM() * 4.0;
+        // Get actual duration from AudioEngine if MIDI is loaded
+        if (audioEngine.hasMidiLoaded())
+        {
+            totalDuration = audioEngine.getTotalDuration();
+        }
+        else
+        {
+            // Fallback to calculated duration from BPM and bars
+            totalDuration = (double)appState.getDurationBars() * 60.0 / (double)appState.getBPM() * 4.0;
+        }
+        
         currentPosition = 0.0;
         updateTimeDisplay();
         updateButtonStates();

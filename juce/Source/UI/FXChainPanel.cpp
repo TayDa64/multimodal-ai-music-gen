@@ -3,12 +3,14 @@
 
     FXChainPanel.cpp
     
-    Implementation of the FX chain visual editor.
+    Implementation of the FX chain visual editor with drag-and-drop reordering.
 
   ==============================================================================
 */
 
 #include "FXChainPanel.h"
+#include "Theme/LayoutConstants.h"
+#include "../Project/ProjectState.h"
 
 //==============================================================================
 // FXUnitComponent
@@ -52,23 +54,23 @@ juce::Colour FXUnitComponent::getTypeColor() const
 juce::String FXUnitComponent::getTypeIcon() const
 {
     if (fxUnit.type == "eq" || fxUnit.type == "equalizer")
-        return "≈";
+        return "~";  // Changed from ≈
     if (fxUnit.type == "compressor" || fxUnit.type == "comp")
-        return "◉";
+        return "O";  // Changed from ◉
     if (fxUnit.type == "reverb" || fxUnit.type == "rev")
-        return "◎";
+        return "@";  // Changed from ◎
     if (fxUnit.type == "delay")
-        return "⟳";
+        return "D";  // Changed from ⟳
     if (fxUnit.type == "saturation" || fxUnit.type == "sat" || fxUnit.type == "distortion")
-        return "⚡";
+        return "!";  // Changed from ⚡
     if (fxUnit.type == "limiter")
-        return "▬";
+        return "=";  // Changed from ▬
     if (fxUnit.type == "chorus")
-        return "◇";
+        return "<>";  // Changed from ◇
     if (fxUnit.type == "filter")
-        return "∿";
+        return "F";  // Changed from ∿
     
-    return "●";
+    return "*";  // Changed from ●
 }
 
 void FXUnitComponent::paint(juce::Graphics& g)
@@ -85,8 +87,8 @@ void FXUnitComponent::paint(juce::Graphics& g)
     
     // Gradient overlay
     g.setGradientFill(juce::ColourGradient(
-        bgColor.brighter(0.2f), bounds.getX(), bounds.getY(),
-        bgColor.darker(0.2f), bounds.getX(), bounds.getBottom(),
+        bgColor.brighter(0.2f), (float)bounds.getX(), (float)bounds.getY(),
+        bgColor.darker(0.2f), (float)bounds.getX(), (float)bounds.getBottom(),
         false
     ));
     g.fillRoundedRectangle(bounds.reduced(1).toFloat(), 7.0f);
@@ -96,6 +98,22 @@ void FXUnitComponent::paint(juce::Graphics& g)
     {
         g.setColour(juce::Colours::white);
         g.drawRoundedRectangle(bounds.toFloat(), 8.0f, 2.0f);
+    }
+    
+    // Draw drag hover indicator
+    if (dragHover)
+    {
+        g.setColour(juce::Colours::cyan);
+        if (dragHoverLeft)
+        {
+            // Draw indicator on left side
+            g.fillRect(bounds.getX() - 4, bounds.getY(), 4, bounds.getHeight());
+        }
+        else
+        {
+            // Draw indicator on right side  
+            g.fillRect(bounds.getRight(), bounds.getY(), 4, bounds.getHeight());
+        }
     }
     
     // Icon
@@ -122,8 +140,70 @@ void FXUnitComponent::mouseDown(const juce::MouseEvent& e)
 
 void FXUnitComponent::mouseDrag(const juce::MouseEvent& e)
 {
-    if (listener)
-        listener->fxUnitDragged(this, e);
+    // Start drag after threshold
+    if (e.getDistanceFromDragStart() > 5)
+    {
+        // Find our DragAndDropContainer
+        if (auto* container = juce::DragAndDropContainer::findParentDragContainerFor(this))
+        {
+            // Create a snapshot for drag image
+            auto snapshot = createComponentSnapshot(getLocalBounds());
+            
+            // Scale it down slightly for better visual
+            auto scaledImage = snapshot.rescaled(
+                (int)(getWidth() * 0.8f), 
+                (int)(getHeight() * 0.8f)
+            );
+            
+            // Start the drag - use our ID as the description
+            container->startDragging(fxUnit.id, this, 
+                juce::ScaledImage(scaledImage), true, nullptr,
+                &e.source);
+            
+            if (listener)
+                listener->fxUnitDragStarted(this);
+        }
+    }
+}
+
+void FXUnitComponent::mouseUp(const juce::MouseEvent& e)
+{
+    // Clear any drag hover state
+    dragHover = false;
+    repaint();
+}
+
+bool FXUnitComponent::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& details)
+{
+    // Accept drops from other FXUnitComponents
+    return dynamic_cast<FXUnitComponent*>(details.sourceComponent.get()) != nullptr;
+}
+
+void FXUnitComponent::itemDragEnter(const juce::DragAndDropTarget::SourceDetails& details)
+{
+    // Determine if drop on left or right half
+    bool isLeft = details.localPosition.x < getWidth() / 2;
+    setDragHover(true, isLeft);
+}
+
+void FXUnitComponent::itemDragExit(const juce::DragAndDropTarget::SourceDetails& /*details*/)
+{
+    setDragHover(false, false);
+}
+
+void FXUnitComponent::itemDropped(const juce::DragAndDropTarget::SourceDetails& details)
+{
+    bool dropLeft = details.localPosition.x < getWidth() / 2;
+    
+    if (auto* sourceUnit = dynamic_cast<FXUnitComponent*>(details.sourceComponent.get()))
+    {
+        if (listener && sourceUnit != this)
+        {
+            listener->fxUnitDropped(sourceUnit, this, dropLeft);
+        }
+    }
+    
+    setDragHover(false, false);
 }
 
 void FXUnitComponent::setFXUnit(const FXUnit& unit)
@@ -143,6 +223,13 @@ void FXUnitComponent::setEnabled(bool enabled)
 {
     fxUnit.enabled = enabled;
     enableButton.setToggleState(enabled, juce::dontSendNotification);
+    repaint();
+}
+
+void FXUnitComponent::setDragHover(bool hover, bool isLeft)
+{
+    dragHover = hover;
+    dragHoverLeft = isLeft;
     repaint();
 }
 
@@ -224,8 +311,23 @@ void FXChainStrip::paint(juce::Graphics& g)
             int x2 = x1 + spacing;
             
             // Arrow line
-            g.drawArrow(juce::Line<float>(x1, y, x2, y), 2.0f, 8.0f, 6.0f);
+            g.drawArrow(juce::Line<float>((float)x1, (float)y, (float)x2, (float)y), 2.0f, 8.0f, 6.0f);
         }
+    }
+    
+    // Draw drop indicator at end if dragging to end of chain
+    if (dragHoverAtEnd)
+    {
+        auto chainBounds = bounds;
+        chainBounds.removeFromLeft(70);
+        chainBounds.removeFromRight(35);
+        
+        int unitWidth = 60;
+        int spacing = 15;
+        int x = chainBounds.getX() + (int)fxUnits.size() * (unitWidth + spacing);
+        
+        g.setColour(juce::Colours::cyan);
+        g.fillRect(x, bounds.getY() + 5, 4, bounds.getHeight() - 10);
     }
 }
 
@@ -237,6 +339,73 @@ void FXChainStrip::resized()
     addButton.setBounds(bounds.removeFromRight(30).reduced(2, 8));
     
     updateLayout();
+}
+
+bool FXChainStrip::isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& details)
+{
+    return dynamic_cast<FXUnitComponent*>(details.sourceComponent.get()) != nullptr;
+}
+
+void FXChainStrip::itemDragEnter(const juce::DragAndDropTarget::SourceDetails& /*details*/)
+{
+    dragHoverAtEnd = true;
+    repaint();
+}
+
+void FXChainStrip::itemDragMove(const juce::DragAndDropTarget::SourceDetails& details)
+{
+    // Calculate if we're hovering past all units
+    auto chainBounds = getLocalBounds();
+    chainBounds.removeFromLeft(70);
+    chainBounds.removeFromRight(35);
+    
+    int unitWidth = 60;
+    int spacing = 15;
+    int chainEndX = chainBounds.getX() + (int)fxUnits.size() * (unitWidth + spacing);
+    
+    // Show indicator only when hovering past the last unit
+    bool wasDragHoverAtEnd = dragHoverAtEnd;
+    dragHoverAtEnd = details.localPosition.x > chainEndX - 30;
+    
+    if (wasDragHoverAtEnd != dragHoverAtEnd)
+        repaint();
+}
+
+void FXChainStrip::itemDragExit(const juce::DragAndDropTarget::SourceDetails& /*details*/)
+{
+    dragHoverAtEnd = false;
+    repaint();
+}
+
+void FXChainStrip::itemDropped(const juce::DragAndDropTarget::SourceDetails& details)
+{
+    if (auto* sourceUnit = dynamic_cast<FXUnitComponent*>(details.sourceComponent.get()))
+    {
+        // Check if this came from this strip or another
+        auto* sourceStrip = sourceUnit->findParentComponentOfClass<FXChainStrip>();
+        
+        if (sourceStrip == this)
+        {
+            // Move within same strip - move to end
+            int sourceIndex = getIndexOfUnit(sourceUnit);
+            if (sourceIndex >= 0 && sourceIndex < fxUnits.size() - 1)
+            {
+                moveUnit(sourceIndex, fxUnits.size() - 1);
+            }
+        }
+        else if (sourceStrip != nullptr)
+        {
+            // Moving from another strip
+            FXUnit unitCopy = sourceUnit->getFXUnit();
+            unitCopy.id = juce::Uuid().toString();  // New ID for the copy
+            
+            sourceStrip->removeFXUnitById(sourceUnit->getFXUnit().id);
+            addFXUnit(unitCopy);
+        }
+    }
+    
+    dragHoverAtEnd = false;
+    repaint();
 }
 
 void FXChainStrip::setChain(const juce::Array<FXUnit>& chain)
@@ -257,6 +426,19 @@ void FXChainStrip::addFXUnit(const FXUnit& unit)
     listeners.call([this](Listener& l) { l.chainChanged(this); });
 }
 
+void FXChainStrip::insertFXUnit(const FXUnit& unit, int index)
+{
+    index = juce::jlimit(0, fxUnits.size(), index);
+    
+    auto* comp = new FXUnitComponent(unit);
+    comp->setListener(this);
+    fxUnits.insert(index, comp);
+    addAndMakeVisible(comp);
+    updateLayout();
+    
+    listeners.call([this](Listener& l) { l.chainChanged(this); });
+}
+
 void FXChainStrip::removeFXUnit(int index)
 {
     if (index >= 0 && index < fxUnits.size())
@@ -271,10 +453,35 @@ void FXChainStrip::removeFXUnit(int index)
     }
 }
 
+void FXChainStrip::removeFXUnitById(const juce::String& id)
+{
+    for (int i = 0; i < fxUnits.size(); ++i)
+    {
+        if (fxUnits[i]->getFXUnit().id == id)
+        {
+            removeFXUnit(i);
+            return;
+        }
+    }
+}
+
 void FXChainStrip::clearChain()
 {
     selectedUnit = nullptr;
     fxUnits.clear();
+}
+
+void FXChainStrip::moveUnit(int fromIndex, int toIndex)
+{
+    if (fromIndex < 0 || fromIndex >= fxUnits.size() ||
+        toIndex < 0 || toIndex >= fxUnits.size() ||
+        fromIndex == toIndex)
+        return;
+    
+    fxUnits.move(fromIndex, toIndex);
+    updateLayout();
+    
+    listeners.call([this](Listener& l) { l.chainChanged(this); });
 }
 
 void FXChainStrip::setBusName(const juce::String& name)
@@ -291,6 +498,18 @@ juce::Array<FXUnit> FXChainStrip::getChain() const
     return chain;
 }
 
+int FXChainStrip::getIndexOfUnit(FXUnitComponent* unit) const
+{
+    return fxUnits.indexOf(unit);
+}
+
+FXUnitComponent* FXChainStrip::getUnitAtIndex(int index) const
+{
+    if (index >= 0 && index < fxUnits.size())
+        return fxUnits[index];
+    return nullptr;
+}
+
 void FXChainStrip::fxUnitClicked(FXUnitComponent* unit)
 {
     if (selectedUnit && selectedUnit != unit)
@@ -304,12 +523,52 @@ void FXChainStrip::fxUnitClicked(FXUnitComponent* unit)
 
 void FXChainStrip::fxUnitToggled(FXUnitComponent* unit, bool enabled)
 {
+    juce::ignoreUnused(unit, enabled);
     listeners.call([this](Listener& l) { l.chainChanged(this); });
 }
 
-void FXChainStrip::fxUnitDragged(FXUnitComponent* unit, const juce::MouseEvent& e)
+void FXChainStrip::fxUnitDragStarted(FXUnitComponent* unit)
 {
-    // TODO: Implement drag reordering
+    juce::ignoreUnused(unit);
+    // Clear any existing hover states
+    clearDragHovers();
+}
+
+void FXChainStrip::fxUnitDropped(FXUnitComponent* source, FXUnitComponent* target, bool dropLeft)
+{
+    int sourceIndex = getIndexOfUnit(source);
+    int targetIndex = getIndexOfUnit(target);
+    
+    // Check if source is in this strip
+    if (sourceIndex >= 0)
+    {
+        // Same strip reordering
+        int newIndex = dropLeft ? targetIndex : targetIndex + 1;
+        
+        // Adjust for removal
+        if (sourceIndex < newIndex)
+            newIndex--;
+        
+        if (newIndex != sourceIndex)
+            moveUnit(sourceIndex, newIndex);
+    }
+    else
+    {
+        // Source is from another strip - need to copy/move
+        auto* sourceStrip = source->findParentComponentOfClass<FXChainStrip>();
+        if (sourceStrip != nullptr)
+        {
+            FXUnit unitCopy = source->getFXUnit();
+            unitCopy.id = juce::Uuid().toString();
+            
+            sourceStrip->removeFXUnitById(source->getFXUnit().id);
+            
+            int newIndex = dropLeft ? targetIndex : targetIndex + 1;
+            insertFXUnit(unitCopy, newIndex);
+        }
+    }
+    
+    clearDragHovers();
 }
 
 void FXChainStrip::updateLayout()
@@ -328,6 +587,14 @@ void FXChainStrip::updateLayout()
         unit->setBounds(x, bounds.getY(), unitWidth, bounds.getHeight());
         x += unitWidth + spacing;
     }
+}
+
+void FXChainStrip::clearDragHovers()
+{
+    dragHoverAtEnd = false;
+    for (auto* unit : fxUnits)
+        unit->setDragHover(false, false);
+    repaint();
 }
 
 //==============================================================================
@@ -521,9 +788,20 @@ FXChainPanel::FXChainPanel()
     resetButton.setColour(juce::TextButton::buttonColourId, juce::Colour(80, 50, 50));
     resetButton.onClick = [this]() { resetToDefault(); };
     
+    copyButton.setColour(juce::TextButton::buttonColourId, juce::Colour(50, 70, 80));
+    copyButton.setTooltip("Copy current FX chain to clipboard");
+    copyButton.onClick = [this]() { copyChainToClipboard(); };
+    
+    pasteButton.setColour(juce::TextButton::buttonColourId, juce::Colour(50, 80, 70));
+    pasteButton.setTooltip("Paste FX chain from clipboard");
+    pasteButton.onClick = [this]() { pasteChainFromClipboard(); };
+    pasteButton.setEnabled(false);  // Disabled until something is copied
+    
     addAndMakeVisible(titleLabel);
     addAndMakeVisible(presetComboBox);
     addAndMakeVisible(resetButton);
+    addAndMakeVisible(copyButton);
+    addAndMakeVisible(pasteButton);
     
     // Setup bus strips
     masterStrip.setBusName("Master");
@@ -563,26 +841,35 @@ void FXChainPanel::resized()
 {
     auto bounds = getLocalBounds();
     
-    // Header
-    auto header = bounds.removeFromTop(40).reduced(10, 5);
-    titleLabel.setBounds(header.removeFromLeft(100));
-    resetButton.setBounds(header.removeFromRight(60));
-    header.removeFromRight(10);
-    presetComboBox.setBounds(header.removeFromRight(150));
+    // Header using FlexBox for responsive layout
+    auto header = bounds.removeFromTop(40).reduced(Layout::paddingMD, Layout::paddingSM);
     
-    // Parameter panel (bottom)
-    parameterPanel.setBounds(bounds.removeFromBottom(180));
+    juce::FlexBox headerFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::spaceBetween);
+    headerFlex.items.add(juce::FlexItem(titleLabel).withWidth(80.0f).withHeight(30.0f));
+    headerFlex.items.add(juce::FlexItem().withFlex(1.0f));  // Spacer
+    headerFlex.items.add(juce::FlexItem(presetComboBox).withWidth(140.0f).withHeight(30.0f).withMargin({0, Layout::paddingSM, 0, 0}));
+    headerFlex.items.add(juce::FlexItem(copyButton).withWidth(50.0f).withHeight(30.0f).withMargin({0, Layout::paddingSM, 0, Layout::paddingSM}));
+    headerFlex.items.add(juce::FlexItem(pasteButton).withWidth(50.0f).withHeight(30.0f).withMargin({0, Layout::paddingSM, 0, 0}));
+    headerFlex.items.add(juce::FlexItem(resetButton).withWidth(50.0f).withHeight(30.0f));
+    headerFlex.performLayout(header);
     
-    // Bus strips
-    int stripHeight = 60;
-    bounds = bounds.reduced(5);
+    // Parameter panel (bottom) - adaptive height
+    int paramHeight = juce::jmax(120, juce::jmin(200, bounds.getHeight() / 3));
+    parameterPanel.setBounds(bounds.removeFromBottom(paramHeight));
+    
+    // Bus strips - calculate height based on available space
+    bounds = bounds.reduced(Layout::paddingSM);
+    int numStrips = 4;
+    int totalGaps = (numStrips - 1) * Layout::componentGapSM;
+    int availableForStrips = bounds.getHeight() - totalGaps;
+    int stripHeight = juce::jmax(45, juce::jmin(70, availableForStrips / numStrips));
     
     masterStrip.setBounds(bounds.removeFromTop(stripHeight));
-    bounds.removeFromTop(5);
+    bounds.removeFromTop(Layout::componentGapSM);
     drumsStrip.setBounds(bounds.removeFromTop(stripHeight));
-    bounds.removeFromTop(5);
+    bounds.removeFromTop(Layout::componentGapSM);
     bassStrip.setBounds(bounds.removeFromTop(stripHeight));
-    bounds.removeFromTop(5);
+    bounds.removeFromTop(Layout::componentGapSM);
     melodicStrip.setBounds(bounds.removeFromTop(stripHeight));
 }
 
@@ -640,6 +927,70 @@ void FXChainPanel::resetToDefault()
     listeners.call([this](Listener& l) { l.fxChainChanged(this); });
 }
 
+void FXChainPanel::copyChainToClipboard()
+{
+    // Store the current FX chain as JSON
+    clipboardJSON = toJSON();
+    
+    // Also copy to system clipboard for external paste
+    juce::SystemClipboard::copyTextToClipboard(clipboardJSON);
+    
+    // Enable paste button
+    pasteButton.setEnabled(true);
+    
+    DBG("FX Chain copied to clipboard");
+}
+
+void FXChainPanel::pasteChainFromClipboard()
+{
+    // Try internal clipboard first, then system clipboard
+    juce::String jsonToPaste = clipboardJSON;
+    
+    if (jsonToPaste.isEmpty())
+    {
+        // Try system clipboard
+        jsonToPaste = juce::SystemClipboard::getTextFromClipboard();
+    }
+    
+    if (jsonToPaste.isEmpty())
+    {
+        DBG("Nothing to paste - clipboard empty");
+        return;
+    }
+    
+    // Parse and apply the FX chain
+    auto parsed = juce::JSON::parse(jsonToPaste);
+    if (parsed.isVoid())
+    {
+        DBG("Failed to parse clipboard JSON");
+        return;
+    }
+    
+    // Helper to parse a chain array
+    auto parseFXChain = [](const juce::var& json) -> juce::Array<FXUnit> {
+        juce::Array<FXUnit> chain;
+        if (auto* arr = json.getArray())
+        {
+            for (const auto& item : *arr)
+            {
+                chain.add(FXUnit::fromJSON(item));
+            }
+        }
+        return chain;
+    };
+    
+    // Apply to each strip
+    masterStrip.setChain(parseFXChain(parsed.getProperty("master", juce::var())));
+    drumsStrip.setChain(parseFXChain(parsed.getProperty("drums", juce::var())));
+    bassStrip.setChain(parseFXChain(parsed.getProperty("bass", juce::var())));
+    melodicStrip.setChain(parseFXChain(parsed.getProperty("melodic", juce::var())));
+    
+    // Notify listeners
+    listeners.call([this](Listener& l) { l.fxChainChanged(this); });
+    
+    DBG("FX Chain pasted from clipboard");
+}
+
 juce::Array<FXUnit> FXChainPanel::getChainForBus(const juce::String& bus) const
 {
     if (bus == "master") return masterStrip.getChain();
@@ -670,6 +1021,11 @@ juce::String FXChainPanel::toJSON() const
 
 void FXChainPanel::chainChanged(FXChainStrip* strip)
 {
+    juce::ignoreUnused(strip);
+    
+    // Auto-save to ProjectState when chain changes
+    saveToProjectState();
+    
     listeners.call([this](Listener& l) { l.fxChainChanged(this); });
 }
 
@@ -790,4 +1146,83 @@ void FXChainPanel::populatePresetComboBox()
         
         presetComboBox.addItem(displayName, id++);
     }
+}
+
+//==============================================================================
+// ProjectState Integration
+
+void FXChainPanel::setProjectState(Project::ProjectState* state)
+{
+    projectState = state;
+    
+    // Load existing FX chains from project state
+    if (projectState != nullptr)
+    {
+        loadFromProjectState();
+    }
+}
+
+void FXChainPanel::saveToProjectState()
+{
+    if (projectState == nullptr)
+        return;
+    
+    // Save each bus chain to project state
+    auto chainToJSON = [](const juce::Array<FXUnit>& chain) -> juce::String {
+        juce::Array<juce::var> arr;
+        for (const auto& unit : chain)
+            arr.add(unit.toJSON());
+        return juce::JSON::toString(juce::var(arr));
+    };
+    
+    projectState->setFXChainForBus("master", chainToJSON(masterStrip.getChain()));
+    projectState->setFXChainForBus("drums", chainToJSON(drumsStrip.getChain()));
+    projectState->setFXChainForBus("bass", chainToJSON(bassStrip.getChain()));
+    projectState->setFXChainForBus("melodic", chainToJSON(melodicStrip.getChain()));
+    
+    DBG("FX chains saved to ProjectState");
+}
+
+void FXChainPanel::loadFromProjectState()
+{
+    if (projectState == nullptr)
+        return;
+    
+    // Parse JSON and set chains
+    auto parseChain = [](const juce::String& json) -> juce::Array<FXUnit> {
+        juce::Array<FXUnit> chain;
+        auto parsed = juce::JSON::parse(json);
+        if (auto* arr = parsed.getArray())
+        {
+            for (const auto& item : *arr)
+                chain.add(FXUnit::fromJSON(item));
+        }
+        return chain;
+    };
+    
+    auto masterJSON = projectState->getFXChainForBus("master");
+    auto drumsJSON = projectState->getFXChainForBus("drums");
+    auto bassJSON = projectState->getFXChainForBus("bass");
+    auto melodicJSON = projectState->getFXChainForBus("melodic");
+    
+    // Only load if there's actually saved data
+    auto masterChain = parseChain(masterJSON);
+    auto drumsChain = parseChain(drumsJSON);
+    auto bassChain = parseChain(bassJSON);
+    auto melodicChain = parseChain(melodicJSON);
+    
+    // If all chains are empty, don't override - keep existing preset
+    if (masterChain.isEmpty() && drumsChain.isEmpty() && 
+        bassChain.isEmpty() && melodicChain.isEmpty())
+    {
+        DBG("No FX chains found in ProjectState, keeping current preset");
+        return;
+    }
+    
+    masterStrip.setChain(masterChain);
+    drumsStrip.setChain(drumsChain);
+    bassStrip.setChain(bassChain);
+    melodicStrip.setChain(melodicChain);
+    
+    DBG("FX chains loaded from ProjectState");
 }

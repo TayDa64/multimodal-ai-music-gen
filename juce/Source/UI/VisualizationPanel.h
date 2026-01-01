@@ -17,6 +17,7 @@
 #include "Visualization/WaveformComponent.h"
 #include "Visualization/SpectrumComponent.h"
 #include "Visualization/GenreTheme.h"
+#include "TrackList/ArrangementView.h"
 #include "RecentFilesPanel.h"
 #include "../Application/AppState.h"
 #include "../Audio/AudioEngine.h"
@@ -64,6 +65,10 @@ public:
     /** Set genre for themed visualizations */
     void setGenre(const juce::String& genre);
     
+    /** Set/clear loop region on piano roll */
+    void setLoopRegion(double startSeconds, double endSeconds);
+    void clearLoopRegion();
+    
     //==============================================================================
     // Forward listener interface
     class Listener
@@ -101,12 +106,14 @@ private:
     GenreThemeManager themeManager;
     
     // Tab buttons
+    juce::TextButton arrangeTab { "Arrange" };
     juce::TextButton pianoRollTab { "Piano Roll" };
     juce::TextButton waveformTab { "Waveform" };
     juce::TextButton spectrumTab { "Spectrum" };
     juce::TextButton recentFilesTab { "Files" };
     
     // Content panels
+    std::unique_ptr<UI::ArrangementView> arrangementView;
     std::unique_ptr<PianoRollComponent> pianoRoll;
     std::unique_ptr<WaveformComponent> waveform;
     std::unique_ptr<SpectrumComponent> spectrum;
@@ -123,7 +130,7 @@ private:
     void updateTheme();
     
     static constexpr int tabHeight = 28;
-    static constexpr int numTabs = 4;
+    static constexpr int numTabs = 5;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VisualizationPanel)
 };

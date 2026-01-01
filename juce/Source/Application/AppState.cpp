@@ -265,6 +265,18 @@ void AppState::setBPM(int newBPM)
     unsavedChanges = true;
 }
 
+juce::String AppState::getKey() const
+{
+    return currentGeneration.key;
+}
+
+void AppState::setKey(const juce::String& newKey)
+{
+    currentGeneration.key = newKey;
+    projectState.setGenerationData(currentGeneration.prompt, currentGeneration.bpm, currentGeneration.key, currentGeneration.genre);
+    unsavedChanges = true;
+}
+
 int AppState::getDurationBars() const
 {
     return durationBars;

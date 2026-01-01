@@ -79,6 +79,61 @@ struct GenerationRequest
 
 //==============================================================================
 /**
+    Request to regenerate a specific section of an existing project.
+    Used for iterating on individual sections without regenerating the whole track.
+*/
+struct RegenerationRequest
+{
+    juce::String requestId;
+    int schemaVersion = SCHEMA_VERSION;
+    
+    int startBar = 0;               // 0-indexed starting bar
+    int endBar = 4;                 // 0-indexed ending bar (exclusive)
+    juce::StringArray tracks;       // Empty = all tracks; otherwise specific track names
+    juce::String seedStrategy = "new"; // "new" for fresh, "derived" to vary existing
+    juce::String prompt;            // Optional override prompt for this section
+    
+    // Generation context
+    int bpm = 0;
+    juce::String key;
+    juce::String mode;
+    juce::String genre;
+    
+    void generateRequestId()
+    {
+        requestId = juce::Uuid().toString();
+    }
+    
+    juce::String toJson() const
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        
+        obj->setProperty("request_id", requestId);
+        obj->setProperty("schema_version", schemaVersion);
+        obj->setProperty("start_bar", startBar);
+        obj->setProperty("end_bar", endBar);
+        obj->setProperty("seed_strategy", seedStrategy);
+        obj->setProperty("prompt", prompt);
+        
+        juce::Array<juce::var> trackList;
+        for (const auto& track : tracks)
+            trackList.add(track);
+        obj->setProperty("tracks", trackList);
+        
+        // Options object for generation context
+        juce::DynamicObject::Ptr options = new juce::DynamicObject();
+        options->setProperty("bpm", bpm);
+        options->setProperty("key", key);
+        options->setProperty("mode", mode);
+        options->setProperty("genre", genre);
+        obj->setProperty("options", juce::var(options.get()));
+        
+        return juce::JSON::toString(juce::var(obj.get()), true);
+    }
+};
+
+//==============================================================================
+/**
     Result of a generation request.
 */
 struct GenerationResult
@@ -321,17 +376,155 @@ struct AnalyzeResult
 
 //==============================================================================
 /**
+    Represents a single take lane for a track.
+*/
+struct TakeLane
+{
+    juce::String takeId;
+    juce::String track;             // Track name (e.g., "drums", "bass")
+    int seed = 0;
+    juce::String variationType;     // "rhythm", "pitch", "timing", "combined", etc.
+    juce::String midiPath;          // Path to take MIDI file
+    
+    static TakeLane fromJson(const juce::var& json)
+    {
+        TakeLane lane;
+        if (auto* obj = json.getDynamicObject())
+        {
+            lane.takeId = obj->getProperty("take_id").toString();
+            lane.track = obj->getProperty("track").toString();
+            lane.seed = obj->getProperty("seed");
+            lane.variationType = obj->getProperty("variation_type").toString();
+            lane.midiPath = obj->getProperty("midi_path").toString();
+        }
+        return lane;
+    }
+};
+
+//==============================================================================
+/**
+    Request to select a specific take for a track.
+*/
+struct TakeSelectRequest
+{
+    juce::String requestId;
+    juce::String track;
+    juce::String takeId;
+    
+    void generateRequestId()
+    {
+        requestId = juce::Uuid().toString();
+    }
+    
+    juce::String toJson() const
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("request_id", requestId);
+        obj->setProperty("track", track);
+        obj->setProperty("take_id", takeId);
+        return juce::JSON::toString(juce::var(obj.get()), true);
+    }
+};
+
+//==============================================================================
+/**
+    Represents a comp region (bar range mapped to a take).
+*/
+struct CompRegion
+{
+    int startBar = 0;
+    int endBar = 4;
+    juce::String takeId;
+    
+    juce::var toJson() const
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("start_bar", startBar);
+        obj->setProperty("end_bar", endBar);
+        obj->setProperty("take_id", takeId);
+        return juce::var(obj.get());
+    }
+};
+
+//==============================================================================
+/**
+    Request to composite takes across bar regions.
+*/
+struct TakeCompRequest
+{
+    juce::String requestId;
+    juce::String track;
+    std::vector<CompRegion> regions;
+    
+    void generateRequestId()
+    {
+        requestId = juce::Uuid().toString();
+    }
+    
+    juce::String toJson() const
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("request_id", requestId);
+        obj->setProperty("track", track);
+        
+        juce::Array<juce::var> regionsArray;
+        for (const auto& region : regions)
+            regionsArray.add(region.toJson());
+        obj->setProperty("regions", regionsArray);
+        
+        return juce::JSON::toString(juce::var(obj.get()), true);
+    }
+};
+
+//==============================================================================
+/**
+    Request to render a specific take or comp to audio.
+*/
+struct TakeRenderRequest
+{
+    juce::String requestId;
+    juce::String track;
+    juce::String takeId;
+    bool useComp = false;           // If true, render the comp instead
+    juce::String outputPath;
+    
+    void generateRequestId()
+    {
+        requestId = juce::Uuid().toString();
+    }
+    
+    juce::String toJson() const
+    {
+        juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+        obj->setProperty("request_id", requestId);
+        obj->setProperty("track", track);
+        obj->setProperty("take_id", takeId);
+        obj->setProperty("use_comp", useComp);
+        obj->setProperty("output_path", outputPath);
+        return juce::JSON::toString(juce::var(obj.get()), true);
+    }
+};
+
+//==============================================================================
+/**
     OSC address constants (must match Python backend).
 */
 namespace OSCAddresses
 {
     // Client → Server
     static constexpr const char* generate = "/generate";
+    static constexpr const char* regenerate = "/regenerate";
     static constexpr const char* cancel = "/cancel";
     static constexpr const char* analyze = "/analyze";
+    static constexpr const char* fxChain = "/fx_chain";   // Send FX chain for render parity
     static constexpr const char* getInstruments = "/instruments";
     static constexpr const char* ping = "/ping";
     static constexpr const char* shutdown = "/shutdown";
+    
+    // Take management (Client → Server)
+    static constexpr const char* selectTake = "/take/select";
+    static constexpr const char* compTakes = "/take/comp";
+    static constexpr const char* renderTake = "/take/render";
     
     // Expansion management (Client → Server)
     static constexpr const char* expansionList = "/expansion/list";
@@ -349,6 +542,11 @@ namespace OSCAddresses
     static constexpr const char* pong = "/pong";
     static constexpr const char* status = "/status";
     static constexpr const char* instrumentsLoaded = "/instruments_loaded";
+    
+    // Take responses (Server → Client)
+    static constexpr const char* takesAvailable = "/takes/available";
+    static constexpr const char* takeSelected = "/take/selected";
+    static constexpr const char* takeRendered = "/take/rendered";
     
     // Expansion responses (Server → Client)
     static constexpr const char* expansionListResponse = "/expansion/list_response";

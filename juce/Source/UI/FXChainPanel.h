@@ -13,6 +13,9 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+// Forward declaration
+namespace Project { class ProjectState; }
+
 //==============================================================================
 /**
     FX unit definition representing a single effect in the chain.
@@ -92,8 +95,10 @@ struct FXChainPreset
 //==============================================================================
 /**
     Visual component for a single FX unit in the chain.
+    Supports drag-and-drop for reordering.
 */
-class FXUnitComponent : public juce::Component
+class FXUnitComponent : public juce::Component,
+                         public juce::DragAndDropTarget
 {
 public:
     FXUnitComponent(const FXUnit& unit);
@@ -102,6 +107,13 @@ public:
     void resized() override;
     void mouseDown(const juce::MouseEvent& e) override;
     void mouseDrag(const juce::MouseEvent& e) override;
+    void mouseUp(const juce::MouseEvent& e) override;
+    
+    // DragAndDropTarget implementation
+    bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDragEnter(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDragExit(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override;
     
     const FXUnit& getFXUnit() const { return fxUnit; }
     void setFXUnit(const FXUnit& unit);
@@ -112,6 +124,9 @@ public:
     void setEnabled(bool enabled);
     bool isEnabled() const { return fxUnit.enabled; }
     
+    void setDragHover(bool hover, bool isLeft);
+    bool isDragHovering() const { return dragHover; }
+    
     /** Listener for FX unit events */
     class Listener
     {
@@ -119,7 +134,8 @@ public:
         virtual ~Listener() = default;
         virtual void fxUnitClicked(FXUnitComponent* unit) = 0;
         virtual void fxUnitToggled(FXUnitComponent* unit, bool enabled) = 0;
-        virtual void fxUnitDragged(FXUnitComponent* unit, const juce::MouseEvent& e) = 0;
+        virtual void fxUnitDragStarted(FXUnitComponent* unit) = 0;
+        virtual void fxUnitDropped(FXUnitComponent* source, FXUnitComponent* target, bool dropLeft) = 0;
     };
     
     void setListener(Listener* l) { listener = l; }
@@ -130,6 +146,8 @@ private:
     
     FXUnit fxUnit;
     bool selected = false;
+    bool dragHover = false;
+    bool dragHoverLeft = false;  // True if hovering left side, false for right
     Listener* listener = nullptr;
     
     juce::ToggleButton enableButton;
@@ -140,9 +158,12 @@ private:
 //==============================================================================
 /**
     FX chain strip showing a horizontal chain of effects.
+    Supports drag-and-drop reordering of FX units.
 */
 class FXChainStrip : public juce::Component,
-                      public FXUnitComponent::Listener
+                      public FXUnitComponent::Listener,
+                      public juce::DragAndDropContainer,
+                      public juce::DragAndDropTarget
 {
 public:
     FXChainStrip();
@@ -151,16 +172,32 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
     
+    // DragAndDropTarget implementation for dropping at the end of chain
+    bool isInterestedInDragSource(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDragEnter(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDragMove(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDragExit(const juce::DragAndDropTarget::SourceDetails& details) override;
+    void itemDropped(const juce::DragAndDropTarget::SourceDetails& details) override;
+    
     void setChain(const juce::Array<FXUnit>& chain);
     void addFXUnit(const FXUnit& unit);
+    void insertFXUnit(const FXUnit& unit, int index);
     void removeFXUnit(int index);
+    void removeFXUnitById(const juce::String& id);
     void clearChain();
+    void moveUnit(int fromIndex, int toIndex);
     
     void setBusName(const juce::String& name);
     juce::String getBusName() const { return busName; }
     
     /** Get the current chain */
     juce::Array<FXUnit> getChain() const;
+    
+    /** Get index of unit in chain */
+    int getIndexOfUnit(FXUnitComponent* unit) const;
+    
+    /** Get unit at index */
+    FXUnitComponent* getUnitAtIndex(int index) const;
     
     /** Listener for chain changes */
     class Listener
@@ -175,14 +212,22 @@ public:
     void removeListener(Listener* l) { listeners.remove(l); }
     
 private:
+    // FXUnitComponent::Listener implementation
     void fxUnitClicked(FXUnitComponent* unit) override;
     void fxUnitToggled(FXUnitComponent* unit, bool enabled) override;
-    void fxUnitDragged(FXUnitComponent* unit, const juce::MouseEvent& e) override;
+    void fxUnitDragStarted(FXUnitComponent* unit) override;
+    void fxUnitDropped(FXUnitComponent* source, FXUnitComponent* target, bool dropLeft) override;
+    
     void updateLayout();
+    void clearDragHovers();
     
     juce::String busName;
     juce::OwnedArray<FXUnitComponent> fxUnits;
     FXUnitComponent* selectedUnit = nullptr;
+    
+    // Drag state
+    bool dragHoverAtEnd = false;
+    int dropIndicatorIndex = -1;  // Index where drop indicator is shown
     
     juce::Label busLabel;
     juce::TextButton addButton { "+" };
@@ -280,11 +325,29 @@ public:
     /** Reset to default (no FX) */
     void resetToDefault();
     
+    /** Copy the current FX chain to clipboard */
+    void copyChainToClipboard();
+    
+    /** Paste FX chain from clipboard */
+    void pasteChainFromClipboard();
+    
     /** Get current FX chain for a bus */
     juce::Array<FXUnit> getChainForBus(const juce::String& bus) const;
     
     /** Get all chains as JSON for OSC transmission */
     juce::String toJSON() const;
+    
+    //==============================================================================
+    // ProjectState Integration
+    
+    /** Connect to ProjectState for persistence */
+    void setProjectState(Project::ProjectState* state);
+    
+    /** Save current FX chains to ProjectState */
+    void saveToProjectState();
+    
+    /** Load FX chains from ProjectState */
+    void loadFromProjectState();
     
     /** Listener for FX chain changes */
     class Listener
@@ -311,6 +374,8 @@ private:
     juce::Label titleLabel;
     juce::ComboBox presetComboBox;
     juce::TextButton resetButton { "Reset" };
+    juce::TextButton copyButton { "Copy" };
+    juce::TextButton pasteButton { "Paste" };
     
     // Bus strips
     FXChainStrip masterStrip;
@@ -326,6 +391,12 @@ private:
     
     // Available presets
     juce::StringArray availablePresets;
+    
+    // Clipboard for copy/paste
+    juce::String clipboardJSON;
+    
+    // ProjectState for persistence
+    Project::ProjectState* projectState = nullptr;
     
     juce::ListenerList<Listener> listeners;
     

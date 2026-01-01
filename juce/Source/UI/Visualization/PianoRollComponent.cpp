@@ -209,6 +209,24 @@ void PianoRollComponent::setBPM(int bpm)
 }
 
 //==============================================================================
+void PianoRollComponent::setLoopRegion(double startSeconds, double endSeconds)
+{
+    if (startSeconds >= 0 && endSeconds > startSeconds)
+    {
+        loopRegionStart = startSeconds;
+        loopRegionEnd = endSeconds;
+        repaint();
+    }
+}
+
+void PianoRollComponent::clearLoopRegion()
+{
+    loopRegionStart = -1.0;
+    loopRegionEnd = -1.0;
+    repaint();
+}
+
+//==============================================================================
 void PianoRollComponent::setHorizontalZoom(float zoom)
 {
     hZoom = juce::jlimit(0.1f, 10.0f, zoom);
@@ -346,6 +364,7 @@ void PianoRollComponent::paint(juce::Graphics& g)
 {
     drawBackground(g);
     drawGridLines(g);
+    drawLoopRegion(g);  // Draw loop region behind notes
     drawNotes(g);
     
     if (isSelecting)
@@ -462,6 +481,48 @@ void PianoRollComponent::drawGridLines(juce::Graphics& g)
     }
 }
 
+void PianoRollComponent::drawLoopRegion(juce::Graphics& g)
+{
+    if (!hasLoopRegion())
+        return;
+    
+    float startX = timeToX(loopRegionStart);
+    float endX = timeToX(loopRegionEnd);
+    
+    // Clamp to visible area
+    startX = juce::jmax(startX, (float)pianoKeyWidth);
+    endX = juce::jmin(endX, (float)getWidth());
+    
+    if (endX <= startX)
+        return;
+    
+    // Draw loop region background (semi-transparent cyan)
+    juce::Colour loopColour = juce::Colour(0xFF00BCD4);  // Cyan
+    g.setColour(loopColour.withAlpha(0.1f));
+    g.fillRect(startX, 0.0f, endX - startX, (float)getHeight());
+    
+    // Draw loop region borders
+    g.setColour(loopColour.withAlpha(0.6f));
+    g.drawLine(startX, 0.0f, startX, (float)getHeight(), 2.0f);
+    g.drawLine(endX, 0.0f, endX, (float)getHeight(), 2.0f);
+    
+    // Draw loop brackets at top
+    const float bracketHeight = 8.0f;
+    const float bracketWidth = 5.0f;
+    
+    g.setColour(loopColour.withAlpha(0.8f));
+    
+    // Start bracket [
+    g.drawLine(startX, 0.0f, startX, bracketHeight, 2.0f);
+    g.drawLine(startX, 0.0f, startX + bracketWidth, 0.0f, 2.0f);
+    g.drawLine(startX, bracketHeight, startX + bracketWidth, bracketHeight, 2.0f);
+    
+    // End bracket ]
+    g.drawLine(endX, 0.0f, endX, bracketHeight, 2.0f);
+    g.drawLine(endX, 0.0f, endX - bracketWidth, 0.0f, 2.0f);
+    g.drawLine(endX, bracketHeight, endX - bracketWidth, bracketHeight, 2.0f);
+}
+
 void PianoRollComponent::drawNotes(juce::Graphics& g)
 {
     float noteHeight = whiteKeyHeight * vZoom;
@@ -505,11 +566,38 @@ void PianoRollComponent::drawNotes(juce::Graphics& g)
         
         juce::Rectangle<float> noteRect(x, y + 1, width, noteHeight - 2);
         
+        // Draw note release tail (decay visualization)
+        if (showReleaseTails && !isSelected)
+        {
+            // Calculate release tail length (proportional to velocity)
+            double releaseTime = defaultReleaseTime * (note.velocity / 127.0f);
+            float releaseEndX = timeToX(note.endTime + releaseTime);
+            float releaseWidth = releaseEndX - endX;
+            
+            if (releaseWidth > 0 && releaseEndX <= getWidth())
+            {
+                // Draw gradient tail showing decay
+                juce::ColourGradient gradient(
+                    noteColour.withAlpha(0.6f), endX, y + noteHeight / 2,
+                    noteColour.withAlpha(0.0f), releaseEndX, y + noteHeight / 2,
+                    false
+                );
+                g.setGradientFill(gradient);
+                g.fillRoundedRectangle(endX, y + 2, releaseWidth, noteHeight - 4, 2.0f);
+            }
+        }
+        
+        // Draw main note body
         g.setColour(noteColour);
         g.fillRoundedRectangle(noteRect, 2.0f);
         
         g.setColour(noteColour.darker(0.3f));
         g.drawRoundedRectangle(noteRect, 2.0f, 1.0f);
+        
+        // Draw velocity indicator (small bar at note start)
+        float velocityHeight = (noteHeight - 4) * (note.velocity / 127.0f);
+        g.setColour(noteColour.brighter(0.4f));
+        g.fillRect(x + 1, y + 2 + (noteHeight - 4 - velocityHeight), 2.0f, velocityHeight);
     }
 }
 

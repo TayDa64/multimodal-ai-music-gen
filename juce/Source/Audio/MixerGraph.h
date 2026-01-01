@@ -5,9 +5,26 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "Processors/GainProcessor.h"
 #include "Processors/PanProcessor.h"
+#include "Processors/EQProcessor.h"
+#include "Processors/CompressorProcessor.h"
+#include "Processors/ReverbProcessor.h"
+#include "Processors/DelayProcessor.h"
+#include "Processors/SaturationProcessor.h"
+#include "Processors/LimiterProcessor.h"
 
 namespace Audio
 {
+    /**
+     * FX unit info for chain management.
+     */
+    struct FXNodeInfo
+    {
+        juce::String id;
+        juce::String type;
+        juce::AudioProcessorGraph::NodeID nodeId;
+        bool enabled = true;
+    };
+
     /**
      * Manages the AudioProcessorGraph for the project.
      * Handles routing, track creation, and master bus processing.
@@ -64,6 +81,32 @@ namespace Audio
          */
         juce::AudioProcessorGraph& getGraph() { return *mainGraph; }
 
+        //==============================================================================
+        // FX Chain Management
+        
+        /**
+         * Set the FX chain for a specific bus from JSON.
+         * Rebuilds the processor chain to match the JSON configuration.
+         * @param bus "master", "drums", "bass", or "melodic"
+         * @param chainJson Array of FX unit objects
+         */
+        void setFXChainForBus(const juce::String& bus, const juce::var& chainJson);
+        
+        /**
+         * Clear all FX from a bus, leaving only the gain stage.
+         */
+        void clearFXForBus(const juce::String& bus);
+        
+        /**
+         * Update a single FX parameter.
+         */
+        void setFXParameter(const juce::String& fxId, const juce::String& paramName, float value);
+        
+        /**
+         * Enable/disable an FX unit.
+         */
+        void setFXEnabled(const juce::String& fxId, bool enabled);
+
     private:
         std::unique_ptr<juce::AudioProcessorGraph> mainGraph;
         
@@ -75,6 +118,15 @@ namespace Audio
 
         // Master Bus
         juce::AudioProcessorGraph::NodeID masterGainNodeID;
+        
+        // FX chains per bus
+        std::map<juce::String, std::vector<FXNodeInfo>> fxChains;
+        
+        // Helper to create processor from type name
+        std::unique_ptr<juce::AudioProcessor> createProcessor(const juce::String& type);
+        
+        // Reconnect FX chain for a bus after modifications
+        void reconnectFXChain(const juce::String& bus);
 
         void initializeGraph();
 

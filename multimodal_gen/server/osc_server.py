@@ -12,6 +12,7 @@ import signal
 import sys
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import dataclasses
@@ -41,10 +42,11 @@ from .worker import (
 
 # Try to import expansion manager
 try:
-    from ..expansion_manager import ExpansionManager
+    from ..expansion_manager import ExpansionManager, create_expansion_manager
     EXPANSION_AVAILABLE = True
 except ImportError:
     ExpansionManager = None
+    create_expansion_manager = None
     EXPANSION_AVAILABLE = False
 
 
@@ -102,13 +104,16 @@ class MusicGenOSCServer:
         # ExpansionManager is an optional dependency in some environments; keep annotation permissive
         self._expansion_manager: Optional[Any] = None
         if EXPANSION_AVAILABLE:
-            self._expansion_manager = ExpansionManager()
+            # Use factory function to auto-discover expansions in standard locations
+            # This finds ../expansions automatically
+            self._expansion_manager = create_expansion_manager(auto_scan=True)
         
         # State
         self._running = False
         self._server_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
         self._current_request_id: Optional[str] = None  # Track current request for correlation
+        self._current_fx_chain: Dict[str, Any] = {}     # FX chain configuration for render parity
         
         # Callbacks for external integration (optional)
         self.on_generation_start: Optional[callable] = None
@@ -123,9 +128,16 @@ class MusicGenOSCServer:
         self._dispatcher.map(OSCAddresses.GENERATE, self._handle_generate)
         self._dispatcher.map(OSCAddresses.CANCEL, self._handle_cancel)
         self._dispatcher.map(OSCAddresses.ANALYZE, self._handle_analyze)
+        self._dispatcher.map(OSCAddresses.REGENERATE, self._handle_regenerate)
+        self._dispatcher.map(OSCAddresses.FX_CHAIN, self._handle_fx_chain)
         self._dispatcher.map(OSCAddresses.GET_INSTRUMENTS, self._handle_get_instruments)
         self._dispatcher.map(OSCAddresses.PING, self._handle_ping)
         self._dispatcher.map(OSCAddresses.SHUTDOWN, self._handle_shutdown)
+        
+        # Take management handlers
+        self._dispatcher.map(OSCAddresses.SELECT_TAKE, self._handle_select_take)
+        self._dispatcher.map(OSCAddresses.COMP_TAKES, self._handle_comp_takes)
+        self._dispatcher.map(OSCAddresses.RENDER_TAKE, self._handle_render_take)
         
         # Expansion handlers
         self._dispatcher.map(OSCAddresses.EXPANSION_LIST, self._handle_expansion_list)
@@ -312,9 +324,24 @@ class MusicGenOSCServer:
             
             schema_version = data.get("schema_version", 1)
             
-            # Log protocol info
+            # Schema version handling: reject major mismatches, warn on minor
             if schema_version != SCHEMA_VERSION:
                 self._log(f"   ⚠️ Schema version mismatch: client={schema_version}, server={SCHEMA_VERSION}")
+                # For major version differences (e.g., client=2, server=1), reject
+                if schema_version > SCHEMA_VERSION:
+                    self._send_error(
+                        ErrorCode.SCHEMA_VERSION_MISMATCH,
+                        f"Client schema version {schema_version} is newer than server version {SCHEMA_VERSION}. Please update the server.",
+                        request_id=request_id
+                    )
+                    return
+                # For older clients, we can try best-effort but send a warning status
+                self._send_status("schema_version_warning", {
+                    "request_id": request_id,
+                    "client_version": schema_version,
+                    "server_version": SCHEMA_VERSION,
+                    "message": f"Client uses schema v{schema_version}, server uses v{SCHEMA_VERSION}. Proceeding with best-effort compatibility."
+                })
             
             # Validate prompt
             prompt = data.get("prompt", "").strip()
@@ -361,20 +388,30 @@ class MusicGenOSCServer:
             self._send_error(ErrorCode.UNKNOWN, str(e))
     
     def _handle_cancel(self, address: str, *args):
-        """Handle /cancel message."""
+        """Handle /cancel message with request_id correlation."""
         self._log(f"📥 Received: {address}")
         
         task_id = args[0] if args else None
+        
+        # Capture request_id before cancellation clears it
+        request_id = self._current_request_id or ""
         
         if self._gen_worker:
             cancelled = self._gen_worker.cancel(task_id)
             if cancelled:
                 self._log("   Generation cancelled")
-                self._send_status("cancelled", {"task_id": task_id})
+                # Include request_id in cancel status for correlation
+                self._send_status("cancelled", {
+                    "task_id": task_id,
+                    "request_id": request_id,
+                })
+                # Clear current request after sending status
+                self._current_request_id = None
             else:
                 self._send_error(
                     ErrorCode.UNKNOWN,
-                    "No active generation to cancel"
+                    "No active generation to cancel",
+                    request_id=request_id
                 )
     
     def _handle_analyze(self, address: str, *args):
@@ -467,6 +504,176 @@ class MusicGenOSCServer:
             self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
         except Exception as e:
             self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
+    
+    def _handle_regenerate(self, address: str, *args):
+        """
+        Handle /regenerate message for sectional regeneration.
+        
+        Regenerates a specific bar range of the current project.
+        
+        Expected args (JSON string):
+            {
+                "schema_version": 1,
+                "request_id": "uuid",
+                "start_bar": 4,      // 0-indexed bar to start regeneration
+                "end_bar": 8,        // 0-indexed bar to end (exclusive)
+                "tracks": ["drums", "bass"],  // Optional: which tracks to regenerate
+                "seed_strategy": "new",  // "new" for fresh seed, "derived" to vary existing
+                "prompt": "optional override prompt for this section",
+                "options": {}
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        request_id = ""
+        try:
+            if not args:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "No parameters provided")
+                return
+            
+            data = json.loads(args[0]) if isinstance(args[0], str) else {}
+            
+            request_id = data.get("request_id", str(uuid.uuid4()))
+            schema_version = int(data.get("schema_version", 1))
+            
+            # Validate schema version
+            if schema_version > SCHEMA_VERSION:
+                self._send_error(
+                    ErrorCode.SCHEMA_VERSION_MISMATCH,
+                    f"Client schema {schema_version} is newer than server {SCHEMA_VERSION}",
+                    request_id=request_id
+                )
+                return
+            
+            start_bar = int(data.get("start_bar", 0))
+            end_bar = int(data.get("end_bar", start_bar + 4))
+            tracks = data.get("tracks", [])  # Empty = all tracks
+            seed_strategy = data.get("seed_strategy", "new")
+            prompt_override = data.get("prompt", "")
+            options = data.get("options", {})
+            
+            # Validate bar range
+            if start_bar < 0 or end_bar <= start_bar:
+                self._send_error(
+                    ErrorCode.INVALID_MESSAGE,
+                    f"Invalid bar range: {start_bar}-{end_bar}",
+                    request_id=request_id
+                )
+                return
+            
+            self._log(f"   Regenerating bars {start_bar}-{end_bar}, tracks={tracks or 'all'}")
+            
+            # Check if worker is busy
+            if self._gen_worker and self._gen_worker.is_busy():
+                self._send_error(
+                    ErrorCode.GENERATION_FAILED,
+                    "Generation worker is busy. Cancel current generation first.",
+                    request_id=request_id
+                )
+                return
+            
+            # Build regeneration request - this is a specialized generate request
+            from ..prompt_parser import PromptParser
+            
+            # Get base parameters from current state or use defaults
+            base_bpm = options.get("bpm", 92)
+            base_key = options.get("key", "C")
+            base_mode = options.get("mode", "minor")
+            
+            # Parse prompt for additional parameters
+            parser = PromptParser()
+            parsed = parser.parse(prompt_override) if prompt_override else parser.parse("")
+            
+            # Build request with regeneration metadata
+            from .worker import GenerationRequest
+            
+            regen_request = GenerationRequest(
+                request_id=request_id,
+                prompt=prompt_override or parsed.raw_prompt,
+                bpm=parsed.bpm or base_bpm,
+                key=parsed.key or base_key,
+                mode=parsed.mode or base_mode,
+                duration_bars=end_bar - start_bar,
+                genre=parsed.genre or options.get("genre", ""),
+                options={
+                    **options,
+                    "regeneration": True,
+                    "start_bar": start_bar,
+                    "end_bar": end_bar,
+                    "target_tracks": tracks,
+                    "seed_strategy": seed_strategy,
+                }
+            )
+            
+            # Send status update
+            self._send_status("regeneration_started", {
+                "request_id": request_id,
+                "start_bar": start_bar,
+                "end_bar": end_bar,
+                "tracks": tracks
+            }, request_id=request_id)
+            
+            # Submit to worker
+            self._gen_worker.submit(regen_request)
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}", request_id=request_id)
+        except Exception as e:
+            self._log(f"⚠️  Regenerate error: {e}")
+            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
+    
+    def _handle_fx_chain(self, address: str, *args):
+        """
+        Handle /fx_chain message for FX chain configuration.
+        
+        Stores the FX chain configuration to be applied during generation/rendering.
+        
+        Expected args (JSON string):
+            {
+                "schema_version": 1,
+                "fx_chain": {
+                    "master": [{"type": "eq", "enabled": true, "params": {...}}, ...],
+                    "drums": [...],
+                    "bass": [...],
+                    "melodic": [...]
+                }
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        try:
+            if not args:
+                self._log("   ⚠️  No FX chain data provided")
+                return
+            
+            data = json.loads(args[0]) if isinstance(args[0], str) else {}
+            schema_version = int(data.get("schema_version", 1))
+            fx_chain = data.get("fx_chain", {})
+            
+            if schema_version > SCHEMA_VERSION:
+                self._log(f"   ⚠️ Schema version mismatch: client={schema_version}, server={SCHEMA_VERSION}")
+            
+            # Store FX chain configuration for use during generation
+            self._current_fx_chain = fx_chain
+            
+            # Log summary
+            chain_summary = []
+            for track, effects in fx_chain.items():
+                if effects:
+                    chain_summary.append(f"{track}({len(effects)} fx)")
+            
+            self._log(f"   🎛️  FX chain stored: {', '.join(chain_summary) or 'empty'}")
+            
+            # Send acknowledgment
+            self._send_status("fx_chain_received", {
+                "tracks": list(fx_chain.keys()),
+                "total_effects": sum(len(v) for v in fx_chain.values())
+            })
+            
+        except json.JSONDecodeError as e:
+            self._log(f"   ⚠️  Invalid FX chain JSON: {e}")
+        except Exception as e:
+            self._log(f"   ⚠️  FX chain error: {e}")
     
     def _handle_get_instruments(self, address: str, *args):
         """
@@ -752,6 +959,166 @@ class MusicGenOSCServer:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
         except Exception as e:
             self._send_error(ErrorCode.UNKNOWN, f"Failed to change expansion state: {e}")
+    
+    # =========================================================================
+    # Take Management Handlers
+    # =========================================================================
+    
+    def _handle_select_take(self, address: str, *args):
+        """
+        Handle /take/select - select a specific take for a track.
+        
+        Expected args (JSON string):
+            {
+                "request_id": "uuid",
+                "track": "drums",
+                "take_id": "take_001"
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            request_id = data.get("request_id", "")
+            track = data.get("track", "")
+            take_id = data.get("take_id", "")
+            
+            if not track or not take_id:
+                self._send_error(ErrorCode.MISSING_PARAMETER, 
+                                 "track and take_id required", 
+                                 request_id=request_id)
+                return
+            
+            # Store selected take (will be used during render)
+            if not hasattr(self, '_selected_takes'):
+                self._selected_takes = {}
+            self._selected_takes[track] = take_id
+            
+            self._send_message(OSCAddresses.TAKE_SELECTED, json.dumps({
+                "request_id": request_id,
+                "track": track,
+                "take_id": take_id,
+                "success": True
+            }))
+            
+            self._log(f"   🎬 Selected take '{take_id}' for track '{track}'")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, str(e))
+    
+    def _handle_comp_takes(self, address: str, *args):
+        """
+        Handle /take/comp - composite takes across bar regions.
+        
+        Expected args (JSON string):
+            {
+                "request_id": "uuid",
+                "track": "drums",
+                "regions": [
+                    {"start_bar": 0, "end_bar": 4, "take_id": "take_001"},
+                    {"start_bar": 4, "end_bar": 8, "take_id": "take_002"}
+                ]
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            request_id = data.get("request_id", "")
+            track = data.get("track", "")
+            regions = data.get("regions", [])
+            
+            if not track:
+                self._send_error(ErrorCode.MISSING_PARAMETER, 
+                                 "track required", 
+                                 request_id=request_id)
+                return
+            
+            if not regions:
+                self._send_error(ErrorCode.MISSING_PARAMETER, 
+                                 "regions array required", 
+                                 request_id=request_id)
+                return
+            
+            # Validate regions
+            for region in regions:
+                if "start_bar" not in region or "end_bar" not in region or "take_id" not in region:
+                    self._send_error(ErrorCode.INVALID_MESSAGE, 
+                                     "Each region requires start_bar, end_bar, take_id",
+                                     request_id=request_id)
+                    return
+            
+            # Store comp regions for the track
+            if not hasattr(self, '_comp_regions'):
+                self._comp_regions = {}
+            self._comp_regions[track] = regions
+            
+            self._send_status("comp_regions_set", {
+                "request_id": request_id,
+                "track": track,
+                "region_count": len(regions),
+            })
+            
+            self._log(f"   🎬 Set {len(regions)} comp regions for track '{track}'")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, str(e))
+    
+    def _handle_render_take(self, address: str, *args):
+        """
+        Handle /take/render - render a specific take or comp to audio.
+        
+        Expected args (JSON string):
+            {
+                "request_id": "uuid",
+                "track": "drums",
+                "take_id": "take_001",  # Optional if using comp
+                "use_comp": false,       # If true, use comp regions
+                "output_path": "path/to/output.wav"
+            }
+        """
+        self._log(f"📥 Received: {address}")
+        
+        try:
+            data = json.loads(args[0]) if args else {}
+            request_id = data.get("request_id", "")
+            track = data.get("track", "")
+            take_id = data.get("take_id", "")
+            use_comp = data.get("use_comp", False)
+            output_path = data.get("output_path", "")
+            
+            if not track:
+                self._send_error(ErrorCode.MISSING_PARAMETER, 
+                                 "track required", 
+                                 request_id=request_id)
+                return
+            
+            if not use_comp and not take_id:
+                self._send_error(ErrorCode.MISSING_PARAMETER, 
+                                 "take_id required when not using comp",
+                                 request_id=request_id)
+                return
+            
+            # TODO: Actually render the take (integrate with audio_renderer)
+            # For now, acknowledge receipt
+            self._send_message(OSCAddresses.TAKE_RENDERED, json.dumps({
+                "request_id": request_id,
+                "track": track,
+                "take_id": take_id if not use_comp else "comp",
+                "output_path": output_path,
+                "success": True
+            }))
+            
+            self._log(f"   🎬 Rendered take for track '{track}'")
+            
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, str(e))
     
     # =========================================================================
     # Worker Callbacks

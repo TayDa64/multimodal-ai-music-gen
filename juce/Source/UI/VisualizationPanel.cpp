@@ -20,12 +20,18 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
 {
     DBG("VisualizationPanel constructor - Phase 7 with Waveform & Spectrum");
     
+    // Create arrangement view (DAW-style multi-track view)
+    arrangementView = std::make_unique<UI::ArrangementView>(audioEngine);
+    arrangementView->setProjectState(&appState.getProjectState());
+    arrangementView->setBPM(appState.getBPM());
+    addAndMakeVisible(*arrangementView);
+    
     // Create piano roll
     pianoRoll = std::make_unique<PianoRollComponent>(audioEngine);
     pianoRoll->addListener(this);
     pianoRoll->setBPM(appState.getBPM());
     pianoRoll->setProjectState(&appState.getProjectState()); // Connect to project state
-    addAndMakeVisible(*pianoRoll);
+    addChildComponent(*pianoRoll);  // Hidden by default, Arrange tab is first
     
     // Create waveform visualizer
     waveform = std::make_unique<WaveformComponent>();
@@ -57,10 +63,11 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
         addAndMakeVisible(tab);
     };
     
-    setupTab(pianoRollTab, "Piano Roll", 0);
-    setupTab(waveformTab, "Waveform", 1);
-    setupTab(spectrumTab, "Spectrum", 2);
-    setupTab(recentFilesTab, "Files", 3);
+    setupTab(arrangeTab, "Arrange", 0);
+    setupTab(pianoRollTab, "Piano Roll", 1);
+    setupTab(waveformTab, "Waveform", 2);
+    setupTab(spectrumTab, "Spectrum", 3);
+    setupTab(recentFilesTab, "Files", 4);
     
     // Info label
     infoLabel.setFont(juce::Font(11.0f));
@@ -68,7 +75,7 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     infoLabel.setJustificationType(juce::Justification::centredRight);
     addAndMakeVisible(infoLabel);
     
-    // Initialize with piano roll visible
+    // Initialize with Arrange view visible
     currentTab = 0;
     updateTabButtons();
     
@@ -111,7 +118,8 @@ void VisualizationPanel::resized()
     // Tab bar
     auto tabBar = bounds.removeFromTop(tabHeight);
     
-    int tabWidth = 85;
+    int tabWidth = 75;
+    arrangeTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
     pianoRollTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
     waveformTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
     spectrumTab.setBounds(tabBar.removeFromLeft(tabWidth).reduced(2, 2));
@@ -123,6 +131,8 @@ void VisualizationPanel::resized()
     // Content area
     auto contentArea = bounds;
     
+    if (arrangementView)
+        arrangementView->setBounds(contentArea);
     if (pianoRoll)
         pianoRoll->setBounds(contentArea);
     if (waveform)
@@ -141,7 +151,7 @@ void VisualizationPanel::loadMidiFile(const juce::File& midiFile)
     if (pianoRoll && midiFile.existsAsFile())
     {
         pianoRoll->loadMidiFile(midiFile);
-        showTab(0);  // Switch to piano roll when loading MIDI
+        showTab(1);  // Switch to piano roll when loading MIDI (tab 1 now)
         DBG("  Switched to piano roll tab");
     }
     else
@@ -168,10 +178,11 @@ void VisualizationPanel::showTab(int index)
     currentTab = juce::jlimit(0, numTabs - 1, index);
     
     // Update visibility
-    if (pianoRoll) pianoRoll->setVisible(currentTab == 0);
-    if (waveform) waveform->setVisible(currentTab == 1);
-    if (spectrum) spectrum->setVisible(currentTab == 2);
-    if (recentFiles) recentFiles->setVisible(currentTab == 3);
+    if (arrangementView) arrangementView->setVisible(currentTab == 0);
+    if (pianoRoll) pianoRoll->setVisible(currentTab == 1);
+    if (waveform) waveform->setVisible(currentTab == 2);
+    if (spectrum) spectrum->setVisible(currentTab == 3);
+    if (recentFiles) recentFiles->setVisible(currentTab == 4);
     
     updateTabButtons();
     
@@ -179,15 +190,18 @@ void VisualizationPanel::showTab(int index)
     switch (currentTab)
     {
         case 0:
-            infoLabel.setText("Hover notes for info", juce::dontSendNotification);
+            infoLabel.setText("Multi-track arrangement view", juce::dontSendNotification);
             break;
         case 1:
-            infoLabel.setText("Real-time waveform", juce::dontSendNotification);
+            infoLabel.setText("Hover notes for info", juce::dontSendNotification);
             break;
         case 2:
-            infoLabel.setText("Spectrum analyzer", juce::dontSendNotification);
+            infoLabel.setText("Real-time waveform", juce::dontSendNotification);
             break;
         case 3:
+            infoLabel.setText("Spectrum analyzer", juce::dontSendNotification);
+            break;
+        case 4:
             infoLabel.setText("", juce::dontSendNotification);
             break;
     }
@@ -199,6 +213,8 @@ void VisualizationPanel::setBPM(int bpm)
 {
     if (pianoRoll)
         pianoRoll->setBPM(bpm);
+    if (arrangementView)
+        arrangementView->setBPM(bpm);
 }
 
 void VisualizationPanel::setGenre(const juce::String& genre)
@@ -208,6 +224,18 @@ void VisualizationPanel::setGenre(const juce::String& genre)
     updateTheme();
     
     DBG("VisualizationPanel: Set genre theme to " << newTheme.name);
+}
+
+void VisualizationPanel::setLoopRegion(double startSeconds, double endSeconds)
+{
+    if (pianoRoll)
+        pianoRoll->setLoopRegion(startSeconds, endSeconds);
+}
+
+void VisualizationPanel::clearLoopRegion()
+{
+    if (pianoRoll)
+        pianoRoll->clearLoopRegion();
 }
 
 void VisualizationPanel::updateTabButtons()
@@ -227,10 +255,11 @@ void VisualizationPanel::updateTabButtons()
         tab.repaint();
     };
     
-    styleTab(pianoRollTab, currentTab == 0);
-    styleTab(waveformTab, currentTab == 1);
-    styleTab(spectrumTab, currentTab == 2);
-    styleTab(recentFilesTab, currentTab == 3);
+    styleTab(arrangeTab, currentTab == 0);
+    styleTab(pianoRollTab, currentTab == 1);
+    styleTab(waveformTab, currentTab == 2);
+    styleTab(spectrumTab, currentTab == 3);
+    styleTab(recentFilesTab, currentTab == 4);
 }
 
 void VisualizationPanel::updateTheme()

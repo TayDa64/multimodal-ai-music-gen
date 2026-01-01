@@ -63,11 +63,31 @@ public:
     int getBPM() const { return currentBPM; }
     
     //==============================================================================
+    // Loop Region
+    //==============================================================================
+    
+    /** Set the loop region (start and end in seconds) */
+    void setLoopRegion(double startSeconds, double endSeconds);
+    
+    /** Clear the loop region */
+    void clearLoopRegion();
+    
+    /** Check if a loop region is set */
+    bool hasLoopRegion() const { return loopRegionStart >= 0 && loopRegionEnd > loopRegionStart; }
+    
+    /** Get loop region start (returns -1 if no region set) */
+    double getLoopRegionStart() const { return loopRegionStart; }
+    
+    /** Get loop region end (returns -1 if no region set) */
+    double getLoopRegionEnd() const { return loopRegionEnd; }
+    
+    //==============================================================================
     // Component overrides
     void paint(juce::Graphics& g) override;
     void resized() override;
     void mouseDown(const juce::MouseEvent& event) override;
     void mouseDrag(const juce::MouseEvent& event) override;
+    void mouseUp(const juce::MouseEvent& event) override;
     
     //==============================================================================
     /** Listener for timeline seek events */
@@ -76,6 +96,7 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void timelineSeekRequested(double positionSeconds) = 0;
+        virtual void loopRegionChanged(double startSeconds, double endSeconds) {}
     };
     
     void addListener(Listener* listener);
@@ -99,6 +120,7 @@ private:
     void drawBarMarkers(juce::Graphics& g);
     void drawPlayhead(juce::Graphics& g);
     void drawTimeLabels(juce::Graphics& g);
+    void drawLoopRegion(juce::Graphics& g);
     
     // Coordinate conversion
     double positionToX(double timeSeconds) const;
@@ -117,6 +139,13 @@ private:
     double totalDuration = 60.0;  // Default 60 seconds
     double currentPosition = 0.0;
     int currentBPM = 120;
+    
+    // Loop region (-1 means not set)
+    double loopRegionStart = -1.0;
+    double loopRegionEnd = -1.0;
+    bool isDraggingLoopRegion = false;
+    enum class LoopDragMode { None, Start, End, Create };
+    LoopDragMode loopDragMode = LoopDragMode::None;
     
     // Visual settings
     static constexpr int headerHeight = 20;     // Height for time labels

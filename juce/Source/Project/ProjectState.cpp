@@ -61,6 +61,10 @@ namespace Project
         juce::ValueTree notesNode(IDs::NOTES);
         projectTree.addChild(notesNode, -1, &undoManager);
         
+        // Create FX Chains Node
+        juce::ValueTree fxChainsNode(IDs::FX_CHAINS);
+        projectTree.addChild(fxChainsNode, -1, &undoManager);
+        
         undoManager.clearUndoHistory();
         currentFile = juce::File();
     }
@@ -154,6 +158,28 @@ namespace Project
         trackNode.setProperty(IDs::index, index, nullptr);
         mixerNode.addChild(trackNode, -1, &undoManager);
         return trackNode;
+    }
+    
+    juce::ValueTree ProjectState::getInstrumentsNode()
+    {
+        auto node = projectTree.getChildWithName(IDs::INSTRUMENTS);
+        if (!node.isValid())
+        {
+            node = juce::ValueTree(IDs::INSTRUMENTS);
+            projectTree.addChild(node, -1, &undoManager);
+        }
+        return node;
+    }
+    
+    juce::ValueTree ProjectState::getFXChainsNode()
+    {
+        auto node = projectTree.getChildWithName(IDs::FX_CHAINS);
+        if (!node.isValid())
+        {
+            node = juce::ValueTree(IDs::FX_CHAINS);
+            projectTree.addChild(node, -1, &undoManager);
+        }
+        return node;
     }
 
     void ProjectState::setTrackVolume(int trackIndex, float volume)
@@ -410,6 +436,111 @@ namespace Project
         midi.addTrack(seq);
         
         return midi;
+    }
+
+    //==============================================================================
+    // FX Chain Management
+    void ProjectState::setFXChainForBus(const juce::String& busName, const juce::String& chainJSON)
+    {
+        auto fxChainsNode = getFXChainsNode();
+        if (!fxChainsNode.isValid()) return;
+        
+        // Find or create bus node
+        juce::ValueTree busNode;
+        for (auto child : fxChainsNode)
+        {
+            if (child.hasType(IDs::FX_BUS) && child.getProperty(IDs::bus).toString() == busName)
+            {
+                busNode = child;
+                break;
+            }
+        }
+        
+        if (!busNode.isValid())
+        {
+            busNode = juce::ValueTree(IDs::FX_BUS);
+            busNode.setProperty(IDs::bus, busName, nullptr);
+            fxChainsNode.addChild(busNode, -1, &undoManager);
+        }
+        
+        undoManager.beginNewTransaction("Update FX Chain");
+        
+        // Clear existing FX units
+        busNode.removeAllChildren(&undoManager);
+        
+        // Parse JSON and add FX units
+        auto parsed = juce::JSON::parse(chainJSON);
+        if (auto* chainArray = parsed.getArray())
+        {
+            for (const auto& fxVar : *chainArray)
+            {
+                juce::ValueTree fxNode(IDs::FX_UNIT);
+                fxNode.setProperty(IDs::id, fxVar.getProperty("id", juce::Uuid().toString()), nullptr);
+                fxNode.setProperty(IDs::type, fxVar.getProperty("type", ""), nullptr);
+                fxNode.setProperty(IDs::displayName, fxVar.getProperty("display_name", ""), nullptr);
+                fxNode.setProperty(IDs::enabled, (bool)fxVar.getProperty("enabled", true), nullptr);
+                
+                // Store parameters as JSON string
+                if (auto* paramsObj = fxVar.getProperty("parameters", juce::var()).getDynamicObject())
+                {
+                    fxNode.setProperty(IDs::parameters, juce::JSON::toString(juce::var(paramsObj)), nullptr);
+                }
+                
+                busNode.addChild(fxNode, -1, &undoManager);
+            }
+        }
+    }
+    
+    juce::String ProjectState::getFXChainForBus(const juce::String& busName) const
+    {
+        auto fxChainsNode = projectTree.getChildWithName(IDs::FX_CHAINS);
+        if (!fxChainsNode.isValid()) return "[]";
+        
+        // Find bus node
+        for (const auto& child : fxChainsNode)
+        {
+            if (child.hasType(IDs::FX_BUS) && child.getProperty(IDs::bus).toString() == busName)
+            {
+                juce::Array<juce::var> chainArray;
+                
+                for (const auto& fxNode : child)
+                {
+                    if (fxNode.hasType(IDs::FX_UNIT))
+                    {
+                        auto* fxObj = new juce::DynamicObject();
+                        fxObj->setProperty("id", fxNode.getProperty(IDs::id));
+                        fxObj->setProperty("type", fxNode.getProperty(IDs::type));
+                        fxObj->setProperty("display_name", fxNode.getProperty(IDs::displayName));
+                        fxObj->setProperty("enabled", fxNode.getProperty(IDs::enabled));
+                        
+                        // Parse parameters back from JSON string
+                        juce::String paramsStr = fxNode.getProperty(IDs::parameters).toString();
+                        if (paramsStr.isNotEmpty())
+                        {
+                            fxObj->setProperty("parameters", juce::JSON::parse(paramsStr));
+                        }
+                        
+                        chainArray.add(juce::var(fxObj));
+                    }
+                }
+                
+                return juce::JSON::toString(juce::var(chainArray));
+            }
+        }
+        
+        return "[]";
+    }
+    
+    juce::String ProjectState::getAllFXChainsJSON() const
+    {
+        auto* root = new juce::DynamicObject();
+        
+        root->setProperty("master", juce::JSON::parse(getFXChainForBus("master")));
+        root->setProperty("drums", juce::JSON::parse(getFXChainForBus("drums")));
+        root->setProperty("bass", juce::JSON::parse(getFXChainForBus("bass")));
+        root->setProperty("melodic", juce::JSON::parse(getFXChainForBus("melodic")));
+        
+        return juce::JSON::toString(juce::var(root));
     }
 
     //==============================================================================

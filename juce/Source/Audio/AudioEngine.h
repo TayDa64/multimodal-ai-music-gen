@@ -177,6 +177,18 @@ public:
     /** Set looping state */
     void setLooping(bool shouldLoop);
     bool isLooping() const { return looping.load(); }
+    
+    /** Set loop region (in seconds). Pass -1, -1 to clear loop region */
+    void setLoopRegion(double startSeconds, double endSeconds);
+    
+    /** Get loop region start (returns -1 if not set) */
+    double getLoopRegionStart() const { return loopRegionStart.load(); }
+    
+    /** Get loop region end (returns -1 if not set) */
+    double getLoopRegionEnd() const { return loopRegionEnd.load(); }
+    
+    /** Check if we have a custom loop region set */
+    bool hasLoopRegion() const { return loopRegionStart.load() >= 0 && loopRegionEnd.load() > loopRegionStart.load(); }
 
     //==========================================================================
     // Track Architecture
@@ -296,6 +308,8 @@ private:
     std::atomic<bool> initialised { false };
     std::atomic<TransportState> transportState { TransportState::Stopped };
     std::atomic<bool> looping { false };
+    std::atomic<double> loopRegionStart { -1.0 };
+    std::atomic<double> loopRegionEnd { -1.0 };
     
     // Audio parameters
     double currentSampleRate { 0.0 };

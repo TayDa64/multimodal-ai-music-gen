@@ -18,7 +18,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from .config import GenerationStep, ErrorCode
+from .config import GenerationStep, ErrorCode, SCHEMA_VERSION
 
 
 class TaskStatus(Enum):
@@ -51,6 +51,8 @@ class GenerationRequest:
         reference_url: Optional reference track URL
         template: Optional template file path
         verbose: Enable verbose output
+        num_takes: Number of takes to generate per track (1 = no takes)
+        take_variation: Variation axis for takes ("rhythm", "pitch", "timing", etc.)
     """
     prompt: str
     request_id: str = ""  # UUID for request/response correlation
@@ -58,6 +60,8 @@ class GenerationRequest:
     genre: str = ""  # Genre ID from UI (e.g., "g_funk", "trap_soul")
     bpm: int = 0
     key: str = ""
+    mode: str = ""  # "major" or "minor"
+    duration_bars: int = 8
     output_dir: str = ""
     instruments: List[str] = field(default_factory=list)
     soundfont: str = ""
@@ -67,6 +71,10 @@ class GenerationRequest:
     reference_url: str = ""
     template: str = ""
     verbose: bool = False
+    # Take generation
+    num_takes: int = 1          # Number of takes per track (1 = no variations)
+    take_variation: str = ""    # Variation axis: "rhythm", "pitch", "timing", "combined"
+    options: Dict[str, Any] = field(default_factory=dict)  # Additional options
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging/serialization."""
@@ -77,11 +85,15 @@ class GenerationRequest:
             "genre": self.genre,
             "bpm": self.bpm,
             "key": self.key,
+            "mode": self.mode,
+            "duration_bars": self.duration_bars,
             "output_dir": self.output_dir,
             "instruments": self.instruments,
             "render_audio": self.render_audio,
             "export_stems": self.export_stems,
             "export_mpc": self.export_mpc,
+            "num_takes": self.num_takes,
+            "take_variation": self.take_variation,
         }
 
 
@@ -102,6 +114,7 @@ class GenerationResult:
         error_code: Error code if failed
         error_message: Error description if failed
         duration: Time taken for generation (seconds)
+        takes: List of generated take lanes (for multi-take generation)
     """
     task_id: str
     success: bool
@@ -116,6 +129,7 @@ class GenerationResult:
     duration: float = 0.0
     samples_generated: int = 0
     instruments_used: List[Dict[str, Any]] = field(default_factory=list)
+    takes: List[Dict[str, Any]] = field(default_factory=list)  # Take lanes from TakeGenerator
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for OSC transmission."""
@@ -133,6 +147,7 @@ class GenerationResult:
             "duration": self.duration,
             "samples_generated": self.samples_generated,
             "instruments_used": self.instruments_used,
+            "takes": self.takes,
         }
 
 
@@ -559,6 +574,7 @@ class InstrumentScanWorker:
                 instruments_by_category[cat_name] = instruments_list
 
             result = {
+                "schema_version": SCHEMA_VERSION,
                 "scan_id": scan_id,
                 "success": True,
                 "count": len(library.instruments),

@@ -15,6 +15,7 @@
 #include "Application/AppState.h"
 #include "Audio/AudioEngine.h"
 #include "UI/Theme/AppLookAndFeel.h"
+#include "UI/Theme/LayoutConstants.h"
 
 //==============================================================================
 // Application info (replaces auto-generated ProjectInfo)
@@ -177,17 +178,17 @@ public:
                 auto savedBounds = appState.getWindowBounds();
                 if (savedBounds.isEmpty())
                 {
-                    // Default size: 1280x800, centered
+                    // Default size using Layout constants, centered
                     setResizable(true, true);
-                    centreWithSize(1280, 800);
+                    centreWithSize(Layout::defaultWindowWidth, Layout::defaultWindowHeight);
                 }
                 else
                 {
                     setBounds(savedBounds);
                 }
                 
-                // Set minimum size
-                setResizeLimits(800, 600, 4096, 4096);
+                // Set minimum size using Layout constants for responsive design
+                setResizeLimits(Layout::minWindowWidth, Layout::minWindowHeight, 4096, 4096);
             #endif
 
             setVisible(true);

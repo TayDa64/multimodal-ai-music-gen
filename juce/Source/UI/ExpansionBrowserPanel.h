@@ -142,12 +142,16 @@ public:
     void setSelected(bool selected);
     bool isSelected() const { return selected; }
     
+    /** Update the enabled state */
+    void setEnabled(bool enabled);
+    
     /** Listener for card events */
     class Listener
     {
     public:
         virtual ~Listener() = default;
         virtual void expansionCardClicked(ExpansionCard* card) = 0;
+        virtual void expansionEnableToggled(ExpansionCard* card, bool enabled) = 0;
     };
     
     void setListener(Listener* l) { listener = l; }
@@ -188,6 +192,7 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void expansionSelected(const ExpansionInfo& info) = 0;
+        virtual void expansionEnableChanged(const juce::String& expansionId, bool enabled) = 0;
     };
     
     void addListener(Listener* l) { listeners.add(l); }
@@ -195,6 +200,7 @@ public:
     
 private:
     void expansionCardClicked(ExpansionCard* card) override;
+    void expansionEnableToggled(ExpansionCard* card, bool enabled) override;
     void updateLayout();
     
     juce::OwnedArray<ExpansionCard> cards;
@@ -365,6 +371,7 @@ public:
         virtual void requestResolveOSC(const juce::String& instrument, const juce::String& genre) = 0;
         virtual void requestImportExpansionOSC(const juce::String& path) = 0;
         virtual void requestScanExpansionsOSC(const juce::String& directory) = 0;
+        virtual void requestExpansionEnableOSC(const juce::String& expansionId, bool enabled) = 0;
     };
     
     void addListener(Listener* l) { listeners.add(l); }
@@ -374,6 +381,7 @@ private:
     //==============================================================================
     // ExpansionListComponent::Listener
     void expansionSelected(const ExpansionInfo& info) override;
+    void expansionEnableChanged(const juce::String& expansionId, bool enabled) override;
     
     // ExpansionInstrumentList::Listener
     void instrumentSelected(const ExpansionInstrumentInfo& info) override;

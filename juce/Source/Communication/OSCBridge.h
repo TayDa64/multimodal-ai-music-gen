@@ -75,6 +75,10 @@ public:
         virtual void onGenerationComplete(const GenerationResult& result) {}
         virtual void onError(int code, const juce::String& message) {}
         virtual void onInstrumentsLoaded(const juce::String& json) {}
+        
+        /** Called when server reports a schema version mismatch (non-fatal warning). */
+        virtual void onSchemaVersionWarning(int clientVersion, int serverVersion, const juce::String& message) 
+        { juce::ignoreUnused(clientVersion, serverVersion, message); }
 
         // Analyze callbacks
         virtual void onAnalyzeResultReceived(const AnalyzeResult& result) {}
@@ -84,6 +88,11 @@ public:
         virtual void onExpansionListReceived(const juce::String& json) {}
         virtual void onExpansionInstrumentsReceived(const juce::String& json) {}
         virtual void onExpansionResolveReceived(const juce::String& json) {}
+        
+        // Take callbacks
+        virtual void onTakesAvailable(const juce::String& json) {}
+        virtual void onTakeSelected(const juce::String& track, const juce::String& takeId) {}
+        virtual void onTakeRendered(const juce::String& track, const juce::String& outputPath) {}
     };
     
     //==============================================================================
@@ -116,12 +125,14 @@ public:
     //==============================================================================
     // Outgoing messages
     void sendGenerate(const GenerationRequest& request);
+    void sendRegenerate(const RegenerationRequest& request);
     void sendAnalyzeFile(const juce::File& file, bool verbose = false);
     void sendAnalyzeUrl(const juce::String& url, bool verbose = false);
     void sendCancel(const juce::String& taskId = {});
     void sendPing();
     void sendShutdown();
     void sendGetInstruments(const juce::StringArray& paths, const juce::String& cacheDir = {});
+    void sendFXChain(const juce::String& fxChainJson);  // Send FX chain for offline render parity
     
     // Expansion management
     void sendExpansionList();
@@ -130,6 +141,11 @@ public:
     void sendExpansionImport(const juce::String& path);
     void sendExpansionScan(const juce::String& directory);
     void sendExpansionEnable(const juce::String& expansionId, bool enabled);
+    
+    // Take management
+    void sendSelectTake(const juce::String& track, const juce::String& takeId);
+    void sendCompTakes(const TakeCompRequest& request);
+    void sendRenderTake(const TakeRenderRequest& request);
     
     //==============================================================================
     // Listeners
@@ -162,6 +178,11 @@ private:
     void handleExpansionList(const juce::OSCMessage& message);
     void handleExpansionInstruments(const juce::OSCMessage& message);
     void handleExpansionResolve(const juce::OSCMessage& message);
+    
+    // Take handlers
+    void handleTakesAvailable(const juce::OSCMessage& message);
+    void handleTakeSelected(const juce::OSCMessage& message);
+    void handleTakeRendered(const juce::OSCMessage& message);
     
     //==============================================================================
     void sendMessage(const juce::String& address, const juce::String& jsonPayload = {});

@@ -125,9 +125,16 @@ class OSCAddresses:
     GENERATE = "/generate"
     CANCEL = "/cancel"
     ANALYZE = "/analyze"
+    REGENERATE = "/regenerate"  # Sectional regeneration
+    FX_CHAIN = "/fx_chain"      # FX chain configuration for render parity
     GET_INSTRUMENTS = "/instruments"
     PING = "/ping"
     SHUTDOWN = "/shutdown"
+    
+    # Take management (JUCE → Python)
+    SELECT_TAKE = "/take/select"      # Select a take for a track
+    COMP_TAKES = "/take/comp"         # Composite takes across bar regions
+    RENDER_TAKE = "/take/render"      # Render a specific take to audio
     
     # Expansion management (JUCE → Python)
     EXPANSION_LIST = "/expansion/list"
@@ -145,6 +152,11 @@ class OSCAddresses:
     INSTRUMENTS_LOADED = "/instruments_loaded"
     PONG = "/pong"
     STATUS = "/status"
+    
+    # Take responses (Python → JUCE)
+    TAKES_AVAILABLE = "/takes/available"    # Notify available takes after generation
+    TAKE_SELECTED = "/take/selected"        # Confirm take selection
+    TAKE_RENDERED = "/take/rendered"        # Take render complete
     
     # Expansion responses (Python → JUCE)
     EXPANSION_LIST_RESPONSE = "/expansion/list_response"
@@ -193,6 +205,7 @@ class ErrorCode:
     UNKNOWN = 100
     INVALID_MESSAGE = 101
     MISSING_PARAMETER = 102
+    SCHEMA_VERSION_MISMATCH = 103  # Protocol version incompatibility
     
     # Generation errors (2xx)
     GENERATION_FAILED = 200

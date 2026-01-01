@@ -10,6 +10,7 @@
 
 #include "TimelineComponent.h"
 #include "Theme/ColourScheme.h"
+#include "Theme/LayoutConstants.h"
 
 //==============================================================================
 TimelineComponent::TimelineComponent(AppState& state, mmg::AudioEngine& engine)
@@ -62,9 +63,43 @@ void TimelineComponent::setBPM(int bpm)
 }
 
 //==============================================================================
+void TimelineComponent::setLoopRegion(double startSeconds, double endSeconds)
+{
+    if (startSeconds >= 0 && endSeconds > startSeconds && endSeconds <= totalDuration)
+    {
+        loopRegionStart = startSeconds;
+        loopRegionEnd = endSeconds;
+        
+        // Sync with audio engine
+        audioEngine.setLoopRegion(startSeconds, endSeconds);
+        
+        // Notify listeners
+        listeners.call(&Listener::loopRegionChanged, loopRegionStart, loopRegionEnd);
+        
+        repaint();
+    }
+}
+
+void TimelineComponent::clearLoopRegion()
+{
+    loopRegionStart = -1.0;
+    loopRegionEnd = -1.0;
+    loopDragMode = LoopDragMode::None;
+    
+    // Sync with audio engine
+    audioEngine.setLoopRegion(-1.0, -1.0);
+    
+    // Notify listeners
+    listeners.call(&Listener::loopRegionChanged, -1.0, -1.0);
+    
+    repaint();
+}
+
+//==============================================================================
 void TimelineComponent::paint(juce::Graphics& g)
 {
     drawBackground(g);
+    drawLoopRegion(g);  // Draw loop region first (behind other elements)
     drawSections(g);
     drawBarMarkers(g);
     drawBeatMarkers(g);
@@ -244,6 +279,45 @@ void TimelineComponent::drawPlayhead(juce::Graphics& g)
     g.fillPath(triangle);
 }
 
+void TimelineComponent::drawLoopRegion(juce::Graphics& g)
+{
+    if (!hasLoopRegion())
+        return;
+    
+    auto bounds = getLocalBounds();
+    float startX = (float)positionToX(loopRegionStart);
+    float endX = (float)positionToX(loopRegionEnd);
+    
+    // Draw loop region background (semi-transparent)
+    juce::Colour loopColour = juce::Colour(0xFF00BCD4);  // Cyan
+    g.setColour(loopColour.withAlpha(0.15f));
+    g.fillRect(startX, 0.0f, endX - startX, (float)bounds.getHeight());
+    
+    // Draw loop region borders
+    g.setColour(loopColour.withAlpha(0.8f));
+    g.drawLine(startX, 0.0f, startX, (float)bounds.getHeight(), 2.0f);
+    g.drawLine(endX, 0.0f, endX, (float)bounds.getHeight(), 2.0f);
+    
+    // Draw loop brackets at top
+    const float bracketHeight = 10.0f;
+    const float bracketWidth = 6.0f;
+    
+    // Start bracket [
+    g.drawLine(startX, 0.0f, startX, bracketHeight, 2.0f);
+    g.drawLine(startX, 0.0f, startX + bracketWidth, 0.0f, 2.0f);
+    g.drawLine(startX, bracketHeight, startX + bracketWidth, bracketHeight, 2.0f);
+    
+    // End bracket ]
+    g.drawLine(endX, 0.0f, endX, bracketHeight, 2.0f);
+    g.drawLine(endX, 0.0f, endX - bracketWidth, 0.0f, 2.0f);
+    g.drawLine(endX, bracketHeight, endX - bracketWidth, bracketHeight, 2.0f);
+    
+    // Draw "LOOP" label
+    g.setFont(9.0f);
+    float midX = (startX + endX) / 2.0f;
+    g.drawText("LOOP", (int)(midX - 20), 2, 40, 12, juce::Justification::centred);
+}
+
 //==============================================================================
 double TimelineComponent::positionToX(double timeSeconds) const
 {
@@ -280,12 +354,101 @@ void TimelineComponent::seekToPosition(float x)
 //==============================================================================
 void TimelineComponent::mouseDown(const juce::MouseEvent& event)
 {
-    seekToPosition((float)event.x);
+    // Shift+click to start loop region selection
+    if (event.mods.isShiftDown())
+    {
+        double clickPos = xToPosition((float)event.x);
+        
+        // Check if clicking near existing loop region boundaries
+        if (hasLoopRegion())
+        {
+            float startX = (float)positionToX(loopRegionStart);
+            float endX = (float)positionToX(loopRegionEnd);
+            const float hitTolerance = 8.0f;
+            
+            if (std::abs((float)event.x - startX) < hitTolerance)
+            {
+                loopDragMode = LoopDragMode::Start;
+                return;
+            }
+            else if (std::abs((float)event.x - endX) < hitTolerance)
+            {
+                loopDragMode = LoopDragMode::End;
+                return;
+            }
+        }
+        
+        // Start creating a new loop region
+        loopDragMode = LoopDragMode::Create;
+        loopRegionStart = clickPos;
+        loopRegionEnd = clickPos;
+        repaint();
+    }
+    // Double-click to clear loop region
+    else if (event.getNumberOfClicks() == 2 && hasLoopRegion())
+    {
+        clearLoopRegion();
+    }
+    else
+    {
+        seekToPosition((float)event.x);
+    }
 }
 
 void TimelineComponent::mouseDrag(const juce::MouseEvent& event)
 {
-    seekToPosition((float)juce::jlimit(0, getWidth(), event.x));
+    double dragPos = xToPosition((float)juce::jlimit(0, getWidth(), event.x));
+    
+    if (loopDragMode == LoopDragMode::Create)
+    {
+        // Creating new loop region
+        if (dragPos < loopRegionStart)
+        {
+            loopRegionEnd = loopRegionStart;
+            loopRegionStart = dragPos;
+        }
+        else
+        {
+            loopRegionEnd = dragPos;
+        }
+        repaint();
+    }
+    else if (loopDragMode == LoopDragMode::Start)
+    {
+        // Adjusting loop start
+        loopRegionStart = juce::jmin(dragPos, loopRegionEnd - 0.1);
+        repaint();
+    }
+    else if (loopDragMode == LoopDragMode::End)
+    {
+        // Adjusting loop end
+        loopRegionEnd = juce::jmax(dragPos, loopRegionStart + 0.1);
+        repaint();
+    }
+    else
+    {
+        // Normal seek drag
+        seekToPosition((float)juce::jlimit(0, getWidth(), event.x));
+    }
+}
+
+void TimelineComponent::mouseUp(const juce::MouseEvent& event)
+{
+    if (loopDragMode != LoopDragMode::None)
+    {
+        // Finalize loop region
+        if (loopRegionEnd - loopRegionStart < 0.5)  // Minimum 0.5 second loop
+        {
+            clearLoopRegion();
+        }
+        else
+        {
+            // Notify listeners
+            listeners.call(&Listener::loopRegionChanged, loopRegionStart, loopRegionEnd);
+        }
+        
+        loopDragMode = LoopDragMode::None;
+    }
 }
 
 //==============================================================================

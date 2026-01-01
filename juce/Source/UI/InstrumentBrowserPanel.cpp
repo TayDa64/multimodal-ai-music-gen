@@ -9,6 +9,7 @@
 */
 
 #include "InstrumentBrowserPanel.h"
+#include "Theme/LayoutConstants.h"
 
 //==============================================================================
 // InstrumentCard
@@ -611,24 +612,25 @@ void InstrumentBrowserPanel::resized()
 {
     auto bounds = getLocalBounds();
     
-    // Search bar
-    auto searchArea = bounds.removeFromTop(40).reduced(10, 5);
-    searchLabel.setBounds(searchArea.removeFromLeft(25));
+    // Use FlexBox for search bar layout
+    auto searchArea = bounds.removeFromTop(40).reduced(Layout::paddingMD, Layout::paddingSM);
     
-    // Scan button on the right
-    scanButton.setBounds(searchArea.removeFromRight(60));
-    searchArea.removeFromRight(5); // Gap
+    juce::FlexBox searchFlex = Layout::createRowFlex();
+    searchFlex.items.add(juce::FlexItem(searchLabel).withWidth(25.0f).withHeight(30.0f));
+    searchFlex.items.add(juce::FlexItem(searchBox).withFlex(1.0f).withHeight(30.0f).withMargin({0, Layout::paddingSM, 0, Layout::paddingSM}));
+    searchFlex.items.add(juce::FlexItem(scanButton).withWidth(60.0f).withHeight(30.0f));
+    searchFlex.performLayout(searchArea);
     
-    searchBox.setBounds(searchArea);
+    // Category tabs (adaptive height)
+    int tabHeight = juce::jmax(32, juce::jmin(40, bounds.getHeight() / 10));
+    categoryTabs.setBounds(bounds.removeFromTop(tabHeight));
     
-    // Category tabs
-    categoryTabs.setBounds(bounds.removeFromTop(36));
-    
-    // Preview panel (bottom)
-    previewPanel.setBounds(bounds.removeFromBottom(130));
+    // Preview panel (bottom) - adaptive height based on available space
+    int previewHeight = juce::jmax(100, juce::jmin(150, bounds.getHeight() / 3));
+    previewPanel.setBounds(bounds.removeFromBottom(previewHeight));
     
     // Instrument list (remaining space)
-    instrumentList.setBounds(bounds.reduced(5));
+    instrumentList.setBounds(bounds.reduced(Layout::paddingSM));
 }
 
 void InstrumentBrowserPanel::loadFromJSON(const juce::String& json)

@@ -162,6 +162,12 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/Mixer/ChannelStrip.h
     Source/UI/Mixer/MixerComponent.cpp
     Source/UI/Mixer/MixerComponent.h
+    
+    # Track List (DAW-style arrangement view)
+    Source/UI/TrackList/TrackHeaderComponent.cpp
+    Source/UI/TrackList/TrackHeaderComponent.h
+    Source/UI/TrackList/ArrangementView.cpp
+    Source/UI/TrackList/ArrangementView.h
 
     # NB Phase 2: Genre-aware UI Components
     Source/UI/GenreSelector.cpp
@@ -172,6 +178,8 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/FXChainPanel.h
     Source/UI/ExpansionBrowserPanel.cpp
     Source/UI/ExpansionBrowserPanel.h
+    Source/UI/TakeLaneComponent.cpp
+    Source/UI/TakeLaneComponent.h
     
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp
@@ -186,6 +194,8 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/Theme/AppLookAndFeel.cpp
     Source/UI/Theme/AppLookAndFeel.h
     Source/UI/Theme/ColourScheme.h
+    Source/UI/Theme/ThemeManager.h
+    Source/UI/Theme/LayoutConstants.h
 )
 
 # ==============================================================================

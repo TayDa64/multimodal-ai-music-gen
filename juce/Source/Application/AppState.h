@@ -107,6 +107,9 @@ public:
     int getBPM() const;
     void setBPM(int b);
     
+    juce::String getKey() const;
+    void setKey(const juce::String& k);
+    
     int getDurationBars() const;
     void setDurationBars(int bars);
     

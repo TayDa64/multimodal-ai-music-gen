@@ -21,7 +21,11 @@ ExpansionCard::ExpansionCard(const ExpansionInfo& info)
     enableToggle.setButtonText("");
     enableToggle.setToggleState(info.enabled, juce::dontSendNotification);
     enableToggle.onClick = [this] {
-        // TODO: Send enable/disable request via OSC
+        bool newEnabled = enableToggle.getToggleState();
+        expansionInfo.enabled = newEnabled;
+        if (listener)
+            listener->expansionEnableToggled(this, newEnabled);
+        repaint();
     };
     addAndMakeVisible(enableToggle);
 }
@@ -112,6 +116,13 @@ void ExpansionCard::setSelected(bool sel)
     repaint();
 }
 
+void ExpansionCard::setEnabled(bool enabled)
+{
+    expansionInfo.enabled = enabled;
+    enableToggle.setToggleState(enabled, juce::dontSendNotification);
+    repaint();
+}
+
 //==============================================================================
 // ExpansionListComponent
 //==============================================================================
@@ -181,6 +192,11 @@ void ExpansionListComponent::expansionCardClicked(ExpansionCard* card)
     selectedCard->setSelected(true);
     
     listeners.call(&Listener::expansionSelected, card->getInfo());
+}
+
+void ExpansionListComponent::expansionEnableToggled(ExpansionCard* card, bool enabled)
+{
+    listeners.call(&Listener::expansionEnableChanged, card->getInfo().id, enabled);
 }
 
 void ExpansionListComponent::updateLayout()
@@ -599,6 +615,12 @@ void ExpansionBrowserPanel::expansionSelected(const ExpansionInfo& info)
 {
     selectedExpansionId = info.id;
     listeners.call(&ExpansionBrowserPanel::Listener::requestInstrumentsOSC, info.id);
+}
+
+void ExpansionBrowserPanel::expansionEnableChanged(const juce::String& expansionId, bool enabled)
+{
+    DBG("Expansion enable changed: " + expansionId + " -> " + (enabled ? "enabled" : "disabled"));
+    listeners.call(&ExpansionBrowserPanel::Listener::requestExpansionEnableOSC, expansionId, enabled);
 }
 
 void ExpansionBrowserPanel::instrumentSelected(const ExpansionInstrumentInfo& info)

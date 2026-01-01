@@ -10,6 +10,7 @@
 
 #include "MainComponent.h"
 #include "UI/Theme/ColourScheme.h"
+#include "UI/Theme/LayoutConstants.h"
 
 //==============================================================================
 MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
@@ -19,8 +20,8 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     // Listen to project state changes
     appState.getProjectState().getState().addListener(this);
 
-    // Set size FIRST
-    setSize(1280, 800);
+    // Set size with enforced minimum dimensions for responsive design
+    setSize(Layout::defaultWindowWidth, Layout::defaultWindowHeight);
     
     // Create Python manager and attempt to auto-start the server
     pythonManager = std::make_unique<PythonManager>();
@@ -34,6 +35,7 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     // Timeline component - shows sections, beat markers, playhead
     timelineComponent = std::make_unique<TimelineComponent>(appState, audioEngine);
     timelineComponent->setBPM(appState.getBPM());
+    timelineComponent->addListener(this);
     timelineComponent->setVisible(true);
     addAndMakeVisible(*timelineComponent);
     
@@ -136,6 +138,7 @@ void MainComponent::setupBottomPanel()
     // FX Chain Panel
     fxChainPanel = std::make_unique<FXChainPanel>();
     fxChainPanel->setVisible(false);  // Start hidden
+    fxChainPanel->setProjectState(&appState.getProjectState());  // Connect for persistence
     addAndMakeVisible(*fxChainPanel);
     
     // Expansion Browser Panel
@@ -263,6 +266,66 @@ void MainComponent::applyGenreTheme(const juce::String& genreId)
     DBG("Applied genre theme: " + genreId);
 }
 
+void MainComponent::applyAnalysisResult(const AnalyzeResult& result)
+{
+    // Apply BPM if confidence is above threshold (0.5)
+    if (result.bpm > 0.0f && result.bpmConfidence >= 0.5f)
+    {
+        int bpm = static_cast<int>(result.bpm + 0.5f);  // Round to nearest int
+        appState.setBPM(bpm);
+        
+        // Update timeline
+        if (timelineComponent)
+            timelineComponent->setBPM(bpm);
+        
+        DBG("Applied BPM from analysis: " << bpm);
+    }
+    
+    // Apply key if confidence is above threshold
+    if (result.key.isNotEmpty() && result.keyConfidence >= 0.5f)
+    {
+        juce::String fullKey = result.key;
+        if (result.mode.isNotEmpty())
+            fullKey += " " + result.mode;
+        
+        appState.setKey(fullKey);
+        DBG("Applied key from analysis: " << fullKey);
+    }
+    
+    // Apply estimated genre if confidence is high enough and genre selector is available
+    if (result.estimatedGenre.isNotEmpty() && result.genreConfidence >= 0.6f && genreSelector)
+    {
+        // Map common genre names to our genre IDs
+        juce::String genreId = result.estimatedGenre.toLowerCase().replace(" ", "_");
+        
+        // Attempt to set the genre - GenreSelector will validate
+        genreSelector->setSelectedGenre(genreId);
+        DBG("Applied genre from analysis: " << genreId);
+    }
+    
+    // Apply prompt hints to prompt panel
+    if (result.promptHints.isNotEmpty() && promptPanel)
+    {
+        promptPanel->appendToPrompt(result.promptHints);
+        DBG("Applied prompt hints: " << result.promptHints);
+    }
+    
+    // Persist analysis in ProjectState for save/load
+    auto projectState = appState.getProjectState().getState();
+    auto analysisNode = projectState.getOrCreateChildWithName("LastAnalysis", nullptr);
+    analysisNode.setProperty("bpm", result.bpm, nullptr);
+    analysisNode.setProperty("bpmConfidence", result.bpmConfidence, nullptr);
+    analysisNode.setProperty("key", result.key, nullptr);
+    analysisNode.setProperty("mode", result.mode, nullptr);
+    analysisNode.setProperty("keyConfidence", result.keyConfidence, nullptr);
+    analysisNode.setProperty("estimatedGenre", result.estimatedGenre, nullptr);
+    analysisNode.setProperty("genreConfidence", result.genreConfidence, nullptr);
+    analysisNode.setProperty("promptHints", result.promptHints, nullptr);
+    
+    currentStatus = "Analysis applied";
+    repaint();
+}
+
 //==============================================================================
 void MainComponent::paint(juce::Graphics& g)
 {
@@ -310,38 +373,56 @@ void MainComponent::resized()
     if (bounds.isEmpty())
         return;  // Guard against zero-size
     
-    // Reserve space for status bar (slightly taller for better readability)
-    bounds.removeFromBottom(24);
+    // Enforce minimum size for responsive design
+    const int effectiveWidth = juce::jmax(bounds.getWidth(), Layout::minWindowWidth);
+    const int effectiveHeight = juce::jmax(bounds.getHeight(), Layout::minWindowHeight);
     
-    // Transport bar at top (50px)
+    // Get adaptive values based on window size
+    const int adaptivePadding = Layout::getAdaptivePadding(effectiveWidth);
+    const int adaptiveSidebarWidth = Layout::getAdaptiveSidebarWidth(effectiveWidth);
+    
+    // Reserve space for status bar
+    bounds.removeFromBottom(Layout::statusBarHeight);
+    
+    // Transport bar at top (use adaptive height)
+    int transportH = effectiveHeight > 700 ? Layout::transportHeightDefault : Layout::transportHeightMin;
     if (transportBar)
     {
-        transportBar->setBounds(bounds.removeFromTop(transportHeight));
+        transportBar->setBounds(bounds.removeFromTop(transportH));
         transportBar->setVisible(true);
     }
     
-    // Timeline below transport (65px)
+    // Timeline below transport (adaptive height)
+    int timelineH = effectiveHeight > 700 ? Layout::timelineHeightDefault : Layout::timelineHeightMin;
     if (timelineComponent)
     {
-        timelineComponent->setBounds(bounds.removeFromTop(timelineHeight).reduced(padding, 0));
+        timelineComponent->setBounds(bounds.removeFromTop(timelineH).reduced(adaptivePadding, 0));
         timelineComponent->setVisible(true);
     }
     
-    // Bottom panel with tabs
-    // Make it responsive: take 1/3 of height, but at least 280px
-    int bottomPanelHeight = juce::jmax(280, bounds.getHeight() / 3);
+    // Bottom panel with tabs - use adaptive height calculation
+    int bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
     auto bottomArea = bounds.removeFromBottom(bottomPanelHeight);
     
-    // Tab buttons for bottom panel
-    auto tabRow = bottomArea.removeFromTop(30);
-    int tabWidth = 100;
-    instrumentsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
-    fxTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
-    expansionsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
-    mixerTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
+    // Tab buttons using FlexBox for responsive layout
+    auto tabRow = bottomArea.removeFromTop(Layout::tabBarHeight);
+    
+    juce::FlexBox tabFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::flexStart);
+    
+    // Calculate tab width constraints
+    int availableTabWidth = tabRow.getWidth();
+    int numTabs = 4;
+    int tabWidth = juce::jlimit(Layout::tabButtonMinWidth, Layout::tabButtonMaxWidth, availableTabWidth / numTabs);
+    
+    tabFlex.items.add(juce::FlexItem(instrumentsTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 2, 2, 0}));
+    tabFlex.items.add(juce::FlexItem(fxTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 2, 2, 2}));
+    tabFlex.items.add(juce::FlexItem(expansionsTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 2, 2, 2}));
+    tabFlex.items.add(juce::FlexItem(mixerTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 0, 2, 2}));
+    
+    tabFlex.performLayout(tabRow);
     
     // Bottom panel content
-    bottomPanelArea = bottomArea.reduced(padding, 0);
+    bottomPanelArea = bottomArea.reduced(adaptivePadding, 0);
     if (instrumentBrowser && currentBottomTab == 0)
         instrumentBrowser->setBounds(bottomPanelArea);
     if (fxChainPanel && currentBottomTab == 1)
@@ -351,32 +432,40 @@ void MainComponent::resized()
     if (mixerComponent && currentBottomTab == 3)
         mixerComponent->setBounds(bottomPanelArea);
     
-    // Main content area - what remains
-    auto contentArea = bounds.reduced(padding);
+    // Main content area - use FlexBox for responsive layout
+    auto contentArea = bounds.reduced(adaptivePadding);
     
-    // Left column: Genre selector + Prompt panel (320px)
-    auto leftColumn = contentArea.removeFromLeft(promptPanelWidth);
+    // Use FlexBox for main content layout (left column + visualization)
+    juce::FlexBox mainFlex = Layout::createRowFlex();
+    mainFlex.alignItems = juce::FlexBox::AlignItems::stretch;
     
-    // Genre selector at top of left column (60px)
+    // Left column container (genre selector + prompt panel)
+    // Use adaptive sidebar width
+    auto leftColumnBounds = contentArea.removeFromLeft(adaptiveSidebarWidth);
+    
+    // Layout left column with FlexBox
+    juce::FlexBox leftFlex = Layout::createColumnFlex();
+    
+    // Genre selector at top of left column (fixed height)
     if (genreSelector)
     {
-        genreSelector->setBounds(leftColumn.removeFromTop(60));
+        genreSelector->setBounds(leftColumnBounds.removeFromTop(60));
         genreSelector->setVisible(true);
     }
     
-    leftColumn.removeFromTop(padding);
+    leftColumnBounds.removeFromTop(adaptivePadding);
     
     // Prompt panel fills the rest of left column
     if (promptPanel)
     {
-        promptPanel->setBounds(leftColumn);
+        promptPanel->setBounds(leftColumnBounds);
         promptPanel->setVisible(true);
     }
     
-    // Gap between prompt and visualization
-    contentArea.removeFromLeft(padding);
+    // Gap between left column and visualization
+    contentArea.removeFromLeft(adaptivePadding);
     
-    // Visualization panel takes remaining space
+    // Visualization panel takes remaining space (flexible)
     visualizationArea = contentArea;
     
     if (visualizationPanel)
@@ -423,8 +512,20 @@ void MainComponent::onConnectionStatusChanged(bool connected)
         {
             DBG("MainComponent: Auto-scanning instruments...");
             instrumentBrowser->requestInstrumentData();
-            initialInstrumentsRequested = true;
         }
+        
+        if (expansionBrowser)
+        {
+            DBG("MainComponent: Auto-scanning expansions...");
+            // Request list first (in case server already scanned)
+            requestExpansionListOSC();
+            // Also trigger a scan of the default expansions directory to be safe
+            // This ensures new files (like the .xpj) are picked up if added while server was off
+            // Use ../expansions because server runs in multimodal-ai-music-gen subdir
+            requestScanExpansionsOSC("../expansions"); 
+        }
+        
+        initialInstrumentsRequested = true;
     }
     
     juce::MessageManager::callAsync([this]()
@@ -524,6 +625,9 @@ void MainComponent::onError(int code, const juce::String& message)
 void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
 {
     currentStatus = "Analysis complete";
+    
+    // Store last analysis result for potential apply action
+    lastAnalyzeResult = result;
 
     juce::MessageManager::callAsync([this, result]()
     {
@@ -539,12 +643,26 @@ void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
             msg += "Style tags: " + result.styleTags.joinIntoString(", ") + "\n";
         if (result.promptHints.isNotEmpty())
             msg += "\nPrompt hints: " + result.promptHints;
-
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::InfoIcon,
-            "Analyze",
-            msg
+        
+        msg += "\n\nWould you like to apply these settings to the current session?";
+        
+        // Use AlertWindow with OK/Cancel to offer Apply action
+        auto* window = new juce::AlertWindow(
+            "Analyze Result",
+            msg,
+            juce::MessageBoxIconType::InfoIcon
         );
+        
+        window->addButton("Apply", 1, juce::KeyPress(juce::KeyPress::returnKey));
+        window->addButton("Close", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+        
+        window->enterModalState(true, juce::ModalCallbackFunction::create([this, result](int buttonClicked)
+        {
+            if (buttonClicked == 1)  // Apply clicked
+            {
+                applyAnalysisResult(result);
+            }
+        }), true);
 
         repaint();
     });
@@ -561,6 +679,25 @@ void MainComponent::onAnalyzeError(int code, const juce::String& message)
             juce::MessageBoxIconType::WarningIcon,
             "Analyze Error",
             message
+        );
+        repaint();
+    });
+}
+
+void MainComponent::onSchemaVersionWarning(int clientVersion, int serverVersion, const juce::String& message)
+{
+    juce::ignoreUnused(clientVersion, serverVersion);
+    
+    // Surface schema version warning in status bar (non-blocking)
+    currentStatus = "Warning: " + message;
+    
+    juce::MessageManager::callAsync([this, message]()
+    {
+        // Show a toast-like notification (use AlertWindow for simplicity, but non-modal)
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Protocol Version Mismatch",
+            message + "\n\nGeneration will proceed with best-effort compatibility."
         );
         repaint();
     });
@@ -585,6 +722,38 @@ void MainComponent::generateRequested(const juce::String& prompt)
         request.bpm = appState.getBPM();
         request.bars = appState.getDurationBars();
         request.renderAudio = true;
+        
+        // Collect instrument paths from loaded tracks
+        auto& projectState = appState.getProjectState();
+        auto mixerNode = projectState.getMixerNode();
+        
+        for (const auto& child : mixerNode)
+        {
+            if (child.hasType(Project::IDs::TRACK))
+            {
+                juce::String instrumentPath = child.getProperty(Project::IDs::path).toString();
+                if (instrumentPath.isNotEmpty())
+                {
+                    request.instrumentPaths.add(instrumentPath);
+                    DBG("Adding instrument to generation: " << instrumentPath);
+                }
+            }
+        }
+        
+        // Also get currently selected instrument if any
+        if (instrumentBrowser)
+        {
+            const InstrumentInfo* selected = instrumentBrowser->getSelectedInstrument();
+            if (selected && selected->absolutePath.isNotEmpty())
+            {
+                // Avoid duplicates
+                if (!request.instrumentPaths.contains(selected->absolutePath))
+                {
+                    request.instrumentPaths.add(selected->absolutePath);
+                    DBG("Adding selected instrument to generation: " << selected->absolutePath);
+                }
+            }
+        }
         
         oscBridge->sendGenerate(request);
         appState.setGenerating(true);
@@ -645,6 +814,26 @@ void MainComponent::analyzeFileRequested(const juce::File& file)
     {
         currentStatus = "Analyzing: " + file.getFileName();
         oscBridge->sendAnalyzeFile(file, false);
+        repaint();
+    }
+    else
+    {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Not Connected",
+            "Python backend is not connected.\n\n"
+            "Start the server with:\n"
+            "python main.py --server --verbose"
+        );
+    }
+}
+
+void MainComponent::analyzeUrlRequested(const juce::String& url)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        currentStatus = "Analyzing URL...";
+        oscBridge->sendAnalyzeUrl(url, false);
         repaint();
     }
     else
@@ -725,8 +914,8 @@ void MainComponent::requestLibraryInstruments()
     {
         DBG("MainComponent: Requesting library instruments");
         // Request instruments from default paths (configured in server)
-        // We send an empty list to imply "default/all"
-        oscBridge->sendGetInstruments({});
+        // We send "instruments" to point to the default instruments folder
+        oscBridge->sendGetInstruments({"instruments"});
     }
     else
     {
@@ -743,9 +932,32 @@ void MainComponent::fxChainChanged(FXChainPanel* panel)
     DBG("FX chain updated");
     currentStatus = "FX chain updated";
     
-    // TODO: Send FX chain to Python backend via OSC
-    // auto fxJson = panel->toJSON();
-    // oscBridge->sendFXChain(fxJson);
+    // Apply FX chain to real-time MixerGraph
+    auto& mixerGraph = audioEngine.getMixerGraph();
+    
+    // Get chains for each bus and apply to MixerGraph
+    juce::StringArray buses = { "master", "drums", "bass", "melodic" };
+    for (const auto& bus : buses)
+    {
+        auto chain = panel->getChainForBus(bus);
+        
+        // Convert to JSON var for MixerGraph
+        juce::Array<juce::var> chainArray;
+        for (const auto& fx : chain)
+        {
+            chainArray.add(fx.toJSON());
+        }
+        
+        mixerGraph.setFXChainForBus(bus, juce::var(chainArray));
+    }
+    
+    // Also send to Python backend for offline render parity
+    if (oscBridge && oscBridge->isConnected())
+    {
+        auto fxJson = panel->toJSON();
+        oscBridge->sendFXChain(fxJson);
+        DBG("FX chain sent to server");
+    }
     
     repaint();
 }
@@ -806,6 +1018,20 @@ void MainComponent::requestScanExpansionsOSC(const juce::String& directory)
         
         // Refresh list after scan
         juce::Timer::callAfterDelay(2000, [this]() {
+            requestExpansionListOSC();
+        });
+    }
+}
+
+void MainComponent::requestExpansionEnableOSC(const juce::String& expansionId, bool enabled)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Setting expansion " + expansionId + " enabled=" + (enabled ? "true" : "false"));
+        oscBridge->sendExpansionEnable(expansionId, enabled);
+        
+        // Refresh expansion list to get updated state
+        juce::Timer::callAfterDelay(500, [this]() {
             requestExpansionListOSC();
         });
     }
@@ -890,6 +1116,27 @@ void MainComponent::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTr
             audioEngine.loadMidiData(midi);
         });
     }
+}
+
+//==============================================================================
+// TimelineComponent::Listener
+void MainComponent::timelineSeekRequested(double positionSeconds)
+{
+    audioEngine.setPlaybackPosition(positionSeconds);
+}
+
+void MainComponent::loopRegionChanged(double startSeconds, double endSeconds)
+{
+    // Sync loop region to PianoRoll via VisualizationPanel
+    if (visualizationPanel)
+    {
+        if (startSeconds >= 0 && endSeconds > startSeconds)
+            visualizationPanel->setLoopRegion(startSeconds, endSeconds);
+        else
+            visualizationPanel->clearLoopRegion();
+    }
+    
+    DBG("MainComponent: Loop region changed: " << startSeconds << " - " << endSeconds);
 }
 
 //==============================================================================

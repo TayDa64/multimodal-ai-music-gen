@@ -116,7 +116,41 @@ bool MidiPlayer::loadMidiFile(const juce::File& file)
     // Calculate total duration
     if (combinedSequence.getNumEvents() > 0)
     {
-        totalDurationSeconds = combinedSequence.getEndTime();
+        double lastEventTime = combinedSequence.getEndTime();
+        
+        // Round up to the next bar for musical looping
+        if (bpm > 0 && timeSignatureNumerator > 0)
+        {
+            double secondsPerBeat = 60.0 / bpm;
+            // Assuming 4/4 or similar where beat is a quarter note. 
+            // For more complex signatures, we might need to adjust, but this is a good baseline.
+            double beatsPerBar = (double)timeSignatureNumerator; 
+            double secondsPerBar = secondsPerBeat * beatsPerBar;
+            
+            if (secondsPerBar > 0)
+            {
+                double totalBars = lastEventTime / secondsPerBar;
+                double roundedBars = std::ceil(totalBars);
+                // Ensure we have at least 1 bar if there are notes
+                if (roundedBars < 1.0) roundedBars = 1.0;
+                
+                // Add a small buffer if the last note ends exactly on the bar line? 
+                // No, exact bar length is better for looping.
+                totalDurationSeconds = roundedBars * secondsPerBar;
+                
+                // If the rounded duration is significantly longer than the last event (e.g. > 1 bar of silence),
+                // maybe we shouldn't round up that much? 
+                // But for a loop, we usually want full bars.
+            }
+            else
+            {
+                totalDurationSeconds = lastEventTime + 1.0; // Fallback buffer
+            }
+        }
+        else
+        {
+            totalDurationSeconds = lastEventTime + 1.0; // Fallback buffer
+        }
     }
     else
     {
@@ -165,7 +199,31 @@ void MidiPlayer::setMidiData(const juce::MidiFile& midi)
     // Calculate total duration
     if (combinedSequence.getNumEvents() > 0)
     {
-        totalDurationSeconds = combinedSequence.getEndTime();
+        double lastEventTime = combinedSequence.getEndTime();
+        
+        // Round up to the next bar for musical looping
+        if (bpm > 0 && timeSignatureNumerator > 0)
+        {
+            double secondsPerBeat = 60.0 / bpm;
+            double beatsPerBar = (double)timeSignatureNumerator;
+            double secondsPerBar = secondsPerBeat * beatsPerBar;
+            
+            if (secondsPerBar > 0)
+            {
+                double totalBars = lastEventTime / secondsPerBar;
+                double roundedBars = std::ceil(totalBars);
+                if (roundedBars < 1.0) roundedBars = 1.0;
+                totalDurationSeconds = roundedBars * secondsPerBar;
+            }
+            else
+            {
+                totalDurationSeconds = lastEventTime + 1.0;
+            }
+        }
+        else
+        {
+            totalDurationSeconds = lastEventTime + 1.0;
+        }
     }
     else
     {

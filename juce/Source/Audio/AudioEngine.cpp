@@ -361,6 +361,23 @@ void AudioEngine::setLooping(bool shouldLoop)
     DBG("AudioEngine: Looping " << (shouldLoop ? "enabled" : "disabled"));
 }
 
+void AudioEngine::setLoopRegion(double startSeconds, double endSeconds)
+{
+    if (startSeconds < 0 || endSeconds < 0 || endSeconds <= startSeconds)
+    {
+        // Clear loop region
+        loopRegionStart = -1.0;
+        loopRegionEnd = -1.0;
+        DBG("AudioEngine: Loop region cleared");
+    }
+    else
+    {
+        loopRegionStart = startSeconds;
+        loopRegionEnd = endSeconds;
+        DBG("AudioEngine: Loop region set: " << startSeconds << "s - " << endSeconds << "s");
+    }
+}
+
 //==============================================================================
 // AudioSource Implementation
 //==============================================================================
@@ -422,7 +439,20 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         {
             if (looping.load())
             {
-                midiPlayer.setPosition(0.0);
+                // Check for custom loop region
+                double loopStart = loopRegionStart.load();
+                double loopEnd = loopRegionEnd.load();
+                
+                if (loopStart >= 0 && loopEnd > loopStart)
+                {
+                    // Loop to region start
+                    midiPlayer.setPosition(loopStart);
+                }
+                else
+                {
+                    // Loop to beginning
+                    midiPlayer.setPosition(0.0);
+                }
                 midiPlayer.setPlaying(true);
             }
             else
@@ -431,6 +461,21 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
                 juce::MessageManager::callAsync([this]() {
                     stop();
                 });
+            }
+        }
+        else if (looping.load())
+        {
+            // Check if we've reached the loop end point
+            double loopStart = loopRegionStart.load();
+            double loopEnd = loopRegionEnd.load();
+            
+            if (loopStart >= 0 && loopEnd > loopStart)
+            {
+                double currentPos = midiPlayer.getPosition();
+                if (currentPos >= loopEnd)
+                {
+                    midiPlayer.setPosition(loopStart);
+                }
             }
         }
     }

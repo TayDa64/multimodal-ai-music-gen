@@ -28,6 +28,15 @@ namespace Project
         static const juce::Identifier INSTRUMENTS("INSTRUMENTS");
         static const juce::Identifier INSTRUMENT("INSTRUMENT");
         
+        // FX Chain
+        static const juce::Identifier FX_CHAINS("FX_CHAINS");
+        static const juce::Identifier FX_BUS("FX_BUS");
+        static const juce::Identifier FX_UNIT("FX_UNIT");
+        static const juce::Identifier type("type");
+        static const juce::Identifier displayName("displayName");
+        static const juce::Identifier enabled("enabled");
+        static const juce::Identifier parameters("parameters");
+        
         // Note Data
         static const juce::Identifier NOTES("NOTES");
         static const juce::Identifier NOTE("NOTE");
@@ -54,6 +63,8 @@ namespace Project
         static const juce::Identifier solo("solo");
         
         static const juce::Identifier path("path");
+        static const juce::Identifier id("id");
+        static const juce::Identifier bus("bus");
     }
 
     //==============================================================================
@@ -111,6 +122,29 @@ namespace Project
         juce::ValueTree getMixerNode();
         juce::ValueTree getTrackNode(int index);
         juce::ValueTree getInstrumentsNode();
+        juce::ValueTree getFXChainsNode();
+        
+        //==============================================================================
+        // FX Chain Management
+        /**
+         * Set the FX chain for a specific bus.
+         * @param busName "master", "drums", "bass", or "melodic"
+         * @param chainJSON JSON array of FX units
+         */
+        void setFXChainForBus(const juce::String& busName, const juce::String& chainJSON);
+        
+        /**
+         * Get the FX chain for a specific bus.
+         * @param busName "master", "drums", "bass", or "melodic"
+         * @return JSON string of the FX chain array
+         */
+        juce::String getFXChainForBus(const juce::String& busName) const;
+        
+        /**
+         * Get all FX chains as a single JSON object.
+         * @return JSON object with keys: master, drums, bass, melodic
+         */
+        juce::String getAllFXChainsJSON() const;
 
         //==============================================================================
         // ValueTree::Listener overrides
