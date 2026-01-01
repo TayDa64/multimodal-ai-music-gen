@@ -350,6 +350,7 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void instrumentChosen(const InstrumentInfo& info) = 0;
+        virtual void requestLibraryInstruments() {}
     };
     
     void addListener(Listener* l) { listeners.add(l); }
@@ -368,6 +369,7 @@ private:
     // Search bar
     juce::TextEditor searchBox;
     juce::Label searchLabel { {}, "🔍" };
+    juce::TextButton scanButton { "Scan" };
     
     // Category tabs
     CategoryTabBar categoryTabs;

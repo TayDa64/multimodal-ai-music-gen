@@ -59,6 +59,9 @@ public:
     /** Load a MIDI file for playback.
         @returns true if loaded successfully */
     bool loadMidiFile(const juce::File& file);
+
+    /** Set MIDI data directly from memory */
+    void setMidiData(const juce::MidiFile& midi);
     
     /** Clear the currently loaded MIDI data */
     void clearMidiFile();

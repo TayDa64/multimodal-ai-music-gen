@@ -13,6 +13,7 @@
 #include <juce_core/juce_core.h>
 #include <juce_graphics/juce_graphics.h>
 #include <juce_data_structures/juce_data_structures.h>
+#include "../Project/ProjectState.h"
 
 //==============================================================================
 // Progress update structure
@@ -132,6 +133,10 @@ public:
     // Server settings
     int getServerPort() const;
     void setServerPort(int port);
+
+    //==============================================================================
+    // Project State Access
+    Project::ProjectState& getProjectState() { return projectState; }
     
 private:
     //==============================================================================
@@ -139,6 +144,7 @@ private:
     std::unique_ptr<juce::PropertiesFile> settings;
     
     // Project state
+    Project::ProjectState projectState;
     juce::File currentProjectFile;
     bool unsavedChanges = false;
     

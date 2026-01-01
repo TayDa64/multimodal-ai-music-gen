@@ -537,6 +537,11 @@ InstrumentBrowserPanel::InstrumentBrowserPanel(juce::AudioDeviceManager& deviceM
     searchBox.setColour(juce::TextEditor::textColourId, juce::Colours::white);
     searchBox.onTextChange = [this]() { setSearchFilter(searchBox.getText()); };
     
+    // Setup Scan Button
+    scanButton.setColour(juce::TextButton::buttonColourId, juce::Colour(60, 60, 70));
+    scanButton.onClick = [this]() { requestInstrumentData(); };
+    addAndMakeVisible(scanButton);
+
     addAndMakeVisible(searchLabel);
     addAndMakeVisible(searchBox);
     addAndMakeVisible(categoryTabs);
@@ -609,6 +614,11 @@ void InstrumentBrowserPanel::resized()
     // Search bar
     auto searchArea = bounds.removeFromTop(40).reduced(10, 5);
     searchLabel.setBounds(searchArea.removeFromLeft(25));
+    
+    // Scan button on the right
+    scanButton.setBounds(searchArea.removeFromRight(60));
+    searchArea.removeFromRight(5); // Gap
+    
     searchBox.setBounds(searchArea);
     
     // Category tabs
@@ -667,9 +677,8 @@ void InstrumentBrowserPanel::loadFromJSON(const juce::String& json)
 
 void InstrumentBrowserPanel::requestInstrumentData()
 {
-    // This would send an OSC message to the Python backend
-    // OSC address: /request/instruments
-    // The response would be received by loadFromJSON
+    // Request data from backend via listener
+    listeners.call([&](Listener& l) { l.requestLibraryInstruments(); });
 }
 
 void InstrumentBrowserPanel::setSearchFilter(const juce::String& searchText)

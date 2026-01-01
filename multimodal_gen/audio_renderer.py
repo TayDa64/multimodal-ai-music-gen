@@ -18,6 +18,7 @@ Features:
 import os
 import subprocess
 import numpy as np
+import json
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 import tempfile
@@ -65,6 +66,18 @@ from .assets_gen import (
     highpass_filter,
     normalize_audio,
     save_wav,
+)
+
+from .mix_chain import (
+    MixChain,
+    create_drum_bus_chain,
+    create_master_chain,
+    create_lofi_chain,
+    EffectType,
+    EffectParams,
+    SaturationParams,
+    CompressorParams,
+    ReverbParams
 )
 
 # Import InstrumentLibrary for custom sample support
@@ -846,7 +859,8 @@ class AudioRenderer:
         genre: str = None,
         mood: str = None,
         use_bwf: bool = True,
-        ai_metadata: Optional[Dict] = None
+        ai_metadata: Optional[Dict] = None,
+        tail_seconds: float = 2.0
     ):
         self.sample_rate = sample_rate
         self.use_fluidsynth = use_fluidsynth and check_fluidsynth_available()
@@ -857,6 +871,14 @@ class AudioRenderer:
         self.mood = mood
         self.use_bwf = use_bwf
         self.ai_metadata = ai_metadata or {}
+        self.tail_seconds = tail_seconds
+        
+        # Initialize mix chains
+        self.mix_chains = {
+            'drums': create_drum_bus_chain(),
+            'master': create_master_chain(),
+            'lofi': create_lofi_chain()
+        }
         
         # Procedural fallback with optional instrument library and expansion manager
         self.procedural = ProceduralRenderer(
@@ -936,6 +958,21 @@ class AudioRenderer:
         # Fall back to procedural rendering (uses custom instruments if available)
         return self._render_procedural(midi_path, output_path, parsed)
     
+    def _get_chain_for_track(self, track_name: str, is_drums: bool) -> Optional[MixChain]:
+        """Get appropriate mix chain for a track."""
+        if is_drums:
+            return self.mix_chains.get('drums')
+        
+        # Check for other roles based on name
+        name_lower = track_name.lower()
+        if 'bass' in name_lower:
+            # Could add bass chain
+            pass
+        elif 'lofi' in self.genre.lower() and ('piano' in name_lower or 'keys' in name_lower):
+            return self.mix_chains.get('lofi')
+            
+        return None
+
     def _render_procedural(
         self,
         midi_path: str,
@@ -952,7 +989,7 @@ class AudioRenderer:
         
         # Calculate total duration
         total_seconds = midi.length
-        total_samples = int(total_seconds * self.sample_rate) + self.sample_rate  # +1 sec buffer
+        total_samples = int(total_seconds * self.sample_rate) + int(self.tail_seconds * self.sample_rate)
         
         # Render each track
         tracks_audio = []
@@ -987,7 +1024,12 @@ class AudioRenderer:
         
         stereo_tracks = []
         for i, (audio, (name, is_drums)) in enumerate(zip(tracks_audio, track_infos)):
-            rms = rms_values[i]
+            # Apply track FX chain
+            chain = self._get_chain_for_track(name, is_drums)
+            if chain:
+                audio = chain.process(audio, self.sample_rate)
+
+            rms = calculate_rms(audio)
             
             if rms > 0.001:  # Avoid division by zero
                 if is_drums:
@@ -1008,6 +1050,11 @@ class AudioRenderer:
             stereo_tracks.append(stereo)
         
         mix = mix_stereo_tracks(stereo_tracks)
+        
+        # Apply master bus processing
+        master_chain = self.mix_chains.get('master')
+        if master_chain:
+            mix = master_chain.process(mix, self.sample_rate)
         
         # Soft clip to prevent harsh distortion
         mix = soft_clip(mix, threshold=0.7)
@@ -1186,6 +1233,7 @@ class AudioRenderer:
         
         os.makedirs(output_dir, exist_ok=True)
         stems = {}
+        stem_metadata = {}
         
         try:
             midi = mido.MidiFile(midi_path)
@@ -1193,7 +1241,7 @@ class AudioRenderer:
             return stems
         
         total_seconds = midi.length
-        total_samples = int(total_seconds * self.sample_rate) + self.sample_rate
+        total_samples = int(total_seconds * self.sample_rate) + int(self.tail_seconds * self.sample_rate)
         
         for i, track in enumerate(midi.tracks):
             # Get track name
@@ -1215,15 +1263,46 @@ class AudioRenderer:
             )
             
             if audio is not None:
+                # Apply track FX chain
+                is_drums = (i == 9) # Rough guess if channel info lost, but usually track name helps
+                # Better check:
+                is_drums = 'drum' in track_name.lower()
+                
+                chain = self._get_chain_for_track(track_name, is_drums)
+                if chain:
+                    audio = chain.process(audio, self.sample_rate)
+
+                # Calculate stats before stereo conversion (on mono signal)
+                peak_level = float(calculate_peak(audio))
+                rms_level = float(calculate_rms(audio))
+                
                 # Convert to stereo
                 stereo = apply_stereo_pan(audio, 0)
                 stereo = normalize_audio(stereo, 0.9)
                 
                 # Save stem
-                stem_path = os.path.join(output_dir, f'{track_name}.wav')
+                stem_filename = f'{track_name}.wav'
+                stem_path = os.path.join(output_dir, stem_filename)
                 save_wav(stereo, stem_path, self.sample_rate, stereo=True)
                 stems[track_name] = stem_path
+                
+                # Store metadata
+                stem_metadata[track_name] = {
+                    "file": stem_filename,
+                    "peak": peak_level,
+                    "rms": rms_level,
+                    "is_drums": is_drums,
+                    "duration_seconds": total_seconds + self.tail_seconds
+                }
         
+        # Save manifest
+        manifest_path = os.path.join(output_dir, 'stems_manifest.json')
+        try:
+            with open(manifest_path, 'w') as f:
+                json.dump(stem_metadata, f, indent=2)
+        except Exception as e:
+            print(f"Failed to save stems manifest: {e}")
+            
         return stems
 
 

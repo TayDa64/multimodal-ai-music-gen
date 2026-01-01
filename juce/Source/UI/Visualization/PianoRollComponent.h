@@ -14,6 +14,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include "../../Audio/AudioEngine.h"
+#include "../../Project/ProjectState.h"
 
 //==============================================================================
 /**
@@ -27,6 +28,9 @@ struct MidiNoteEvent
     double endTime = 0.0;       // End time in seconds
     int channel = 0;            // MIDI channel (0-15)
     int trackIndex = 0;         // Track index for coloring
+    
+    // Link to source state
+    juce::ValueTree stateNode;
     
     double getDuration() const { return endTime - startTime; }
     
@@ -51,10 +55,12 @@ struct MidiNoteEvent
     - Playhead following playback
     - Zoom and scroll
     - Note inspection on hover
+    - Advanced Editing (Phase 5)
 */
 class PianoRollComponent : public juce::Component,
                            private mmg::AudioEngine::Listener,
-                           private juce::Timer
+                           private juce::Timer,
+                           public Project::ProjectState::Listener
 {
 public:
     //==============================================================================
@@ -62,7 +68,10 @@ public:
     ~PianoRollComponent() override;
 
     //==============================================================================
-    /** Load MIDI data from a file */
+    /** Bind to project state for editing */
+    void setProjectState(Project::ProjectState* state);
+
+    /** Load MIDI data from a file (Legacy / Visualization only) */
     void loadMidiFile(const juce::File& midiFile);
     
     /** Load MIDI data from MidiFile object */
@@ -100,6 +109,8 @@ public:
     void mouseMove(const juce::MouseEvent& event) override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
     void mouseExit(const juce::MouseEvent& event) override;
+    void mouseDoubleClick(const juce::MouseEvent& event) override;
+    bool keyPressed(const juce::KeyPress& key) override;
 
     //==============================================================================
     /** Listener for piano roll events */
@@ -113,6 +124,14 @@ public:
     
     void addListener(Listener* listener);
     void removeListener(Listener* listener);
+
+    //==============================================================================
+    // ProjectState::Listener overrides
+    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged, const juce::Identifier& property) override;
+    void valueTreeChildAdded(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenAdded) override;
+    void valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override;
+    void valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhichHasChanged, int oldIndex, int newIndex) override;
+    void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) override;
 
 private:
     //==============================================================================
@@ -132,6 +151,7 @@ private:
     void drawNotes(juce::Graphics& g);
     void drawPlayhead(juce::Graphics& g);
     void drawNoteTooltip(juce::Graphics& g);
+    void drawSelectionRect(juce::Graphics& g);
     
     //==============================================================================
     // Coordinate conversion
@@ -141,11 +161,12 @@ private:
     int yToNote(float y) const;
     
     // Note hit testing
-    const MidiNoteEvent* getNoteAt(juce::Point<float> position) const;
+    MidiNoteEvent* getNoteAt(juce::Point<float> position);
     
     //==============================================================================
     mmg::AudioEngine& audioEngine;
     juce::ListenerList<Listener> listeners;
+    Project::ProjectState* projectState = nullptr;
     
     // MIDI data
     juce::Array<MidiNoteEvent> notes;
@@ -173,14 +194,29 @@ private:
     juce::Array<bool> trackVisible;
     int soloedTrack = -1;  // -1 = none
     
+    // Track Selection UI
+    juce::ComboBox trackSelector;
+    void updateTrackList();
+    
     // Mouse interaction
-    const MidiNoteEvent* hoveredNote = nullptr;
+    MidiNoteEvent* hoveredNote = nullptr;
     juce::Point<float> lastMousePos;
     bool isDragging = false;
     juce::int64 clickStartTime = 0;  // For distinguishing click vs drag
     
+    // Editing State
+    juce::Array<juce::ValueTree> selectedNotes;
+    bool isResizing = false;
+    bool isMoving = false;
+    bool isSelecting = false;
+    juce::Rectangle<int> selectionRect;
+    juce::Point<float> dragStartPos;
+    double dragStartNoteStart = 0.0;
+    int dragStartNoteNum = 0;
+    
     // Generate track colors
     void assignTrackColors(int numTracks);
+    void syncNotesFromState();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PianoRollComponent)
 };

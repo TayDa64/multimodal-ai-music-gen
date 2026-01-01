@@ -87,6 +87,7 @@ private:
     juce::TextButton playButton{ "Play" };
     juce::TextButton pauseButton{ "Pause" };
     juce::TextButton stopButton{ "Stop" };
+    juce::ToggleButton loopButton{ "Loop" };
     
     // Position slider
     juce::Slider positionSlider;
@@ -118,6 +119,7 @@ private:
     bool isPlaying = false;
     double currentPosition = 0.0;
     double totalDuration = 0.0;
+    bool lastHasAudioState = false;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TransportComponent)
 };

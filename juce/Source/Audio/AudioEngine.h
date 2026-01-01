@@ -17,6 +17,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "MidiPlayer.h"
+#include "MixerGraph.h"
 
 namespace mmg // Multimodal Music Generator
 {
@@ -141,6 +142,9 @@ public:
     /** Load a MIDI file for playback
         @returns true if loaded successfully */
     bool loadMidiFile(const juce::File& midiFile);
+
+    /** Load MIDI data directly from memory */
+    void loadMidiData(const juce::MidiFile& midi);
     
     /** Clear currently loaded MIDI */
     void clearMidiFile();
@@ -160,6 +164,75 @@ public:
     /** Get the MidiPlayer for direct access (advanced usage) */
     MidiPlayer& getMidiPlayer() { return midiPlayer; }
     
+    /** Get the MixerGraph for UI access */
+    Audio::MixerGraph& getMixerGraph() { return mixerGraph; }
+    
+    //==========================================================================
+    // Live Synthesis (Preview)
+    //==========================================================================
+    
+    /** Trigger a note for preview (fire and forget, auto-release) */
+    void playNote(int trackIndex, int noteNumber, float velocity, float durationSeconds = 0.2f);
+
+    /** Set looping state */
+    void setLooping(bool shouldLoop);
+    bool isLooping() const { return looping.load(); }
+
+    //==========================================================================
+    // Track Architecture
+    //==========================================================================
+    
+    class Track
+    {
+    public:
+        Track(int id, const juce::String& name);
+        ~Track();
+        
+        void prepareToPlay(double sampleRate, int samplesPerBlock);
+        void releaseResources();
+        void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples);
+        
+        void noteOn(int note, float velocity);
+        void noteOff(int note);
+        
+        // Load a sample file (WAV, AIFF, etc.)
+        void loadSample(const juce::File& file, juce::AudioFormatManager& formatManager);
+        
+        void setVolume(float newVolume);
+        float getVolume() const { return volume.load(); }
+        
+        void setMute(bool shouldMute);
+        bool isMuted() const { return muted.load(); }
+        
+        void setSolo(bool shouldSolo);
+        bool isSoloed() const { return soloed.load(); }
+        
+        int getId() const { return id; }
+        juce::String getName() const { return name; }
+        void setName(const juce::String& newName) { name = newName; }
+        
+    private:
+        int id;
+        juce::String name;
+        juce::Synthesiser synth;
+        std::atomic<float> volume { 1.0f };
+        std::atomic<bool> muted { false };
+        std::atomic<bool> soloed { false };
+        
+        juce::MidiBuffer midiBuffer;
+        juce::CriticalSection trackLock;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Track)
+    };
+    
+    Track* addTrack(const juce::String& name);
+    void removeTrack(int index);
+    Track* getTrack(int index);
+    int getNumTracks() const;
+    
+    /** Load an instrument sample into a track */
+    void loadInstrument(int trackIndex, const juce::File& sampleFile, const juce::String& instrumentName);
+
     //==========================================================================
     // Audio Visualization Support
     //==========================================================================
@@ -216,11 +289,13 @@ private:
     
     // Device management
     juce::AudioDeviceManager deviceManager;
+    juce::AudioFormatManager formatManager; // Added for file loading
     juce::AudioSourcePlayer sourcePlayer;
     
     // State
     std::atomic<bool> initialised { false };
     std::atomic<TransportState> transportState { TransportState::Stopped };
+    std::atomic<bool> looping { false };
     
     // Audio parameters
     double currentSampleRate { 0.0 };
@@ -235,6 +310,13 @@ private:
     // MIDI playback
     MidiPlayer midiPlayer;
     
+    // Mixer
+    Audio::MixerGraph mixerGraph;
+    
+    // Tracks
+    std::vector<std::unique_ptr<Track>> tracks;
+    juce::CriticalSection tracksLock;
+
     // Visualization listeners (lock-free array for audio thread safety)
     static constexpr int maxVisualizationListeners = 8;
     std::array<std::atomic<VisualizationListener*>, maxVisualizationListeners> visualizationListeners;

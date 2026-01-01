@@ -52,6 +52,14 @@ void TransportComponent::setupButtons()
     stopButton.onClick = [this] { stopClicked(); };
     stopButton.setEnabled(false);
     addAndMakeVisible(stopButton);
+
+    // Loop button
+    loopButton.setColour(juce::ToggleButton::textColourId, AppColours::textSecondary);
+    loopButton.setColour(juce::ToggleButton::tickColourId, AppColours::primary);
+    loopButton.onClick = [this] {
+        audioEngine.setLooping(loopButton.getToggleState());
+    };
+    addAndMakeVisible(loopButton);
 }
 
 void TransportComponent::setupSliders()
@@ -216,8 +224,11 @@ void TransportComponent::resized()
     playButton.setBounds(leftSection.getX(), centerY, buttonWidth, buttonHeight);
     pauseButton.setBounds(leftSection.getX() + buttonWidth + 4, centerY, buttonWidth, buttonHeight);
     stopButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 2, centerY, buttonWidth, buttonHeight);
-    loadMidiButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3, centerY, 70, buttonHeight);
-    audioSettingsButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3 + 74, centerY, 30, buttonHeight);
+    
+    loopButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3, centerY, 50, buttonHeight);
+    
+    loadMidiButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3 + 54, centerY, 70, buttonHeight);
+    audioSettingsButton.setBounds(leftSection.getX() + (buttonWidth + 4) * 3 + 54 + 74, centerY, 30, buttonHeight);
     
     // Right section - Status, BPM, test tone
     auto rightSection = bounds.removeFromRight(340);
@@ -422,6 +433,14 @@ void TransportComponent::timerCallback()
         currentPosition = audioEngine.getPlaybackPosition();
         totalDuration = audioEngine.getTotalDuration();
         updateTimeDisplay();
+    }
+    
+    // Check if button states need update (e.g. if MIDI was loaded externally)
+    bool hasAudio = appState.getOutputFile().existsAsFile() || audioEngine.hasMidiLoaded();
+    if (hasAudio != lastHasAudioState)
+    {
+        lastHasAudioState = hasAudio;
+        updateButtonStates();
     }
 }
 

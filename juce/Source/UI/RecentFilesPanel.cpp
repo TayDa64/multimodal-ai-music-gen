@@ -15,8 +15,9 @@
 // FileListBox implementation
 //==============================================================================
 RecentFilesPanel::FileListBox::FileListBox(RecentFilesPanel& o)
-    : juce::ListBox({}, this), owner(o)
+    : juce::ListBox({}, nullptr), owner(o)
 {
+    setModel(this);
     setRowHeight(60);
     setColour(juce::ListBox::backgroundColourId, juce::Colours::transparentBlack);
     setColour(juce::ListBox::outlineColourId, juce::Colours::transparentBlack);
@@ -179,7 +180,9 @@ RecentFilesPanel::RecentFilesPanel(AppState& state, mmg::AudioEngine& engine)
                                    .getChildFile("output");
     
     if (possibleOutputDir.isDirectory())
+    {
         setOutputDirectory(possibleOutputDir);
+    }
     
     // Start auto-refresh timer (check every 2 seconds for new files)
     startTimer(2000);

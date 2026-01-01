@@ -74,7 +74,7 @@ public:
         virtual void onProgress(float percent, const juce::String& step, const juce::String& message) {}
         virtual void onGenerationComplete(const GenerationResult& result) {}
         virtual void onError(int code, const juce::String& message) {}
-        virtual void onInstrumentsLoaded(int count, const juce::StringPairArray& categories) {}
+        virtual void onInstrumentsLoaded(const juce::String& json) {}
 
         // Analyze callbacks
         virtual void onAnalyzeResultReceived(const AnalyzeResult& result) {}
@@ -92,6 +92,8 @@ public:
     static constexpr int PingIntervalMs = 3000;         // Ping every 3 seconds when connected
     static constexpr int MaxReconnectBackoffMs = 5000;  // Maximum backoff delay
     static constexpr int InitialReconnectDelayMs = 250; // Starting backoff delay
+    static constexpr int RequestAckTimeoutMs = 5000;    // 5 seconds to wait for generation start ack
+    static constexpr int ActivityTimeoutMs = 30000;     // 30 seconds of silence during generation = timeout
     
     //==============================================================================
     OSCBridge(int receivePort = 9001, int sendPort = 9000, 
@@ -186,6 +188,10 @@ private:
     // Timing
     std::atomic<int64_t> lastPongTime { 0 };
     std::atomic<int64_t> lastPingSentTime { 0 };
+    std::atomic<int64_t> lastMessageReceivedTime { 0 };
+    std::atomic<int64_t> generationStartTime { 0 };
+    bool isRequestAcknowledged = false;
+
     int reconnectDelayMs = InitialReconnectDelayMs;
     bool reconnectScheduled = false;
     

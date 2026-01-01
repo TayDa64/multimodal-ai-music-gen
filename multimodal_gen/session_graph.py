@@ -626,36 +626,7 @@ class RenderDirective:
         return cls(**data)
 
 
-@dataclass
-class GrooveTemplate:
-    """Groove/timing template extracted or defined.
-    
-    Captures the rhythmic "feel" that can be:
-    - Extracted from reference
-    - Applied to generated patterns
-    - Saved as reusable asset
-    """
-    name: str
-    bars: int = 1
-    subdivisions: int = 16  # Resolution
-    
-    # Per-subdivision offsets (in ticks)
-    timing_offsets: List[int] = field(default_factory=list)
-    velocity_offsets: List[int] = field(default_factory=list)
-    
-    # Swing/shuffle
-    swing_amount: float = 0.0
-    swing_ratio: float = 0.5  # 0.5 = straight, 0.67 = triplet feel
-    
-    # Source info
-    extracted_from: Optional[str] = None
-    
-    def to_dict(self) -> Dict:
-        return asdict(self)
-    
-    @classmethod
-    def from_dict(cls, data: Dict) -> "GrooveTemplate":
-        return cls(**data)
+from .groove_templates import GrooveTemplate
 
 
 @dataclass
@@ -980,6 +951,11 @@ class SessionGraphBuilder:
         # Apply reference analysis if provided
         if reference_analysis:
             graph = self._apply_reference(graph, reference_analysis)
+            
+        # Set default groove if not already set
+        if not graph.groove_template and parsed.genre:
+             from .groove_templates import get_groove_for_genre
+             graph.groove_template = get_groove_for_genre(parsed.genre)
         
         # Build constraints from genre
         graph.global_constraints = self._build_constraints(parsed)

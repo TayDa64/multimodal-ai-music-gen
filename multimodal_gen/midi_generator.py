@@ -55,6 +55,7 @@ from .utils import (
 )
 from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SongSection, SectionType
+from .groove_templates import GrooveTemplate, GrooveApplicator, get_groove_for_genre
 
 
 # =============================================================================
@@ -1244,11 +1245,13 @@ class MidiGenerator:
         self.velocity_variation = velocity_variation
         self.timing_variation = timing_variation
         self.swing = swing
+        self.groove_applicator = GrooveApplicator()
     
     def generate(
         self,
         arrangement: Arrangement,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
     ) -> MidiFile:
         """
         Generate complete MIDI file from arrangement.
@@ -1256,10 +1259,15 @@ class MidiGenerator:
         Args:
             arrangement: Song arrangement
             parsed: Parsed prompt with musical parameters
+            groove_template: Optional groove template to apply
         
         Returns:
             mido.MidiFile ready to save
         """
+        # Resolve groove template
+        if groove_template is None and parsed.genre:
+            groove_template = get_groove_for_genre(parsed.genre)
+            
         # Create MIDI file
         mid = MidiFile(ticks_per_beat=TICKS_PER_BEAT)
         
@@ -1268,12 +1276,12 @@ class MidiGenerator:
         mid.tracks.append(meta_track)
         
         # Track 1: Drums (channel 10)
-        drum_track = self._create_drum_track(arrangement, parsed)
+        drum_track = self._create_drum_track(arrangement, parsed, groove_template)
         mid.tracks.append(drum_track)
         
         # Track 2: Bass/808
         if '808' in parsed.instruments or 'bass' in parsed.instruments:
-            bass_track = self._create_bass_track(arrangement, parsed)
+            bass_track = self._create_bass_track(arrangement, parsed, groove_template)
             mid.tracks.append(bass_track)
         
         # Track 3: Chords - includes both standard and Ethiopian instruments
@@ -1283,13 +1291,13 @@ class MidiGenerator:
             'krar', 'masenqo', 'begena'
         ]
         if any(inst in parsed.instruments for inst in chord_instruments):
-            chord_track = self._create_chord_track(arrangement, parsed)
+            chord_track = self._create_chord_track(arrangement, parsed, groove_template)
             mid.tracks.append(chord_track)
 
         # Optional: Organ bed for churchy trap keys
         wants_church = any(m in parsed.style_modifiers for m in ['church', 'gospel', 'zaytoven']) or ('zaytoven' in (parsed.raw_prompt or '').lower())
         if parsed.genre in ['trap', 'trap_soul'] and wants_church:
-            organ_track = self._create_organ_track(arrangement, parsed)
+            organ_track = self._create_organ_track(arrangement, parsed, groove_template)
             if len(organ_track) > 1:
                 mid.tracks.append(organ_track)
         
@@ -1297,7 +1305,7 @@ class MidiGenerator:
         melody_instruments = ['washint', 'flute', 'synth_lead', 'synth']
         has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
         if parsed.genre not in ['ambient', 'lofi'] or has_melody_inst:
-            melody_track = self._create_melody_track(arrangement, parsed)
+            melody_track = self._create_melody_track(arrangement, parsed, groove_template)
             if len(melody_track) > 1:  # Has notes beyond track name
                 mid.tracks.append(melody_track)
         
@@ -1368,7 +1376,8 @@ class MidiGenerator:
     def _create_drum_track(
         self,
         arrangement: Arrangement,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
     ) -> MidiTrack:
         """Generate drum track with humanized patterns."""
         track = MidiTrack()
@@ -1381,7 +1390,7 @@ class MidiGenerator:
             all_notes.extend(section_notes)
         
         # Convert to MIDI messages
-        self._notes_to_track(all_notes, track, channel=GM_DRUM_CHANNEL)
+        self._notes_to_track(all_notes, track, channel=GM_DRUM_CHANNEL, groove_template=groove_template)
         
         return track
     
@@ -1759,7 +1768,8 @@ class MidiGenerator:
     def _create_bass_track(
         self,
         arrangement: Arrangement,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
     ) -> MidiTrack:
         """Generate bass/808 track."""
         track = MidiTrack()
@@ -1799,14 +1809,15 @@ class MidiGenerator:
                         channel=1
                     ))
         
-        self._notes_to_track(all_notes, track, channel=1)
+        self._notes_to_track(all_notes, track, channel=1, groove_template=groove_template)
         
         return track
     
     def _create_chord_track(
         self,
         arrangement: Arrangement,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
     ) -> MidiTrack:
         """Generate chord track."""
         track = MidiTrack()
@@ -1881,14 +1892,15 @@ class MidiGenerator:
                         channel=2
                     ))
         
-        self._notes_to_track(all_notes, track, channel=2)
+        self._notes_to_track(all_notes, track, channel=2, groove_template=groove_template)
         
         return track
 
     def _create_organ_track(
         self,
         arrangement: Arrangement,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
     ) -> MidiTrack:
         """Generate an organ bed (church feel) under the piano."""
         track = MidiTrack()
@@ -1924,13 +1936,14 @@ class MidiGenerator:
                     channel=4
                 ))
 
-        self._notes_to_track(all_notes, track, channel=4)
+        self._notes_to_track(all_notes, track, channel=4, groove_template=groove_template)
         return track
     
     def _create_melody_track(
         self,
         arrangement: Arrangement,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
     ) -> MidiTrack:
         """Generate optional melody track."""
         track = MidiTrack()
@@ -1987,7 +2000,7 @@ class MidiGenerator:
                         channel=3
                     ))
         
-        self._notes_to_track(all_notes, track, channel=3)
+        self._notes_to_track(all_notes, track, channel=3, groove_template=groove_template)
         
         return track
     
@@ -1995,7 +2008,8 @@ class MidiGenerator:
         self,
         notes: List[NoteEvent],
         track: MidiTrack,
-        channel: int
+        channel: int,
+        groove_template: Optional[GrooveTemplate] = None
     ):
         """
         Convert list of NoteEvents to MIDI track messages.
@@ -2009,6 +2023,27 @@ class MidiGenerator:
         if not notes:
             track.append(MetaMessage('end_of_track', time=0))
             return
+        
+        # Apply groove if provided
+        if groove_template:
+            # Convert to dicts for applicator
+            note_dicts = [
+                {'tick': n.start_tick, 'velocity': n.velocity, 'note_event': n}
+                for n in notes
+            ]
+            
+            # Apply groove
+            grooved_dicts = self.groove_applicator.apply(
+                note_dicts, 
+                groove_template,
+                preserve_original=True
+            )
+            
+            # Update NoteEvents
+            for d in grooved_dicts:
+                n = d['note_event']
+                n.start_tick = d['tick']
+                n.velocity = d['velocity']
         
         # For drum channel, apply collision resolution
         if channel == GM_DRUM_CHANNEL:

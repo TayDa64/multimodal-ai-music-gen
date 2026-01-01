@@ -132,6 +132,53 @@ bool MidiPlayer::loadMidiFile(const juce::File& file)
     return true;
 }
 
+void MidiPlayer::setMidiData(const juce::MidiFile& midi)
+{
+    midiFile = midi;
+    
+    // Convert timestamps to seconds
+    midiFile.convertTimestampTicksToSeconds();
+    
+    // Merge all tracks into one sequence for easier playback
+    combinedSequence.clear();
+    for (int track = 0; track < midiFile.getNumTracks(); ++track)
+    {
+        const auto* trackSequence = midiFile.getTrack(track);
+        if (trackSequence != nullptr)
+        {
+            combinedSequence.addSequence(*trackSequence, 0.0);
+        }
+    }
+    
+    // Sort by timestamp
+    combinedSequence.sort();
+    
+    // Update state
+    loadedFile = juce::File(); // Clear file path as it's memory-based
+    midiLoaded = true;
+    currentEventIndex = 0;
+    currentPositionSeconds = 0.0;
+    
+    // Extract metadata (tempo, time signature, etc.)
+    extractMetadata();
+    
+    // Calculate total duration
+    if (combinedSequence.getNumEvents() > 0)
+    {
+        totalDurationSeconds = combinedSequence.getEndTime();
+    }
+    else
+    {
+        totalDurationSeconds = 0.0;
+    }
+    
+    DBG("MidiPlayer: Loaded MIDI from memory");
+    DBG("  Tracks: " << midiFile.getNumTracks());
+    DBG("  Events: " << combinedSequence.getNumEvents());
+    DBG("  Duration: " << totalDurationSeconds << "s");
+    DBG("  BPM: " << bpm);
+}
+
 void MidiPlayer::clearMidiFile()
 {
     playing = false;

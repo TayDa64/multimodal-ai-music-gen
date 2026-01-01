@@ -16,6 +16,9 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     : appState(state),
       audioEngine(engine)
 {
+    // Listen to project state changes
+    appState.getProjectState().getState().addListener(this);
+
     // Set size FIRST
     setSize(1280, 800);
     
@@ -80,6 +83,7 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
 
 MainComponent::~MainComponent()
 {
+    appState.getProjectState().getState().removeListener(this);
     stopTimer();
     
     // Send graceful shutdown to Python server before cleaning up
@@ -139,6 +143,29 @@ void MainComponent::setupBottomPanel()
     expansionBrowser->setVisible(false);  // Start hidden
     addAndMakeVisible(*expansionBrowser);
     
+    // Mixer Component
+    mixerComponent = std::make_unique<UI::MixerComponent>();
+    mixerComponent->setVisible(false);
+    mixerComponent->bindToProject(appState.getProjectState());
+    
+    // Initialize mixer strips from project state
+    juce::StringArray trackNames;
+    auto mixerNode = appState.getProjectState().getMixerNode();
+    for (const auto& child : mixerNode)
+    {
+        if (child.hasType(Project::IDs::TRACK))
+            trackNames.add(child.getProperty(Project::IDs::name));
+    }
+    // If no tracks in project (legacy), use default names matching AudioEngine
+    if (trackNames.isEmpty())
+    {
+        for (int i = 0; i < 4; ++i)
+            trackNames.add("Track " + juce::String(i + 1));
+    }
+    mixerComponent->setTracks(trackNames);
+    
+    addAndMakeVisible(*mixerComponent);
+    
     // Tab buttons for bottom panel
     instrumentsTabButton.setRadioGroupId(100);
     instrumentsTabButton.setClickingTogglesState(true);
@@ -174,6 +201,16 @@ void MainComponent::setupBottomPanel()
     };
     addAndMakeVisible(expansionsTabButton);
     
+    mixerTabButton.setRadioGroupId(100);
+    mixerTabButton.setClickingTogglesState(true);
+    mixerTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
+    mixerTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
+    mixerTabButton.onClick = [this]() {
+        currentBottomTab = 3;
+        updateBottomPanelTabs();
+    };
+    addAndMakeVisible(mixerTabButton);
+    
     // Now add listeners AFTER all components are created
     genreSelector->addListener(this);
     instrumentBrowser->addListener(this);
@@ -182,6 +219,10 @@ void MainComponent::setupBottomPanel()
     
     // Set default genre (this triggers listener, but all components now exist)
     genreSelector->setSelectedGenre("trap");
+    
+    // Request initial instrument data
+    if (instrumentBrowser)
+        instrumentBrowser->requestInstrumentData();
 }
 
 void MainComponent::updateBottomPanelTabs()
@@ -194,6 +235,9 @@ void MainComponent::updateBottomPanelTabs()
     
     if (expansionBrowser)
         expansionBrowser->setVisible(currentBottomTab == 2);
+    
+    if (mixerComponent)
+        mixerComponent->setVisible(currentBottomTab == 3);
     
     resized();
     repaint();
@@ -283,8 +327,10 @@ void MainComponent::resized()
         timelineComponent->setVisible(true);
     }
     
-    // Bottom panel with tabs (180px total: 30px tabs + 150px content)
-    auto bottomArea = bounds.removeFromBottom(bottomPanelHeight + 30);
+    // Bottom panel with tabs
+    // Make it responsive: take 1/3 of height, but at least 280px
+    int bottomPanelHeight = juce::jmax(280, bounds.getHeight() / 3);
+    auto bottomArea = bounds.removeFromBottom(bottomPanelHeight);
     
     // Tab buttons for bottom panel
     auto tabRow = bottomArea.removeFromTop(30);
@@ -292,6 +338,7 @@ void MainComponent::resized()
     instrumentsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
     fxTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
     expansionsTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
+    mixerTabButton.setBounds(tabRow.removeFromLeft(tabWidth).reduced(2, 4));
     
     // Bottom panel content
     bottomPanelArea = bottomArea.reduced(padding, 0);
@@ -301,6 +348,8 @@ void MainComponent::resized()
         fxChainPanel->setBounds(bottomPanelArea);
     if (expansionBrowser && currentBottomTab == 2)
         expansionBrowser->setBounds(bottomPanelArea);
+    if (mixerComponent && currentBottomTab == 3)
+        mixerComponent->setBounds(bottomPanelArea);
     
     // Main content area - what remains
     auto contentArea = bounds.reduced(padding);
@@ -367,6 +416,16 @@ void MainComponent::onConnectionStatusChanged(bool connected)
 {
     serverConnected = connected;
     currentStatus = connected ? "Ready" : "Server not running";
+    
+    if (connected && !initialInstrumentsRequested)
+    {
+        if (instrumentBrowser)
+        {
+            DBG("MainComponent: Auto-scanning instruments...");
+            instrumentBrowser->requestInstrumentData();
+            initialInstrumentsRequested = true;
+        }
+    }
     
     juce::MessageManager::callAsync([this]()
     {
@@ -622,10 +681,57 @@ void MainComponent::instrumentChosen(const InstrumentInfo& info)
     DBG("Instrument chosen: " + info.name + " (" + info.category + ")");
     currentStatus = "Selected: " + info.name;
     
-    // TODO: Send instrument selection to Python backend via OSC
-    // oscBridge->sendInstrumentSelection(info.category, info.path);
+    juce::File sampleFile(info.absolutePath);
+    if (sampleFile.existsAsFile())
+    {
+        int trackIndex = 0;
+        if (mixerComponent)
+            trackIndex = mixerComponent->getSelectedTrackIndex();
+            
+        audioEngine.loadInstrument(trackIndex, sampleFile, info.name);
+        currentStatus = "Loaded " + info.name + " to Track " + juce::String(trackIndex + 1);
+        
+        // Update ProjectState to reflect the change in the mixer
+        auto trackNode = appState.getProjectState().getTrackNode(trackIndex);
+        if (trackNode.isValid())
+        {
+            trackNode.setProperty(Project::IDs::name, info.name, nullptr);
+            // Also store the path for persistence
+            trackNode.setProperty(Project::IDs::path, info.absolutePath, nullptr);
+        }
+    }
+    else
+    {
+        currentStatus = "File not found: " + info.filename;
+    }
     
     repaint();
+}
+
+void MainComponent::onInstrumentsLoaded(const juce::String& json)
+{
+    DBG("MainComponent: Instruments loaded from server");
+    if (instrumentBrowser)
+    {
+        instrumentBrowser->loadFromJSON(json);
+        currentStatus = "Instrument library loaded";
+        repaint();
+    }
+}
+
+void MainComponent::requestLibraryInstruments()
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        DBG("MainComponent: Requesting library instruments");
+        // Request instruments from default paths (configured in server)
+        // We send an empty list to imply "default/all"
+        oscBridge->sendGetInstruments({});
+    }
+    else
+    {
+        DBG("MainComponent: Cannot request instruments - not connected");
+    }
 }
 
 //==============================================================================
@@ -738,6 +844,55 @@ void MainComponent::onExpansionResolveReceived(const juce::String& json)
 }
 
 //==============================================================================
+// ProjectState::Listener overrides
+void MainComponent::valueTreePropertyChanged(juce::ValueTree& tree, const juce::Identifier& property)
+{
+    if (tree.hasType(Project::IDs::TRACK))
+    {
+        int index = tree.getProperty(Project::IDs::index);
+        if (auto* track = audioEngine.getTrack(index))
+        {
+            if (property == Project::IDs::volume)
+                track->setVolume(tree.getProperty(property));
+            else if (property == Project::IDs::mute)
+                track->setMute(tree.getProperty(property));
+            else if (property == Project::IDs::solo)
+                track->setSolo(tree.getProperty(property));
+        }
+    }
+    else if (tree.hasType(Project::IDs::NOTE))
+    {
+        // Note changed (moved, resized)
+        juce::MessageManager::callAsync([this]() {
+            auto midi = appState.getProjectState().exportToMidiFile();
+            audioEngine.loadMidiData(midi);
+        });
+    }
+}
+
+void MainComponent::valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child)
+{
+    if (child.hasType(Project::IDs::NOTE))
+    {
+        juce::MessageManager::callAsync([this]() {
+            auto midi = appState.getProjectState().exportToMidiFile();
+            audioEngine.loadMidiData(midi);
+        });
+    }
+}
+
+void MainComponent::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index)
+{
+    if (child.hasType(Project::IDs::NOTE))
+    {
+        juce::MessageManager::callAsync([this]() {
+            auto midi = appState.getProjectState().exportToMidiFile();
+            audioEngine.loadMidiData(midi);
+        });
+    }
+}
+
+//==============================================================================
 void MainComponent::startPythonServer()
 {
     if (pythonManager && !pythonManager->isRunning())
@@ -796,4 +951,38 @@ void MainComponent::timerCallback()
         // Try to reconnect
         oscBridge->connect();
     }
+}
+
+//==============================================================================
+bool MainComponent::keyPressed(const juce::KeyPress& key)
+{
+    // Undo: Ctrl+Z (or Cmd+Z on Mac)
+    if (key.isKeyCode('z') && key.getModifiers().isCommandDown())
+    {
+        if (key.getModifiers().isShiftDown())
+        {
+            // Redo: Ctrl+Shift+Z
+            appState.getProjectState().redo();
+            currentStatus = "Redo";
+        }
+        else
+        {
+            // Undo: Ctrl+Z
+            appState.getProjectState().undo();
+            currentStatus = "Undo";
+        }
+        repaint();
+        return true;
+    }
+    
+    // Redo: Ctrl+Y (Windows standard)
+    if (key.isKeyCode('y') && key.getModifiers().isCommandDown())
+    {
+        appState.getProjectState().redo();
+        currentStatus = "Redo";
+        repaint();
+        return true;
+    }
+    
+    return false;
 }

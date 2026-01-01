@@ -439,7 +439,11 @@ def run_generation(
     print_step("3/6", "Generating MIDI with humanization...")
     report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
     midi_gen = MidiGenerator()
-    midi_file = midi_gen.generate(arrangement, parsed)
+    
+    # Get groove from session graph if available
+    groove_template = session_graph.groove_template if session_graph else None
+    
+    midi_file = midi_gen.generate(arrangement, parsed, groove_template=groove_template)
     
     # Save MIDI file
     project_name = generate_project_name(parsed)

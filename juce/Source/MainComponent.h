@@ -26,6 +26,7 @@
 #include "UI/InstrumentBrowserPanel.h"
 #include "UI/FXChainPanel.h"
 #include "UI/ExpansionBrowserPanel.h"
+#include "UI/Mixer/MixerComponent.h"
 
 //==============================================================================
 /**
@@ -53,6 +54,7 @@ class MainComponent : public juce::Component,
                       public InstrumentBrowserPanel::Listener,
                       public FXChainPanel::Listener,
                       public ExpansionBrowserPanel::Listener,
+                      public Project::ProjectState::Listener,
                       public juce::Timer
 {
 public:
@@ -74,6 +76,10 @@ public:
     void onAnalyzeError(int code, const juce::String& message) override;
     
     //==============================================================================
+    // OSCBridge::Listener - Instruments
+    void onInstrumentsLoaded(const juce::String& json) override;
+    
+    //==============================================================================
     // PromptPanel::Listener
     void generateRequested(const juce::String& prompt) override;
     void cancelRequested() override;
@@ -90,6 +96,7 @@ public:
     //==============================================================================
     // InstrumentBrowserPanel::Listener
     void instrumentChosen(const InstrumentInfo& info) override;
+    void requestLibraryInstruments() override;
     
     //==============================================================================
     // FXChainPanel::Listener
@@ -110,8 +117,20 @@ public:
     void onExpansionResolveReceived(const juce::String& json) override;
     
     //==============================================================================
+    // ProjectState::Listener overrides
+    void valueTreePropertyChanged(juce::ValueTree& treeWhosePropertyHasChanged, const juce::Identifier& property) override;
+    void valueTreeChildAdded(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenAdded) override;
+    void valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) override;
+    void valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhichHasChanged, int oldIndex, int newIndex) override {}
+    void valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) override {}
+
+    //==============================================================================
     // Timer callback for UI updates
     void timerCallback() override;
+
+    //==============================================================================
+    // Key listener
+    bool keyPressed(const juce::KeyPress& key) override;
 
 private:
     //==============================================================================
@@ -134,12 +153,14 @@ private:
     std::unique_ptr<InstrumentBrowserPanel> instrumentBrowser;
     std::unique_ptr<FXChainPanel> fxChainPanel;
     std::unique_ptr<ExpansionBrowserPanel> expansionBrowser;
+    std::unique_ptr<UI::MixerComponent> mixerComponent;
     
     // Bottom panel tab buttons
     juce::TextButton instrumentsTabButton { "Instruments" };
     juce::TextButton fxTabButton { "FX Chain" };
     juce::TextButton expansionsTabButton { "Expansions" };
-    int currentBottomTab = 0;  // 0 = Instruments, 1 = FX Chain, 2 = Expansions
+    juce::TextButton mixerTabButton { "Mixer" };
+    int currentBottomTab = 0;  // 0 = Instruments, 1 = FX Chain, 2 = Expansions, 3 = Mixer
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;
@@ -150,7 +171,7 @@ private:
     static constexpr int transportHeight = 50;
     static constexpr int timelineHeight = 65;
     static constexpr int promptPanelWidth = 320;
-    static constexpr int bottomPanelHeight = 150;
+    // static constexpr int bottomPanelHeight = 150; // Removed in favor of dynamic sizing
     static constexpr int padding = 4;
     
     //==============================================================================
@@ -159,6 +180,7 @@ private:
     float currentProgress = 0.0f;
     juce::String currentStatus = "Ready";
     juce::String currentGenre = "trap";  // Default genre (synced with GenreSelector)
+    bool initialInstrumentsRequested = false;
     
     //==============================================================================
     void startPythonServer();

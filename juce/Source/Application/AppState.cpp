@@ -80,6 +80,7 @@ void AppState::setWindowBounds(const juce::Rectangle<int>& bounds)
 //==============================================================================
 void AppState::newProject()
 {
+    projectState.newProject();
     currentProjectFile = juce::File();
     currentGeneration = GenerationState();
     unsavedChanges = false;
@@ -90,30 +91,63 @@ bool AppState::loadProject(const juce::File& file)
     if (!file.existsAsFile())
         return false;
     
+    // Try loading with ProjectState (XML/ValueTree)
+    if (projectState.loadProject(file))
+    {
+        // Sync legacy state from ProjectState
+        auto genNode = projectState.getState().getChildWithName(Project::IDs::GENERATION);
+        if (genNode.isValid())
+        {
+            currentGeneration.prompt = genNode.getProperty(Project::IDs::prompt);
+            currentGeneration.bpm = genNode.getProperty(Project::IDs::bpm);
+            currentGeneration.key = genNode.getProperty(Project::IDs::key);
+            currentGeneration.genre = genNode.getProperty(Project::IDs::genre);
+            
+            juce::String midiPath = genNode.getProperty(Project::IDs::midiPath);
+            if (midiPath.isNotEmpty())
+                currentGeneration.midiFile = file.getParentDirectory().getChildFile(midiPath);
+                
+            juce::String audioPath = genNode.getProperty(Project::IDs::audioPath);
+            if (audioPath.isNotEmpty())
+                currentGeneration.audioFile = file.getParentDirectory().getChildFile(audioPath);
+        }
+        
+        currentProjectFile = file;
+        unsavedChanges = false;
+        addRecentFile(file);
+        return true;
+    }
+    
+    // Fallback to legacy JSON loading
     auto json = juce::JSON::parse(file);
-    if (!json.isObject())
-        return false;
+    if (json.isObject())
+    {
+        auto* obj = json.getDynamicObject();
+        if (obj)
+        {
+            currentGeneration.prompt = obj->getProperty("prompt").toString();
+            currentGeneration.bpm = obj->getProperty("bpm");
+            currentGeneration.key = obj->getProperty("key").toString();
+            currentGeneration.genre = obj->getProperty("genre").toString();
+            
+            if (auto midiPath = obj->getProperty("midiPath").toString(); midiPath.isNotEmpty())
+                currentGeneration.midiFile = file.getParentDirectory().getChildFile(midiPath);
+            
+            if (auto audioPath = obj->getProperty("audioPath").toString(); audioPath.isNotEmpty())
+                currentGeneration.audioFile = file.getParentDirectory().getChildFile(audioPath);
+            
+            // Initialize ProjectState with loaded data
+            projectState.newProject();
+            projectState.setGenerationData(currentGeneration.prompt, currentGeneration.bpm, currentGeneration.key, currentGeneration.genre);
+            
+            currentProjectFile = file;
+            unsavedChanges = false;
+            addRecentFile(file);
+            return true;
+        }
+    }
     
-    auto* obj = json.getDynamicObject();
-    if (!obj)
-        return false;
-    
-    currentGeneration.prompt = obj->getProperty("prompt").toString();
-    currentGeneration.bpm = obj->getProperty("bpm");
-    currentGeneration.key = obj->getProperty("key").toString();
-    currentGeneration.genre = obj->getProperty("genre").toString();
-    
-    if (auto midiPath = obj->getProperty("midiPath").toString(); midiPath.isNotEmpty())
-        currentGeneration.midiFile = file.getParentDirectory().getChildFile(midiPath);
-    
-    if (auto audioPath = obj->getProperty("audioPath").toString(); audioPath.isNotEmpty())
-        currentGeneration.audioFile = file.getParentDirectory().getChildFile(audioPath);
-    
-    currentProjectFile = file;
-    unsavedChanges = false;
-    addRecentFile(file);
-    
-    return true;
+    return false;
 }
 
 bool AppState::saveProject()
@@ -126,30 +160,24 @@ bool AppState::saveProject()
 
 bool AppState::saveProjectAs(const juce::File& file)
 {
-    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
-    
-    obj->setProperty("version", AppConfig::versionString);
-    obj->setProperty("prompt", currentGeneration.prompt);
-    obj->setProperty("bpm", currentGeneration.bpm);
-    obj->setProperty("key", currentGeneration.key);
-    obj->setProperty("genre", currentGeneration.genre);
+    // Ensure ProjectState is up to date
+    projectState.setGenerationData(currentGeneration.prompt, currentGeneration.bpm, currentGeneration.key, currentGeneration.genre);
     
     if (currentGeneration.midiFile.existsAsFile())
-        obj->setProperty("midiPath", currentGeneration.midiFile.getRelativePathFrom(file.getParentDirectory()));
+        projectState.setGeneratedFiles(
+            currentGeneration.midiFile.getRelativePathFrom(file.getParentDirectory()),
+            currentGeneration.audioFile.getRelativePathFrom(file.getParentDirectory())
+        );
+
+    if (projectState.saveProject(file))
+    {
+        currentProjectFile = file;
+        unsavedChanges = false;
+        addRecentFile(file);
+        return true;
+    }
     
-    if (currentGeneration.audioFile.existsAsFile())
-        obj->setProperty("audioPath", currentGeneration.audioFile.getRelativePathFrom(file.getParentDirectory()));
-    
-    auto json = juce::JSON::toString(juce::var(obj.get()), true);
-    
-    if (!file.replaceWithText(json))
-        return false;
-    
-    currentProjectFile = file;
-    unsavedChanges = false;
-    addRecentFile(file);
-    
-    return true;
+    return false;
 }
 
 //==============================================================================
@@ -233,6 +261,7 @@ int AppState::getBPM() const
 void AppState::setBPM(int newBPM)
 {
     currentGeneration.bpm = newBPM;
+    projectState.setGenerationData(currentGeneration.prompt, currentGeneration.bpm, currentGeneration.key, currentGeneration.genre);
     unsavedChanges = true;
 }
 
@@ -255,6 +284,7 @@ juce::String AppState::getPrompt() const
 void AppState::setPrompt(const juce::String& newPrompt)
 {
     currentGeneration.prompt = newPrompt;
+    projectState.setGenerationData(currentGeneration.prompt, currentGeneration.bpm, currentGeneration.key, currentGeneration.genre);
     unsavedChanges = true;
 }
 
@@ -285,6 +315,11 @@ juce::File AppState::getOutputFile() const
 void AppState::setOutputFile(const juce::File& file)
 {
     currentGeneration.audioFile = file;
+    // We don't update projectState here because we might not have the midi file yet.
+    // It's better to update both at once or handle it separately.
+    // But let's try to keep it in sync if possible.
+    // projectState.setGeneratedFiles(..., ...); 
+    // We'll leave it for saveProjectAs to sync fully for now.
     unsavedChanges = true;
 }
 

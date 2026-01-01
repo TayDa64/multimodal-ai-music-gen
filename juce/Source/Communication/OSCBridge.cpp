@@ -81,6 +81,9 @@ void OSCBridge::sendGenerate(const GenerationRequest& request)
     
     // Track current request
     currentRequestId = mutableRequest.requestId;
+    isRequestAcknowledged = false;
+    generationStartTime = juce::Time::currentTimeMillis();
+    lastMessageReceivedTime = generationStartTime.load();
     
     DBG("OSCBridge: Sending generate with request_id: " << mutableRequest.requestId);
     
@@ -228,6 +231,7 @@ void OSCBridge::removeListener(Listener* listener)
 //==============================================================================
 void OSCBridge::oscMessageReceived(const juce::OSCMessage& message)
 {
+    lastMessageReceivedTime = juce::Time::currentTimeMillis();
     auto address = message.getAddressPattern().toString();
     
     DBG("OSCBridge: Received " << address);
@@ -276,6 +280,13 @@ void OSCBridge::handleProgress(const juce::OSCMessage& message)
     
     auto jsonStr = message[0].getString();
     auto update = ProgressUpdate::fromJson(jsonStr);
+    
+    // Validate request ID if we are tracking one
+    if (currentRequestId.isNotEmpty() && update.requestId.isNotEmpty() && update.requestId != currentRequestId)
+    {
+        DBG("OSCBridge: Ignoring progress for unknown request ID: " << update.requestId);
+        return;
+    }
     
     listeners.call([&](Listener& l)
     {
@@ -359,6 +370,22 @@ void OSCBridge::handleStatus(const juce::OSCMessage& message)
     
     auto jsonStr = message[0].getString();
     DBG("OSCBridge: Status update: " << jsonStr);
+    
+    auto json = juce::JSON::parse(jsonStr);
+    if (auto* obj = json.getDynamicObject())
+    {
+        juce::String status = obj->getProperty("status");
+        juce::String reqId = obj->getProperty("request_id");
+        
+        if (status == "generation_started")
+        {
+            if (reqId == currentRequestId)
+            {
+                isRequestAcknowledged = true;
+                DBG("OSCBridge: Generation request acknowledged");
+            }
+        }
+    }
 }
 
 void OSCBridge::handleInstrumentsLoaded(const juce::OSCMessage& message)
@@ -367,27 +394,11 @@ void OSCBridge::handleInstrumentsLoaded(const juce::OSCMessage& message)
         return;
     
     auto jsonStr = message[0].getString();
-    auto json = juce::JSON::parse(jsonStr);
     
-    if (auto* obj = json.getDynamicObject())
+    listeners.call([&](Listener& l)
     {
-        int count = obj->getProperty("count");
-        juce::StringPairArray categories;
-        
-        if (auto cats = obj->getProperty("categories"); cats.isObject())
-        {
-            if (auto* catsObj = cats.getDynamicObject())
-            {
-                for (const auto& prop : catsObj->getProperties())
-                    categories.set(prop.name.toString(), juce::String((int)prop.value));
-            }
-        }
-        
-        listeners.call([&](Listener& l)
-        {
-            l.onInstrumentsLoaded(count, categories);
-        });
-    }
+        l.onInstrumentsLoaded(jsonStr);
+    });
 }
 
 //==============================================================================
@@ -526,8 +537,49 @@ void OSCBridge::timerCallback()
             return;
         }
     }
-    else if (connectionState == ConnectionState::Connected ||
-             connectionState == ConnectionState::Generating)
+    else if (connectionState == ConnectionState::Generating)
+    {
+        // Check for generation timeouts
+        
+        // 1. Acknowledgment timeout (server didn't say "started")
+        if (!isRequestAcknowledged && (now - generationStartTime > RequestAckTimeoutMs))
+        {
+            DBG("OSCBridge: Generation request timed out (no ack)");
+            
+            // Notify error
+            listeners.call([&](Listener& l)
+            {
+                l.onError(201, "Server failed to acknowledge generation request");
+            });
+            
+            currentRequestId.clear();
+            setConnectionState(ConnectionState::Connected); // Revert to connected
+            return;
+        }
+        
+        // 2. Activity timeout (no progress/status updates for too long)
+        if (now - lastMessageReceivedTime > ActivityTimeoutMs)
+        {
+            DBG("OSCBridge: Generation timed out (no activity)");
+            
+            listeners.call([&](Listener& l)
+            {
+                l.onError(201, "Generation timed out (server stopped responding)");
+            });
+            
+            currentRequestId.clear();
+            setConnectionState(ConnectionState::Connected);
+            return;
+        }
+        
+        // Send periodic ping to keep connection alive
+        if (now - lastPing > PingIntervalMs)
+        {
+            lastPingSentTime = now;
+            sendPing();
+        }
+    }
+    else if (connectionState == ConnectionState::Connected)
     {
         // Check if we haven't received a pong recently
         if (lastPong > 0 && now - lastPong > PingTimeoutMs)

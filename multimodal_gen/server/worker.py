@@ -516,12 +516,55 @@ class InstrumentScanWorker:
                 verbose=True
             )
             
+            # Serialize instruments by category
+            instruments_by_category = {}
+            for category, instruments in library.by_category.items():
+                if not instruments:
+                    continue
+                    
+                cat_name = category.value if hasattr(category, 'value') else str(category)
+                instruments_list = []
+                
+                for inst in instruments:
+                    inst_data = {
+                        "id": str(uuid.uuid4()),
+                        "name": inst.name,
+                        "filename": Path(inst.path).name,
+                        "path": inst.path,
+                        "absolute_path": inst.path,
+                        "category": cat_name,
+                        "subcategory": "", 
+                        "tags": [],
+                        "key": "",
+                        "bpm": 0,
+                        "duration_ms": 0,
+                        "file_size_bytes": 0,
+                        "favorite": False,
+                        "play_count": 0
+                    }
+                    
+                    if inst.profile:
+                        inst_data.update({
+                            "duration_ms": inst.profile.duration_sec * 1000.0,
+                            "bpm": 0, 
+                            "key": "", 
+                        })
+                        
+                        if inst.profile.midi_note > 0:
+                             # Convert midi note to note name if needed
+                             pass
+                             
+                    instruments_list.append(inst_data)
+                
+                instruments_by_category[cat_name] = instruments_list
+
             result = {
                 "scan_id": scan_id,
                 "success": True,
                 "count": len(library.instruments),
                 "categories": library.list_categories(),
                 "sources": library.get_source_summary(),
+                "instruments": instruments_by_category
             }
             
             if self.completion_callback:

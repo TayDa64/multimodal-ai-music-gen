@@ -24,6 +24,7 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     pianoRoll = std::make_unique<PianoRollComponent>(audioEngine);
     pianoRoll->addListener(this);
     pianoRoll->setBPM(appState.getBPM());
+    pianoRoll->setProjectState(&appState.getProjectState()); // Connect to project state
     addAndMakeVisible(*pianoRoll);
     
     // Create waveform visualizer

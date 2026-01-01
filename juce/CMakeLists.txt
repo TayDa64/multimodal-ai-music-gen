@@ -112,6 +112,10 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/Application/AppState.h
     Source/Application/AppConfig.h
     
+    # Project Management
+    Source/Project/ProjectState.cpp
+    Source/Project/ProjectState.h
+    
     # Audio Engine
     Source/Audio/AudioEngine.cpp
     Source/Audio/AudioEngine.h
@@ -119,6 +123,15 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/Audio/MidiPlayer.h
     Source/Audio/SimpleSynthVoice.h
     
+    # Audio Processors & Mixer
+    Source/Audio/Processors/ProcessorBase.h
+    Source/Audio/Processors/GainProcessor.cpp
+    Source/Audio/Processors/GainProcessor.h
+    Source/Audio/Processors/PanProcessor.cpp
+    Source/Audio/Processors/PanProcessor.h
+    Source/Audio/MixerGraph.cpp
+    Source/Audio/MixerGraph.h
+
     # Communication with Python backend
     Source/Communication/OSCBridge.cpp
     Source/Communication/OSCBridge.h
@@ -142,6 +155,14 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/VisualizationPanel.cpp
     Source/UI/VisualizationPanel.h
     
+    # Mixer UI
+    Source/UI/Mixer/LevelMeter.cpp
+    Source/UI/Mixer/LevelMeter.h
+    Source/UI/Mixer/ChannelStrip.cpp
+    Source/UI/Mixer/ChannelStrip.h
+    Source/UI/Mixer/MixerComponent.cpp
+    Source/UI/Mixer/MixerComponent.h
+
     # NB Phase 2: Genre-aware UI Components
     Source/UI/GenreSelector.cpp
     Source/UI/GenreSelector.h

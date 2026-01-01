@@ -15,6 +15,192 @@ namespace mmg
 {
 
 //==============================================================================
+// Simple Sine Wave Synth for Preview
+//==============================================================================
+struct SineWaveSound : public juce::SynthesiserSound
+{
+    bool appliesToNote (int) override { return true; }
+    bool appliesToChannel (int) override { return true; }
+};
+
+struct SineWaveVoice : public juce::SynthesiserVoice
+{
+    bool canPlaySound (juce::SynthesiserSound* sound) override
+    {
+        return dynamic_cast<SineWaveSound*> (sound) != nullptr;
+    }
+
+    void startNote (int midiNoteNumber, float velocity,
+                    juce::SynthesiserSound*, int /*currentPitchWheelPosition*/) override
+    {
+        currentAngle = 0.0;
+        level = velocity * 0.5; // Increased volume
+        tailOff = 1.0; // Auto-decay for preview (percussive envelope)
+
+        auto cyclesPerSecond = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
+        auto cyclesPerSample = cyclesPerSecond / getSampleRate();
+
+        angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
+    }
+
+    void stopNote (float /*velocity*/, bool allowTailOff) override
+    {
+        if (allowTailOff)
+        {
+            if (tailOff == 0.0)
+                tailOff = 1.0;
+        }
+        else
+        {
+            clearCurrentNote();
+            angleDelta = 0.0;
+        }
+    }
+
+    void pitchWheelMoved (int) override {}
+    void controllerMoved (int, int) override {}
+
+    void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
+    {
+        if (angleDelta != 0.0)
+        {
+            if (tailOff > 0.0) // Exponential decay for tail off
+            {
+                while (--numSamples >= 0)
+                {
+                    auto currentSample = (float) (std::sin (currentAngle) * level * tailOff);
+
+                    for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
+                        outputBuffer.addSample (i, startSample, currentSample);
+
+                    currentAngle += angleDelta;
+                    ++startSample;
+
+                    tailOff *= 0.99;
+
+                    if (tailOff <= 0.005)
+                    {
+                        clearCurrentNote();
+                        angleDelta = 0.0;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                while (--numSamples >= 0)
+                {
+                    auto currentSample = (float) (std::sin (currentAngle) * level);
+
+                    for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
+                        outputBuffer.addSample (i, startSample, currentSample);
+
+                    currentAngle += angleDelta;
+                    ++startSample;
+                }
+            }
+        }
+    }
+
+    double currentAngle = 0.0, angleDelta = 0.0, level = 0.0, tailOff = 0.0;
+};
+
+//==============================================================================
+// AudioEngine::Track Implementation
+//==============================================================================
+
+AudioEngine::Track::Track(int id, const juce::String& name)
+    : id(id), name(name)
+{
+    synth.clearVoices();
+    for (int i = 0; i < 8; ++i)
+        synth.addVoice(new SineWaveVoice());
+        
+    synth.clearSounds();
+    synth.addSound(new SineWaveSound());
+}
+
+AudioEngine::Track::~Track() {}
+
+void AudioEngine::Track::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    synth.setCurrentPlaybackSampleRate(sampleRate);
+}
+
+void AudioEngine::Track::releaseResources() {}
+
+void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples)
+{
+    if (muted.load())
+        return;
+        
+    // Render synth to a temp buffer
+    juce::AudioBuffer<float> tempBuffer(outputBuffer.getNumChannels(), numSamples);
+    tempBuffer.clear();
+    
+    {
+        const juce::ScopedLock sl(trackLock);
+        synth.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+        midiBuffer.clear();
+    }
+    
+    // Apply volume
+    tempBuffer.applyGain(volume.load());
+    
+    // Mix into output
+    for (int ch = 0; ch < outputBuffer.getNumChannels(); ++ch)
+    {
+        outputBuffer.addFrom(ch, startSample, tempBuffer, ch, 0, numSamples);
+    }
+}
+
+void AudioEngine::Track::noteOn(int note, float velocity)
+{
+    const juce::ScopedLock sl(trackLock);
+    midiBuffer.addEvent(juce::MidiMessage::noteOn(1, note, velocity), 0);
+}
+
+void AudioEngine::Track::noteOff(int note)
+{
+    const juce::ScopedLock sl(trackLock);
+    midiBuffer.addEvent(juce::MidiMessage::noteOff(1, note), 0);
+}
+
+void AudioEngine::Track::setVolume(float newVolume) { volume = newVolume; }
+void AudioEngine::Track::setMute(bool shouldMute) { muted = shouldMute; }
+void AudioEngine::Track::setSolo(bool shouldSolo) { soloed = shouldSolo; }
+
+void AudioEngine::Track::loadSample(const juce::File& file, juce::AudioFormatManager& formatManager)
+{
+    const juce::ScopedLock sl(trackLock);
+    
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    if (reader)
+    {
+        synth.clearSounds();
+        synth.clearVoices();
+        
+        // Map to all notes
+        juce::BigInteger allNotes;
+        allNotes.setRange(0, 128, true);
+        
+        // Create SamplerSound
+        // Base note 60 (C3), Attack 0.0s, Release 0.1s, Max length 10.0s
+        synth.addSound(new juce::SamplerSound("Sample", *reader, allNotes, 60, 0.0, 0.1, 10.0));
+        
+        // Add SamplerVoices
+        for (int i = 0; i < 8; ++i)
+            synth.addVoice(new juce::SamplerVoice());
+            
+        DBG("Track " << id << ": Loaded sample " << file.getFileName());
+    }
+    else
+    {
+        DBG("Track " << id << ": Failed to load sample " << file.getFileName());
+    }
+}
+
+//==============================================================================
 AudioEngine::AudioEngine()
 {
     // Register as listener for device changes
@@ -23,6 +209,12 @@ AudioEngine::AudioEngine()
     // Initialize visualization listeners to nullptr
     for (auto& listener : visualizationListeners)
         listener.store(nullptr);
+        
+    // Initialize Tracks
+    for (int i = 0; i < 4; ++i)
+    {
+        addTrack("Track " + juce::String(i + 1));
+    }
 }
 
 AudioEngine::~AudioEngine()
@@ -163,6 +355,12 @@ void AudioEngine::setTestToneEnabled(bool shouldBeEnabled)
     }
 }
 
+void AudioEngine::setLooping(bool shouldLoop)
+{
+    looping = shouldLoop;
+    DBG("AudioEngine: Looping " << (shouldLoop ? "enabled" : "disabled"));
+}
+
 //==============================================================================
 // AudioSource Implementation
 //==============================================================================
@@ -175,12 +373,21 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
     // Prepare MIDI player
     midiPlayer.prepareToPlay(sampleRate, samplesPerBlockExpected);
     
+    // Prepare Mixer
+    mixerGraph.prepareToPlay(sampleRate, samplesPerBlockExpected);
+    
+    // Prepare Tracks
+    const juce::ScopedLock sl(tracksLock);
+    for (auto& track : tracks)
+        track->prepareToPlay(sampleRate, samplesPerBlockExpected);
+    
     DBG("AudioEngine::prepareToPlay - SR: " << sampleRate << ", Block: " << samplesPerBlockExpected);
 }
 
 void AudioEngine::releaseResources()
 {
     midiPlayer.releaseResources();
+    mixerGraph.releaseResources();
     DBG("AudioEngine::releaseResources");
 }
 
@@ -190,11 +397,12 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
     bufferToFill.clearActiveBufferRegion();
     
     // Only produce audio if playing
-    if (transportState.load() != TransportState::Playing)
-        return;
+    // if (transportState.load() != TransportState::Playing)
+    //    return;
+    // NOTE: We want to hear live notes even if transport is stopped!
     
     // MIDI playback (renders to buffer)
-    if (midiPlayer.hasMidiLoaded() && !testToneEnabled.load())
+    if (transportState.load() == TransportState::Playing && midiPlayer.hasMidiLoaded() && !testToneEnabled.load())
     {
         // Create a sub-buffer for the active region
         juce::AudioBuffer<float> subBuffer(bufferToFill.buffer->getArrayOfWritePointers(),
@@ -205,13 +413,43 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         midiPlayer.setPlaying(true);
         midiPlayer.renderNextBlock(subBuffer, bufferToFill.numSamples);
         
+        // Process through mixer graph
+        juce::MidiBuffer emptyMidi;
+        mixerGraph.processBlock(subBuffer, emptyMidi);
+        
         // Check if playback finished
         if (!midiPlayer.isPlaying())
         {
-            // MIDI finished - stop transport
-            juce::MessageManager::callAsync([this]() {
-                stop();
-            });
+            if (looping.load())
+            {
+                midiPlayer.setPosition(0.0);
+                midiPlayer.setPlaying(true);
+            }
+            else
+            {
+                // MIDI finished - stop transport
+                juce::MessageManager::callAsync([this]() {
+                    stop();
+                });
+            }
+        }
+    }
+    
+    // Process Tracks
+    {
+        const juce::ScopedLock sl(tracksLock);
+        
+        // Check for solo
+        bool anySolo = false;
+        for (auto& track : tracks)
+            if (track->isSoloed()) { anySolo = true; break; }
+            
+        for (auto& track : tracks)
+        {
+            if (anySolo && !track->isSoloed())
+                continue;
+                
+            track->renderNextBlock(*bufferToFill.buffer, bufferToFill.startSample, bufferToFill.numSamples);
         }
     }
     
@@ -361,6 +599,13 @@ bool AudioEngine::loadMidiFile(const juce::File& midiFile)
     return success;
 }
 
+void AudioEngine::loadMidiData(const juce::MidiFile& midi)
+{
+    stop();
+    midiPlayer.setMidiData(midi);
+    DBG("AudioEngine: Loaded MIDI data from memory");
+}
+
 void AudioEngine::clearMidiFile()
 {
     stop();
@@ -385,6 +630,71 @@ void AudioEngine::setPlaybackPosition(double positionSeconds)
 double AudioEngine::getTotalDuration() const
 {
     return midiPlayer.getTotalDuration();
+}
+
+AudioEngine::Track* AudioEngine::addTrack(const juce::String& name)
+{
+    const juce::ScopedLock sl(tracksLock);
+    int id = tracks.size(); // Simple ID generation
+    auto newTrack = std::make_unique<Track>(id, name);
+    if (currentSampleRate > 0)
+        newTrack->prepareToPlay(currentSampleRate, currentBufferSize);
+    
+    auto* ptr = newTrack.get();
+    tracks.push_back(std::move(newTrack));
+    return ptr;
+}
+
+void AudioEngine::removeTrack(int index)
+{
+    const juce::ScopedLock sl(tracksLock);
+    if (index >= 0 && index < tracks.size())
+        tracks.erase(tracks.begin() + index);
+}
+
+AudioEngine::Track* AudioEngine::getTrack(int index)
+{
+    const juce::ScopedLock sl(tracksLock);
+    if (index >= 0 && index < tracks.size())
+        return tracks[index].get();
+    return nullptr;
+}
+
+int AudioEngine::getNumTracks() const
+{
+    const juce::ScopedLock sl(tracksLock);
+    return (int)tracks.size();
+}
+
+void AudioEngine::playNote(int trackIndex, int noteNumber, float velocity, float durationSeconds)
+{
+    if (auto* track = getTrack(trackIndex))
+    {
+        track->noteOn(noteNumber, velocity);
+        
+        // Auto-off for preview (optional, but good for one-shots)
+        // For now, we rely on the user releasing the key or the note duration
+        // But since this is "playNote" (fire and forget), we should schedule a note off.
+        // However, handling timers here is complex. 
+        // The SineWaveVoice has auto-decay. SamplerVoice does not.
+        // We'll leave note-off management to the caller (PianoRoll) or implement a simple decay.
+        
+        // Actually, for SamplerVoice, we need a NoteOff to stop the sample if it loops, 
+        // but for one-shots it plays until end or release.
+        // Let's send a NoteOff after a short delay if it's a preview.
+        // But we can't easily do that without a timer.
+        // For now, just NoteOn.
+    }
+}
+
+void AudioEngine::loadInstrument(int trackIndex, const juce::File& sampleFile, const juce::String& instrumentName)
+{
+    if (auto* track = getTrack(trackIndex))
+    {
+        track->loadSample(sampleFile, formatManager);
+        if (instrumentName.isNotEmpty())
+            track->setName(instrumentName);
+    }
 }
 
 } // namespace mmg

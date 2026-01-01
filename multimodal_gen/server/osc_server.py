@@ -305,6 +305,11 @@ class MusicGenOSCServer:
             
             # Extract and validate request_id
             request_id = data.get("request_id", "")
+            if not request_id:
+                # Protocol hardening: Require request_id
+                self._log("   ⚠️  Missing request_id in generate request. Generating temporary ID.")
+                request_id = str(uuid.uuid4())
+            
             schema_version = data.get("schema_version", 1)
             
             # Log protocol info
@@ -480,10 +485,14 @@ class MusicGenOSCServer:
             paths = data.get("paths", [])
             cache_dir = data.get("cache_dir", str(Path(self.config.default_output_dir)))
             
+            # If no paths provided, use default configured paths
+            if not paths:
+                paths = self.config.instrument_paths
+                
             if not paths:
                 self._send_error(
                     ErrorCode.MISSING_PARAMETER,
-                    "No instrument paths provided"
+                    "No instrument paths provided and no defaults configured"
                 )
                 return
             
