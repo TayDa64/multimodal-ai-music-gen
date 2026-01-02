@@ -383,6 +383,10 @@ private:
     FXChainStrip bassStrip;
     FXChainStrip melodicStrip;
     
+    // Scrollable container for bus strips
+    juce::Viewport stripsViewport;
+    juce::Component stripsContent;
+    
     // Parameter editor
     FXParameterPanel parameterPanel;
     
