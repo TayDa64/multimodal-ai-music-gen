@@ -73,7 +73,8 @@ private:
 */
 class ArrangementView : public juce::Component,
                         public TrackListComponent::Listener,
-                        public juce::ValueTree::Listener
+                        public juce::ValueTree::Listener,
+                        private juce::Viewport::Listener
 {
 public:
     ArrangementView(mmg::AudioEngine& engine);
@@ -133,6 +134,9 @@ public:
     void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index) override;
     void valueTreeChildOrderChanged(juce::ValueTree&, int, int) override {}
     void valueTreeParentChanged(juce::ValueTree&) override {}
+    
+    // Viewport::Listener - for ruler synchronization
+    void visibleAreaChanged(const juce::Rectangle<int>& newVisibleArea) override;
 
 private:
     mmg::AudioEngine& audioEngine;

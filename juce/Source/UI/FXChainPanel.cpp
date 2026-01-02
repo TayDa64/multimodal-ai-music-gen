@@ -814,10 +814,16 @@ FXChainPanel::FXChainPanel()
     bassStrip.addListener(this);
     melodicStrip.addListener(this);
     
-    addAndMakeVisible(masterStrip);
-    addAndMakeVisible(drumsStrip);
-    addAndMakeVisible(bassStrip);
-    addAndMakeVisible(melodicStrip);
+    // Add strips to the scrollable content
+    stripsContent.addAndMakeVisible(masterStrip);
+    stripsContent.addAndMakeVisible(drumsStrip);
+    stripsContent.addAndMakeVisible(bassStrip);
+    stripsContent.addAndMakeVisible(melodicStrip);
+    
+    // Setup viewport for strips
+    stripsViewport.setViewedComponent(&stripsContent, false);
+    stripsViewport.setScrollBarsShown(true, false);  // Vertical scroll only
+    addAndMakeVisible(stripsViewport);
     
     parameterPanel.addListener(this);
     addAndMakeVisible(parameterPanel);
@@ -853,24 +859,44 @@ void FXChainPanel::resized()
     headerFlex.items.add(juce::FlexItem(resetButton).withWidth(50.0f).withHeight(30.0f));
     headerFlex.performLayout(header);
     
-    // Parameter panel (bottom) - adaptive height
-    int paramHeight = juce::jmax(120, juce::jmin(200, bounds.getHeight() / 3));
-    parameterPanel.setBounds(bounds.removeFromBottom(paramHeight));
+    // Main content area - side by side layout
+    bounds = bounds.reduced(Layout::paddingMD);
     
-    // Bus strips - calculate height based on available space
-    bounds = bounds.reduced(Layout::paddingSM);
+    // Split: 60% for chain editor (left), 40% for parameters (right)
+    int totalWidth = bounds.getWidth();
+    int chainWidth = juce::roundToInt(totalWidth * 0.60f);
+    int dividerWidth = Layout::paddingMD;
+    int paramsWidth = totalWidth - chainWidth - dividerWidth;
+    
+    // Left side: Strips viewport (scrollable)
+    auto chainArea = bounds.removeFromLeft(chainWidth);
+    stripsViewport.setBounds(chainArea);
+    
+    // Update strips content layout
+    int stripHeight = 60;  // Fixed height per strip
     int numStrips = 4;
     int totalGaps = (numStrips - 1) * Layout::componentGapSM;
-    int availableForStrips = bounds.getHeight() - totalGaps;
-    int stripHeight = juce::jmax(45, juce::jmin(70, availableForStrips / numStrips));
+    int contentHeight = (stripHeight * numStrips) + totalGaps;
     
-    masterStrip.setBounds(bounds.removeFromTop(stripHeight));
-    bounds.removeFromTop(Layout::componentGapSM);
-    drumsStrip.setBounds(bounds.removeFromTop(stripHeight));
-    bounds.removeFromTop(Layout::componentGapSM);
-    bassStrip.setBounds(bounds.removeFromTop(stripHeight));
-    bounds.removeFromTop(Layout::componentGapSM);
-    melodicStrip.setBounds(bounds.removeFromTop(stripHeight));
+    // Set content size (height may exceed viewport for scrolling)
+    stripsContent.setSize(chainArea.getWidth() - 10, juce::jmax(contentHeight, chainArea.getHeight()));
+    
+    // Layout strips vertically in content
+    int y = 0;
+    masterStrip.setBounds(0, y, stripsContent.getWidth(), stripHeight);
+    y += stripHeight + Layout::componentGapSM;
+    drumsStrip.setBounds(0, y, stripsContent.getWidth(), stripHeight);
+    y += stripHeight + Layout::componentGapSM;
+    bassStrip.setBounds(0, y, stripsContent.getWidth(), stripHeight);
+    y += stripHeight + Layout::componentGapSM;
+    melodicStrip.setBounds(0, y, stripsContent.getWidth(), stripHeight);
+    
+    // Divider space
+    bounds.removeFromLeft(dividerWidth);
+    
+    // Right side: Parameter panel (fixed)
+    auto paramsArea = bounds.removeFromLeft(paramsWidth);
+    parameterPanel.setBounds(paramsArea);
 }
 
 void FXChainPanel::loadFromGenre(const juce::String& genreId, const juce::var& fxChainsJSON)

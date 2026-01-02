@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <map>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_osc/juce_osc.h>
 #include "Application/AppState.h"
@@ -175,13 +176,18 @@ private:
     std::unique_ptr<ExpansionBrowserPanel> expansionBrowser;
     std::unique_ptr<UI::MixerComponent> mixerComponent;
     
-    // Floating windows for Instruments and Expansions (MPC-style)
-    std::unique_ptr<juce::DocumentWindow> instrumentsWindow;
-    std::unique_ptr<juce::DocumentWindow> expansionsWindow;
+    // Forward declaration of custom window classes
+    class GracefulDocumentWindow;
     
-    // Bottom panel visibility state (for FX Chain and Mixer)
+    // Floating window for Expansions (MPC-style)
+    std::unique_ptr<GracefulDocumentWindow> expansionsWindow;
+    
+    // Bottom panel visibility state (for Instruments, FX Chain, and Mixer)
     bool bottomPanelVisible = false;
-    int currentBottomTool = 0;  // 0 = none, 2 = FX Chain, 4 = Mixer
+    int currentBottomTool = 0;  // 0 = none, 1 = Instruments, 2 = FX Chain, 4 = Mixer
+    
+    // Remember panel height per tool (for better UX)
+    std::map<int, int> bottomPanelHeights;  // toolId -> preferred height
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;

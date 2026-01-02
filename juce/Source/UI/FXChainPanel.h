@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <map>
 #include <juce_gui_basics/juce_gui_basics.h>
 
 // Forward declaration
@@ -382,6 +383,10 @@ private:
     FXChainStrip drumsStrip;
     FXChainStrip bassStrip;
     FXChainStrip melodicStrip;
+    
+    // Scrollable container for bus strips
+    juce::Viewport stripsViewport;
+    juce::Component stripsContent;
     
     // Parameter editor
     FXParameterPanel parameterPanel;
