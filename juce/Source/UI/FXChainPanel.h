@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <map>
 #include <juce_gui_basics/juce_gui_basics.h>
 
 // Forward declaration

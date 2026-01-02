@@ -11,6 +11,7 @@
 #include "MainComponent.h"
 #include "UI/Theme/ColourScheme.h"
 #include "UI/Theme/LayoutConstants.h"
+#include <functional>
 
 //==============================================================================
 /**

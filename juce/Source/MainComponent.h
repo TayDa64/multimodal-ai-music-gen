@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include <map>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_osc/juce_osc.h>
 #include "Application/AppState.h"
