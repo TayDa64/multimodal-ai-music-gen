@@ -175,13 +175,15 @@ private:
     std::unique_ptr<ExpansionBrowserPanel> expansionBrowser;
     std::unique_ptr<UI::MixerComponent> mixerComponent;
     
-    // Floating windows for Instruments and Expansions (MPC-style)
-    std::unique_ptr<juce::DocumentWindow> instrumentsWindow;
-    std::unique_ptr<juce::DocumentWindow> expansionsWindow;
+    // Forward declaration of custom window classes
+    class GracefulDocumentWindow;
     
-    // Bottom panel visibility state (for FX Chain and Mixer)
+    // Floating window for Expansions (MPC-style)
+    std::unique_ptr<GracefulDocumentWindow> expansionsWindow;
+    
+    // Bottom panel visibility state (for Instruments, FX Chain, and Mixer)
     bool bottomPanelVisible = false;
-    int currentBottomTool = 0;  // 0 = none, 2 = FX Chain, 4 = Mixer
+    int currentBottomTool = 0;  // 0 = none, 1 = Instruments, 2 = FX Chain, 4 = Mixer
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;

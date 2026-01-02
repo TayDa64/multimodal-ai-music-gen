@@ -126,6 +126,7 @@ ArrangementView::ArrangementView(mmg::AudioEngine& engine)
     // Lanes viewport
     lanesViewport.setViewedComponent(&lanesContent, false);
     lanesViewport.setScrollBarsShown(true, true);
+    lanesViewport.addListener(this);  // Listen for scroll changes to update ruler
     addAndMakeVisible(lanesViewport);
     
     // Create initial track lanes
@@ -134,6 +135,8 @@ ArrangementView::ArrangementView(mmg::AudioEngine& engine)
 
 ArrangementView::~ArrangementView()
 {
+    lanesViewport.removeListener(this);
+    
     if (projectState)
         projectState->getState().removeListener(this);
     
@@ -544,6 +547,12 @@ void ArrangementView::drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> 
             g.drawVerticalLine((int)x, (float)bounds.getY() + 20, (float)bounds.getBottom());
         }
     }
+}
+
+void ArrangementView::visibleAreaChanged(const juce::Rectangle<int>& newVisibleArea)
+{
+    // Viewport scrolled - repaint to update ruler
+    repaint();
 }
 
 } // namespace UI

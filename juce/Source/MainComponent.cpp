@@ -13,6 +13,45 @@
 #include "UI/Theme/LayoutConstants.h"
 
 //==============================================================================
+/**
+    Custom DocumentWindow with graceful close handling.
+    Notifies parent before deletion to prevent dangling pointers.
+*/
+class MainComponent::GracefulDocumentWindow : public juce::DocumentWindow
+{
+public:
+    GracefulDocumentWindow(const juce::String& name, 
+                          juce::Colour backgroundColour,
+                          int buttonsNeeded,
+                          std::function<void()> onCloseCallback)
+        : DocumentWindow(name, backgroundColour, buttonsNeeded),
+          closeCallback(onCloseCallback)
+    {
+        setUsingNativeTitleBar(true);
+        setResizable(true, false);
+    }
+    
+    void closeButtonPressed() override
+    {
+        // Gracefully notify parent and schedule deletion
+        if (closeCallback)
+        {
+            // Use MessageManager to ensure we're on the message thread
+            // and that the close happens after this function returns
+            juce::MessageManager::callAsync([cb = closeCallback]() 
+            { 
+                if (cb) cb(); 
+            });
+        }
+    }
+    
+private:
+    std::function<void()> closeCallback;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GracefulDocumentWindow)
+};
+
+//==============================================================================
 MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     : appState(state),
       audioEngine(engine)
@@ -89,8 +128,7 @@ MainComponent::~MainComponent()
     appState.getProjectState().getState().removeListener(this);
     stopTimer();
     
-    // Close floating windows
-    instrumentsWindow.reset();
+    // Close floating window
     expansionsWindow.reset();
     
     // Send graceful shutdown to Python server before cleaning up
@@ -139,9 +177,10 @@ void MainComponent::setupBottomPanel()
     genreSelector = std::make_unique<GenreSelector>();
     addAndMakeVisible(*genreSelector);
     
-    // Instrument Browser - will be shown in floating window
+    // Instrument Browser - shown in bottom panel when triggered
     instrumentBrowser = std::make_unique<InstrumentBrowserPanel>(audioEngine.getDeviceManager());
-    // NOT added to this component - goes in floating window
+    instrumentBrowser->setVisible(false);
+    addAndMakeVisible(*instrumentBrowser);
     
     // FX Chain Panel - shown in bottom panel when triggered
     fxChainPanel = std::make_unique<FXChainPanel>();
@@ -195,29 +234,29 @@ void MainComponent::toolsMenuItemSelected(int itemId)
 
 void MainComponent::showToolWindow(int toolId)
 {
-    // 1 = Instruments (floating), 2 = FX Chain (bottom), 3 = Expansions (floating), 4 = Mixer (bottom)
+    // 1 = Instruments (bottom panel), 2 = FX Chain (bottom), 3 = Expansions (floating), 4 = Mixer (bottom)
     
     switch (toolId)
     {
-        case 1: // Instruments - floating window
+        case 1: // Instruments - bottom panel
         {
-            if (!instrumentsWindow)
+            if (currentBottomTool == 1 && bottomPanelVisible)
             {
-                instrumentsWindow = std::make_unique<juce::DocumentWindow>(
-                    "Instruments",
-                    AppColours::background,
-                    juce::DocumentWindow::allButtons);
-                instrumentsWindow->setContentNonOwned(instrumentBrowser.get(), true);
-                instrumentsWindow->setResizable(true, false);
-                instrumentsWindow->centreWithSize(600, 500);
-                instrumentsWindow->setUsingNativeTitleBar(true);
+                hideBottomPanel();
             }
-            instrumentsWindow->setVisible(true);
-            instrumentsWindow->toFront(true);
-            
-            // Request data if needed
-            if (instrumentBrowser)
-                instrumentBrowser->requestInstrumentData();
+            else
+            {
+                bottomPanelVisible = true;
+                currentBottomTool = 1;
+                if (instrumentBrowser) instrumentBrowser->setVisible(true);
+                if (fxChainPanel) fxChainPanel->setVisible(false);
+                if (mixerComponent) mixerComponent->setVisible(false);
+                resized();
+                
+                // Request data if needed
+                if (instrumentBrowser)
+                    instrumentBrowser->requestInstrumentData();
+            }
             break;
         }
         
@@ -242,14 +281,16 @@ void MainComponent::showToolWindow(int toolId)
         {
             if (!expansionsWindow)
             {
-                expansionsWindow = std::make_unique<juce::DocumentWindow>(
+                expansionsWindow = std::make_unique<GracefulDocumentWindow>(
                     "Expansions",
                     AppColours::background,
-                    juce::DocumentWindow::allButtons);
+                    juce::DocumentWindow::allButtons,
+                    [this]() {
+                        // Graceful close callback - reset the window pointer
+                        expansionsWindow.reset();
+                    });
                 expansionsWindow->setContentNonOwned(expansionBrowser.get(), true);
-                expansionsWindow->setResizable(true, false);
                 expansionsWindow->centreWithSize(700, 500);
-                expansionsWindow->setUsingNativeTitleBar(true);
             }
             expansionsWindow->setVisible(true);
             expansionsWindow->toFront(true);
@@ -283,6 +324,7 @@ void MainComponent::hideBottomPanel()
 {
     bottomPanelVisible = false;
     currentBottomTool = 0;
+    if (instrumentBrowser) instrumentBrowser->setVisible(false);
     if (fxChainPanel) fxChainPanel->setVisible(false);
     if (mixerComponent) mixerComponent->setVisible(false);
     resized();
@@ -437,13 +479,15 @@ void MainComponent::resized()
     // NO separate timeline - ArrangementView has its own ruler (MPC/ProTools style)
     // timelineComponent stays hidden
     
-    // Bottom panel with FX/Mixer - only when visible (toggle from Tools menu)
+    // Bottom panel with Instruments/FX/Mixer - only when visible (toggle from Tools menu)
     if (bottomPanelVisible)
     {
         int bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
         auto bottomArea = bounds.removeFromBottom(bottomPanelHeight);
         bottomPanelArea = bottomArea.reduced(adaptivePadding, 0);
         
+        if (instrumentBrowser && currentBottomTool == 1)
+            instrumentBrowser->setBounds(bottomPanelArea);
         if (fxChainPanel && currentBottomTool == 2)
             fxChainPanel->setBounds(bottomPanelArea);
         if (mixerComponent && currentBottomTool == 4)
