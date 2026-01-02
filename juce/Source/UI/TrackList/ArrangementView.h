@@ -80,6 +80,18 @@ public:
     ~ArrangementView() override;
     
     //==============================================================================
+    /** Listener interface for arrangement events. */
+    class Listener
+    {
+    public:
+        virtual ~Listener() = default;
+        virtual void arrangementTrackPianoRollRequested(int trackIndex) = 0;  // User wants to edit track in Piano Roll
+    };
+    
+    void addListener(Listener* listener) { listeners.add(listener); }
+    void removeListener(Listener* listener) { listeners.remove(listener); }
+    
+    //==============================================================================
     /** Bind to project state. */
     void setProjectState(Project::ProjectState* state);
     
@@ -97,9 +109,18 @@ public:
     int getSelectedTrackIndex() const { return trackList.getSelectedTrackIndex(); }
     
     //==============================================================================
+    // Focused Track View
+    /** Focus on a single track (full screen within arrangement). -1 to show all tracks. */
+    void setFocusedTrack(int trackIndex);
+    int getFocusedTrack() const { return focusedTrackIndex; }
+    bool hasFocusedTrack() const { return focusedTrackIndex >= 0; }
+    void clearFocusedTrack() { setFocusedTrack(-1); }
+    
+    //==============================================================================
     void paint(juce::Graphics& g) override;
     void resized() override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
+    void mouseDown(const juce::MouseEvent& event) override;
     
     // TrackListComponent::Listener
     void trackSelectionChanged(int trackIndex) override;
@@ -116,6 +137,7 @@ public:
 private:
     mmg::AudioEngine& audioEngine;
     Project::ProjectState* projectState = nullptr;
+    juce::ListenerList<Listener> listeners;
     
     // Left panel - track headers
     TrackListComponent trackList;
@@ -135,12 +157,16 @@ private:
     float hZoom = 1.0f;
     int currentBPM = 120;
     
+    // Focused track view (-1 = show all)
+    int focusedTrackIndex = -1;
+    
     // Splitter for resizable track list
     juce::StretchableLayoutManager layoutManager;
     
     void syncTrackLanes();
     void updateLanesLayout();
     void drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> bounds);
+    void showContextMenu(const juce::MouseEvent& event);
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArrangementView)
 };

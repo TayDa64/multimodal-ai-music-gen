@@ -35,6 +35,7 @@
 class VisualizationPanel : public juce::Component,
                            public RecentFilesPanel::Listener,
                            public PianoRollComponent::Listener,
+                           public UI::ArrangementView::Listener,
                            private mmg::AudioEngine::VisualizationListener
 {
 public:
@@ -91,6 +92,9 @@ private:
     // PianoRollComponent::Listener
     void pianoRollNoteHovered(const MidiNoteEvent* note) override;
     void pianoRollSeekRequested(double positionSeconds) override;
+    
+    // ArrangementView::Listener
+    void arrangementTrackPianoRollRequested(int trackIndex) override;
     
     // AudioEngine::VisualizationListener (called from audio thread)
     void audioSamplesReady(const float* leftSamples, 

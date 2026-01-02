@@ -46,6 +46,7 @@ public:
         virtual void transportStopRequested() = 0;
         virtual void transportPositionChanged(double newPosition) = 0;
         virtual void transportBPMChanged(int newBPM) = 0;
+        virtual void toolsMenuItemSelected(int itemId) {}  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer
     };
     
     void addListener(Listener* listener);
@@ -102,6 +103,9 @@ private:
     
     // Load MIDI button (for testing)
     juce::TextButton loadMidiButton{ "Load MIDI" };
+    
+    // Tools dropdown (replaces bottom tabs)
+    juce::TextButton toolsButton{ "Tools" };
     
     // Time display
     juce::Label timeDisplay;

@@ -75,6 +75,20 @@ void PianoRollComponent::syncNotesFromState()
     
     int maxTrackIndex = 0;
     
+    // Also count tracks from mixer node to ensure all tracks show in dropdown
+    auto mixerNode = projectState->getMixerNode();
+    if (mixerNode.isValid())
+    {
+        for (const auto& child : mixerNode)
+        {
+            if (child.hasType(Project::IDs::TRACK))
+            {
+                int idx = child.getProperty(Project::IDs::index);
+                maxTrackIndex = juce::jmax(maxTrackIndex, idx);
+            }
+        }
+    }
+    
     for (const auto& child : notesNode)
     {
         if (child.hasType(Project::IDs::NOTE))
@@ -106,6 +120,10 @@ void PianoRollComponent::syncNotesFromState()
     }
     
     assignTrackColors(maxTrackIndex + 1);
+    
+    // Ensure minimum duration for playable area
+    totalDuration = juce::jmax(totalDuration, minimumDuration);
+    
     updateTrackList();
     repaint();
 }
@@ -233,6 +251,13 @@ void PianoRollComponent::setHorizontalZoom(float zoom)
     repaint();
 }
 
+void PianoRollComponent::setMinimumDuration(double seconds)
+{
+    minimumDuration = seconds;
+    totalDuration = juce::jmax(totalDuration, minimumDuration);
+    repaint();
+}
+
 void PianoRollComponent::setVerticalZoom(float zoom)
 {
     vZoom = juce::jlimit(0.5f, 4.0f, zoom);
@@ -289,6 +314,16 @@ void PianoRollComponent::soloTrack(int trackIndex)
     repaint();
 }
 
+void PianoRollComponent::setTrackCount(int count)
+{
+    // Force reassign track colors to ensure dropdown shows all tracks
+    if (count > 0)
+    {
+        assignTrackColors(count);
+        updateTrackList();
+    }
+}
+
 juce::Colour PianoRollComponent::getTrackColour(int trackIndex) const
 {
     if (trackIndex >= 0 && trackIndex < trackColors.size())
@@ -298,8 +333,8 @@ juce::Colour PianoRollComponent::getTrackColour(int trackIndex) const
 
 void PianoRollComponent::assignTrackColors(int numTracks)
 {
-    // Only reassign if count changed to avoid color jumping
-    if (numTracks <= trackColors.size() && !trackColors.isEmpty()) return;
+    // Always update to match requested count
+    if (numTracks == trackColors.size()) return;
     
     trackColors.clear();
     trackVisible.clear();
@@ -696,9 +731,17 @@ MidiNoteEvent* PianoRollComponent::getNoteAt(juce::Point<float> position)
 }
 
 //==============================================================================
+void PianoRollComponent::setEmbeddedMode(bool embedded)
+{
+    embeddedMode = embedded;
+    trackSelector.setVisible(!embedded);
+    repaint();
+}
+
 void PianoRollComponent::resized() 
 {
-    trackSelector.setBounds(getWidth() - 150 - 10, 10, 150, 24);
+    if (!embeddedMode)
+        trackSelector.setBounds(getWidth() - 150 - 10, 10, 150, 24);
 }
 
 void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
@@ -826,6 +869,12 @@ void PianoRollComponent::mouseDrag(const juce::MouseEvent& event)
             
             double newStart = currentStart + (deltaTime / secondsPerBeat);
             int newNoteNum = currentNote + deltaNote;
+            
+            // Prevent notes from being dragged before beat 0
+            newStart = juce::jmax(0.0, newStart);
+            
+            // Clamp note number to valid MIDI range
+            newNoteNum = juce::jlimit(0, 127, newNoteNum);
             
             // Snap to grid?
             // if (!event.mods.isAltDown()) ...

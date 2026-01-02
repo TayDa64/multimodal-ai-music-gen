@@ -61,6 +61,26 @@ void TransportComponent::setupButtons()
         audioEngine.setLooping(loopButton.getToggleState());
     };
     addAndMakeVisible(loopButton);
+    
+    // Tools dropdown button (MPC-style - replaces bottom tabs)
+    toolsButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.1f));
+    toolsButton.setColour(juce::TextButton::textColourOffId, AppColours::textPrimary);
+    toolsButton.onClick = [this] {
+        juce::PopupMenu menu;
+        menu.addItem(1, "Instruments", true, false);
+        menu.addItem(2, "FX Chain", true, false);
+        menu.addItem(3, "Expansions", true, false);
+        menu.addItem(4, "Mixer", true, false);
+        
+        menu.showMenuAsync(juce::PopupMenu::Options()
+            .withTargetComponent(&toolsButton)
+            .withMinimumWidth(120),
+            [this](int result) {
+                if (result > 0)
+                    listeners.call(&Listener::toolsMenuItemSelected, result);
+            });
+    };
+    addAndMakeVisible(toolsButton);
 }
 
 void TransportComponent::setupSliders()
@@ -221,7 +241,7 @@ void TransportComponent::resized()
     const int centerY = bounds.getCentreY() - buttonHeight / 2;
     
     // Use FlexBox for responsive layout
-    // Left section - transport buttons
+    // Left section - transport buttons + Tools dropdown
     juce::FlexBox leftFlex = Layout::createRowFlex();
     leftFlex.items.add(juce::FlexItem(playButton).withWidth((float)buttonWidth).withHeight((float)buttonHeight));
     leftFlex.items.add(juce::FlexItem().withWidth(4.0f));  // Gap
@@ -230,13 +250,15 @@ void TransportComponent::resized()
     leftFlex.items.add(juce::FlexItem(stopButton).withWidth((float)buttonWidth).withHeight((float)buttonHeight));
     leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
     leftFlex.items.add(juce::FlexItem(loopButton).withWidth((float)smallButtonWidth).withHeight((float)buttonHeight));
-    leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
+    leftFlex.items.add(juce::FlexItem().withWidth(8.0f));
     leftFlex.items.add(juce::FlexItem(loadMidiButton).withWidth(70.0f).withHeight((float)buttonHeight));
     leftFlex.items.add(juce::FlexItem().withWidth(4.0f));
     leftFlex.items.add(juce::FlexItem(audioSettingsButton).withWidth(30.0f).withHeight((float)buttonHeight));
+    leftFlex.items.add(juce::FlexItem().withWidth(12.0f));  // Larger gap before Tools
+    leftFlex.items.add(juce::FlexItem(toolsButton).withWidth(60.0f).withHeight((float)buttonHeight));  // Tools dropdown
     
-    // Calculate left section width
-    int leftSectionWidth = juce::jmin(340, bounds.getWidth() / 3);
+    // Calculate left section width (increased to accommodate Tools)
+    int leftSectionWidth = juce::jmin(440, bounds.getWidth() / 2);
     auto leftSection = bounds.removeFromLeft(leftSectionWidth);
     leftFlex.performLayout(leftSection.withY(centerY).withHeight(buttonHeight));
     

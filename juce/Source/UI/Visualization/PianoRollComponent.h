@@ -98,6 +98,7 @@ public:
     //==============================================================================
     // Zoom controls
     void setHorizontalZoom(float zoom);  // 0.1 to 10.0
+    void setMinimumDuration(double seconds);  // Set minimum playable area duration
     void setVerticalZoom(float zoom);    // 0.5 to 4.0
     float getHorizontalZoom() const { return hZoom; }
     float getVerticalZoom() const { return vZoom; }
@@ -109,7 +110,13 @@ public:
     bool isTrackVisible(int trackIndex) const;
     void soloTrack(int trackIndex);  // -1 to show all
     int getTrackCount() const { return trackColors.size(); }
+    void setTrackCount(int count);  // Set track count from arrangement view
     juce::Colour getTrackColour(int trackIndex) const;
+    
+    //==============================================================================
+    // Embedded mode (for use inside ArrangementView - hides track selector)
+    void setEmbeddedMode(bool embedded);
+    bool isEmbeddedMode() const { return embeddedMode; }
     
     //==============================================================================
     // Component overrides
@@ -184,6 +191,7 @@ private:
     // MIDI data
     juce::Array<MidiNoteEvent> notes;
     double totalDuration = 60.0;
+    double minimumDuration = 600.0;  // 10 minutes minimum for professional workflow
     int currentBPM = 120;
     
     // View state
@@ -210,6 +218,7 @@ private:
     // Track Selection UI
     juce::ComboBox trackSelector;
     void updateTrackList();
+    bool embeddedMode = false;  // When true, hides track selector (for ArrangementView)
     
     // Mouse interaction
     MidiNoteEvent* hoveredNote = nullptr;

@@ -29,15 +29,16 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     
     // Create UI components
     transportBar = std::make_unique<TransportComponent>(appState, audioEngine);
+    transportBar->addListener(this);  // Listen for Tools menu
     transportBar->setVisible(true);
     addAndMakeVisible(*transportBar);
     
-    // Timeline component - shows sections, beat markers, playhead
+    // Timeline component - hidden (we use ArrangementView's timeline ruler instead)
+    // Keeping for backward compatibility but not displayed
     timelineComponent = std::make_unique<TimelineComponent>(appState, audioEngine);
     timelineComponent->setBPM(appState.getBPM());
     timelineComponent->addListener(this);
-    timelineComponent->setVisible(true);
-    addAndMakeVisible(*timelineComponent);
+    timelineComponent->setVisible(false);  // Hidden - MPC-style single timeline in arrangement
     
     promptPanel = std::make_unique<PromptPanel>(appState);
     promptPanel->addListener(this);
@@ -88,11 +89,18 @@ MainComponent::~MainComponent()
     appState.getProjectState().getState().removeListener(this);
     stopTimer();
     
+    // Close floating windows
+    instrumentsWindow.reset();
+    expansionsWindow.reset();
+    
     // Send graceful shutdown to Python server before cleaning up
     stopPythonServer();
     
     if (oscBridge)
         oscBridge->removeListener(this);
+    
+    if (transportBar)
+        transportBar->removeListener(this);
     
     if (visualizationPanel)
         visualizationPanel->removeListener(this);
@@ -131,22 +139,21 @@ void MainComponent::setupBottomPanel()
     genreSelector = std::make_unique<GenreSelector>();
     addAndMakeVisible(*genreSelector);
     
-    // Instrument Browser
+    // Instrument Browser - will be shown in floating window
     instrumentBrowser = std::make_unique<InstrumentBrowserPanel>(audioEngine.getDeviceManager());
-    addAndMakeVisible(*instrumentBrowser);
+    // NOT added to this component - goes in floating window
     
-    // FX Chain Panel
+    // FX Chain Panel - shown in bottom panel when triggered
     fxChainPanel = std::make_unique<FXChainPanel>();
-    fxChainPanel->setVisible(false);  // Start hidden
-    fxChainPanel->setProjectState(&appState.getProjectState());  // Connect for persistence
+    fxChainPanel->setVisible(false);
+    fxChainPanel->setProjectState(&appState.getProjectState());
     addAndMakeVisible(*fxChainPanel);
     
-    // Expansion Browser Panel
+    // Expansion Browser Panel - will be shown in floating window
     expansionBrowser = std::make_unique<ExpansionBrowserPanel>();
-    expansionBrowser->setVisible(false);  // Start hidden
-    addAndMakeVisible(*expansionBrowser);
+    // NOT added to this component - goes in floating window
     
-    // Mixer Component
+    // Mixer Component - shown in bottom panel when triggered
     mixerComponent = std::make_unique<UI::MixerComponent>();
     mixerComponent->setVisible(false);
     mixerComponent->bindToProject(appState.getProjectState());
@@ -159,60 +166,13 @@ void MainComponent::setupBottomPanel()
         if (child.hasType(Project::IDs::TRACK))
             trackNames.add(child.getProperty(Project::IDs::name));
     }
-    // If no tracks in project (legacy), use default names matching AudioEngine
     if (trackNames.isEmpty())
     {
         for (int i = 0; i < 4; ++i)
             trackNames.add("Track " + juce::String(i + 1));
     }
     mixerComponent->setTracks(trackNames);
-    
     addAndMakeVisible(*mixerComponent);
-    
-    // Tab buttons for bottom panel
-    instrumentsTabButton.setRadioGroupId(100);
-    instrumentsTabButton.setClickingTogglesState(true);
-    instrumentsTabButton.setToggleState(true, juce::dontSendNotification);
-    instrumentsTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
-    instrumentsTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
-    instrumentsTabButton.onClick = [this]() {
-        currentBottomTab = 0;
-        updateBottomPanelTabs();
-    };
-    addAndMakeVisible(instrumentsTabButton);
-    
-    fxTabButton.setRadioGroupId(100);
-    fxTabButton.setClickingTogglesState(true);
-    fxTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
-    fxTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
-    fxTabButton.onClick = [this]() {
-        currentBottomTab = 1;
-        updateBottomPanelTabs();
-    };
-    addAndMakeVisible(fxTabButton);
-    
-    expansionsTabButton.setRadioGroupId(100);
-    expansionsTabButton.setClickingTogglesState(true);
-    expansionsTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
-    expansionsTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
-    expansionsTabButton.onClick = [this]() {
-        currentBottomTab = 2;
-        updateBottomPanelTabs();
-        // Request expansion list when tab is opened
-        if (expansionBrowser)
-            expansionBrowser->requestExpansionList();
-    };
-    addAndMakeVisible(expansionsTabButton);
-    
-    mixerTabButton.setRadioGroupId(100);
-    mixerTabButton.setClickingTogglesState(true);
-    mixerTabButton.setColour(juce::TextButton::buttonColourId, AppColours::surface);
-    mixerTabButton.setColour(juce::TextButton::buttonOnColourId, AppColours::primary.darker(0.3f));
-    mixerTabButton.onClick = [this]() {
-        currentBottomTab = 3;
-        updateBottomPanelTabs();
-    };
-    addAndMakeVisible(mixerTabButton);
     
     // Now add listeners AFTER all components are created
     genreSelector->addListener(this);
@@ -220,7 +180,7 @@ void MainComponent::setupBottomPanel()
     fxChainPanel->addListener(this);
     expansionBrowser->addListener(this);
     
-    // Set default genre (this triggers listener, but all components now exist)
+    // Set default genre
     genreSelector->setSelectedGenre("trap");
     
     // Request initial instrument data
@@ -228,22 +188,104 @@ void MainComponent::setupBottomPanel()
         instrumentBrowser->requestInstrumentData();
 }
 
-void MainComponent::updateBottomPanelTabs()
+void MainComponent::toolsMenuItemSelected(int itemId)
 {
-    if (instrumentBrowser)
-        instrumentBrowser->setVisible(currentBottomTab == 0);
+    showToolWindow(itemId);
+}
+
+void MainComponent::showToolWindow(int toolId)
+{
+    // 1 = Instruments (floating), 2 = FX Chain (bottom), 3 = Expansions (floating), 4 = Mixer (bottom)
     
-    if (fxChainPanel)
-        fxChainPanel->setVisible(currentBottomTab == 1);
-    
-    if (expansionBrowser)
-        expansionBrowser->setVisible(currentBottomTab == 2);
-    
-    if (mixerComponent)
-        mixerComponent->setVisible(currentBottomTab == 3);
-    
+    switch (toolId)
+    {
+        case 1: // Instruments - floating window
+        {
+            if (!instrumentsWindow)
+            {
+                instrumentsWindow = std::make_unique<juce::DocumentWindow>(
+                    "Instruments",
+                    AppColours::background,
+                    juce::DocumentWindow::allButtons);
+                instrumentsWindow->setContentNonOwned(instrumentBrowser.get(), true);
+                instrumentsWindow->setResizable(true, false);
+                instrumentsWindow->centreWithSize(600, 500);
+                instrumentsWindow->setUsingNativeTitleBar(true);
+            }
+            instrumentsWindow->setVisible(true);
+            instrumentsWindow->toFront(true);
+            
+            // Request data if needed
+            if (instrumentBrowser)
+                instrumentBrowser->requestInstrumentData();
+            break;
+        }
+        
+        case 2: // FX Chain - bottom panel
+        {
+            if (currentBottomTool == 2 && bottomPanelVisible)
+            {
+                hideBottomPanel();
+            }
+            else
+            {
+                bottomPanelVisible = true;
+                currentBottomTool = 2;
+                if (fxChainPanel) fxChainPanel->setVisible(true);
+                if (mixerComponent) mixerComponent->setVisible(false);
+                resized();
+            }
+            break;
+        }
+        
+        case 3: // Expansions - floating window
+        {
+            if (!expansionsWindow)
+            {
+                expansionsWindow = std::make_unique<juce::DocumentWindow>(
+                    "Expansions",
+                    AppColours::background,
+                    juce::DocumentWindow::allButtons);
+                expansionsWindow->setContentNonOwned(expansionBrowser.get(), true);
+                expansionsWindow->setResizable(true, false);
+                expansionsWindow->centreWithSize(700, 500);
+                expansionsWindow->setUsingNativeTitleBar(true);
+            }
+            expansionsWindow->setVisible(true);
+            expansionsWindow->toFront(true);
+            
+            // Request expansion list
+            if (expansionBrowser)
+                expansionBrowser->requestExpansionList();
+            break;
+        }
+        
+        case 4: // Mixer - bottom panel
+        {
+            if (currentBottomTool == 4 && bottomPanelVisible)
+            {
+                hideBottomPanel();
+            }
+            else
+            {
+                bottomPanelVisible = true;
+                currentBottomTool = 4;
+                if (fxChainPanel) fxChainPanel->setVisible(false);
+                if (mixerComponent) mixerComponent->setVisible(true);
+                resized();
+            }
+            break;
+        }
+    }
+}
+
+void MainComponent::hideBottomPanel()
+{
+    bottomPanelVisible = false;
+    currentBottomTool = 0;
+    if (fxChainPanel) fxChainPanel->setVisible(false);
+    if (mixerComponent) mixerComponent->setVisible(false);
     resized();
-    repaint();
 }
 
 void MainComponent::applyGenreTheme(const juce::String& genreId)
@@ -392,59 +434,27 @@ void MainComponent::resized()
         transportBar->setVisible(true);
     }
     
-    // Timeline below transport (adaptive height)
-    int timelineH = effectiveHeight > 700 ? Layout::timelineHeightDefault : Layout::timelineHeightMin;
-    if (timelineComponent)
+    // NO separate timeline - ArrangementView has its own ruler (MPC/ProTools style)
+    // timelineComponent stays hidden
+    
+    // Bottom panel with FX/Mixer - only when visible (toggle from Tools menu)
+    if (bottomPanelVisible)
     {
-        timelineComponent->setBounds(bounds.removeFromTop(timelineH).reduced(adaptivePadding, 0));
-        timelineComponent->setVisible(true);
+        int bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
+        auto bottomArea = bounds.removeFromBottom(bottomPanelHeight);
+        bottomPanelArea = bottomArea.reduced(adaptivePadding, 0);
+        
+        if (fxChainPanel && currentBottomTool == 2)
+            fxChainPanel->setBounds(bottomPanelArea);
+        if (mixerComponent && currentBottomTool == 4)
+            mixerComponent->setBounds(bottomPanelArea);
     }
-    
-    // Bottom panel with tabs - use adaptive height calculation
-    int bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
-    auto bottomArea = bounds.removeFromBottom(bottomPanelHeight);
-    
-    // Tab buttons using FlexBox for responsive layout
-    auto tabRow = bottomArea.removeFromTop(Layout::tabBarHeight);
-    
-    juce::FlexBox tabFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::flexStart);
-    
-    // Calculate tab width constraints
-    int availableTabWidth = tabRow.getWidth();
-    int numTabs = 4;
-    int tabWidth = juce::jlimit(Layout::tabButtonMinWidth, Layout::tabButtonMaxWidth, availableTabWidth / numTabs);
-    
-    tabFlex.items.add(juce::FlexItem(instrumentsTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 2, 2, 0}));
-    tabFlex.items.add(juce::FlexItem(fxTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 2, 2, 2}));
-    tabFlex.items.add(juce::FlexItem(expansionsTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 2, 2, 2}));
-    tabFlex.items.add(juce::FlexItem(mixerTabButton).withWidth((float)tabWidth).withHeight((float)Layout::tabBarHeight - 4).withMargin({2, 0, 2, 2}));
-    
-    tabFlex.performLayout(tabRow);
-    
-    // Bottom panel content
-    bottomPanelArea = bottomArea.reduced(adaptivePadding, 0);
-    if (instrumentBrowser && currentBottomTab == 0)
-        instrumentBrowser->setBounds(bottomPanelArea);
-    if (fxChainPanel && currentBottomTab == 1)
-        fxChainPanel->setBounds(bottomPanelArea);
-    if (expansionBrowser && currentBottomTab == 2)
-        expansionBrowser->setBounds(bottomPanelArea);
-    if (mixerComponent && currentBottomTab == 3)
-        mixerComponent->setBounds(bottomPanelArea);
     
     // Main content area - use FlexBox for responsive layout
     auto contentArea = bounds.reduced(adaptivePadding);
     
-    // Use FlexBox for main content layout (left column + visualization)
-    juce::FlexBox mainFlex = Layout::createRowFlex();
-    mainFlex.alignItems = juce::FlexBox::AlignItems::stretch;
-    
     // Left column container (genre selector + prompt panel)
-    // Use adaptive sidebar width
     auto leftColumnBounds = contentArea.removeFromLeft(adaptiveSidebarWidth);
-    
-    // Layout left column with FlexBox
-    juce::FlexBox leftFlex = Layout::createColumnFlex();
     
     // Genre selector at top of left column (fixed height)
     if (genreSelector)
@@ -465,7 +475,7 @@ void MainComponent::resized()
     // Gap between left column and visualization
     contentArea.removeFromLeft(adaptivePadding);
     
-    // Visualization panel takes remaining space (flexible)
+    // Visualization panel takes remaining space (now much larger without bottom tabs)
     visualizationArea = contentArea;
     
     if (visualizationPanel)

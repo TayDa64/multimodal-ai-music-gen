@@ -56,6 +56,7 @@ class MainComponent : public juce::Component,
                       public FXChainPanel::Listener,
                       public ExpansionBrowserPanel::Listener,
                       public TimelineComponent::Listener,
+                      public TransportComponent::Listener,
                       public Project::ProjectState::Listener,
                       public juce::Timer
 {
@@ -133,6 +134,15 @@ public:
     // TimelineComponent::Listener overrides
     void timelineSeekRequested(double positionSeconds) override;
     void loopRegionChanged(double startSeconds, double endSeconds) override;
+    
+    //==============================================================================
+    // TransportComponent::Listener overrides
+    void transportPlayRequested() override {}
+    void transportPauseRequested() override {}
+    void transportStopRequested() override {}
+    void transportPositionChanged(double newPosition) override {}
+    void transportBPMChanged(int newBPM) override {}
+    void toolsMenuItemSelected(int itemId) override;
 
     //==============================================================================
     // Timer callback for UI updates
@@ -165,12 +175,13 @@ private:
     std::unique_ptr<ExpansionBrowserPanel> expansionBrowser;
     std::unique_ptr<UI::MixerComponent> mixerComponent;
     
-    // Bottom panel tab buttons
-    juce::TextButton instrumentsTabButton { "Instruments" };
-    juce::TextButton fxTabButton { "FX Chain" };
-    juce::TextButton expansionsTabButton { "Expansions" };
-    juce::TextButton mixerTabButton { "Mixer" };
-    int currentBottomTab = 0;  // 0 = Instruments, 1 = FX Chain, 2 = Expansions, 3 = Mixer
+    // Floating windows for Instruments and Expansions (MPC-style)
+    std::unique_ptr<juce::DocumentWindow> instrumentsWindow;
+    std::unique_ptr<juce::DocumentWindow> expansionsWindow;
+    
+    // Bottom panel visibility state (for FX Chain and Mixer)
+    bool bottomPanelVisible = false;
+    int currentBottomTool = 0;  // 0 = none, 2 = FX Chain, 4 = Mixer
     
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;
@@ -198,7 +209,8 @@ private:
     void stopPythonServer();
     void setupOSCConnection();
     void setupBottomPanel();
-    void updateBottomPanelTabs();
+    void showToolWindow(int toolId);  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer
+    void hideBottomPanel();
     void applyGenreTheme(const juce::String& genreId);
     void applyAnalysisResult(const AnalyzeResult& result);
     void drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area, 

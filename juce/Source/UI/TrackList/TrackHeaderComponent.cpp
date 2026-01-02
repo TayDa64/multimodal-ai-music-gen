@@ -23,17 +23,33 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
 {
     trackName = "Track " + juce::String(index + 1);
     
-    // Name label (editable on double-click)
+    // Name label (editable on double-click, single line) - MPC style compact
     nameLabel.setText(trackName, juce::dontSendNotification);
-    nameLabel.setFont(juce::Font(12.0f).boldened());
+    nameLabel.setFont(juce::Font(10.0f));
     nameLabel.setColour(juce::Label::textColourId, ThemeManager::getCurrentScheme().text);
     nameLabel.setEditable(false, true);  // Double-click to edit
+    nameLabel.setMinimumHorizontalScale(1.0f);
+    nameLabel.setJustificationType(juce::Justification::centredLeft);
     nameLabel.onTextChange = [this]() { onNameEdited(); };
     addAndMakeVisible(nameLabel);
     
-    // Expand/collapse button
-    expandButton.setButtonText(expanded ? juce::String(juce::CharPointer_UTF8("▼")) 
-                                        : juce::String(juce::CharPointer_UTF8("▶")));
+    // Instrument/Kit dropdown (MPC style) 
+    instrumentCombo.setTextWhenNothingSelected("Select Kit...");
+    instrumentCombo.addItem("Default Kit", 1);
+    instrumentCombo.addItem("Drum Kit", 2);
+    instrumentCombo.addItem("Bass", 3);
+    instrumentCombo.addItem("Keys", 4);
+    instrumentCombo.addItem("Synth", 5);
+    instrumentCombo.addItem("Strings", 6);
+    instrumentCombo.setSelectedId(1, juce::dontSendNotification);
+    instrumentCombo.setColour(juce::ComboBox::backgroundColourId, ThemeManager::getSurface().brighter(0.1f));
+    instrumentCombo.setColour(juce::ComboBox::textColourId, ThemeManager::getCurrentScheme().textSecondary);
+    instrumentCombo.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    addAndMakeVisible(instrumentCombo);
+    
+    // Expand/collapse button - smaller for compact mode
+    expandButton.setButtonText(expanded ? juce::String(juce::CharPointer_UTF8("\xe2\x96\xbc")) 
+                                        : juce::String(juce::CharPointer_UTF8("\xe2\x96\xb6")));
     expandButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     expandButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
     expandButton.onClick = [this]() {
@@ -42,25 +58,28 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     };
     addAndMakeVisible(expandButton);
     
-    // Arm button (record enable)
+    // Arm button (record enable) - hidden by default in compact mode, shown on hover/expand
     armButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface());
     armButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
     armButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
     armButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     armButton.setClickingTogglesState(true);
+    armButton.setTooltip("Record Arm");
     armButton.onClick = [this]() {
         armed = armButton.getToggleState();
         listeners.call(&Listener::trackArmToggled, this, armed);
         syncToProjectState();
     };
+    armButton.setVisible(false);  // Hidden in compact MPC mode
     addAndMakeVisible(armButton);
     
-    // Mute button
-    muteButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface());
-    muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFFF6B00));  // Orange
+    // Mute button - MPC style compact (small inline toggle)
+    muteButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface().brighter(0.05f));
+    muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFFF6B00));  // Orange when active
     muteButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
     muteButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     muteButton.setClickingTogglesState(true);
+    muteButton.setTooltip("Mute");
     muteButton.onClick = [this]() {
         muted = muteButton.getToggleState();
         listeners.call(&Listener::trackMuteToggled, this, muted);
@@ -68,12 +87,13 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     };
     addAndMakeVisible(muteButton);
     
-    // Solo button
-    soloButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface());
+    // Solo button - MPC style compact (small inline toggle)
+    soloButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface().brighter(0.05f));
     soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
     soloButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
     soloButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
     soloButton.setClickingTogglesState(true);
+    soloButton.setTooltip("Solo");
     soloButton.onClick = [this]() {
         soloed = soloButton.getToggleState();
         listeners.call(&Listener::trackSoloToggled, this, soloed);
@@ -174,95 +194,93 @@ void TrackHeaderComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds();
     
-    // Background
-    juce::Colour bgColour = ThemeManager::getSurface();
+    // Background - darker for MPC look
+    juce::Colour bgColour = ThemeManager::getSurface().darker(0.1f);
     if (selected)
-        bgColour = ThemeManager::getCurrentScheme().accent.withAlpha(0.15f);
+        bgColour = ThemeManager::getCurrentScheme().accent.withAlpha(0.2f);
     
     g.setColour(bgColour);
     g.fillRect(bounds);
     
-    // Color strip on left (like Ableton tracks)
-    colorStripBounds = bounds.removeFromLeft(4);
+    // Track number box with track color (MPC style)
+    trackNumberBounds = bounds.removeFromLeft(24);
     g.setColour(trackColour);
-    g.fillRect(colorStripBounds);
+    g.fillRect(trackNumberBounds);
     
-    // Selection border
+    // Track number text (white on colored background)
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font(10.0f).boldened());
+    g.drawText(juce::String(trackIndex + 1), trackNumberBounds, juce::Justification::centred);
+    
+    // Subtle bottom border like MPC
+    g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.3f));
+    g.drawHorizontalLine(getHeight() - 1, 0.0f, (float)getWidth());
+    
+    // Selection highlight
     if (selected)
     {
-        g.setColour(ThemeManager::getCurrentScheme().accent);
-        g.drawRect(getLocalBounds(), 2);
-    }
-    else
-    {
-        // Subtle border
-        g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.5f));
+        g.setColour(ThemeManager::getCurrentScheme().accent.withAlpha(0.5f));
         g.drawRect(getLocalBounds(), 1);
     }
-    
-    // Track type icon
-    typeIconBounds = bounds.removeFromLeft(24).reduced(4);
-    g.setColour(ThemeManager::getCurrentScheme().textSecondary);
-    g.setFont(10.0f);
-    
-    juce::String typeIcon;
-    switch (trackType)
-    {
-        case TrackType::MIDI:
-            typeIcon = "MIDI";
-            g.setColour(juce::Colour(0xFF4CAF50));  // Green for MIDI
-            break;
-        case TrackType::Audio:
-            typeIcon = "AUD";
-            g.setColour(juce::Colour(0xFF2196F3));  // Blue for Audio
-            break;
-        case TrackType::Master:
-            typeIcon = "MST";
-            g.setColour(juce::Colour(0xFFFF9800));  // Orange for Master
-            break;
-    }
-    
-    g.drawText(typeIcon, typeIconBounds, juce::Justification::centred);
-    
-    // Track index number
-    auto indexBounds = bounds.removeFromLeft(20);
-    g.setColour(ThemeManager::getCurrentScheme().textSecondary);
-    g.setFont(10.0f);
-    g.drawText(juce::String(trackIndex + 1), indexBounds, juce::Justification::centred);
 }
 
 void TrackHeaderComponent::resized()
 {
     auto bounds = getLocalBounds();
+    int height = bounds.getHeight();
     
-    // Skip color strip area
-    bounds.removeFromLeft(4);
-    
-    // Skip type icon area
+    // Skip track number box area (painted)
     bounds.removeFromLeft(24);
     
-    // Skip index area
-    bounds.removeFromLeft(20);
+    // Small padding
+    bounds.removeFromLeft(4);
     
-    // Expand button on the left
-    expandButton.setBounds(bounds.removeFromLeft(20));
+    // M/S buttons on the right - MPC style tiny toggles (16x16)
+    auto buttonArea = bounds.removeFromRight(40);
+    int buttonSize = 16;
+    int buttonY = (height - buttonSize) / 2;
+    int buttonPadding = 4;
     
-    // Buttons on the right
-    auto buttonArea = bounds.removeFromRight(80);
-    int buttonSize = 20;
-    int buttonPadding = 2;
+    int x = buttonArea.getX();
+    muteButton.setBounds(x, buttonY, buttonSize, buttonSize);
+    x += buttonSize + buttonPadding;
+    soloButton.setBounds(x, buttonY, buttonSize, buttonSize);
     
-    soloButton.setBounds(buttonArea.removeFromRight(buttonSize).reduced(buttonPadding));
-    muteButton.setBounds(buttonArea.removeFromRight(buttonSize).reduced(buttonPadding));
-    armButton.setBounds(buttonArea.removeFromRight(buttonSize).reduced(buttonPadding));
+    // Arm button (hidden in compact mode)
+    armButton.setBounds(0, 0, 0, 0);
     
-    // Name label takes remaining space
-    nameLabel.setBounds(bounds.reduced(4, 2));
+    // Expand button (small, before name)
+    expandButton.setBounds(bounds.removeFromLeft(16).reduced(0, (height - 14) / 2));
+    
+    // Split remaining space: track name (45%) and instrument dropdown (55%)
+    int nameWidth = (int)(bounds.getWidth() * 0.45f);
+    int comboWidth = bounds.getWidth() - nameWidth - 4;
+    
+    nameLabel.setBounds(bounds.removeFromLeft(nameWidth).reduced(2, (height - 16) / 2));
+    bounds.removeFromLeft(4);  // gap
+    instrumentCombo.setBounds(bounds.removeFromLeft(comboWidth).reduced(0, (height - 18) / 2));
 }
 
 void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event)
 {
-    if (!event.mods.isPopupMenu())
+    if (event.mods.isPopupMenu())
+    {
+        // Show context menu with delete option
+        juce::PopupMenu menu;
+        menu.addItem(1, "Rename Track");
+        menu.addSeparator();
+        menu.addItem(2, "Delete Track");
+        
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(
+            juce::Rectangle<int>(event.getScreenX(), event.getScreenY(), 1, 1)),
+            [this](int result) {
+                if (result == 1)
+                    nameLabel.showEditor();
+                else if (result == 2)
+                    listeners.call(&Listener::trackDeleteRequested, this);
+            });
+    }
+    else
     {
         listeners.call(&Listener::trackSelected, this);
     }
@@ -337,7 +355,15 @@ TrackListComponent::TrackListComponent()
     viewport.setScrollBarsShown(true, false);
     addAndMakeVisible(viewport);
     
-    // Add track button
+    // MPC-style section headers
+    midiSectionHeader = std::make_unique<TrackSectionHeader>("MIDI", juce::Colour(0xFF00D4AA));
+    contentComponent.addAndMakeVisible(*midiSectionHeader);
+    
+    audioSectionHeader = std::make_unique<TrackSectionHeader>("AUDIO", juce::Colour(0xFF2196F3));
+    contentComponent.addAndMakeVisible(*audioSectionHeader);
+    audioSectionHeader->setVisible(false);  // Hidden until we have audio tracks
+    
+    // Add track button - MPC style
     addTrackButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface());
     addTrackButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
     addTrackButton.onClick = [this]() {
@@ -553,17 +579,79 @@ void TrackListComponent::trackNameChanged(TrackHeaderComponent* track, const juc
     DBG("Track " + juce::String(track->getTrackIndex() + 1) + " renamed to: " + newName);
 }
 
+void TrackListComponent::trackDeleteRequested(TrackHeaderComponent* track)
+{
+    int index = track->getTrackIndex();
+    
+    // Don't allow deleting the last track
+    if (trackHeaders.size() <= 1)
+    {
+        DBG("Cannot delete the last track");
+        return;
+    }
+    
+    DBG("Track " + juce::String(index + 1) + " delete requested");
+    removeTrack(index);
+}
+
 //==============================================================================
 void TrackListComponent::updateLayout()
 {
     int y = 0;
     int width = viewport.getWidth() - viewport.getScrollBarThickness();
+    if (width <= 0) width = 200;  // Fallback width
     
+    // Count MIDI and Audio tracks
+    int midiCount = 0;
+    int audioCount = 0;
     for (auto* header : trackHeaders)
     {
-        int height = header->isExpanded() ? expandedTrackHeight : collapsedTrackHeight;
-        header->setBounds(0, y, width, height);
-        y += height;
+        if (header->getTrackType() == TrackType::Audio)
+            audioCount++;
+        else
+            midiCount++;
+    }
+    
+    // MIDI section header (always visible if we have MIDI tracks)
+    if (midiCount > 0)
+    {
+        midiSectionHeader->setVisible(true);
+        midiSectionHeader->setBounds(0, y, width, sectionHeaderHeight);
+        y += sectionHeaderHeight;
+        
+        // Layout MIDI tracks
+        for (auto* header : trackHeaders)
+        {
+            if (header->getTrackType() != TrackType::Audio)
+            {
+                int height = header->isExpanded() ? expandedTrackHeight : collapsedTrackHeight;
+                header->setBounds(0, y, width, height);
+                y += height;
+            }
+        }
+    }
+    
+    // AUDIO section header (visible if we have audio tracks)
+    if (audioCount > 0)
+    {
+        audioSectionHeader->setVisible(true);
+        audioSectionHeader->setBounds(0, y, width, sectionHeaderHeight);
+        y += sectionHeaderHeight;
+        
+        // Layout Audio tracks
+        for (auto* header : trackHeaders)
+        {
+            if (header->getTrackType() == TrackType::Audio)
+            {
+                int height = header->isExpanded() ? expandedTrackHeight : collapsedTrackHeight;
+                header->setBounds(0, y, width, height);
+                y += height;
+            }
+        }
+    }
+    else
+    {
+        audioSectionHeader->setVisible(false);
     }
     
     contentComponent.setSize(width, y);

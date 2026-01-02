@@ -89,6 +89,7 @@ public:
         virtual void trackMuteToggled(TrackHeaderComponent* track, bool muted) = 0;
         virtual void trackSoloToggled(TrackHeaderComponent* track, bool soloed) = 0;
         virtual void trackNameChanged(TrackHeaderComponent* track, const juce::String& newName) = 0;
+        virtual void trackDeleteRequested(TrackHeaderComponent* track) = 0;
     };
     
     void addListener(Listener* listener);
@@ -122,14 +123,14 @@ private:
     
     // UI Components
     juce::Label nameLabel;
+    juce::ComboBox instrumentCombo;  // MPC-style instrument/kit selector
     juce::TextButton expandButton { "▶" };
     juce::TextButton armButton { "R" };
     juce::TextButton muteButton { "M" };
     juce::TextButton soloButton { "S" };
     
-    // Track type icon area (drawn in paint)
-    juce::Rectangle<int> typeIconBounds;
-    juce::Rectangle<int> colorStripBounds;
+    // Track areas (for paint)
+    juce::Rectangle<int> trackNumberBounds;  // MPC-style colored track number box
     
     juce::ListenerList<Listener> listeners;
     
@@ -143,8 +144,44 @@ private:
 
 //==============================================================================
 /**
+    MPC-style section header for grouping tracks by type.
+*/
+class TrackSectionHeader : public juce::Component
+{
+public:
+    TrackSectionHeader(const juce::String& title, juce::Colour colour)
+        : sectionTitle(title), sectionColour(colour) {}
+    
+    void paint(juce::Graphics& g) override
+    {
+        auto bounds = getLocalBounds();
+        
+        // Dark background like MPC
+        g.setColour(juce::Colour(0xFF1A1A1A));
+        g.fillRect(bounds);
+        
+        // Section title
+        g.setColour(sectionColour);
+        g.setFont(juce::Font(9.0f).boldened());
+        g.drawText(sectionTitle, bounds.reduced(8, 0), juce::Justification::centredLeft);
+        
+        // Bottom border
+        g.setColour(sectionColour.withAlpha(0.3f));
+        g.drawHorizontalLine(getHeight() - 1, 0.0f, (float)getWidth());
+    }
+    
+private:
+    juce::String sectionTitle;
+    juce::Colour sectionColour;
+    
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackSectionHeader)
+};
+
+
+//==============================================================================
+/**
     Track list component containing all track headers.
-    Similar to Pro Tools track list or Ableton Session view rows.
+    Similar to MPC track list with MIDI/Audio section headers.
 */
 class TrackListComponent : public juce::Component,
                             public TrackHeaderComponent::Listener
@@ -208,23 +245,29 @@ public:
     void trackMuteToggled(TrackHeaderComponent* track, bool muted) override;
     void trackSoloToggled(TrackHeaderComponent* track, bool soloed) override;
     void trackNameChanged(TrackHeaderComponent* track, const juce::String& newName) override;
+    void trackDeleteRequested(TrackHeaderComponent* track) override;
 
 private:
     juce::OwnedArray<TrackHeaderComponent> trackHeaders;
     Project::ProjectState* projectState = nullptr;
     
     int selectedTrackIndex = 0;
-    int collapsedTrackHeight = 40;
-    int expandedTrackHeight = 120;
+    int collapsedTrackHeight = 28;   // MPC-style compact (was 40)
+    int expandedTrackHeight = 100;   // Slightly reduced (was 120)
+    int sectionHeaderHeight = 18;    // MPC-style section header height
     
-    // Track colors palette (like Ableton/Pro Tools)
+    // MPC-style section headers
+    std::unique_ptr<TrackSectionHeader> midiSectionHeader;
+    std::unique_ptr<TrackSectionHeader> audioSectionHeader;
+    
+    // Track colors palette (MPC-style cyan/red scheme)
     juce::Array<juce::Colour> trackColours = {
-        juce::Colour(0xFFE91E63),  // Pink
+        juce::Colour(0xFF00D4AA),  // Cyan/teal (MPC MIDI)
         juce::Colour(0xFF2196F3),  // Blue
         juce::Colour(0xFF4CAF50),  // Green
-        juce::Colour(0xFFFF9800),  // Orange
+        juce::Colour(0xFFFF6B00),  // Orange
         juce::Colour(0xFF9C27B0),  // Purple
-        juce::Colour(0xFF00BCD4),  // Cyan
+        juce::Colour(0xFFE91E63),  // Pink
         juce::Colour(0xFFFFEB3B),  // Yellow
         juce::Colour(0xFFF44336),  // Red
     };

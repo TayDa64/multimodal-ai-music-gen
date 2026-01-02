@@ -39,6 +39,12 @@ These were previously tracked as “remaining”, but are already present today:
   - JUCE: `juce/Source/UI/TrackList/TrackListComponent.*` (vertical track headers with "+" button for dynamic creation)
   - JUCE: `juce/Source/UI/VisualizationPanel.cpp` (added "Arrange" tab hosting ArrangementView)
 
+- [x] Arrangement View Enhancements
+  - JUCE: `PianoRollComponent::setEmbeddedMode()` - hides track selector dropdown when embedded in ArrangementView (redundant in multi-track context)
+  - JUCE: `ArrangementView::setFocusedTrack()` - full-screen single track view within arrangement
+  - JUCE: Right-click context menu in ArrangementView for "Focus Track", "Exit Focus View", "Expand Track", "Reset Zoom"
+  - Focus mode indicator in timeline ruler showing "FOCUSED: Track N (Right-click to exit)"
+
 - [x] Loop Region Sync (Timeline <-> AudioEngine <-> PianoRoll)
   - JUCE: `juce/Source/Audio/AudioEngine.*` (added `setLoopRegion()`, `getLoopRegionStart/End()`, `hasLoopRegion()`, atomic loop boundaries)
   - JUCE: `juce/Source/UI/TimelineComponent.cpp` (syncs loop region to AudioEngine on change)

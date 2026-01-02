@@ -24,6 +24,8 @@ TrackLaneContent::TrackLaneContent(int index, mmg::AudioEngine& engine)
     // Create piano roll by default (for MIDI tracks)
     pianoRoll = std::make_unique<PianoRollComponent>(engine);
     pianoRoll->soloTrack(trackIndex);  // Show only this track's notes
+    pianoRoll->setEmbeddedMode(true);  // Hide track selector - redundant in arrangement view
+    pianoRoll->setMinimumDuration(600.0);  // 10 minutes minimum playable area
     addAndMakeVisible(*pianoRoll);
 }
 
@@ -188,6 +190,18 @@ void ArrangementView::paint(juce::Graphics& g)
     auto rulerBounds = getLocalBounds().removeFromTop(rulerHeight);
     rulerBounds.removeFromLeft(trackListWidth);
     drawTimelineRuler(g, rulerBounds);
+    
+    // Draw focus mode indicator
+    if (hasFocusedTrack())
+    {
+        auto* header = trackList.getTrackHeader(focusedTrackIndex);
+        juce::String focusLabel = "FOCUSED: " + (header ? header->getTrackName() : "Track " + juce::String(focusedTrackIndex + 1));
+        focusLabel += "  (Right-click to exit)";
+        
+        g.setColour(ThemeManager::getCurrentScheme().accent);
+        g.setFont(11.0f);
+        g.drawText(focusLabel, rulerBounds.reduced(10, 0), juce::Justification::centredRight);
+    }
 }
 
 void ArrangementView::resized()
@@ -221,6 +235,131 @@ void ArrangementView::mouseWheelMove(const juce::MouseEvent& event, const juce::
     }
 }
 
+void ArrangementView::mouseDown(const juce::MouseEvent& event)
+{
+    if (event.mods.isPopupMenu())
+    {
+        showContextMenu(event);
+    }
+}
+
+void ArrangementView::showContextMenu(const juce::MouseEvent& event)
+{
+    juce::PopupMenu menu;
+    
+    // Get track at click position (if any)
+    int clickedTrackIndex = -1;
+    auto localPos = event.position;
+    
+    // Check if click is in the lanes area
+    if (localPos.x > trackListWidth)
+    {
+        // Calculate which track was clicked based on y position
+        int y = (int)localPos.y - rulerHeight + lanesViewport.getViewPositionY();
+        int currentY = 0;
+        
+        for (int i = 0; i < trackLanes.size(); ++i)
+        {
+            int height = trackLanes[i]->getHeight();
+            if (y >= currentY && y < currentY + height)
+            {
+                clickedTrackIndex = i;
+                break;
+            }
+            currentY += height;
+        }
+    }
+    
+    // Build context menu
+    if (clickedTrackIndex >= 0)
+    {
+        auto* header = trackList.getTrackHeader(clickedTrackIndex);
+        juce::String trackName = header ? header->getTrackName() : "Track " + juce::String(clickedTrackIndex + 1);
+        
+        if (focusedTrackIndex == clickedTrackIndex)
+        {
+            menu.addItem(1, "Exit Focus View", true, false);
+        }
+        else
+        {
+            menu.addItem(2, "Focus: " + trackName, true, false);
+        }
+        
+        menu.addSeparator();
+        menu.addItem(3, "Expand Track", true, header && header->isExpanded());
+        menu.addItem(4, "Solo Track", true, false);
+        menu.addItem(5, "Mute Track", true, false);
+        menu.addSeparator();
+        menu.addItem(6, "Delete Track", trackList.getTrackCount() > 1, false);  // Only enable if more than 1 track
+    }
+    else if (hasFocusedTrack())
+    {
+        menu.addItem(1, "Exit Focus View", true, false);
+    }
+    
+    menu.addSeparator();
+    menu.addItem(10, "Zoom to Fit", true, false);
+    menu.addItem(11, "Reset Zoom", true, false);
+    
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(
+        juce::Rectangle<int>(event.getScreenX(), event.getScreenY(), 1, 1)),
+        [this, clickedTrackIndex](int result) {
+            switch (result)
+            {
+                case 1: // Exit Focus View
+                    clearFocusedTrack();
+                    break;
+                case 2: // Focus Track
+                    setFocusedTrack(clickedTrackIndex);
+                    break;
+                case 3: // Expand Track
+                    if (auto* header = trackList.getTrackHeader(clickedTrackIndex))
+                        header->setExpanded(!header->isExpanded());
+                    updateLanesLayout();
+                    break;
+                case 6: // Delete Track
+                    if (clickedTrackIndex >= 0)
+                    {
+                        // Exit focus view if we're deleting the focused track
+                        if (focusedTrackIndex == clickedTrackIndex)
+                            clearFocusedTrack();
+                        else if (focusedTrackIndex > clickedTrackIndex)
+                            focusedTrackIndex--;  // Adjust focused index
+                        
+                        trackList.removeTrack(clickedTrackIndex);
+                    }
+                    break;
+                case 10: // Zoom to Fit
+                    // TODO: Implement zoom to fit
+                    break;
+                case 11: // Reset Zoom
+                    setHorizontalZoom(1.0f);
+                    break;
+            }
+        });
+}
+
+void ArrangementView::setFocusedTrack(int trackIndex)
+{
+    if (focusedTrackIndex == trackIndex)
+        return;
+    
+    focusedTrackIndex = trackIndex;
+    
+    if (focusedTrackIndex >= 0)
+    {
+        DBG("Arrangement: Focusing on Track " + juce::String(focusedTrackIndex + 1));
+        trackList.selectTrack(focusedTrackIndex);
+    }
+    else
+    {
+        DBG("Arrangement: Exiting focus view");
+    }
+    
+    updateLanesLayout();
+    repaint();
+}
+
 //==============================================================================
 void ArrangementView::trackSelectionChanged(int trackIndex)
 {
@@ -240,7 +379,17 @@ void ArrangementView::trackCountChanged(int newCount)
 
 void ArrangementView::trackExpandedChanged(int trackIndex, bool expanded)
 {
-    updateLanesLayout();
+    // When expand button is clicked, request Piano Roll view for this track
+    // This replaces the old "expand in-place" behavior with "open Piano Roll tab"
+    if (expanded)
+    {
+        listeners.call(&ArrangementView::Listener::arrangementTrackPianoRollRequested, trackIndex);
+        
+        // Reset expanded state since we're opening Piano Roll instead
+        if (auto* header = trackList.getTrackHeader(trackIndex))
+            header->setExpanded(false);
+    }
+    // Note: Don't call updateLanesLayout() - tracks stay at collapsed height
 }
 
 //==============================================================================
@@ -292,25 +441,58 @@ void ArrangementView::updateLanesLayout()
 {
     int y = 0;
     int width = juce::jmax(1000, lanesViewport.getWidth());  // Minimum width for scrolling
+    int viewportHeight = lanesViewport.getHeight();
     
-    // Calculate total height based on expanded/collapsed state
-    for (int i = 0; i < trackLanes.size(); ++i)
+    // In focused track mode, show the focused track at half viewport height
+    if (focusedTrackIndex >= 0 && focusedTrackIndex < trackLanes.size())
     {
-        auto* header = trackList.getTrackHeader(i);
-        int height = (header && header->isExpanded()) 
-            ? trackList.getExpandedTrackHeight() 
-            : trackList.getCollapsedTrackHeight();
+        int focusedHeight = viewportHeight / 2;  // Half the viewport height
         
-        trackLanes[i]->setBounds(0, y, width, height);
-        y += height;
+        for (int i = 0; i < trackLanes.size(); ++i)
+        {
+            if (i == focusedTrackIndex)
+            {
+                // Focused track takes half viewport height
+                trackLanes[i]->setVisible(true);
+                trackLanes[i]->setBounds(0, 0, width, focusedHeight);
+            }
+            else
+            {
+                // Hide other tracks
+                trackLanes[i]->setVisible(false);
+            }
+        }
+        
+        // Extend width based on zoom and duration - 10 minutes for professional workflow
+        float totalDuration = 600.0f;  // 10 minutes of scrollable content
+        float pixelsPerSecond = 100.0f * hZoom;
+        int contentWidth = (int)(totalDuration * pixelsPerSecond);
+        
+        lanesContent.setSize(juce::jmax(width, contentWidth), focusedHeight);
     }
-    
-    // Extend width based on zoom and duration
-    float totalDuration = 60.0f;  // Default 60 seconds view
-    float pixelsPerSecond = 100.0f * hZoom;
-    int contentWidth = (int)(totalDuration * pixelsPerSecond);
-    
-    lanesContent.setSize(juce::jmax(width, contentWidth), juce::jmax(y, lanesViewport.getHeight()));
+    else
+    {
+        // Normal mode: show all tracks stacked vertically
+        for (int i = 0; i < trackLanes.size(); ++i)
+        {
+            trackLanes[i]->setVisible(true);
+            
+            auto* header = trackList.getTrackHeader(i);
+            int height = (header && header->isExpanded()) 
+                ? trackList.getExpandedTrackHeight() 
+                : trackList.getCollapsedTrackHeight();
+            
+            trackLanes[i]->setBounds(0, y, width, height);
+            y += height;
+        }
+        
+        // Extend width based on zoom and duration - 10 minutes for professional workflow
+        float totalDuration = 600.0f;  // 10 minutes of scrollable content
+        float pixelsPerSecond = 100.0f * hZoom;
+        int contentWidth = (int)(totalDuration * pixelsPerSecond);
+        
+        lanesContent.setSize(juce::jmax(width, contentWidth), juce::jmax(y, viewportHeight));
+    }
 }
 
 void ArrangementView::drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> bounds)
@@ -335,7 +517,7 @@ void ArrangementView::drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> 
     g.setFont(10.0f);
     
     // Draw bar numbers and beat markers
-    for (double time = 0.0; time < 120.0; time += secondsPerBeat)
+    for (double time = 0.0; time < 600.0; time += secondsPerBeat)
     {
         float x = bounds.getX() + (float)((time - scrollOffset) * pixelsPerSecond);
         

@@ -24,6 +24,7 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     arrangementView = std::make_unique<UI::ArrangementView>(audioEngine);
     arrangementView->setProjectState(&appState.getProjectState());
     arrangementView->setBPM(appState.getBPM());
+    arrangementView->addListener(this);  // Listen for Piano Roll requests from track expand
     addAndMakeVisible(*arrangementView);
     
     // Create piano roll
@@ -79,6 +80,13 @@ VisualizationPanel::VisualizationPanel(AppState& state, mmg::AudioEngine& engine
     currentTab = 0;
     updateTabButtons();
     
+    // Sync initial track count to piano roll
+    if (pianoRoll && arrangementView)
+    {
+        int trackCount = arrangementView->getTrackList().getTrackCount();
+        pianoRoll->setTrackCount(trackCount);
+    }
+    
     // Set default theme
     themeManager.setTheme(GenreTheme::defaultTheme());
     updateTheme();
@@ -89,6 +97,8 @@ VisualizationPanel::~VisualizationPanel()
     // Unregister from audio engine
     audioEngine.removeVisualizationListener(this);
     
+    if (arrangementView)
+        arrangementView->removeListener(this);
     if (pianoRoll)
         pianoRoll->removeListener(this);
     if (recentFiles)
@@ -183,6 +193,13 @@ void VisualizationPanel::showTab(int index)
     if (waveform) waveform->setVisible(currentTab == 2);
     if (spectrum) spectrum->setVisible(currentTab == 3);
     if (recentFiles) recentFiles->setVisible(currentTab == 4);
+    
+    // Sync track count when switching to Piano Roll
+    if (currentTab == 1 && pianoRoll && arrangementView)
+    {
+        int trackCount = arrangementView->getTrackList().getTrackCount();
+        pianoRoll->setTrackCount(trackCount);
+    }
     
     updateTabButtons();
     
@@ -324,6 +341,20 @@ void VisualizationPanel::pianoRollNoteHovered(const MidiNoteEvent* note)
 void VisualizationPanel::pianoRollSeekRequested(double positionSeconds)
 {
     DBG("Piano roll seek to: " << positionSeconds << "s");
+}
+
+void VisualizationPanel::arrangementTrackPianoRollRequested(int trackIndex)
+{
+    DBG("ArrangementView requested Piano Roll for track " << trackIndex);
+    
+    // Switch to Piano Roll tab and solo the requested track
+    showTab(1);  // Piano Roll is tab 1
+    
+    if (pianoRoll)
+    {
+        pianoRoll->soloTrack(trackIndex);
+        infoLabel.setText("Editing Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
+    }
 }
 
 //==============================================================================
