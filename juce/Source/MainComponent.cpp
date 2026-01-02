@@ -116,6 +116,11 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     // NB Phase 2: Genre-aware components
     setupBottomPanel();
     
+    // Initialize default bottom panel heights for each tool
+    bottomPanelHeights[1] = 280;  // Instruments - taller for list browsing
+    bottomPanelHeights[2] = 250;  // FX Chain - medium height
+    bottomPanelHeights[4] = 300;  // Mixer - tallest for faders
+    
     // Force a layout update
     resized();
     
@@ -482,7 +487,20 @@ void MainComponent::resized()
     // Bottom panel with Instruments/FX/Mixer - only when visible (toggle from Tools menu)
     if (bottomPanelVisible)
     {
-        int bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
+        // Use saved height for this tool, or default adaptive height
+        int bottomPanelHeight;
+        if (bottomPanelHeights.count(currentBottomTool) > 0)
+        {
+            // Use saved height, but constrain to reasonable bounds
+            bottomPanelHeight = juce::jlimit(150, bounds.getHeight() / 2, bottomPanelHeights[currentBottomTool]);
+        }
+        else
+        {
+            // First time opening this tool - use adaptive default
+            bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
+            bottomPanelHeights[currentBottomTool] = bottomPanelHeight;  // Save it
+        }
+        
         auto bottomArea = bounds.removeFromBottom(bottomPanelHeight);
         bottomPanelArea = bottomArea.reduced(adaptivePadding, 0);
         
@@ -1283,6 +1301,60 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
         currentStatus = "Redo";
         repaint();
         return true;
+    }
+    
+    // Tool window shortcuts (without modifiers for quick access)
+    if (key.getModifiers().withoutMouseButtons() == juce::ModifierKeys::noModifiers)
+    {
+        // I - Toggle Instruments panel
+        if (key.isKeyCode('i') || key.isKeyCode('I'))
+        {
+            showToolWindow(1);
+            return true;
+        }
+        
+        // F - Toggle FX Chain panel
+        if (key.isKeyCode('f') || key.isKeyCode('F'))
+        {
+            showToolWindow(2);
+            return true;
+        }
+        
+        // E - Open Expansions window
+        if (key.isKeyCode('e') || key.isKeyCode('E'))
+        {
+            showToolWindow(3);
+            return true;
+        }
+        
+        // M - Toggle Mixer panel
+        if (key.isKeyCode('m') || key.isKeyCode('M'))
+        {
+            showToolWindow(4);
+            return true;
+        }
+        
+        // Escape - Close floating windows / hide bottom panel
+        if (key.isKeyCode(juce::KeyPress::escapeKey))
+        {
+            bool didSomething = false;
+            
+            // Close floating windows first
+            if (expansionsWindow && expansionsWindow->isVisible())
+            {
+                expansionsWindow.reset();
+                didSomething = true;
+            }
+            
+            // Then hide bottom panel if visible
+            if (!didSomething && bottomPanelVisible)
+            {
+                hideBottomPanel();
+                didSomething = true;
+            }
+            
+            return didSomething;
+        }
     }
     
     return false;

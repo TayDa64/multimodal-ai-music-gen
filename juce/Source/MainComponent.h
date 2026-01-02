@@ -185,6 +185,9 @@ private:
     bool bottomPanelVisible = false;
     int currentBottomTool = 0;  // 0 = none, 1 = Instruments, 2 = FX Chain, 4 = Mixer
     
+    // Remember panel height per tool (for better UX)
+    std::map<int, int> bottomPanelHeights;  // toolId -> preferred height
+    
     // Placeholder areas (will be replaced with actual components)
     juce::Rectangle<int> visualizationArea;
     juce::Rectangle<int> bottomPanelArea;
