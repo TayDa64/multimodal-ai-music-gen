@@ -118,6 +118,9 @@ namespace Project
         // Import/Export
         void importMidiFile(const juce::File& midiFile);
         juce::MidiFile exportToMidiFile();
+        
+        // Debug: last import stats
+        juce::String getLastImportStats() const { return lastImportStats; }
 
         juce::ValueTree getMixerNode();
         juce::ValueTree getTrackNode(int index);
@@ -158,6 +161,7 @@ namespace Project
         juce::ValueTree projectTree;
         juce::UndoManager undoManager;
         juce::File currentFile;
+        juce::String lastImportStats;  // Debug: stores last import result
         bool isDirty = false;
 
         void createDefaultProject();

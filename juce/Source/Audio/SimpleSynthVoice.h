@@ -65,6 +65,9 @@ public:
         
         // Start envelope
         envelope.noteOn();
+        
+        DBG("SimpleSineVoice: startNote - note=" << midiNoteNumber 
+            << " freq=" << frequency << " vel=" << velocity << " level=" << level);
     }
     
     //==========================================================================

@@ -27,6 +27,7 @@
 #include "UI/FXChainPanel.h"
 #include "UI/ExpansionBrowserPanel.h"
 #include "UI/Mixer/MixerComponent.h"
+#include "UI/TakeLaneComponent.h"
 #include "UI/Theme/LayoutConstants.h"
 
 //==============================================================================
@@ -55,6 +56,7 @@ class MainComponent : public juce::Component,
                       public InstrumentBrowserPanel::Listener,
                       public FXChainPanel::Listener,
                       public ExpansionBrowserPanel::Listener,
+                      public TakeLanePanel::Listener,
                       public TimelineComponent::Listener,
                       public TransportComponent::Listener,
                       public Project::ProjectState::Listener,
@@ -93,6 +95,7 @@ public:
     // VisualizationPanel::Listener
     void fileSelected(const juce::File& file) override;
     void analyzeFileRequested(const juce::File& file) override;
+    void regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) override;
     
     //==============================================================================
     // GenreSelector::Listener
@@ -121,6 +124,18 @@ public:
     void onExpansionListReceived(const juce::String& json) override;
     void onExpansionInstrumentsReceived(const juce::String& json) override;
     void onExpansionResolveReceived(const juce::String& json) override;
+    
+    //==============================================================================
+    // OSCBridge::Listener take callbacks
+    void onTakesAvailable(const juce::String& json) override;
+    void onTakeSelected(const juce::String& track, const juce::String& takeId) override;
+    void onTakeRendered(const juce::String& track, const juce::String& outputPath) override;
+    
+    //==============================================================================
+    // TakeLanePanel::Listener
+    void takeSelected(const juce::String& track, const juce::String& takeId) override;
+    void takePlayRequested(const juce::String& track, const juce::String& takeId) override;
+    void renderTakesRequested() override;
     
     //==============================================================================
     // ProjectState::Listener overrides
@@ -174,6 +189,7 @@ private:
     std::unique_ptr<FXChainPanel> fxChainPanel;
     std::unique_ptr<ExpansionBrowserPanel> expansionBrowser;
     std::unique_ptr<UI::MixerComponent> mixerComponent;
+    std::unique_ptr<TakeLanePanel> takeLanePanel;  // Take lanes for comping
     
     // Floating windows for Instruments and Expansions (MPC-style)
     std::unique_ptr<juce::DocumentWindow> instrumentsWindow;

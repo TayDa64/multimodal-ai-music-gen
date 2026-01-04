@@ -342,6 +342,7 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
     
     // Create MIDI buffer for events in this time range
     juce::MidiBuffer midiBuffer;
+    int eventsAdded = 0;
     
     while (currentEventIndex < combinedSequence.getNumEvents())
     {
@@ -361,12 +362,37 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
         if (!eventPtr->message.isMetaEvent())
         {
             midiBuffer.addEvent(eventPtr->message, sampleOffset);
+            eventsAdded++;
+            
+            // Debug: log note events
+            if (eventPtr->message.isNoteOn())
+            {
+                DBG("MidiPlayer: NoteOn - note=" << eventPtr->message.getNoteNumber() 
+                    << " vel=" << eventPtr->message.getVelocity()
+                    << " ch=" << eventPtr->message.getChannel()
+                    << " time=" << eventTime);
+            }
         }
         
         ++currentEventIndex;
     }
     
     // Render synth with MIDI events
+    synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
+    
+    // Debug: check if synth produced any output
+    static int debugCounter = 0;
+    if (++debugCounter % 500 == 0)  // Log every ~500 blocks (~10 seconds at 44100/512)
+    {
+        float maxSample = 0.0f;
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        {
+            for (int i = 0; i < numSamples; ++i)
+                maxSample = juce::jmax(maxSample, std::abs(buffer.getSample(ch, i)));
+        }
+        DBG("MidiPlayer: pos=" << currentPositionSeconds << "s, events=" << eventsAdded 
+            << ", voices=" << synth.getNumVoices() << ", maxSample=" << maxSample);
+    }
     synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
     
     // Update position

@@ -67,6 +67,10 @@ class ParsedPrompt:
     genre: str = 'trap_soul'
     style_modifiers: List[str] = field(default_factory=list)
     
+    # Sonic Adjectives (for intelligent instrument selection)
+    # These describe the desired sound character (warm, vintage, bright, etc.)
+    sonic_adjectives: List[str] = field(default_factory=list)
+    
     # Instrumentation
     instruments: List[str] = field(default_factory=list)
     drum_elements: List[str] = field(default_factory=list)
@@ -527,6 +531,83 @@ STYLE_KEYWORDS: Dict[str, List[str]] = {
 
 
 # =============================================================================
+# SONIC ADJECTIVES - For Intelligent Instrument Selection
+# =============================================================================
+# These adjectives describe the desired sonic character and help the AI
+# match instruments from expansion packs based on their tonal qualities.
+# Organized by category with synonyms for robust matching.
+
+SONIC_ADJECTIVES: Dict[str, List[str]] = {
+    # Temperature / Warmth
+    'warm': ['warm', 'warmth', 'cozy', 'toasty', 'mellow'],
+    'cold': ['cold', 'icy', 'frozen', 'sterile', 'clinical'],
+    'hot': ['hot', 'sizzling', 'burning', 'fiery'],
+    
+    # Age / Character
+    'vintage': ['vintage', 'retro', 'classic', 'old school', 'oldschool', 'throwback', '70s', '80s', '90s'],
+    'modern': ['modern', 'contemporary', 'current', 'fresh', 'new'],
+    'futuristic': ['futuristic', 'sci-fi', 'space', 'alien', 'cyber'],
+    'analog': ['analog', 'analogue', 'tape', 'tube', 'valve'],
+    'digital': ['digital', 'clean digital', 'pristine'],
+    
+    # Texture / Surface
+    'dusty': ['dusty', 'dirty', 'gritty', 'lo-fi', 'lofi', 'crusty'],
+    'clean': ['clean', 'pristine', 'polished', 'crystal', 'pure'],
+    'rough': ['rough', 'raw', 'unpolished', 'harsh'],
+    'smooth': ['smooth', 'silky', 'buttery', 'creamy', 'velvety'],
+    'crunchy': ['crunchy', 'crispy', 'bitcrushed', 'crushed'],
+    
+    # Weight / Body
+    'fat': ['fat', 'thick', 'chunky', 'meaty', 'beefy', 'heavy'],
+    'thin': ['thin', 'light', 'airy', 'delicate', 'wispy'],
+    'deep': ['deep', 'subby', 'low', 'rumbling', 'thunderous'],
+    'punchy': ['punchy', 'tight', 'snappy', 'attack', 'transient'],
+    
+    # Brightness / Frequency
+    'bright': ['bright', 'brilliant', 'sparkly', 'shimmering', 'glittery'],
+    'dark': ['dark', 'murky', 'shadowy', 'dim', 'moody'],
+    'dull': ['dull', 'muted', 'soft', 'filtered'],
+    'present': ['present', 'forward', 'upfront', 'in your face'],
+    
+    # Saturation / Harmonic Content
+    'saturated': ['saturated', 'driven', 'overdriven', 'pushed'],
+    'distorted': ['distorted', 'fuzz', 'fuzzy', 'clipped'],
+    'compressed': ['compressed', 'squashed', 'pumping'],
+    
+    # Space / Ambience
+    'dry': ['dry', 'dead', 'close', 'intimate'],
+    'wet': ['wet', 'reverberant', 'spacious', 'ambient'],
+    'roomy': ['roomy', 'hall', 'chamber', 'cathedral'],
+    
+    # Movement / Modulation
+    'lush': ['lush', 'detuned', 'thick chorus', 'wide'],
+    'wobbly': ['wobbly', 'warped', 'tape wobble', 'wow', 'flutter'],
+    'pulsing': ['pulsing', 'pumping', 'sidechain', 'breathing'],
+    
+    # Emotional / Aesthetic
+    'soulful': ['soulful', 'soul', 'emotional', 'expressive', 'heartfelt'],
+    'aggressive': ['aggressive', 'angry', 'hard', 'intense'],
+    'dreamy': ['dreamy', 'ethereal', 'floaty', 'hazy', 'foggy'],
+    'nostalgic': ['nostalgic', 'memory', 'reminiscent', 'wistful'],
+    
+    # Genre-associated textures
+    'funky': ['funky', 'funk', 'groovy', 'bouncy'],
+    'jazzy': ['jazzy', 'jazz', 'sophisticated', 'complex'],
+    'cinematic': ['cinematic', 'epic', 'orchestral', 'filmic', 'movie'],
+    'organic': ['organic', 'natural', 'acoustic', 'live'],
+    'synthetic': ['synthetic', 'synth', 'electronic', 'artificial'],
+    
+    # Specific sonic descriptors (producer slang)
+    'plucky': ['plucky', 'plucked', 'staccato'],
+    'sustained': ['sustained', 'pad', 'long', 'held', 'legato'],
+    'glassy': ['glassy', 'glass', 'crystalline', 'bell-like'],
+    'woody': ['woody', 'wood', 'acoustic', 'resonant'],
+    'metallic': ['metallic', 'metal', 'tinny', 'bell'],
+    'breathy': ['breathy', 'airy', 'whispered', 'soft attack'],
+}
+
+
+# =============================================================================
 # PARSER CLASS
 # =============================================================================
 
@@ -574,6 +655,7 @@ class PromptParser:
         mood = self._extract_mood(prompt_lower)
         sections = self._extract_sections(prompt_lower)
         style_modifiers = self._extract_style_modifiers(prompt_lower)
+        sonic_adjectives = self._extract_sonic_adjectives(prompt_lower)
         
         # Apply genre defaults if BPM not specified
         if bpm is None:
@@ -602,6 +684,7 @@ class PromptParser:
             scale_type=scale_type,
             genre=genre,
             style_modifiers=style_modifiers,
+            sonic_adjectives=sonic_adjectives,
             instruments=instruments,
             drum_elements=drum_elements,
             excluded_drums=excluded_drums,
@@ -629,6 +712,42 @@ class PromptParser:
             if m not in seen:
                 out.append(m)
                 seen.add(m)
+        return out
+    
+    def _extract_sonic_adjectives(self, prompt: str) -> List[str]:
+        """
+        Extract sonic adjectives for intelligent instrument selection.
+        
+        These adjectives describe the desired sound character:
+        - Temperature: warm, cold, hot
+        - Age: vintage, modern, analog
+        - Texture: dusty, clean, crunchy
+        - Weight: fat, punchy, deep
+        - Brightness: bright, dark, present
+        - etc.
+        
+        The extracted adjectives are used by InstrumentResolver to match
+        instruments from expansion packs based on their tonal qualities.
+        """
+        adjectives: List[str] = []
+        
+        for name, keywords in SONIC_ADJECTIVES.items():
+            # Check if any keyword variant appears in the prompt
+            for kw in keywords:
+                # Use word boundary matching to avoid false positives
+                # e.g., "warm" shouldn't match "warming"
+                if kw in prompt:
+                    adjectives.append(name)
+                    break  # Only add each category once
+        
+        # De-duplicate while preserving order (already unique due to break)
+        seen = set()
+        out: List[str] = []
+        for adj in adjectives:
+            if adj not in seen:
+                out.append(adj)
+                seen.add(adj)
+        
         return out
     
     def _extract_bpm(self, prompt: str) -> Optional[float]:

@@ -180,6 +180,8 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/ExpansionBrowserPanel.h
     Source/UI/TakeLaneComponent.cpp
     Source/UI/TakeLaneComponent.h
+    Source/UI/PromptHistoryManager.cpp
+    Source/UI/PromptHistoryManager.h
     
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp

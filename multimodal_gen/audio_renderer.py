@@ -1064,6 +1064,7 @@ class AudioRenderer:
         mix = limit_audio(mix, TARGET_TRUE_PEAK)
         
         # Save with BWF format if enabled
+        # Master bit-depth policy: 16-bit with TPDF dither for delivery
         if self.use_bwf:
             try:
                 from .bwf_writer import save_wav_with_ai_provenance
@@ -1083,14 +1084,18 @@ class AudioRenderer:
                     output_path,
                     ai_metadata=ai_metadata,
                     sample_rate=self.sample_rate,
-                    description=f"AI-generated music: {parsed.genre if parsed else 'unknown'} at {parsed.bpm if parsed else 0} BPM"
+                    description=f"AI-generated music: {parsed.genre if parsed else 'unknown'} at {parsed.bpm if parsed else 0} BPM",
+                    bit_depth=16  # Master delivery format
                 )
             except Exception as e:
                 # Fall back to standard WAV if BWF fails
                 print(f"BWF save failed, falling back to standard WAV: {e}")
-                save_wav(mix, output_path, self.sample_rate, stereo=True)
+                save_wav(mix, output_path, self.sample_rate, stereo=True, 
+                        bit_depth=16, apply_dither=True)
         else:
-            save_wav(mix, output_path, self.sample_rate, stereo=True)
+            # Standard master: 16-bit with dither
+            save_wav(mix, output_path, self.sample_rate, stereo=True,
+                    bit_depth=16, apply_dither=True)
         
         # Post-process
         if parsed:
@@ -1221,10 +1226,20 @@ class AudioRenderer:
         self,
         midi_path: str,
         output_dir: str,
-        parsed: Optional[ParsedPrompt] = None
+        parsed: Optional[ParsedPrompt] = None,
+        bit_depth: int = 24
     ) -> Dict[str, str]:
         """
         Render individual track stems.
+        
+        Professional bit-depth policy: 24-bit stems by default.
+        24-bit preserves maximum dynamic range for mixing/mastering workflows.
+        
+        Args:
+            midi_path: Path to MIDI file to render
+            output_dir: Directory to save stems
+            parsed: Optional parsed prompt for metadata
+            bit_depth: Bit depth for stems (default 24 for professional use)
         
         Returns:
             Dict mapping track name to output file path
@@ -1280,10 +1295,11 @@ class AudioRenderer:
                 stereo = apply_stereo_pan(audio, 0)
                 stereo = normalize_audio(stereo, 0.9)
                 
-                # Save stem
+                # Save stem as 24-bit (professional standard)
                 stem_filename = f'{track_name}.wav'
                 stem_path = os.path.join(output_dir, stem_filename)
-                save_wav(stereo, stem_path, self.sample_rate, stereo=True)
+                save_wav(stereo, stem_path, self.sample_rate, stereo=True, 
+                        bit_depth=bit_depth, apply_dither=False)
                 stems[track_name] = stem_path
                 
                 # Store metadata
@@ -1292,14 +1308,25 @@ class AudioRenderer:
                     "peak": peak_level,
                     "rms": rms_level,
                     "is_drums": is_drums,
-                    "duration_seconds": total_seconds + self.tail_seconds
+                    "duration_seconds": total_seconds + self.tail_seconds,
+                    "bit_depth": bit_depth,
+                    "sample_rate": self.sample_rate
                 }
         
         # Save manifest
         manifest_path = os.path.join(output_dir, 'stems_manifest.json')
         try:
+            manifest = {
+                "format": {
+                    "bit_depth": bit_depth,
+                    "sample_rate": self.sample_rate,
+                    "channels": 2,
+                    "note": "24-bit stems for professional mixing; 16-bit for delivery"
+                },
+                "stems": stem_metadata
+            }
             with open(manifest_path, 'w') as f:
-                json.dump(stem_metadata, f, indent=2)
+                json.dump(manifest, f, indent=2)
         except Exception as e:
             print(f"Failed to save stems manifest: {e}")
             
@@ -1315,7 +1342,11 @@ def render_midi_to_audio(
     output_path: str,
     parsed: Optional[ParsedPrompt] = None
 ) -> bool:
-    """Quick function to render MIDI to audio."""
+    """
+    Quick function to render MIDI to audio (16-bit master).
+    
+    For professional stem export, use render_stems() instead.
+    """
     renderer = AudioRenderer()
     return renderer.render_midi_file(midi_path, output_path, parsed)
 
@@ -1323,11 +1354,18 @@ def render_midi_to_audio(
 def render_stems(
     midi_path: str,
     output_dir: str,
-    parsed: Optional[ParsedPrompt] = None
+    parsed: Optional[ParsedPrompt] = None,
+    bit_depth: int = 24
 ) -> Dict[str, str]:
-    """Quick function to render stems."""
+    """
+    Quick function to render stems.
+    
+    Professional bit-depth policy:
+    - Default: 24-bit stems for mixing/mastering
+    - Set bit_depth=16 for delivery-ready stems
+    """
     renderer = AudioRenderer()
-    return renderer.render_stems(midi_path, output_dir, parsed)
+    return renderer.render_stems(midi_path, output_dir, parsed, bit_depth=bit_depth)
 
 
 if __name__ == '__main__':
@@ -1338,3 +1376,4 @@ if __name__ == '__main__':
     # Test procedural rendering
     renderer = AudioRenderer(use_fluidsynth=False)
     print("Procedural renderer initialized")
+    print(f"Bit-depth policy: 24-bit stems, 16-bit master with dither")

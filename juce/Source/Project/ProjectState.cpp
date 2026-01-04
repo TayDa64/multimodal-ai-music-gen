@@ -276,6 +276,10 @@ namespace Project
             // Don't start a transaction here, usually called in batch or by UI that started one
             notesNode.addChild(note, -1, &undoManager);
         }
+        else
+        {
+            DBG("ERROR: addNote called but NOTES node is invalid!");
+        }
     }
 
     void ProjectState::deleteNote(const juce::ValueTree& noteNode)
@@ -314,6 +318,9 @@ namespace Project
 
     void ProjectState::importMidiFile(const juce::File& midiFile)
     {
+        DBG("ProjectState::importMidiFile - " << midiFile.getFullPathName());
+        DBG("  this=" << (void*)this);
+        
         juce::MidiFile midi;
         juce::FileInputStream stream(midiFile);
         
@@ -321,18 +328,23 @@ namespace Project
         {
             int timeFormat = midi.getTimeFormat();
             double ticksPerBeat = (timeFormat > 0) ? (double)timeFormat : 960.0;
+            
+            DBG("  MIDI loaded: " << midi.getNumTracks() << " tracks, timeFormat=" << timeFormat);
 
             undoManager.beginNewTransaction("Import MIDI");
             clearNotes();
             
             auto notesNode = projectTree.getChildWithName(IDs::NOTES);
+            DBG("  NOTES node valid: " << (notesNode.isValid() ? "YES" : "NO"));
+            int totalNotesAdded = 0;
             
             // Use MidiMessageSequence to pair notes
             for (int t = 0; t < midi.getNumTracks(); ++t)
             {
                 const auto* track = midi.getTrack(t);
                 juce::MidiMessageSequence seq;
-                seq.addSequence(*track, 0.0, 0.0, 0.0);
+                // IMPORTANT: Use a large end time to include ALL events, not just time 0!
+                seq.addSequence(*track, 0.0, 0.0, 1e10);
                 seq.updateMatchedPairs();
                 
                 // Extract track name
@@ -376,6 +388,24 @@ namespace Project
                     trackNode.setProperty(IDs::name, trackName, &undoManager);
                 }
 
+                int trackNoteCount = 0;
+                int totalEvents = seq.getNumEvents();
+                DBG("    Track " << t << " has " << totalEvents << " events in sequence");
+                
+                // Debug: count different message types
+                int noteOnCount = 0, noteOffCount = 0, otherCount = 0;
+                for (int i = 0; i < totalEvents; ++i)
+                {
+                    auto* ev = seq.getEventPointer(i);
+                    if (ev->message.isNoteOn())
+                        noteOnCount++;
+                    else if (ev->message.isNoteOff())
+                        noteOffCount++;
+                    else
+                        otherCount++;
+                }
+                DBG("    Message types: noteOn=" << noteOnCount << ", noteOff=" << noteOffCount << ", other=" << otherCount);
+                
                 for (int i = 0; i < seq.getNumEvents(); ++i)
                 {
                     auto* ev = seq.getEventPointer(i);
@@ -392,9 +422,27 @@ namespace Project
                                 length, 
                                 ev->message.getVelocity(), 
                                 t); // Use track index 't' as channel/track ID
+                        totalNotesAdded++;
+                        trackNoteCount++;
                     }
                 }
+                DBG("  Track " << t << " (" << trackName << "): " << trackNoteCount << " notes");
             }
+            
+            DBG("  Import complete: " << totalNotesAdded << " notes added");
+            
+            // Verify notes node
+            auto verifyNode = projectTree.getChildWithName(IDs::NOTES);
+            DBG("  NOTES node now has " << verifyNode.getNumChildren() << " children");
+            
+            // Store stats for debug display
+            lastImportStats = "Imported " + juce::String(totalNotesAdded) + " notes from " + 
+                             juce::String(midi.getNumTracks()) + " tracks";
+        }
+        else
+        {
+            DBG("  ERROR: Failed to open/read MIDI file!");
+            lastImportStats = "FAILED to read MIDI";
         }
     }
 

@@ -19,10 +19,10 @@ namespace Layout
     // Minimum Window Size
     //==============================================================================
     
-    constexpr int minWindowWidth = 1024;
-    constexpr int minWindowHeight = 600;
-    constexpr int defaultWindowWidth = 1280;
-    constexpr int defaultWindowHeight = 800;
+    constexpr int minWindowWidth = 900;
+    constexpr int minWindowHeight = 550;
+    constexpr int defaultWindowWidth = 1100;
+    constexpr int defaultWindowHeight = 700;
     
     //==============================================================================
     // Spacing & Padding (use scaled values for DPI awareness)

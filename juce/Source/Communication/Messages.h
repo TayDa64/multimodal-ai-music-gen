@@ -157,6 +157,9 @@ struct GenerationResult
     float duration = 0.0f;
     int samplesGenerated = 0;
     
+    // Takes (for TakeLanePanel)
+    juce::String takesJson;  // JSON array of take data
+    
     // Error info
     int errorCode = 0;
     juce::String errorMessage;
@@ -212,6 +215,37 @@ struct GenerationResult
         result.samplesGenerated = obj->getProperty("samples_generated");
         result.errorCode = obj->getProperty("error_code");
         result.errorMessage = obj->getProperty("error_message").toString();
+        
+        // Extract takes array as JSON string for TakeLanePanel
+        if (auto takesArr = obj->getProperty("takes"); takesArr.isArray())
+        {
+            // Build a JSON object with "tracks" key for TakeLanePanel format
+            juce::DynamicObject::Ptr tracksObj = new juce::DynamicObject();
+            
+            // Group takes by track name
+            for (int i = 0; i < takesArr.size(); ++i)
+            {
+                if (auto* takeObj = takesArr[i].getDynamicObject())
+                {
+                    juce::String trackName = takeObj->getProperty("track").toString();
+                    
+                    // Get or create array for this track
+                    auto existingArr = tracksObj->getProperty(trackName);
+                    juce::Array<juce::var> trackTakes;
+                    if (existingArr.isArray())
+                    {
+                        for (int j = 0; j < existingArr.size(); ++j)
+                            trackTakes.add(existingArr[j]);
+                    }
+                    trackTakes.add(takesArr[i]);
+                    tracksObj->setProperty(trackName, trackTakes);
+                }
+            }
+            
+            juce::DynamicObject::Ptr rootObj = new juce::DynamicObject();
+            rootObj->setProperty("tracks", juce::var(tracksObj.get()));
+            result.takesJson = juce::JSON::toString(juce::var(rootObj.get()), true);
+        }
         
         return result;
     }

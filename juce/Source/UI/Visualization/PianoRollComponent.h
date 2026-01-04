@@ -206,6 +206,9 @@ private:
     static constexpr int whiteKeyHeight = 12;
     static constexpr int blackKeyWidth = 35;
     
+    // Get effective key width (0 in embedded mode to maximize note area)
+    int getEffectiveKeyWidth() const { return embeddedMode ? 0 : pianoKeyWidth; }
+    
     // Note range
     static constexpr int minNote = 21;   // A0
     static constexpr int maxNote = 108;  // C8

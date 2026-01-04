@@ -77,7 +77,8 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void fileSelected(const juce::File& file) = 0;
-      virtual void analyzeFileRequested(const juce::File& file) { juce::ignoreUnused(file); }
+        virtual void analyzeFileRequested(const juce::File& file) { juce::ignoreUnused(file); }
+        virtual void regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) { juce::ignoreUnused(startBar, endBar, tracks); }
     };
     
     void addListener(Listener* listener);
@@ -95,6 +96,7 @@ private:
     
     // ArrangementView::Listener
     void arrangementTrackPianoRollRequested(int trackIndex) override;
+    void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) override;
     
     // AudioEngine::VisualizationListener (called from audio thread)
     void audioSamplesReady(const float* leftSamples, 

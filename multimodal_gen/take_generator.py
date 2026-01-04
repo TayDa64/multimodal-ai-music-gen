@@ -81,6 +81,20 @@ class VariationAxis(Enum):
     COMBINED = "combined"      # All axes
 
 
+class TakeMode(Enum):
+    """
+    Take export modes - how takes relate to original tracks.
+    
+    Industry-standard overdubbing behavior:
+    - REPLACE: Takes replace original (DAW comping workflow)
+    - LAYER: Takes add to original (double-tracking effect)
+    - COMP: AI selects best sections from all takes
+    """
+    REPLACE = "replace"      # Takes replace original (default, correct overdub)
+    LAYER = "layer"          # Takes layer on top (intentional doubling)
+    COMP = "comp"            # AI creates comp track from best sections
+
+
 class RoleVariationStrategy(Enum):
     """How each role should vary between takes."""
     DRUMS_FEEL = "drums_feel"       # Mainly timing + ghost notes
@@ -142,6 +156,11 @@ class TakeLane:
     - Display stacked take lanes visually
     - Allow clicking to "comp" sections from different takes
     - Audition takes in place during playback
+    
+    Industry-Standard Overdubbing:
+    - Takes are REPLACEMENT alternatives, not layers
+    - Only one take plays at a time (user selects which)
+    - Comping allows mixing sections from different takes
     """
     take_id: int
     seed: int
@@ -151,15 +170,20 @@ class TakeLane:
     # Generation parameters (for reproducibility)
     parameters: Dict[str, Any] = field(default_factory=dict)
     
-    # Variation summary
+    # Variation summary (complete accounting)
     notes_added: int = 0
-    notes_removed: int = 0
+    notes_removed: int = 0       # Notes intentionally omitted from original
     notes_modified: int = 0
+    notes_kept: int = 0          # Notes unchanged from original
     avg_timing_shift: float = 0.0
     avg_velocity_change: float = 0.0
     
     # MIDI output reference
     midi_track_name: str = ""
+    
+    # Take relationship metadata
+    original_track_name: str = ""   # Name of the track this is a take of
+    is_active_take: bool = False     # Whether this is the currently selected take
     
     def to_dict(self) -> Dict:
         return {
@@ -171,9 +195,12 @@ class TakeLane:
             "notes_added": self.notes_added,
             "notes_removed": self.notes_removed,
             "notes_modified": self.notes_modified,
+            "notes_kept": self.notes_kept,
             "avg_timing_shift": self.avg_timing_shift,
             "avg_velocity_change": self.avg_velocity_change,
             "midi_track_name": self.midi_track_name,
+            "original_track_name": self.original_track_name,
+            "is_active_take": self.is_active_take,
         }
     
     @classmethod
@@ -301,9 +328,11 @@ def _vary_rhythm(notes: List[NoteVariation], rng: random.Random,
         varied = deepcopy(note)
         if shift_range > 0:
             shift = rng.randint(-shift_range, shift_range)
-            varied.original_start = varied.start_tick
-            varied.start_tick = max(0, varied.start_tick + shift)
-            varied.variation_reason = "rhythm_shift"
+            # Only mark as modified if there's actual change
+            if shift != 0:
+                varied.original_start = varied.start_tick
+                varied.start_tick = max(0, varied.start_tick + shift)
+                varied.variation_reason = "rhythm_shift"
         
         result.append(varied)
         
@@ -424,9 +453,11 @@ def _vary_timing(notes: List[NoteVariation], rng: random.Random,
             # Minimal variance
             shift = rng.randint(-max_variance // 3, max_variance // 3)
         
-        varied.original_start = varied.start_tick
-        varied.start_tick = max(0, varied.start_tick + shift)
-        varied.variation_reason = f"timing_{feel}"
+        # Only mark as modified if there's an actual timing change
+        if shift != 0:
+            varied.original_start = varied.start_tick
+            varied.start_tick = max(0, varied.start_tick + shift)
+            varied.variation_reason = f"timing_{feel}"
         
         result.append(varied)
     
@@ -779,32 +810,66 @@ class TakeGenerator:
                 else:
                     varied_notes = func(varied_notes, rng, effective_intensity, config.role)
         
-        # Sort notes by start time
-        varied_notes.sort(key=lambda n: (n.start_tick, n.pitch))
+        # Sort notes by start time (exclude removed notes from final output)
+        active_notes = [n for n in varied_notes if not n.was_removed]
+        active_notes.sort(key=lambda n: (n.start_tick, n.pitch))
         
-        # Calculate variation statistics
-        notes_added = sum(1 for n in varied_notes if n.was_added)
-        notes_modified = sum(1 for n in varied_notes 
-                            if n.original_pitch or n.original_start)
+        # Calculate comprehensive variation statistics
+        # Notes added: new notes not in original
+        notes_added = sum(1 for n in active_notes if n.was_added)
         
-        timing_shifts = [abs(n.start_tick - n.original_start) 
-                        for n in varied_notes if n.original_start]
+        # Notes removed: original notes intentionally omitted (was_removed=True in varied_notes)
+        notes_removed = sum(1 for n in varied_notes if n.was_removed)
+        
+        # Notes modified: notes with changed timing or pitch (excluding added notes)
+        # Count as modified if pitch changed OR timing shifted by more than minimal amount
+        MIN_TIMING_SHIFT_FOR_MODIFIED = 10  # ticks - ignore very tiny shifts
+        notes_modified = 0
+        timing_shifts = []
+        
+        for n in active_notes:
+            if n.was_added:
+                continue
+            
+            is_modified = False
+            
+            # Check pitch modification
+            if n.original_pitch is not None and n.original_pitch != n.pitch:
+                is_modified = True
+            
+            # Check timing modification (only if significant)
+            if n.original_start is not None:
+                shift = abs(n.start_tick - n.original_start)
+                timing_shifts.append(shift)
+                if shift > MIN_TIMING_SHIFT_FOR_MODIFIED:
+                    is_modified = True
+            
+            if is_modified:
+                notes_modified += 1
+        
+        # Notes kept: original notes with minimal/no changes
+        notes_kept = len(active_notes) - notes_added - notes_modified
+        
+        # Average timing shift (for notes that were shifted)
         avg_timing_shift = sum(timing_shifts) / len(timing_shifts) if timing_shifts else 0.0
         
-        # Create take lane
+        # Create take lane with complete accounting
         take = TakeLane(
             take_id=take_index,
             seed=seed,
             variation_type=config.variation_axis,
-            notes=varied_notes,
+            notes=active_notes,  # Only include non-removed notes
             parameters={
                 "intensity": config.variation_intensity,
                 "role": config.role,
                 "genre": config.genre,
                 "section_type": config.section_type,
+                "original_note_count": len(original_notes),
             },
             notes_added=notes_added,
+            notes_removed=notes_removed,
             notes_modified=notes_modified,
+            notes_kept=notes_kept,
             avg_timing_shift=avg_timing_shift,
             midi_track_name=f"{config.role}_take_{take_index:02d}",
         )
@@ -837,16 +902,18 @@ class TakeGenerator:
         strategy = self.ROLE_STRATEGIES.get(role, RoleVariationStrategy.LEAD_PHRASE)
         
         # Configure based on strategy
+        # Industry-standard overdub intensity: subtle variations, not complete rewrites
+        # Aim for 60-80% of original notes preserved with minor timing/feel variations
         if strategy == RoleVariationStrategy.DRUMS_FEEL:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.4,
-                rhythm_weight=0.2,
+                variation_intensity=0.25,  # Subtle feel variations
+                rhythm_weight=0.15,
                 pitch_weight=0.0,  # Drums don't vary pitch
-                timing_weight=0.5,
-                ornament_weight=0.3,
-                intensity_weight=0.3,
+                timing_weight=0.4,  # Main variation is timing feel
+                ornament_weight=0.2,
+                intensity_weight=0.25,
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -856,12 +923,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.35,
-                rhythm_weight=0.25,
-                pitch_weight=0.15,  # Occasional octave shifts
-                timing_weight=0.5,
-                ornament_weight=0.1,
-                intensity_weight=0.2,
+                variation_intensity=0.2,  # Bass needs to stay locked in
+                rhythm_weight=0.15,
+                pitch_weight=0.1,  # Occasional octave shifts
+                timing_weight=0.35,
+                ornament_weight=0.05,
+                intensity_weight=0.15,
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -871,12 +938,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.5,
-                rhythm_weight=0.3,
-                pitch_weight=0.25,
-                timing_weight=0.35,
-                ornament_weight=0.35,
-                intensity_weight=0.25,
+                variation_intensity=0.35,  # Lead can have more freedom
+                rhythm_weight=0.2,
+                pitch_weight=0.2,
+                timing_weight=0.25,
+                ornament_weight=0.3,
+                intensity_weight=0.2,
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -886,12 +953,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.3,
-                rhythm_weight=0.2,
-                pitch_weight=0.3,  # Voicing changes
-                timing_weight=0.3,
-                ornament_weight=0.05,
-                intensity_weight=0.2,
+                variation_intensity=0.2,  # Chords need stability
+                rhythm_weight=0.1,
+                pitch_weight=0.2,  # Voicing changes
+                timing_weight=0.2,
+                ornament_weight=0.0,
+                intensity_weight=0.15,
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -901,10 +968,10 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.2,
-                rhythm_weight=0.1,
-                pitch_weight=0.1,
-                timing_weight=0.3,
+                variation_intensity=0.15,  # Pads are background, minimal variation
+                rhythm_weight=0.05,
+                pitch_weight=0.05,
+                timing_weight=0.2,
                 ornament_weight=0.0,
                 intensity_weight=0.3,
                 role=role,
@@ -917,6 +984,681 @@ class TakeGenerator:
         config.is_fill_opportunity = section_type in ["drop", "chorus", "outro", "buildup"]
         
         return self.generate_takes(notes, config)
+
+
+# =============================================================================
+# TAKE VALIDATOR - Correctness Verification for Generated Takes
+# =============================================================================
+
+@dataclass
+class TakeValidationResult:
+    """Results from validating a take against musical correctness criteria."""
+    is_valid: bool
+    score: float  # 0.0 to 1.0 overall quality
+    issues: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    
+    # Detailed metrics
+    note_density_ok: bool = True
+    rhythm_consistency_ok: bool = True
+    timing_reasonable_ok: bool = True
+    pitch_in_range_ok: bool = True
+    velocity_distribution_ok: bool = True
+
+
+class TakeValidator:
+    """
+    Validates generated takes for musical correctness.
+    
+    Industry-standard overdubbing quality checks:
+    - Note density shouldn't deviate too far from original
+    - Rhythm patterns should maintain genre consistency
+    - Timing variations should be within musical bounds
+    - Pitch changes should stay in key/scale
+    - Velocity distribution should be musically appropriate
+    
+    Usage:
+        validator = TakeValidator()
+        result = validator.validate_take(take, original_notes, genre="trap")
+        if not result.is_valid:
+            print(f"Issues: {result.issues}")
+    """
+    
+    # Maximum acceptable deviation ratios
+    MAX_NOTE_DENSITY_CHANGE = 0.4  # 40% more or fewer notes than original
+    MAX_TIMING_DEVIATION_16TH = 0.75  # Max 75% of a 16th note timing shift
+    MIN_NOTES_RETAINED = 0.3  # At least 30% of original notes should remain
+    
+    def __init__(self):
+        pass
+    
+    def validate_take(
+        self,
+        take: TakeLane,
+        original_notes: List[NoteVariation],
+        genre: str = "default",
+        scale_root: int = 0,
+        scale_type: str = "minor",
+    ) -> TakeValidationResult:
+        """
+        Validate a take against musical correctness criteria.
+        
+        Args:
+            take: The generated TakeLane to validate
+            original_notes: Original notes the take was derived from
+            genre: Genre for context-specific rules
+            scale_root: Root note of the key (0=C, 1=C#, etc.)
+            scale_type: major, minor, pentatonic, etc.
+        
+        Returns:
+            TakeValidationResult with pass/fail and detailed feedback
+        """
+        result = TakeValidationResult(is_valid=True, score=1.0)
+        
+        original_count = len(original_notes)
+        take_count = len(take.notes)
+        
+        # 1. Note Density Check
+        if original_count > 0:
+            density_ratio = take_count / original_count
+            if density_ratio < (1 - self.MAX_NOTE_DENSITY_CHANGE):
+                result.issues.append(
+                    f"Note density too low: {take_count} notes vs {original_count} original "
+                    f"(ratio {density_ratio:.2f}, min {1 - self.MAX_NOTE_DENSITY_CHANGE:.2f})"
+                )
+                result.note_density_ok = False
+                result.score -= 0.2
+            elif density_ratio > (1 + self.MAX_NOTE_DENSITY_CHANGE):
+                result.issues.append(
+                    f"Note density too high: {take_count} notes vs {original_count} original "
+                    f"(ratio {density_ratio:.2f}, max {1 + self.MAX_NOTE_DENSITY_CHANGE:.2f})"
+                )
+                result.note_density_ok = False
+                result.score -= 0.2
+        
+        # 2. Notes Retained Check
+        if original_count > 0:
+            retained_ratio = take.notes_kept / original_count if original_count > 0 else 0
+            if retained_ratio < self.MIN_NOTES_RETAINED:
+                result.warnings.append(
+                    f"Low note retention: {take.notes_kept}/{original_count} kept "
+                    f"({retained_ratio:.1%}, recommended >{self.MIN_NOTES_RETAINED:.0%})"
+                )
+                result.score -= 0.1
+        
+        # 3. Timing Deviation Check
+        max_timing_ticks = int(TICKS_PER_16TH * self.MAX_TIMING_DEVIATION_16TH)
+        if take.avg_timing_shift > max_timing_ticks:
+            result.warnings.append(
+                f"Large timing shifts: avg {take.avg_timing_shift:.1f} ticks "
+                f"(max recommended {max_timing_ticks})"
+            )
+            result.timing_reasonable_ok = False
+            result.score -= 0.1
+        
+        # 4. Pitch Range Check
+        if take.notes:
+            pitches = [n.pitch for n in take.notes]
+            min_pitch, max_pitch = min(pitches), max(pitches)
+            
+            # Check for unreasonable range (more than 4 octaves)
+            if max_pitch - min_pitch > 48:
+                result.warnings.append(
+                    f"Wide pitch range: {max_pitch - min_pitch} semitones "
+                    f"(MIDI {min_pitch} to {max_pitch})"
+                )
+                result.pitch_in_range_ok = False
+                result.score -= 0.1
+            
+            # Check for out-of-range notes
+            out_of_range = [p for p in pitches if p < 21 or p > 108]
+            if out_of_range:
+                result.issues.append(
+                    f"{len(out_of_range)} notes outside piano range (21-108)"
+                )
+                result.pitch_in_range_ok = False
+                result.score -= 0.15
+        
+        # 5. Velocity Distribution Check
+        if take.notes:
+            velocities = [n.velocity for n in take.notes]
+            avg_vel = sum(velocities) / len(velocities)
+            
+            # Check for too quiet or too loud
+            if avg_vel < 40:
+                result.warnings.append(f"Very quiet take: avg velocity {avg_vel:.0f}")
+                result.velocity_distribution_ok = False
+            elif avg_vel > 115:
+                result.warnings.append(f"Very loud take: avg velocity {avg_vel:.0f}")
+                result.velocity_distribution_ok = False
+            
+            # Check for no dynamics
+            vel_range = max(velocities) - min(velocities)
+            if vel_range < 10 and len(velocities) > 4:
+                result.warnings.append(
+                    f"No dynamics: velocity range only {vel_range} "
+                    f"({min(velocities)}-{max(velocities)})"
+                )
+                result.score -= 0.05
+        
+        # 6. Genre-Specific Checks
+        genre_issues = self._validate_genre_rules(take, genre)
+        result.warnings.extend(genre_issues)
+        
+        # Finalize
+        result.score = max(0.0, min(1.0, result.score))
+        result.is_valid = len(result.issues) == 0 and result.score >= 0.5
+        
+        return result
+    
+    def _validate_genre_rules(self, take: TakeLane, genre: str) -> List[str]:
+        """Check genre-specific musical rules."""
+        warnings = []
+        
+        role = take.parameters.get("role", "lead")
+        
+        if "trap" in genre:
+            # Trap: hi-hats should have lots of notes, kicks should be sparse
+            if role == "drums":
+                if take.notes_added > take.notes_removed * 2:
+                    warnings.append("Trap drums: consider more note removal for space")
+        
+        elif "lofi" in genre or "chill" in genre:
+            # Lo-fi: should have swing and ghost notes
+            if take.notes_added == 0 and role in ["drums", "bass"]:
+                warnings.append("Lo-fi style: consider adding ghost notes for groove")
+        
+        elif "boom_bap" in genre:
+            # Boom bap: needs swing, ghost notes on drums
+            if role == "drums" and take.avg_timing_shift < 5:
+                warnings.append("Boom bap drums: may need more swing/timing variation")
+        
+        return warnings
+    
+    def validate_take_set(
+        self,
+        take_set: TakeSet,
+        original_notes: List[NoteVariation],
+        genre: str = "default",
+    ) -> Dict[int, TakeValidationResult]:
+        """Validate all takes in a TakeSet."""
+        results = {}
+        for take in take_set.takes:
+            results[take.take_id] = self.validate_take(take, original_notes, genre)
+        return results
+    
+    def get_best_take(
+        self,
+        take_set: TakeSet,
+        original_notes: List[NoteVariation],
+        genre: str = "default",
+    ) -> Optional[TakeLane]:
+        """Return the highest-scoring valid take."""
+        validation_results = self.validate_take_set(take_set, original_notes, genre)
+        
+        best_take = None
+        best_score = -1.0
+        
+        for take in take_set.takes:
+            result = validation_results.get(take.take_id)
+            if result and result.is_valid and result.score > best_score:
+                best_score = result.score
+                best_take = take
+        
+        return best_take
+
+
+# =============================================================================
+# MIDI OUTPUT HELPERS
+# =============================================================================
+
+# =============================================================================
+# COMP GENERATOR - Industry-Standard Comping Workflow
+# =============================================================================
+
+@dataclass
+class CompSection:
+    """A section of a comp track with source take information."""
+    start_tick: int
+    end_tick: int
+    source_take_id: int
+    source_score: float
+    notes: List[NoteVariation] = field(default_factory=list)
+    
+    # Why this section was chosen
+    selection_reason: str = ""
+    
+    def duration_ticks(self) -> int:
+        return self.end_tick - self.start_tick
+
+
+@dataclass 
+class CompResult:
+    """Result of comp generation with full metadata."""
+    comp_notes: List[NoteVariation]
+    sections: List[CompSection]
+    source_takes: List[TakeLane]
+    
+    # Overall metrics
+    total_score: float = 0.0
+    num_sections: int = 0
+    takes_used: Dict[int, int] = field(default_factory=dict)  # take_id -> section count
+    
+    # MIDI output
+    midi_track_name: str = ""
+    original_track_name: str = ""
+    
+    def to_dict(self) -> Dict:
+        return {
+            "comp_notes_count": len(self.comp_notes),
+            "sections": [
+                {
+                    "start_tick": s.start_tick,
+                    "end_tick": s.end_tick,
+                    "source_take_id": s.source_take_id,
+                    "source_score": s.source_score,
+                    "notes_count": len(s.notes),
+                    "selection_reason": s.selection_reason,
+                }
+                for s in self.sections
+            ],
+            "total_score": self.total_score,
+            "num_sections": self.num_sections,
+            "takes_used": self.takes_used,
+            "midi_track_name": self.midi_track_name,
+            "original_track_name": self.original_track_name,
+        }
+
+
+class CompGenerator:
+    """
+    Generate composite tracks from multiple takes.
+    
+    Industry-standard comping workflow:
+    1. Divide track into sections (typically 1-4 bars)
+    2. Score each section in each take independently  
+    3. Select best section from any take for each position
+    4. Combine selected sections with smooth transitions
+    5. Validate final comp for coherence
+    
+    This creates the optimal "performance" by combining the best
+    moments from multiple takes - exactly like a professional
+    recording session.
+    
+    Usage:
+        comp_gen = CompGenerator()
+        result = comp_gen.generate_comp(
+            take_set=take_set,
+            original_notes=original_notes,
+            bars_per_section=2
+        )
+    """
+    
+    def __init__(self, validator: Optional[TakeValidator] = None):
+        """Initialize CompGenerator with optional validator."""
+        self.validator = validator or TakeValidator()
+    
+    def generate_comp(
+        self,
+        take_set: TakeSet,
+        original_notes: List[NoteVariation],
+        bars_per_section: int = 2,
+        genre: str = "default",
+        crossfade_ticks: int = 0,
+    ) -> CompResult:
+        """
+        Generate optimal comp track from multiple takes.
+        
+        Args:
+            take_set: TakeSet containing all takes to comp from
+            original_notes: Original notes for reference
+            bars_per_section: How many bars per comping section
+            genre: Genre for context-aware scoring
+            crossfade_ticks: Ticks of overlap for smooth transitions
+        
+        Returns:
+            CompResult with comp notes and metadata
+        """
+        if not take_set.takes:
+            return CompResult(
+                comp_notes=[],
+                sections=[],
+                source_takes=[],
+                total_score=0.0,
+                num_sections=0,
+            )
+        
+        # Calculate section boundaries
+        all_notes = []
+        for take in take_set.takes:
+            all_notes.extend(take.notes)
+        
+        if not all_notes:
+            return CompResult(
+                comp_notes=[],
+                sections=[],
+                source_takes=take_set.takes,
+                total_score=0.0,
+                num_sections=0,
+            )
+        
+        # Find total duration
+        min_tick = min(n.start_tick for n in all_notes)
+        max_tick = max(n.start_tick + n.duration_ticks for n in all_notes)
+        
+        # Calculate section length in ticks
+        section_ticks = bars_per_section * TICKS_PER_BAR_4_4
+        
+        # Generate section boundaries
+        sections = []
+        current_start = min_tick
+        
+        while current_start < max_tick:
+            section_end = min(current_start + section_ticks, max_tick)
+            
+            # Score each take for this section
+            best_take_id = 0
+            best_score = -1.0
+            best_notes = []
+            best_reason = "default"
+            
+            for take in take_set.takes:
+                # Get notes in this section
+                section_notes = [
+                    n for n in take.notes
+                    if n.start_tick >= current_start and n.start_tick < section_end
+                ]
+                
+                # Score this section
+                score = self._score_section(
+                    section_notes, 
+                    original_notes, 
+                    current_start, 
+                    section_end,
+                    take.parameters.get("role", "lead"),
+                    genre
+                )
+                
+                if score > best_score:
+                    best_score = score
+                    best_take_id = take.take_id
+                    best_notes = section_notes
+                    best_reason = f"highest_score_{score:.2f}"
+            
+            # Create comp section
+            comp_section = CompSection(
+                start_tick=current_start,
+                end_tick=section_end,
+                source_take_id=best_take_id,
+                source_score=best_score,
+                notes=best_notes,
+                selection_reason=best_reason,
+            )
+            sections.append(comp_section)
+            
+            current_start = section_end
+        
+        # Combine all selected sections
+        comp_notes = []
+        takes_used = {}
+        
+        for section in sections:
+            # Track which takes contributed
+            takes_used[section.source_take_id] = takes_used.get(section.source_take_id, 0) + 1
+            
+            # Add notes from this section (deep copy to avoid mutation)
+            for note in section.notes:
+                comp_note = deepcopy(note)
+                comp_note.variation_reason = f"comp_from_take_{section.source_take_id}"
+                comp_notes.append(comp_note)
+        
+        # Apply crossfade if specified (smooth velocity transitions at boundaries)
+        if crossfade_ticks > 0:
+            comp_notes = self._apply_crossfades(comp_notes, sections, crossfade_ticks)
+        
+        # Calculate total score (weighted average)
+        if sections:
+            total_score = sum(s.source_score for s in sections) / len(sections)
+        else:
+            total_score = 0.0
+        
+        # Sort notes by time
+        comp_notes.sort(key=lambda n: (n.start_tick, n.pitch))
+        
+        return CompResult(
+            comp_notes=comp_notes,
+            sections=sections,
+            source_takes=take_set.takes,
+            total_score=total_score,
+            num_sections=len(sections),
+            takes_used=takes_used,
+            midi_track_name=f"{take_set.role}_comp",
+            original_track_name=take_set.role,
+        )
+    
+    def _score_section(
+        self,
+        section_notes: List[NoteVariation],
+        original_notes: List[NoteVariation],
+        section_start: int,
+        section_end: int,
+        role: str,
+        genre: str,
+    ) -> float:
+        """
+        Score a section for musical quality.
+        
+        Scoring criteria:
+        - Note density relative to original (not too sparse/dense)
+        - Velocity consistency (avoid harsh jumps)
+        - Timing coherence (smooth rhythm)
+        - Role-appropriate characteristics
+        """
+        score = 1.0
+        
+        if not section_notes:
+            return 0.2  # Empty section gets low score but not zero
+        
+        # Get original notes in this section
+        orig_section = [
+            n for n in original_notes
+            if n.start_tick >= section_start and n.start_tick < section_end
+        ]
+        
+        # 1. Note density comparison
+        if orig_section:
+            density_ratio = len(section_notes) / len(orig_section)
+            # Ideal: 0.8 to 1.2 of original
+            if density_ratio < 0.5:
+                score -= 0.2
+            elif density_ratio > 2.0:
+                score -= 0.15
+            elif 0.8 <= density_ratio <= 1.2:
+                score += 0.1  # Bonus for similar density
+        
+        # 2. Velocity consistency
+        velocities = [n.velocity for n in section_notes]
+        if len(velocities) > 1:
+            vel_changes = [abs(velocities[i] - velocities[i-1]) for i in range(1, len(velocities))]
+            avg_vel_change = sum(vel_changes) / len(vel_changes)
+            # Large velocity jumps are usually bad
+            if avg_vel_change > 50:
+                score -= 0.15
+            elif avg_vel_change < 20:
+                score += 0.05  # Smooth dynamics bonus
+        
+        # 3. Timing spread (avoid clumping)
+        if len(section_notes) > 1:
+            times = sorted(n.start_tick for n in section_notes)
+            gaps = [times[i] - times[i-1] for i in range(1, len(times))]
+            if gaps:
+                min_gap = min(gaps)
+                max_gap = max(gaps)
+                # Very uneven spacing
+                if max_gap > min_gap * 10 and min_gap < TICKS_PER_16TH:
+                    score -= 0.1
+        
+        # 4. Role-specific bonuses
+        if role == "drums":
+            # Drums: reward ghost notes
+            ghost_count = sum(1 for n in section_notes if n.velocity < 70)
+            if ghost_count > 0:
+                score += 0.05
+        
+        elif role == "bass":
+            # Bass: reward octave relationships
+            pitches = set(n.pitch for n in section_notes)
+            octave_pairs = sum(1 for p in pitches if (p + 12) in pitches or (p - 12) in pitches)
+            if octave_pairs > 0:
+                score += 0.05
+        
+        elif role == "lead":
+            # Lead: reward melodic movement
+            if len(section_notes) > 2:
+                pitches = [n.pitch for n in sorted(section_notes, key=lambda x: x.start_tick)]
+                intervals = [abs(pitches[i] - pitches[i-1]) for i in range(1, len(pitches))]
+                avg_interval = sum(intervals) / len(intervals)
+                # Good melodic motion: 2-7 semitones average
+                if 2 <= avg_interval <= 7:
+                    score += 0.1
+        
+        # 5. Genre-specific adjustments
+        if "trap" in genre:
+            # Trap: reward hi-hat density
+            if role == "drums":
+                hi_hat_pitches = {42, 44, 46}  # Common hi-hat MIDI notes
+                hh_count = sum(1 for n in section_notes if n.pitch in hi_hat_pitches)
+                if hh_count > len(section_notes) * 0.3:
+                    score += 0.05
+        
+        elif "lofi" in genre or "boom_bap" in genre:
+            # Lo-fi/boom bap: reward timing variation (swing)
+            added_notes = sum(1 for n in section_notes if n.was_added)
+            if added_notes > 0:
+                score += 0.05  # Ghost notes add character
+        
+        return max(0.0, min(1.0, score))
+    
+    def _apply_crossfades(
+        self,
+        comp_notes: List[NoteVariation],
+        sections: List[CompSection],
+        crossfade_ticks: int,
+    ) -> List[NoteVariation]:
+        """Apply smooth velocity crossfades at section boundaries."""
+        if len(sections) < 2:
+            return comp_notes
+        
+        # Create set of boundary tick positions
+        boundaries = set()
+        for section in sections:
+            boundaries.add(section.start_tick)
+            boundaries.add(section.end_tick)
+        
+        # Adjust velocities near boundaries
+        for note in comp_notes:
+            for boundary in boundaries:
+                distance = abs(note.start_tick - boundary)
+                if distance < crossfade_ticks:
+                    # Fade factor: 1.0 at full distance, lower near boundary
+                    fade = distance / crossfade_ticks
+                    # Subtle velocity reduction at boundaries
+                    note.velocity = max(40, int(note.velocity * (0.85 + 0.15 * fade)))
+        
+        return comp_notes
+    
+    def generate_comp_from_takes(
+        self,
+        takes: List[TakeLane],
+        role: str,
+        bars_per_section: int = 2,
+        genre: str = "default",
+    ) -> CompResult:
+        """
+        Convenience method to generate comp directly from list of takes.
+        
+        Args:
+            takes: List of TakeLane objects
+            role: Track role for scoring context
+            bars_per_section: Section size
+            genre: Genre context
+        
+        Returns:
+            CompResult with optimal comp
+        """
+        # Get original notes from first take's parameters
+        original_notes = []
+        if takes and takes[0].parameters.get("original_note_count", 0) > 0:
+            # Use first take's notes as reference (they're derived from original)
+            original_notes = takes[0].notes
+        
+        # Create TakeSet
+        take_set = TakeSet(
+            clip_id="comp_source",
+            role=role,
+            original_note_count=len(original_notes),
+            takes=takes,
+        )
+        
+        return self.generate_comp(
+            take_set=take_set,
+            original_notes=original_notes,
+            bars_per_section=bars_per_section,
+            genre=genre,
+        )
+
+
+def comp_to_midi_track(
+    comp_result: CompResult,
+    bpm: float = 120.0,
+    channel: int = 0,
+) -> "MidiTrack":
+    """Convert a CompResult to a mido MidiTrack.
+    
+    Args:
+        comp_result: CompResult with comp notes
+        bpm: Tempo for the track
+        channel: MIDI channel
+    
+    Returns:
+        mido.MidiTrack ready to append to MidiFile
+    """
+    try:
+        from mido import MidiTrack, Message, MetaMessage
+    except ImportError:
+        raise ImportError("mido is required for MIDI export")
+    
+    track = MidiTrack()
+    track_name = comp_result.midi_track_name or "Comp"
+    track.append(MetaMessage('track_name', name=track_name, time=0))
+    
+    # Convert notes to MIDI messages
+    events = []
+    for note in comp_result.comp_notes:
+        if note.was_removed:
+            continue
+        events.append(("on", note.start_tick, note.pitch, note.velocity, channel))
+        events.append(("off", note.start_tick + note.duration_ticks, note.pitch, 0, channel))
+    
+    # Sort by time
+    events.sort(key=lambda e: (e[1], e[0] == "off"))
+    
+    # Convert to delta time and add to track
+    current_tick = 0
+    for event_type, tick, pitch, vel, ch in events:
+        delta = tick - current_tick
+        if event_type == "on":
+            track.append(Message('note_on', note=pitch, velocity=vel, 
+                                channel=ch, time=delta))
+        else:
+            track.append(Message('note_off', note=pitch, velocity=0,
+                                channel=ch, time=delta))
+        current_tick = tick
+    
+    # End of track
+    track.append(MetaMessage('end_of_track', time=0))
+    
+    return track
 
 
 # =============================================================================

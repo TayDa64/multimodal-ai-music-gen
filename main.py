@@ -48,6 +48,16 @@ from multimodal_gen import (
     TakeGenerator,
 )
 
+# Import StylePolicy for coherent producer decisions
+try:
+    from multimodal_gen.style_policy import StylePolicy, compile_policy, PolicyContext
+    HAS_STYLE_POLICY = True
+except ImportError:
+    HAS_STYLE_POLICY = False
+    StylePolicy = None
+    compile_policy = None
+    PolicyContext = None
+
 try:
     from colorama import init, Fore, Style
     init()
@@ -128,6 +138,8 @@ def print_parsed_prompt(parsed: ParsedPrompt, reference_info: dict = None):
     print(f"   Genre: {parsed.genre}")
     if parsed.style_modifiers:
         print(f"   Style: {', '.join(parsed.style_modifiers)}")
+    if parsed.sonic_adjectives:
+        print(f"   Sonic: {', '.join(parsed.sonic_adjectives)}")
     if parsed.instruments:
         print(f"   Instruments: {', '.join(parsed.instruments)}")
     if parsed.drum_elements:
@@ -201,6 +213,8 @@ def run_generation(
     seed: Optional[int] = None,
     use_bwf: bool = True,
     takes: int = 0,
+    comp: bool = False,
+    comp_bars: int = 2,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -221,6 +235,8 @@ def run_generation(
         seed: Random seed for reproducibility (enables iterative refinement)
         use_bwf: Use Broadcast Wave Format with AI provenance metadata (default: True)
         takes: Number of alternative takes to generate per track
+        comp: Auto-generate comp track from best sections of each take
+        comp_bars: Number of bars per comp section (default: 2)
         
     Returns:
         Dictionary with paths to generated files
@@ -250,6 +266,7 @@ def run_generation(
         "stems": [],
         "samples": [],
         "takes": {},  # Store alternative takes
+        "comps": {},  # Store composite tracks
         "reference_analysis": None,
         "instruments_used": [],
         "seed": seed,  # Store seed in results
@@ -440,10 +457,26 @@ def run_generation(
     report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
     midi_gen = MidiGenerator()
     
+    # Compile style policy for coherent producer decisions
+    policy_context = None
+    if HAS_STYLE_POLICY and compile_policy:
+        try:
+            policy_context = compile_policy(parsed)
+            print_info(f"Style policy: {parsed.genre} -> swing={policy_context.timing.swing_amount:.0%}, "
+                      f"ghost={policy_context.dynamics.ghost_note_probability:.0%}, "
+                      f"voicing={policy_context.voicing.style.value}")
+        except Exception as e:
+            print_warning(f"Style policy compilation failed: {e}")
+    
     # Get groove from session graph if available
     groove_template = session_graph.groove_template if session_graph else None
     
-    midi_file = midi_gen.generate(arrangement, parsed, groove_template=groove_template)
+    midi_file = midi_gen.generate(
+        arrangement, 
+        parsed, 
+        groove_template=groove_template,
+        policy_context=policy_context
+    )
     
     # Save MIDI file
     project_name = generate_project_name(parsed)
@@ -453,17 +486,23 @@ def run_generation(
     print_success(f"MIDI saved: {midi_path.name}")
     
     # Step 3.5: Generate Alternative Takes
+    # Industry-standard overdubbing: Takes REPLACE original tracks, not layer on top
+    # When --takes N is specified, original tracks become the "reference" and
+    # take tracks are the playable alternatives (user selects which to use in DAW)
     if takes > 0:
         print_step("3.5/6", f"Generating {takes} alternative takes per track...")
         try:
             import mido
-            from multimodal_gen.take_generator import take_to_midi_track
+            from multimodal_gen.take_generator import (
+                take_to_midi_track, TakeValidator, TakeMode, NoteVariation
+            )
             
             # Load the generated MIDI file
             mid = mido.MidiFile(str(midi_path))
             new_tracks = []
-            
+            tracks_to_remove = []  # Original tracks to mark/remove
             take_gen = TakeGenerator()
+            validator = TakeValidator()
             
             # Iterate over tracks (skip Meta)
             for i, track in enumerate(mid.tracks):
@@ -502,8 +541,11 @@ def run_generation(
                 
                 if not track_notes:
                     continue
+                
+                # Mark original track for removal (overdub = replace, not layer)
+                tracks_to_remove.append(i)
                     
-                # Generate takes
+                # Generate takes (these REPLACE the original)
                 take_set = take_gen.generate_takes_for_role(
                     notes=track_notes,
                     role=role,
@@ -512,16 +554,59 @@ def run_generation(
                     base_seed=(seed or 0) + i # Deterministic seed per track
                 )
                 
+                # Convert original notes for validation
+                original_note_vars = [
+                    NoteVariation(
+                        pitch=n["pitch"],
+                        start_tick=n["start_tick"],
+                        duration_ticks=n["duration_ticks"],
+                        velocity=n["velocity"],
+                        channel=n.get("channel", 0)
+                    ) for n in track_notes
+                ]
+                
                 for take in take_set.takes:
+                    # Validate take correctness
+                    validation = validator.validate_take(
+                        take, original_note_vars, parsed.genre
+                    )
+                    
+                    # Set relationship metadata
+                    take.original_track_name = track_name
+                    take.is_active_take = (take.take_id == 0)  # First take is default active
+                    
                     # Name the track: "OriginalName_Take_N"
                     take.midi_track_name = f"{track_name}_Take_{take.take_id + 1}"
                     new_track = take_to_midi_track(take)
                     new_tracks.append(new_track)
                     
-                    # Add to results for reporting
+                    # Add to results for reporting (rich data for TakeLanePanel)
                     if track_name not in results["takes"]:
                         results["takes"][track_name] = []
-                    results["takes"][track_name].append(take.midi_track_name)
+                    results["takes"][track_name].append({
+                        "take_id": str(take.take_id + 1),
+                        "midi_track_name": take.midi_track_name,
+                        "variation_type": take.variation_type,
+                        "seed": take.seed,
+                        "notes_count": len(take.notes),
+                        "notes_added": take.notes_added,
+                        "notes_removed": take.notes_removed,
+                        "notes_modified": take.notes_modified,
+                        "notes_kept": take.notes_kept,
+                        "avg_timing_shift": take.avg_timing_shift,
+                        "original_track": track_name,
+                        "is_active": take.is_active_take,
+                        "validation_score": validation.score,
+                        "validation_issues": validation.issues,
+                        "validation_warnings": validation.warnings,
+                    })
+                    
+                    # Log validation results
+                    if verbose and (validation.issues or validation.warnings):
+                        if validation.issues:
+                            print_warning(f"  Take {take.take_id + 1}: {validation.issues}")
+                        if validation.warnings:
+                            print_info(f"  Take {take.take_id + 1}: {validation.warnings}")
                     
                     # Update SessionGraph if available
                     if session_graph:
@@ -542,17 +627,151 @@ def run_generation(
                                     parameters=take.parameters
                                 )
 
-            # Append new tracks to MIDI file
+            # OVERDUBBING FIX: Remove original tracks and add takes as replacements
+            # This is industry-standard behavior - takes are alternatives, not layers
             if new_tracks:
-                mid.tracks.extend(new_tracks)
-                mid.save(str(midi_path))
-                print_success(f"Added {len(new_tracks)} take tracks to MIDI file")
+                # Create new MIDI file with takes replacing originals
+                new_mid = mido.MidiFile(ticks_per_beat=mid.ticks_per_beat)
+                
+                for i, track in enumerate(mid.tracks):
+                    if i in tracks_to_remove:
+                        # Skip original - it's being replaced by takes
+                        continue
+                    new_mid.tracks.append(track)
+                
+                # Add all take tracks
+                new_mid.tracks.extend(new_tracks)
+                new_mid.save(str(midi_path))
+                
+                print_success(
+                    f"Generated {len(new_tracks)} take tracks "
+                    f"(replaced {len(tracks_to_remove)} original tracks)"
+                )
             
         except Exception as e:
             print_warning(f"Take generation failed: {e}")
             if verbose:
                 import traceback
                 traceback.print_exc()
+
+    # Step 3.6: Generate Comp Tracks from Takes
+    # Industry-standard comping: combine best sections from each take
+    if comp and takes >= 2:
+        print_step("3.6/6", f"Generating comp tracks ({comp_bars} bars per section)...")
+        try:
+            import mido
+            from multimodal_gen.take_generator import (
+                CompGenerator, comp_to_midi_track, TakeLane, NoteVariation
+            )
+            
+            # Load the MIDI file with takes
+            mid = mido.MidiFile(str(midi_path))
+            comp_tracks = []
+            comp_gen = CompGenerator()
+            
+            # Group takes by original track
+            takes_by_track = {}  # original_track_name -> list of (track, TakeLane)
+            
+            for track in mid.tracks:
+                track_name = track.name.strip()
+                # Identify take tracks by naming convention: "OriginalName_Take_N"
+                if "_Take_" in track_name:
+                    parts = track_name.rsplit("_Take_", 1)
+                    original_name = parts[0]
+                    take_num = int(parts[1]) - 1  # 0-indexed
+                    
+                    # Parse track notes
+                    track_notes = []
+                    active_notes = {}
+                    curr_tick = 0
+                    
+                    for msg in track:
+                        curr_tick += msg.time
+                        if msg.type == 'note_on' and msg.velocity > 0:
+                            active_notes[msg.note] = (curr_tick, msg.velocity, getattr(msg, 'channel', 0))
+                        elif (msg.type == 'note_off') or (msg.type == 'note_on' and msg.velocity == 0):
+                            if msg.note in active_notes:
+                                start, vel, chan = active_notes.pop(msg.note)
+                                duration = curr_tick - start
+                                track_notes.append(NoteVariation(
+                                    pitch=msg.note,
+                                    start_tick=start,
+                                    duration_ticks=duration,
+                                    velocity=vel,
+                                    channel=chan,
+                                ))
+                    
+                    if track_notes:
+                        # Determine role from original name
+                        role = "lead"
+                        if "Drums" in original_name: role = "drums"
+                        elif "Bass" in original_name: role = "bass"
+                        elif "Chords" in original_name: role = "chords"
+                        elif "Melody" in original_name: role = "lead"
+                        elif "Organ" in original_name: role = "pad"
+                        
+                        # Create TakeLane
+                        take_lane = TakeLane(
+                            take_id=take_num,
+                            seed=0,  # Not needed for comping
+                            variation_type="combined",
+                            notes=track_notes,
+                            midi_track_name=track_name,
+                            original_track_name=original_name,
+                            parameters={"role": role},
+                        )
+                        
+                        if original_name not in takes_by_track:
+                            takes_by_track[original_name] = []
+                        takes_by_track[original_name].append(take_lane)
+            
+            # Generate comp for each track's takes
+            for original_name, take_lanes in takes_by_track.items():
+                if len(take_lanes) < 2:
+                    continue  # Need at least 2 takes to comp
+                
+                role = take_lanes[0].parameters.get("role", "lead")
+                
+                # Generate comp
+                comp_result = comp_gen.generate_comp_from_takes(
+                    takes=take_lanes,
+                    role=role,
+                    bars_per_section=comp_bars,
+                    genre=parsed.genre,
+                )
+                
+                # Set track names
+                comp_result.midi_track_name = f"{original_name}_Comp"
+                comp_result.original_track_name = original_name
+                
+                # Convert to MIDI track
+                comp_track = comp_to_midi_track(comp_result)
+                comp_tracks.append(comp_track)
+                
+                # Store comp info in results
+                results["comps"][original_name] = comp_result.to_dict()
+                
+                if verbose:
+                    print_info(
+                        f"  {original_name}: {comp_result.num_sections} sections from "
+                        f"{len(comp_result.takes_used)} takes, score {comp_result.total_score:.2f}"
+                    )
+            
+            # Add comp tracks to MIDI file
+            if comp_tracks:
+                for comp_track in comp_tracks:
+                    mid.tracks.append(comp_track)
+                mid.save(str(midi_path))
+                
+                print_success(f"Generated {len(comp_tracks)} comp tracks")
+            
+        except Exception as e:
+            print_warning(f"Comp generation failed: {e}")
+            if verbose:
+                import traceback
+                traceback.print_exc()
+    elif comp and takes < 2:
+        print_warning("Comp requires --takes >= 2 (need multiple takes to comp from)")
 
     # Step 4: Generate procedural samples
     print_step("4/6", "Generating procedural samples...")
@@ -687,6 +906,57 @@ def run_generation(
             if verbose:
                 print_warning(f"Expansion loading: {e}")
     
+    # Step 4.8: Intelligent Instrument Selection (using sonic adjectives)
+    # If the prompt contains sonic descriptors (warm, vintage, analog, etc.),
+    # use the InstrumentResolver to find best-matching expansion instruments
+    if parsed.sonic_adjectives and expansion_manager:
+        try:
+            from multimodal_gen.instrument_index import (
+                InstrumentIndex, InstrumentResolver, create_instrument_index
+            )
+            
+            # Create unified index from expansion manager
+            index = InstrumentIndex()
+            index.add_from_expansion_manager(expansion_manager)
+            
+            if index.get_stats()['total_instruments'] > 0:
+                resolver = InstrumentResolver(index)
+                
+                # Resolve instruments mentioned in prompt with sonic adjectives
+                smart_selections = []
+                for inst_name in parsed.instruments:
+                    results_list = resolver.resolve_with_adjectives(
+                        name=inst_name,
+                        adjectives=parsed.sonic_adjectives,
+                        genre=parsed.genre,
+                        limit=1
+                    )
+                    if results_list:
+                        best = results_list[0]
+                        smart_selections.append({
+                            'query': inst_name,
+                            'selected': best.instrument.name,
+                            'score': best.score,
+                            'source': best.instrument.source.value,
+                            'path': best.instrument.path,
+                            'reasons': best.match_reasons[:3],  # Top 3 reasons
+                        })
+                
+                if smart_selections and verbose:
+                    print_info("Smart instrument selection (sonic adjectives):")
+                    for sel in smart_selections:
+                        reasons_str = ', '.join(sel['reasons'][:2]) if sel['reasons'] else ''
+                        print_info(f"  {sel['query']} -> {sel['selected']} ({sel['score']:.2f})")
+                        if reasons_str:
+                            print_info(f"    Reasons: {reasons_str}")
+                
+                # Store in results for metadata
+                results['smart_instruments'] = smart_selections
+                
+        except Exception as e:
+            if verbose:
+                print_warning(f"Smart instrument selection: {e}")
+
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")
     report_progress("rendering_audio", 0.75, "Rendering audio...")
@@ -1000,6 +1270,203 @@ def extract_refinement_intent(refinement_prompt: str) -> dict:
     return refinement
 
 
+def show_generation_history(output_dir: Path) -> bool:
+    """
+    Display generation history for A/B comparison.
+    
+    Phase A3: Prompt history + A/B comparison
+    Shows all generations with their prompt, seed, key details.
+    
+    Args:
+        output_dir: Directory containing project_metadata.json
+        
+    Returns:
+        True if history found and displayed
+    """
+    metadata_path = output_dir / "project_metadata.json"
+    metadata = load_project_metadata(metadata_path)
+    
+    if not metadata:
+        print_error(f"No generation history found at {metadata_path}")
+        return False
+    
+    history = metadata.get('generation_history', [])
+    if not history:
+        print_info("No generation history available.")
+        return True
+    
+    print(f"\n{Fore.CYAN}Generation History ({len(history)} versions){Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'=' * 60}{Style.RESET_ALL}\n")
+    
+    for i, gen in enumerate(history, 1):
+        prompt = gen.get('prompt', 'N/A')
+        parsed = gen.get('parsed', {})
+        outputs = gen.get('outputs', {})
+        generated_at = gen.get('generated_at', 'N/A')
+        seed = gen.get('seed', 'N/A')
+        
+        bpm = parsed.get('bpm', 'N/A')
+        key = f"{parsed.get('key', '?')}{parsed.get('scale', '?')[:3]}"
+        genre = parsed.get('genre', 'N/A')
+        
+        # Take info
+        takes = outputs.get('takes', {})
+        take_count = sum(len(t) for t in takes.values()) if takes else 0
+        
+        # Comp info
+        comps = outputs.get('comps', {})
+        comp_count = len(comps) if comps else 0
+        
+        # Validation status
+        all_valid = True
+        if takes:
+            for track_takes in takes.values():
+                for take in track_takes:
+                    # Handle both dict format (new) and string format (legacy)
+                    if isinstance(take, dict) and take.get('validation_issues'):
+                        all_valid = False
+                        break
+        
+        validation_status = f"{Fore.GREEN}[VALID]{Style.RESET_ALL}" if all_valid else f"{Fore.YELLOW}[ISSUES]{Style.RESET_ALL}"
+        
+        print(f"  {Fore.WHITE}Version {i}{Style.RESET_ALL} ({generated_at[:19] if len(generated_at) > 19 else generated_at})")
+        print(f"    Prompt: \"{prompt[:50]}{'...' if len(prompt) > 50 else ''}\"")
+        print(f"    BPM: {bpm}, Key: {key}, Genre: {genre}")
+        
+        # Show takes and comps info
+        if comp_count > 0:
+            print(f"    Seed: {seed}, Takes: {take_count}, Comps: {comp_count} {validation_status}")
+        else:
+            print(f"    Seed: {seed}, Takes: {take_count} {validation_status}")
+        
+        if outputs.get('midi'):
+            print(f"    MIDI: {Path(outputs['midi']).name}")
+        if outputs.get('audio'):
+            print(f"    Audio: {Path(outputs['audio']).name}")
+        print()
+    
+    print(f"{Fore.CYAN}Use --compare <A> <B> to compare two versions{Style.RESET_ALL}")
+    return True
+
+
+def compare_versions(output_dir: Path, ver_a: int, ver_b: int) -> bool:
+    """
+    Compare two generation versions for A/B evaluation.
+    
+    Phase A3: Enables blind A/B comparison workflow.
+    
+    Args:
+        output_dir: Directory containing project_metadata.json
+        ver_a: First version number (1-indexed)
+        ver_b: Second version number (1-indexed)
+        
+    Returns:
+        True if comparison successful
+    """
+    metadata_path = output_dir / "project_metadata.json"
+    metadata = load_project_metadata(metadata_path)
+    
+    if not metadata:
+        print_error(f"No metadata found at {metadata_path}")
+        return False
+    
+    history = metadata.get('generation_history', [])
+    
+    # Validate version indices
+    if ver_a < 1 or ver_a > len(history):
+        print_error(f"Version {ver_a} not found (have {len(history)} versions)")
+        return False
+    if ver_b < 1 or ver_b > len(history):
+        print_error(f"Version {ver_b} not found (have {len(history)} versions)")
+        return False
+    
+    gen_a = history[ver_a - 1]
+    gen_b = history[ver_b - 1]
+    
+    print(f"\n{Fore.CYAN}A/B Comparison: Version {ver_a} vs Version {ver_b}{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}{'=' * 60}{Style.RESET_ALL}\n")
+    
+    # Side-by-side comparison
+    headers = ["Attribute", f"Version {ver_a} (A)", f"Version {ver_b} (B)"]
+    
+    def get_val(gen, *keys):
+        val = gen
+        for k in keys:
+            val = val.get(k, {}) if isinstance(val, dict) else {}
+        return val if val != {} else 'N/A'
+    
+    comparisons = [
+        ("Prompt", gen_a.get('prompt', 'N/A')[:40], gen_b.get('prompt', 'N/A')[:40]),
+        ("BPM", get_val(gen_a, 'parsed', 'bpm'), get_val(gen_b, 'parsed', 'bpm')),
+        ("Key", f"{get_val(gen_a, 'parsed', 'key')}{get_val(gen_a, 'parsed', 'scale')[:3]}", 
+               f"{get_val(gen_b, 'parsed', 'key')}{get_val(gen_b, 'parsed', 'scale')[:3]}"),
+        ("Genre", get_val(gen_a, 'parsed', 'genre'), get_val(gen_b, 'parsed', 'genre')),
+        ("Seed", gen_a.get('seed', 'N/A'), gen_b.get('seed', 'N/A')),
+        ("Energy", get_val(gen_a, 'parsed', 'energy'), get_val(gen_b, 'parsed', 'energy')),
+        ("Mood", get_val(gen_a, 'parsed', 'mood'), get_val(gen_b, 'parsed', 'mood')),
+    ]
+    
+    # Print comparison table
+    print(f"  {'Attribute':<15} {'Version A':<25} {'Version B':<25}")
+    print(f"  {'-' * 15} {'-' * 25} {'-' * 25}")
+    
+    for attr, val_a, val_b in comparisons:
+        # Highlight differences
+        if str(val_a) != str(val_b):
+            indicator = f"{Fore.YELLOW}!{Style.RESET_ALL}"
+        else:
+            indicator = " "
+        print(f"{indicator} {attr:<15} {str(val_a):<25} {str(val_b):<25}")
+    
+    print()
+    
+    # Take comparison
+    takes_a = gen_a.get('outputs', {}).get('takes', {})
+    takes_b = gen_b.get('outputs', {}).get('takes', {})
+    
+    if takes_a or takes_b:
+        print(f"  {Fore.CYAN}Take Statistics:{Style.RESET_ALL}")
+        
+        all_tracks = set(takes_a.keys()) | set(takes_b.keys())
+        for track in sorted(all_tracks):
+            track_a = takes_a.get(track, [])
+            track_b = takes_b.get(track, [])
+            
+            # Calculate average validation score
+            score_a = sum(t.get('validation_score', 0) for t in track_a) / len(track_a) if track_a else 0
+            score_b = sum(t.get('validation_score', 0) for t in track_b) / len(track_b) if track_b else 0
+            
+            # Calculate note retention
+            kept_a = sum(t.get('notes_kept', 0) for t in track_a) if track_a else 0
+            kept_b = sum(t.get('notes_kept', 0) for t in track_b) if track_b else 0
+            
+            print(f"    {track}: A={len(track_a)} takes (score:{score_a:.2f}, kept:{kept_a}) "
+                  f"vs B={len(track_b)} takes (score:{score_b:.2f}, kept:{kept_b})")
+    
+    print()
+    
+    # Output file comparison
+    print(f"  {Fore.CYAN}Output Files:{Style.RESET_ALL}")
+    midi_a = gen_a.get('outputs', {}).get('midi')
+    midi_b = gen_b.get('outputs', {}).get('midi')
+    audio_a = gen_a.get('outputs', {}).get('audio')
+    audio_b = gen_b.get('outputs', {}).get('audio')
+    
+    if midi_a:
+        print(f"    Version A MIDI: {Path(midi_a).name}")
+    if midi_b:
+        print(f"    Version B MIDI: {Path(midi_b).name}")
+    if audio_a:
+        print(f"    Version A Audio: {Path(audio_a).name}")
+    if audio_b:
+        print(f"    Version B Audio: {Path(audio_b).name}")
+    
+    print()
+    print(f"  {Fore.GREEN}Tip: Load both audio files in a DAW for blind A/B listening test{Style.RESET_ALL}")
+    
+    return True
+
+
 
 def main():
     """Main CLI entry point."""
@@ -1198,6 +1665,31 @@ Server Mode (for JUCE integration):
         default=0,
         help="Number of alternative takes to generate per track (default: 0)",
     )
+    parser.add_argument(
+        "--comp",
+        action="store_true",
+        help="Auto-generate comp track from best sections of each take (requires --takes >= 2)",
+    )
+    parser.add_argument(
+        "--comp-bars",
+        type=int,
+        default=2,
+        help="Number of bars per comp section (default: 2)",
+    )
+    
+    # History and A/B comparison
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="Show generation history from project_metadata.json in output directory",
+    )
+    parser.add_argument(
+        "--compare",
+        type=str,
+        nargs=2,
+        metavar=("VER_A", "VER_B"),
+        help="Compare two versions from history (e.g., --compare 1 2)",
+    )
     
     # Misc options
     parser.add_argument(
@@ -1263,6 +1755,27 @@ Server Mode (for JUCE integration):
             print()
             print_info("Server stopped.")
         return
+    
+    # Handle history display (Phase A3: A/B comparison)
+    if args.history:
+        output_dir = Path(args.output)
+        if not args.no_banner:
+            print_banner()
+        success = show_generation_history(output_dir)
+        sys.exit(0 if success else 1)
+    
+    # Handle version comparison (Phase A3: A/B comparison)
+    if args.compare:
+        output_dir = Path(args.output)
+        if not args.no_banner:
+            print_banner()
+        try:
+            ver_a, ver_b = int(args.compare[0]), int(args.compare[1])
+            success = compare_versions(output_dir, ver_a, ver_b)
+            sys.exit(0 if success else 1)
+        except ValueError:
+            print_error("Version numbers must be integers (e.g., --compare 1 2)")
+            sys.exit(1)
     
     # Normal generation mode - handle refine mode
     if args.refine:
@@ -1389,6 +1902,8 @@ Server Mode (for JUCE integration):
             seed=args.seed,
             use_bwf=not args.no_bwf,
             takes=args.takes,
+            comp=args.comp,
+            comp_bars=args.comp_bars,
         )
 
         # Replace generated part with recorded performance (if present)

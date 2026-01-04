@@ -12,14 +12,17 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../Application/AppState.h"
+#include "PromptHistoryManager.h"
 
 //==============================================================================
 /**
     Panel for entering prompts and configuring generation parameters.
     Supports drag-and-drop of audio files for analysis.
+    Includes prompt history with favorites.
 */
 class PromptPanel  : public juce::Component,
                     public juce::FileDragAndDropTarget,
+                    public PromptHistoryComponent::Listener,
                     private AppState::Listener
 {
 public:
@@ -67,6 +70,13 @@ public:
     /** Enable/disable the generate button */
     void setGenerateEnabled(bool enabled);
     
+    /** Get the prompt history manager */
+    PromptHistoryManager& getHistoryManager() { return historyManager; }
+    
+    //==============================================================================
+    // PromptHistoryComponent::Listener
+    void promptSelected(const PromptEntry& entry) override;
+    
     //==============================================================================
     // FileDragAndDropTarget
     bool isInterestedInFileDrag(const juce::StringArray& files) override;
@@ -81,7 +91,9 @@ private:
     void setupGenreSelector();
     void setupDurationControls();
     void setupGenerateButton();
+    void setupHistoryButton();
     void updateGenrePresets();
+    void showHistoryPopup();
     
     // AppState::Listener
     void onGenerationStarted() override;
@@ -117,6 +129,10 @@ private:
     
     // Analyze Reference button
     juce::TextButton analyzeButton{ "Analyze Reference..." };
+    
+    // History button and popup
+    juce::TextButton historyButton{ "History" };
+    PromptHistoryManager historyManager;
     
     // Drag-drop state
     bool isDragOver = false;

@@ -21,6 +21,7 @@ PromptPanel::PromptPanel(AppState& state)
     setupGenreSelector();
     setupDurationControls();
     setupGenerateButton();
+    setupHistoryButton();
     
     appState.addListener(this);
 }
@@ -51,7 +52,7 @@ void PromptPanel::setupPromptInput()
     promptInput.onReturnKey = [this] {
         if (!isGenerating && isConnected && promptInput.getText().isNotEmpty())
         {
-            listeners.call(&Listener::generateRequested, getCombinedPrompt());
+            listeners.call(&PromptPanel::Listener::generateRequested, getCombinedPrompt());
         }
     };
     
@@ -83,7 +84,7 @@ void PromptPanel::setupNegativePromptInput()
     negativePromptInput.onReturnKey = [this] {
         if (!isGenerating && isConnected && promptInput.getText().isNotEmpty())
         {
-            listeners.call(&Listener::generateRequested, getCombinedPrompt());
+            listeners.call(&PromptPanel::Listener::generateRequested, getCombinedPrompt());
         }
     };
     
@@ -159,8 +160,21 @@ void PromptPanel::setupGenerateButton()
             // Use combined prompt (main + negative) - genre is passed separately via GenreSelector
             juce::String finalPrompt = getCombinedPrompt();
             
+            // Save to history before generating
+            int selectedGenreIdx = genreSelector.getSelectedId() - 1;
+            juce::String genreName = "";
+            if (selectedGenreIdx >= 0 && selectedGenreIdx < (int)genrePresets.size())
+                genreName = genrePresets[selectedGenreIdx].name;
+            
+            historyManager.addPrompt(
+                promptInput.getText(),  // Save main prompt only (not combined)
+                genreName,
+                appState.getBPM(),
+                appState.getKey()
+            );
+            
             appState.setPrompt(finalPrompt);
-            listeners.call(&Listener::generateRequested, finalPrompt);
+            listeners.call(&PromptPanel::Listener::generateRequested, finalPrompt);
         }
     };
     // Enable button even when disconnected - will show error message if clicked
@@ -171,7 +185,7 @@ void PromptPanel::setupGenerateButton()
     // Cancel button - only shown during generation
     cancelButton.setColour(juce::TextButton::buttonColourId, AppColours::error);
     cancelButton.onClick = [this] {
-        listeners.call(&Listener::cancelRequested);
+        listeners.call(&PromptPanel::Listener::cancelRequested);
     };
     cancelButton.setVisible(false);
     addChildComponent(cancelButton); // Use addChildComponent since it starts hidden
@@ -203,7 +217,7 @@ void PromptPanel::setupGenerateButton()
                         [this](const juce::FileChooser& fc) {
                             auto file = fc.getResult();
                             if (file.existsAsFile()) {
-                                listeners.call(&Listener::analyzeFileRequested, file);
+                                listeners.call(&PromptPanel::Listener::analyzeFileRequested, file);
                             }
                         });
                     // Keep chooser alive until dialog closes
@@ -215,6 +229,131 @@ void PromptPanel::setupGenerateButton()
             });
     };
     addAndMakeVisible(analyzeButton);
+}
+
+void PromptPanel::setupHistoryButton()
+{
+    // History button - shows recent prompts dropdown
+    historyButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.1f));
+    historyButton.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
+    historyButton.setTooltip("Show recent prompts (favorites and history)");
+    historyButton.onClick = [this] {
+        showHistoryPopup();
+    };
+    addAndMakeVisible(historyButton);
+}
+
+void PromptPanel::showHistoryPopup()
+{
+    // Create popup menu with history items
+    juce::PopupMenu menu;
+    
+    auto prompts = historyManager.getRecentPrompts(15);
+    
+    if (prompts.empty())
+    {
+        menu.addItem(-1, "(No prompt history)", false, false);
+    }
+    else
+    {
+        // Favorites section
+        auto favorites = historyManager.getFavorites();
+        if (!favorites.empty())
+        {
+            menu.addSectionHeader("Favorites");
+            for (int i = 0; i < (int)favorites.size() && i < 5; i++)
+            {
+                juce::String displayText = favorites[i].prompt;
+                if (displayText.length() > 50)
+                    displayText = displayText.substring(0, 47) + "...";
+                
+                // Use star emoji for favorites
+                menu.addItem(1000 + i, juce::String::fromUTF8("\xe2\x98\x85 ") + displayText);
+            }
+            menu.addSeparator();
+        }
+        
+        // Recent section
+        menu.addSectionHeader("Recent");
+        int itemId = 1;
+        for (const auto& entry : prompts)
+        {
+            if (!entry.isFavorite)  // Skip favorites (already shown above)
+            {
+                juce::String displayText = entry.prompt;
+                if (displayText.length() > 50)
+                    displayText = displayText.substring(0, 47) + "...";
+                
+                juce::String metaInfo = " [" + juce::String(entry.bpm) + " BPM";
+                if (entry.genre.isNotEmpty())
+                    metaInfo += ", " + entry.genre;
+                metaInfo += "]";
+                
+                menu.addItem(itemId, displayText + metaInfo);
+                itemId++;
+                
+                if (itemId > 10) break;  // Limit non-favorites shown
+            }
+        }
+        
+        menu.addSeparator();
+        menu.addItem(-2, "Clear History...", historyManager.getHistorySize() > historyManager.getFavoritesCount());
+    }
+    
+    menu.showMenuAsync(juce::PopupMenu::Options()
+        .withTargetComponent(&historyButton)
+        .withMinimumWidth(300),
+        [this, prompts](int result) {
+            if (result > 0)
+            {
+                // Find and apply the selected prompt
+                const PromptEntry* selected = nullptr;
+                
+                if (result >= 1000)
+                {
+                    // Favorite was selected
+                    auto favorites = historyManager.getFavorites();
+                    int favIndex = result - 1000;
+                    if (favIndex < (int)favorites.size())
+                        selected = &favorites[favIndex];
+                }
+                else
+                {
+                    // Recent was selected
+                    int nonFavIndex = 0;
+                    for (const auto& entry : prompts)
+                    {
+                        if (!entry.isFavorite)
+                        {
+                            nonFavIndex++;
+                            if (nonFavIndex == result)
+                            {
+                                selected = &entry;
+                                break;
+                            }
+                        }
+                    }
+                }
+                
+                if (selected)
+                {
+                    promptSelected(*selected);
+                }
+            }
+            else if (result == -2)
+            {
+                // Clear history
+                juce::AlertWindow::showOkCancelBox(
+                    juce::MessageBoxIconType::QuestionIcon,
+                    "Clear History",
+                    "Clear all prompt history? Favorites will be kept.",
+                    "Clear", "Cancel", this,
+                    juce::ModalCallbackFunction::create([this](int r) {
+                        if (r == 1)
+                            historyManager.clearHistory();
+                    }));
+            }
+        });
 }
 
 //==============================================================================
@@ -287,14 +426,17 @@ void PromptPanel::resized()
     
     bounds.removeFromTop(Layout::paddingMD);
     
-    // Button row - Generate + Analyze buttons using FlexBox
+    // Button row - Generate + History + Analyze buttons using FlexBox
     auto buttonRow = bounds.removeFromTop(Layout::buttonHeightLG);
-    int generateWidth = juce::jmin(140, (buttonRow.getWidth() - Layout::paddingMD) / 2);
-    int analyzeWidth = juce::jmin(160, (buttonRow.getWidth() - Layout::paddingMD) / 2);
+    int generateWidth = juce::jmin(120, (buttonRow.getWidth() - Layout::paddingMD * 2) / 3);
+    int historyWidth = juce::jmin(80, (buttonRow.getWidth() - Layout::paddingMD * 2) / 3);
+    int analyzeWidth = juce::jmin(140, (buttonRow.getWidth() - Layout::paddingMD * 2) / 3);
     
     juce::FlexBox buttonFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::center);
     buttonFlex.items.add(juce::FlexItem(generateButton).withWidth((float)generateWidth).withHeight((float)Layout::buttonHeightMD));
-    buttonFlex.items.add(juce::FlexItem().withWidth((float)Layout::paddingMD)); // Spacer
+    buttonFlex.items.add(juce::FlexItem().withWidth((float)Layout::paddingSM)); // Spacer
+    buttonFlex.items.add(juce::FlexItem(historyButton).withWidth((float)historyWidth).withHeight((float)Layout::buttonHeightMD));
+    buttonFlex.items.add(juce::FlexItem().withWidth((float)Layout::paddingSM)); // Spacer
     buttonFlex.items.add(juce::FlexItem(analyzeButton).withWidth((float)analyzeWidth).withHeight((float)Layout::buttonHeightMD));
     buttonFlex.performLayout(buttonRow);
     
@@ -349,6 +491,25 @@ void PromptPanel::setNegativePromptText(const juce::String& text)
 void PromptPanel::setGenerateEnabled(bool enabled)
 {
     generateButton.setEnabled(enabled && isConnected && !isGenerating);
+}
+
+//==============================================================================
+void PromptPanel::promptSelected(const PromptEntry& entry)
+{
+    // Apply the selected prompt to the input fields
+    setPromptText(entry.prompt);
+    
+    // Update app state with the stored parameters
+    if (entry.bpm > 0)
+        appState.setBPM(entry.bpm);
+    
+    if (entry.key.isNotEmpty())
+        appState.setKey(entry.key);
+    
+    // Note: Genre is handled separately by the main GenreSelector
+    // We could emit a signal to update it, but for now just apply prompt
+    
+    DBG("Prompt selected from history: " + entry.prompt);
 }
 
 //==============================================================================
@@ -478,7 +639,7 @@ void PromptPanel::filesDropped(const juce::StringArray& files, int /*x*/, int /*
         juce::File file(path);
         if (isAudioFile(file) && file.existsAsFile())
         {
-            listeners.call(&Listener::analyzeFileRequested, file);
+            listeners.call(&PromptPanel::Listener::analyzeFileRequested, file);
             break;
         }
     }
@@ -509,7 +670,7 @@ void PromptPanel::showAnalyzeUrlDialog()
                 auto url = dialog->getTextEditorContents("url").trim();
                 if (url.isNotEmpty())
                 {
-                    listeners.call(&Listener::analyzeUrlRequested, url);
+                    listeners.call(&PromptPanel::Listener::analyzeUrlRequested, url);
                 }
             }
             delete dialog;

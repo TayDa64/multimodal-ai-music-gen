@@ -157,16 +157,38 @@ void VisualizationPanel::resized()
 void VisualizationPanel::loadMidiFile(const juce::File& midiFile)
 {
     DBG("VisualizationPanel::loadMidiFile: " << midiFile.getFullPathName());
+    DBG("  AppState ProjectState address: " << (void*)&appState.getProjectState());
     
-    if (pianoRoll && midiFile.existsAsFile())
+    if (midiFile.existsAsFile())
     {
-        pianoRoll->loadMidiFile(midiFile);
-        showTab(1);  // Switch to piano roll when loading MIDI (tab 1 now)
-        DBG("  Switched to piano roll tab");
+        // Load into piano roll (which updates ProjectState)
+        if (pianoRoll)
+        {
+            DBG("  Calling pianoRoll->loadMidiFile...");
+            pianoRoll->loadMidiFile(midiFile);
+            DBG("  PianoRoll load complete");
+        }
+        
+        // Check notes in ProjectState after import
+        auto& ps = appState.getProjectState();
+        auto notesNode = ps.getState().getChildWithName(Project::IDs::NOTES);
+        DBG("  After import: NOTES node has " << notesNode.getNumChildren() << " children");
+        
+        // Rebind ArrangementView to pick up new tracks from ProjectState
+        if (arrangementView)
+        {
+            DBG("  Rebinding ArrangementView...");
+            arrangementView->setProjectState(&appState.getProjectState());
+            DBG("  ArrangementView rebound");
+        }
+        
+        // Switch to Arrange view to show all tracks
+        showTab(0);
+        DBG("  Switched to Arrange tab");
     }
     else
     {
-        DBG("  ERROR: pianoRoll is null or file doesn't exist");
+        DBG("  ERROR: File doesn't exist");
     }
 }
 
@@ -304,14 +326,15 @@ void VisualizationPanel::audioSamplesReady(const float* leftSamples,
 //==============================================================================
 void VisualizationPanel::fileSelected(const juce::File& file)
 {
-    // Forward to our listeners
-    listeners.call([&file](Listener& l) { l.fileSelected(file); });
-    
-    // If it's a MIDI file, also load it into the piano roll
+    // If it's a MIDI file, load it into the piano roll
+    // (We handle loading here, not in listeners, to avoid double-loading)
     if (file.hasFileExtension(".mid;.midi"))
     {
         loadMidiFile(file);
     }
+    
+    // Forward to our listeners AFTER loading so they get the updated state
+    listeners.call([&file](Listener& l) { l.fileSelected(file); });
 }
 
 void VisualizationPanel::analyzeFileRequested(const juce::File& file)
@@ -355,6 +378,16 @@ void VisualizationPanel::arrangementTrackPianoRollRequested(int trackIndex)
         pianoRoll->soloTrack(trackIndex);
         infoLabel.setText("Editing Track " + juce::String(trackIndex + 1), juce::dontSendNotification);
     }
+}
+
+void VisualizationPanel::arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks)
+{
+    DBG("ArrangementView requested regeneration: bars " << startBar << "-" << endBar);
+    
+    // Forward to MainComponent via listener
+    listeners.call([startBar, endBar, &tracks](Listener& l) {
+        l.regenerateRequested(startBar, endBar, tracks);
+    });
 }
 
 //==============================================================================

@@ -128,12 +128,20 @@ ArrangementView::ArrangementView(mmg::AudioEngine& engine)
     lanesViewport.setScrollBarsShown(true, true);
     addAndMakeVisible(lanesViewport);
     
+    // Set up scroll bar listeners for synchronization
+    lanesViewport.getVerticalScrollBar().addListener(this);
+    trackList.getViewport().getVerticalScrollBar().addListener(this);
+    
     // Create initial track lanes
     syncTrackLanes();
 }
 
 ArrangementView::~ArrangementView()
 {
+    // Remove scroll bar listeners
+    lanesViewport.getVerticalScrollBar().removeListener(this);
+    trackList.getViewport().getVerticalScrollBar().removeListener(this);
+    
     if (projectState)
         projectState->getState().removeListener(this);
     
@@ -190,6 +198,21 @@ void ArrangementView::paint(juce::Graphics& g)
     auto rulerBounds = getLocalBounds().removeFromTop(rulerHeight);
     rulerBounds.removeFromLeft(trackListWidth);
     drawTimelineRuler(g, rulerBounds);
+    
+    // Debug: Show total notes in ProjectState
+    if (projectState)
+    {
+        auto notesNode = projectState->getState().getChildWithName(Project::IDs::NOTES);
+        int totalNotes = notesNode.isValid() ? notesNode.getNumChildren() : -1;
+        juce::String nodeStatus = notesNode.isValid() ? "valid" : "INVALID";
+        
+        // Show notes count and last import stats
+        g.setColour(juce::Colours::yellow);
+        g.setFont(10.0f);
+        g.drawText("NOTES: " + juce::String(totalNotes) + " | " + projectState->getLastImportStats(), 
+                   rulerBounds.withX(trackListWidth + 10).withWidth(500), 
+                   juce::Justification::centredLeft);
+    }
     
     // Draw focus mode indicator
     if (hasFocusedTrack())
@@ -290,6 +313,12 @@ void ArrangementView::showContextMenu(const juce::MouseEvent& event)
         menu.addItem(4, "Solo Track", true, false);
         menu.addItem(5, "Mute Track", true, false);
         menu.addSeparator();
+        
+        // Regeneration options
+        menu.addItem(20, "Regenerate Track", true, false);
+        menu.addItem(21, "Regenerate All Tracks", true, false);
+        menu.addSeparator();
+        
         menu.addItem(6, "Delete Track", trackList.getTrackCount() > 1, false);  // Only enable if more than 1 track
     }
     else if (hasFocusedTrack())
@@ -335,6 +364,31 @@ void ArrangementView::showContextMenu(const juce::MouseEvent& event)
                 case 11: // Reset Zoom
                     setHorizontalZoom(1.0f);
                     break;
+                case 20: // Regenerate Track
+                    if (clickedTrackIndex >= 0)
+                    {
+                        // Get track name
+                        juce::StringArray tracks;
+                        if (auto* header = trackList.getTrackHeader(clickedTrackIndex))
+                            tracks.add(header->getTrackName());
+                        else
+                            tracks.add("Track " + juce::String(clickedTrackIndex + 1));
+                        
+                        // Regenerate all bars (0-8 default, should come from project state)
+                        listeners.call([&](Listener& l) {
+                            l.arrangementRegenerateRequested(0, 8, tracks);
+                        });
+                    }
+                    break;
+                case 21: // Regenerate All Tracks
+                    {
+                        // Empty tracks array means all tracks
+                        juce::StringArray emptyTracks;
+                        listeners.call([&](Listener& l) {
+                            l.arrangementRegenerateRequested(0, 8, emptyTracks);
+                        });
+                    }
+                    break;
             }
         });
 }
@@ -377,19 +431,11 @@ void ArrangementView::trackCountChanged(int newCount)
     syncTrackLanes();
 }
 
-void ArrangementView::trackExpandedChanged(int trackIndex, bool expanded)
+void ArrangementView::trackExpandedChanged(int trackIndex, bool /*expanded*/)
 {
-    // When expand button is clicked, request Piano Roll view for this track
-    // This replaces the old "expand in-place" behavior with "open Piano Roll tab"
-    if (expanded)
-    {
-        listeners.call(&ArrangementView::Listener::arrangementTrackPianoRollRequested, trackIndex);
-        
-        // Reset expanded state since we're opening Piano Roll instead
-        if (auto* header = trackList.getTrackHeader(trackIndex))
-            header->setExpanded(false);
-    }
-    // Note: Don't call updateLanesLayout() - tracks stay at collapsed height
+    // When expand button (▶) is clicked, open Piano Roll view for this track
+    // All tracks remain at uniform height - no in-place expansion
+    listeners.call(&ArrangementView::Listener::arrangementTrackPianoRollRequested, trackIndex);
 }
 
 //==============================================================================
@@ -400,14 +446,48 @@ void ArrangementView::valueTreePropertyChanged(juce::ValueTree& tree, const juce
 
 void ArrangementView::valueTreeChildAdded(juce::ValueTree& parent, juce::ValueTree& child)
 {
-    if (child.hasType(Project::IDs::TRACK))
+    if (child.hasType(Project::IDs::TRACK) && projectState)
+    {
+        // Rebind track list to pick up new tracks from project state
+        trackList.bindToProject(*projectState);
         syncTrackLanes();
+    }
 }
 
 void ArrangementView::valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index)
 {
     if (child.hasType(Project::IDs::TRACK))
         syncTrackLanes();
+}
+
+//==============================================================================
+void ArrangementView::scrollBarMoved(juce::ScrollBar* scrollBar, double newRangeStart)
+{
+    // Prevent feedback loops
+    if (isSyncingScroll)
+        return;
+    
+    isSyncingScroll = true;
+    
+    // Determine which viewport was scrolled and sync the other
+    if (scrollBar == &lanesViewport.getVerticalScrollBar())
+    {
+        // Lanes viewport was scrolled - sync track list
+        trackList.getViewport().setViewPosition(
+            trackList.getViewport().getViewPositionX(),
+            (int)newRangeStart
+        );
+    }
+    else if (scrollBar == &trackList.getViewport().getVerticalScrollBar())
+    {
+        // Track list was scrolled - sync lanes viewport
+        lanesViewport.setViewPosition(
+            lanesViewport.getViewPositionX(),
+            (int)newRangeStart
+        );
+    }
+    
+    isSyncingScroll = false;
 }
 
 //==============================================================================
@@ -424,8 +504,13 @@ void ArrangementView::syncTrackLanes()
     // Add missing lanes
     while (trackLanes.size() < trackCount)
     {
-        int index = trackLanes.size();
-        auto* lane = trackLanes.add(new TrackLaneContent(index, audioEngine));
+        int laneIndex = trackLanes.size();
+        // MIDI track 0 is typically metadata (tempo, time signature) with no notes.
+        // Track headers are 0-indexed but display as "Track 1", "Track 2", etc.
+        // So lane 0 should show MIDI track 1's notes, lane 1 shows track 2, etc.
+        int midiTrackIndex = laneIndex + 1;  // Offset by 1 to skip metadata track
+        
+        auto* lane = trackLanes.add(new TrackLaneContent(midiTrackIndex, audioEngine));
         
         if (projectState)
             lane->setProjectState(projectState);
@@ -439,7 +524,10 @@ void ArrangementView::syncTrackLanes()
 
 void ArrangementView::updateLanesLayout()
 {
-    int y = 0;
+    // Account for MIDI section header in track list (so lanes align with headers)
+    int sectionHeaderOffset = trackList.getSectionHeaderHeight();
+    int y = sectionHeaderOffset;  // Start lanes below the section header space
+    
     int width = juce::jmax(1000, lanesViewport.getWidth());  // Minimum width for scrolling
     int viewportHeight = lanesViewport.getHeight();
     
@@ -472,15 +560,13 @@ void ArrangementView::updateLanesLayout()
     }
     else
     {
-        // Normal mode: show all tracks stacked vertically
+        // Normal mode: show all tracks stacked vertically at uniform height
         for (int i = 0; i < trackLanes.size(); ++i)
         {
             trackLanes[i]->setVisible(true);
             
-            auto* header = trackList.getTrackHeader(i);
-            int height = (header && header->isExpanded()) 
-                ? trackList.getExpandedTrackHeight() 
-                : trackList.getCollapsedTrackHeight();
+            // All tracks use uniform height (120px)
+            int height = trackList.getTrackHeight();
             
             trackLanes[i]->setBounds(0, y, width, height);
             y += height;

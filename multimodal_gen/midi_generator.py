@@ -57,6 +57,28 @@ from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SongSection, SectionType
 from .groove_templates import GrooveTemplate, GrooveApplicator, get_groove_for_genre
 
+# Physics-aware humanization for realistic performances
+try:
+    from .humanize_physics import (
+        PhysicsHumanizer,
+        HumanizeConfig,
+        Note as PhysicsNote,
+        humanize_drums,
+        humanize_bass,
+        humanize_keys
+    )
+    HAS_PHYSICS_HUMANIZER = True
+except ImportError:
+    HAS_PHYSICS_HUMANIZER = False
+
+# Style policy for coherent producer decisions
+try:
+    from .style_policy import PolicyContext
+    HAS_STYLE_POLICY = True
+except ImportError:
+    HAS_STYLE_POLICY = False
+    PolicyContext = None
+
 
 # =============================================================================
 # NOTE EVENT DATA STRUCTURE
@@ -1233,25 +1255,43 @@ class MidiGenerator:
     Main class for generating humanized MIDI from arrangements.
     
     Orchestrates drum, bass, chord, and melody generation with
-    professional-level humanization.
+    professional-level humanization including physics-aware drum modeling.
     """
     
     def __init__(
         self,
         velocity_variation: float = 0.12,
         timing_variation: float = 0.03,
-        swing: float = 0.0
+        swing: float = 0.0,
+        use_physics_humanization: bool = True
     ):
+        """
+        Initialize the MIDI generator.
+        
+        Args:
+            velocity_variation: Velocity randomization factor (0-1)
+            timing_variation: Timing jitter factor (0-1)
+            swing: Swing amount for offbeats (0-1)
+            use_physics_humanization: Enable physics-aware humanization
+                                     (fatigue, limb conflicts, ghost notes)
+        """
         self.velocity_variation = velocity_variation
         self.timing_variation = timing_variation
         self.swing = swing
+        self.use_physics_humanization = use_physics_humanization and HAS_PHYSICS_HUMANIZER
         self.groove_applicator = GrooveApplicator()
+        
+        if self.use_physics_humanization:
+            print("  [*] Physics humanization enabled")
+        elif use_physics_humanization and not HAS_PHYSICS_HUMANIZER:
+            print("  [!] Physics humanization requested but module not available")
     
     def generate(
         self,
         arrangement: Arrangement,
         parsed: ParsedPrompt,
-        groove_template: Optional[GrooveTemplate] = None
+        groove_template: Optional[GrooveTemplate] = None,
+        policy_context: Optional['PolicyContext'] = None
     ) -> MidiFile:
         """
         Generate complete MIDI file from arrangement.
@@ -1260,10 +1300,22 @@ class MidiGenerator:
             arrangement: Song arrangement
             parsed: Parsed prompt with musical parameters
             groove_template: Optional groove template to apply
+            policy_context: Optional PolicyContext from StylePolicy for 
+                           coherent producer-level decisions
         
         Returns:
             mido.MidiFile ready to save
         """
+        # Store policy context for use in sub-methods
+        self._policy_context = policy_context
+        
+        # If policy context provided, extract timing parameters
+        if policy_context:
+            # Override groove-related settings from policy
+            self.swing = policy_context.timing.swing_amount
+            self.velocity_variation = policy_context.timing.velocity_variation
+            self.timing_variation = policy_context.timing.timing_jitter
+        
         # Resolve groove template
         if groove_template is None and parsed.genre:
             groove_template = get_groove_for_genre(parsed.genre)
@@ -1389,8 +1441,15 @@ class MidiGenerator:
             section_notes = self._generate_drums_for_section(section, parsed)
             all_notes.extend(section_notes)
         
-        # Convert to MIDI messages
-        self._notes_to_track(all_notes, track, channel=GM_DRUM_CHANNEL, groove_template=groove_template)
+        # Convert to MIDI messages with physics humanization
+        self._notes_to_track(
+            all_notes, track, 
+            channel=GM_DRUM_CHANNEL, 
+            groove_template=groove_template,
+            bpm=arrangement.bpm,
+            genre=parsed.genre or "default",
+            role="drums"
+        )
         
         return track
     
@@ -2009,16 +2068,20 @@ class MidiGenerator:
         notes: List[NoteEvent],
         track: MidiTrack,
         channel: int,
-        groove_template: Optional[GrooveTemplate] = None
+        groove_template: Optional[GrooveTemplate] = None,
+        bpm: float = 90.0,
+        genre: str = "default",
+        role: str = "drums"
     ):
         """
         Convert list of NoteEvents to MIDI track messages.
         
         Handles delta time calculation, proper note-off ordering,
-        and collision resolution to prevent "flamming" effects.
+        collision resolution, and physics-aware humanization.
         
         For drum tracks (channel 9), notes within a small timing window
         are snapped to the same tick to prevent rapid-fire triggering.
+        Physics humanization adds realistic limb constraints and fatigue.
         """
         if not notes:
             track.append(MetaMessage('end_of_track', time=0))
@@ -2044,6 +2107,10 @@ class MidiGenerator:
                 n = d['note_event']
                 n.start_tick = d['tick']
                 n.velocity = d['velocity']
+        
+        # Apply physics-aware humanization for drums
+        if HAS_PHYSICS_HUMANIZER and channel == GM_DRUM_CHANNEL and self.use_physics_humanization:
+            notes = self._apply_physics_humanization(notes, bpm, genre, "drums")
         
         # For drum channel, apply collision resolution
         if channel == GM_DRUM_CHANNEL:
@@ -2084,6 +2151,114 @@ class MidiGenerator:
         
         # End of track
         track.append(MetaMessage('end_of_track', time=0))
+    
+    def _apply_physics_humanization(
+        self,
+        notes: List[NoteEvent],
+        bpm: float,
+        genre: str,
+        role: str = "drums"
+    ) -> List[NoteEvent]:
+        """
+        Apply physics-aware humanization to notes.
+        
+        Implements realistic performance modeling:
+        - Fatigue: Velocity reduction at high BPM/dense passages
+        - Limb conflicts: Timing adjustments for physical impossibilities
+        - Ghost notes: Genre-appropriate soft hits for feel
+        
+        If self._policy_context is set, uses its dynamics/timing policies
+        to override default humanization parameters.
+        
+        Args:
+            notes: List of NoteEvents to humanize
+            bpm: Tempo in beats per minute
+            genre: Genre for policy selection
+            role: Instrument role (drums, bass, keys)
+        
+        Returns:
+            Humanized list of NoteEvents
+        """
+        if not HAS_PHYSICS_HUMANIZER or not notes:
+            return notes
+        
+        # Map MIDI pitches to drum element names for physics modeling
+        pitch_to_element = {
+            36: 'kick', 35: 'kick',      # Bass drums
+            38: 'snare', 40: 'snare',    # Snares
+            42: 'hihat', 44: 'hihat', 46: 'hihat_open',  # Hi-hats
+            39: 'clap',                  # Clap
+            49: 'crash', 51: 'ride',     # Cymbals
+            41: 'tom_low', 43: 'tom_low', 45: 'tom_mid', 47: 'tom_high', 48: 'tom_high',  # Toms
+        }
+        
+        # Convert NoteEvents to PhysicsNotes
+        physics_notes = []
+        for note in notes:
+            element = pitch_to_element.get(note.pitch, "perc")
+            physics_notes.append(PhysicsNote(
+                pitch=note.pitch,
+                start_tick=note.start_tick,
+                duration_ticks=note.duration_ticks,
+                velocity=note.velocity,
+                channel=note.channel,
+                element=element
+            ))
+        
+        # Build HumanizeConfig from policy context if available
+        humanize_config = None
+        if self._policy_context:
+            policy = self._policy_context
+            
+            # Create config from policy decisions
+            config_kwargs = {}
+            
+            # Extract dynamics policy - use hihat range as general reference
+            if hasattr(policy, 'dynamics'):
+                dyn = policy.dynamics
+                config_kwargs['ghost_note_probability'] = dyn.ghost_note_probability
+                # Use hihat velocity range for ghost notes (they're usually soft)
+                config_kwargs['ghost_note_velocity_min'] = 25
+                config_kwargs['ghost_note_velocity_max'] = int(dyn.hihat_velocity_range[0] * dyn.ghost_note_velocity_factor)
+            
+            # Extract timing policy
+            if hasattr(policy, 'timing'):
+                tim = policy.timing
+                config_kwargs['timing_variation'] = tim.timing_jitter
+                config_kwargs['swing_amount'] = tim.swing_amount
+            
+            # Create HumanizeConfig with overrides
+            humanize_config = HumanizeConfig(**config_kwargs)
+        
+        # Apply physics humanization
+        humanizer = PhysicsHumanizer(
+            role=role,
+            bpm=bpm,
+            genre=genre,
+            config=humanize_config
+        )
+        humanized_physics = humanizer.apply(physics_notes)
+        
+        # Convert back to NoteEvents
+        result = []
+        for pn in humanized_physics:
+            result.append(NoteEvent(
+                pitch=pn.pitch,
+                start_tick=pn.start_tick,
+                duration_ticks=pn.duration_ticks,
+                velocity=pn.velocity,
+                channel=pn.channel
+            ))
+        
+        # Log summary
+        summary = humanizer.get_summary()
+        policy_note = " (policy-driven)" if self._policy_context else ""
+        if summary.get('ghost_notes_added', 0) > 0:
+            print(f"    [+] Physics humanization{policy_note}: {summary['notes_processed']} notes, "
+                  f"{summary['ghost_notes_added']} ghosts, "
+                  f"{summary['limb_conflicts_resolved']} limb conflicts")
+        
+        return result
     
     def _resolve_drum_collisions(
         self,

@@ -589,6 +589,11 @@ class InstrumentIndex:
         
         self._expansion_ids: Set[str] = set()
     
+    @property
+    def instruments(self) -> Dict[str, InstrumentEntry]:
+        """Public access to instruments dictionary."""
+        return self._instruments
+    
     # =========================================================================
     # Index Building
     # =========================================================================
@@ -1303,6 +1308,262 @@ def resolve_instrument(
     Convenience wrapper for InstrumentIndex.resolve()
     """
     return index.resolve(name, genre=genre, mood=mood)
+
+
+# =============================================================================
+# INSTRUMENT RESOLVER - Intelligent Selection with Sonic Adjectives
+# =============================================================================
+
+@dataclass
+class ScoredInstrument:
+    """An instrument with a relevance score."""
+    instrument: InstrumentEntry
+    score: float
+    match_reasons: List[str] = field(default_factory=list)
+    
+    def __lt__(self, other: "ScoredInstrument") -> bool:
+        return self.score < other.score
+
+
+class InstrumentResolver:
+    """
+    Intelligent instrument selection using sonic adjectives.
+    
+    This class bridges the prompt parser's sonic adjectives with the 
+    instrument index to select the most appropriate instruments from
+    expansion packs.
+    
+    Usage:
+        resolver = InstrumentResolver(index)
+        best_rhodes = resolver.resolve_with_adjectives(
+            name="rhodes",
+            adjectives=["warm", "vintage", "analog"],
+            genre="g_funk"
+        )
+    
+    Scoring factors:
+    1. Name/tag match (base score)
+    2. Sonic adjective match (bonus per match)
+    3. Genre affinity (expansion targeting)
+    4. Source priority (expansion > stock)
+    """
+    
+    # Adjective synonyms for flexible matching
+    # Maps our canonical adjectives to common tags found in expansion packs
+    ADJECTIVE_TAG_MAP: Dict[str, List[str]] = {
+        # Temperature
+        'warm': ['warm', 'warmth', 'mellow', 'soft', 'cozy', 'smooth'],
+        'cold': ['cold', 'icy', 'sterile', 'clinical', 'digital'],
+        
+        # Age/Character
+        'vintage': ['vintage', 'retro', 'classic', '70s', '80s', 'old', 'oldschool'],
+        'modern': ['modern', 'contemporary', 'new', 'fresh', 'current'],
+        'analog': ['analog', 'analogue', 'tape', 'tube', 'valve', 'hardware'],
+        'digital': ['digital', 'crisp', 'clean', 'precise'],
+        
+        # Texture
+        'dusty': ['dusty', 'lofi', 'lo-fi', 'dirty', 'gritty', 'vinyl'],
+        'clean': ['clean', 'pristine', 'crystal', 'clear', 'pure'],
+        'crunchy': ['crunchy', 'crispy', 'bit', 'crushed', 'distorted'],
+        'smooth': ['smooth', 'silky', 'buttery', 'creamy'],
+        
+        # Weight
+        'fat': ['fat', 'thick', 'heavy', 'big', 'massive', 'huge'],
+        'thin': ['thin', 'light', 'airy', 'delicate'],
+        'deep': ['deep', 'sub', 'low', 'bass', 'rumble'],
+        'punchy': ['punchy', 'tight', 'snap', 'attack', 'transient'],
+        
+        # Brightness
+        'bright': ['bright', 'sparkle', 'shimmer', 'glitter', 'air'],
+        'dark': ['dark', 'murky', 'shadow', 'dim', 'moody'],
+        
+        # Space
+        'dry': ['dry', 'close', 'intimate', 'direct'],
+        'wet': ['wet', 'reverb', 'spacious', 'ambient', 'hall'],
+        
+        # Character
+        'soulful': ['soulful', 'soul', 'emotional', 'expressive', 'gospel'],
+        'funky': ['funky', 'funk', 'groove', 'groovy', 'bounce'],
+        'jazzy': ['jazzy', 'jazz', 'swing', 'bebop'],
+        'organic': ['organic', 'natural', 'acoustic', 'live', 'real'],
+        'synthetic': ['synthetic', 'synth', 'electronic', 'digital'],
+        
+        # Specific
+        'plucky': ['plucky', 'pluck', 'staccato', 'short'],
+        'sustained': ['sustained', 'pad', 'long', 'held', 'legato'],
+        'glassy': ['glassy', 'glass', 'bell', 'crystal', 'chime'],
+        'woody': ['woody', 'wood', 'acoustic', 'natural'],
+    }
+    
+    # Genre -> preferred adjectives (implicit matching)
+    GENRE_ADJECTIVE_AFFINITY: Dict[str, List[str]] = {
+        'g_funk': ['warm', 'analog', 'funky', 'smooth', 'vintage', 'soulful'],
+        'trap_soul': ['warm', 'dark', 'deep', 'smooth', 'soulful'],
+        'trap': ['dark', 'deep', 'punchy', 'modern', 'synthetic'],
+        'lofi': ['dusty', 'warm', 'vintage', 'analog', 'organic'],
+        'boom_bap': ['dusty', 'punchy', 'vintage', 'organic', 'funky'],
+        'neo_soul': ['warm', 'smooth', 'soulful', 'organic', 'jazzy'],
+        'jazz': ['warm', 'organic', 'jazzy', 'smooth', 'vintage'],
+        'house': ['punchy', 'deep', 'warm', 'modern'],
+        'techno': ['cold', 'dark', 'synthetic', 'punchy', 'modern'],
+    }
+    
+    def __init__(self, index: InstrumentIndex):
+        """Initialize with an instrument index."""
+        self.index = index
+    
+    def resolve_with_adjectives(
+        self,
+        name: str,
+        adjectives: List[str],
+        genre: str = "",
+        role: Optional[InstrumentRole] = None,
+        limit: int = 5,
+    ) -> List[ScoredInstrument]:
+        """
+        Resolve instrument with sonic adjective matching.
+        
+        Args:
+            name: Instrument name to search for (rhodes, 808, piano, etc.)
+            adjectives: Sonic adjectives from prompt (warm, vintage, etc.)
+            genre: Genre context for affinity scoring
+            role: Optional role filter (melodic_keys, bass_sub, etc.)
+            limit: Maximum results to return
+        
+        Returns:
+            List of ScoredInstrument sorted by relevance (highest first)
+        """
+        candidates: List[ScoredInstrument] = []
+        
+        # Get all potential matches
+        for inst in self.index.instruments.values():
+            score, reasons = self._score_instrument(inst, name, adjectives, genre, role)
+            
+            if score > 0:
+                candidates.append(ScoredInstrument(
+                    instrument=inst,
+                    score=score,
+                    match_reasons=reasons,
+                ))
+        
+        # Sort by score (highest first)
+        candidates.sort(reverse=True)
+        
+        return candidates[:limit]
+    
+    def get_best_instrument(
+        self,
+        name: str,
+        adjectives: List[str],
+        genre: str = "",
+        role: Optional[InstrumentRole] = None,
+    ) -> Optional[InstrumentEntry]:
+        """Get the single best matching instrument."""
+        results = self.resolve_with_adjectives(name, adjectives, genre, role, limit=1)
+        return results[0].instrument if results else None
+    
+    def _score_instrument(
+        self,
+        inst: InstrumentEntry,
+        name: str,
+        adjectives: List[str],
+        genre: str,
+        role: Optional[InstrumentRole],
+    ) -> Tuple[float, List[str]]:
+        """
+        Score an instrument for relevance.
+        
+        Returns:
+            Tuple of (score, list of match reasons)
+        """
+        score = 0.0
+        reasons: List[str] = []
+        name_lower = name.lower()
+        
+        # 1. Name match (required - if no name match, score stays 0)
+        name_match = False
+        if name_lower in inst.name.lower():
+            score += 1.0
+            name_match = True
+            reasons.append(f"name_contains:{name}")
+        elif name_lower in inst.id.lower():
+            score += 0.8
+            name_match = True
+            reasons.append(f"id_contains:{name}")
+        elif any(name_lower in tag.lower() for tag in inst.tags):
+            score += 0.6
+            name_match = True
+            reasons.append(f"tag_match:{name}")
+        
+        if not name_match:
+            return 0.0, []
+        
+        # 2. Role match (bonus)
+        if role and inst.role == role:
+            score += 0.3
+            reasons.append(f"role_match:{role.value}")
+        
+        # 3. Source priority (expansion > stock)
+        if inst.source == InstrumentSource.EXPANSION:
+            score += 0.2
+            reasons.append("expansion_source")
+        
+        # 4. Sonic adjective matching
+        inst_tags_lower = [t.lower() for t in inst.tags]
+        inst_name_lower = inst.name.lower()
+        
+        for adj in adjectives:
+            tag_variants = self.ADJECTIVE_TAG_MAP.get(adj, [adj])
+            
+            for variant in tag_variants:
+                variant_lower = variant.lower()
+                
+                # Check tags
+                if any(variant_lower in tag for tag in inst_tags_lower):
+                    score += 0.15
+                    reasons.append(f"tag_adj:{adj}")
+                    break
+                
+                # Check name
+                if variant_lower in inst_name_lower:
+                    score += 0.1
+                    reasons.append(f"name_adj:{adj}")
+                    break
+        
+        # 5. Genre affinity (implicit adjective bonus)
+        if genre:
+            genre_adjs = self.GENRE_ADJECTIVE_AFFINITY.get(genre, [])
+            for gadj in genre_adjs:
+                tag_variants = self.ADJECTIVE_TAG_MAP.get(gadj, [gadj])
+                for variant in tag_variants:
+                    if any(variant.lower() in tag for tag in inst_tags_lower):
+                        score += 0.05
+                        reasons.append(f"genre_affinity:{gadj}")
+                        break
+        
+        # 6. Fingerprint quality bonus (has been analyzed)
+        if inst.fingerprint:
+            score += 0.05
+            reasons.append("has_fingerprint")
+        
+        return score, reasons
+    
+    def explain_selection(self, scored: ScoredInstrument) -> str:
+        """Generate human-readable explanation of why instrument was selected."""
+        inst = scored.instrument
+        reasons = scored.match_reasons
+        
+        lines = [
+            f"Selected: {inst.name}",
+            f"  Source: {inst.source.value}",
+            f"  Score: {scored.score:.2f}",
+            f"  Reasons:"
+        ]
+        
+        for r in reasons:
+            lines.append(f"    - {r}")
+        
+        return "\n".join(lines)
 
 
 # =============================================================================

@@ -83,8 +83,16 @@ TRAP_808_NOTES = {
 # =============================================================================
 
 SAMPLE_RATE = 44100  # Hz - CD quality, MPC standard
-BIT_DEPTH = 16       # bits
+BIT_DEPTH = 16       # bits (legacy constant)
 CHANNELS = 2         # Stereo
+
+# Bit-Depth Policy (Professional Standard)
+# - Stems: 24-bit for maximum headroom during mixing (144dB dynamic range)
+# - Master: 16-bit with TPDF dither for delivery (96dB dynamic range, universal compatibility)
+# - Industry Reference: Pro Tools, Logic, Ableton all export 24-bit stems
+STEM_BIT_DEPTH = 24      # Professional stems for mixing/mastering
+MASTER_BIT_DEPTH = 16    # Final delivery (CD/streaming compatible)
+DITHER_ENABLED = True    # Apply TPDF dither when reducing to 16-bit
 
 # Loudness targets (EBU R128 / streaming)
 TARGET_LUFS = -14.0          # Integrated loudness

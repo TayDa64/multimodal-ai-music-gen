@@ -390,6 +390,29 @@ class GenerationWorker:
             # Build result
             duration = time.time() - start_time
             
+            # Build takes list from the results dictionary for TakeLanePanel
+            # Format: {track_name: [{take_id, midi_track_name, variation_type, seed, ...}, ...]}
+            takes_data = []
+            takes_dict = results.get("takes", {})
+            if isinstance(takes_dict, dict):
+                for track_name, take_list in takes_dict.items():
+                    for take_info in take_list:
+                        if isinstance(take_info, dict):
+                            # Rich format with full take info
+                            takes_data.append({
+                                "track": track_name,
+                                **take_info  # Include all take metadata
+                            })
+                        else:
+                            # Legacy format (just track name string)
+                            takes_data.append({
+                                "take_id": "1",
+                                "track": track_name,
+                                "midi_track_name": str(take_info),
+                                "variation_type": "timing",
+                                "seed": 0,
+                            })
+            
             result = GenerationResult(
                 task_id=task.id,
                 request_id=task.request_id,  # Include client's request_id for correlation
@@ -407,6 +430,7 @@ class GenerationWorker:
                 samples_generated=len(results.get("samples", [])),
                 instruments_used=results.get("instruments_used", []),
                 duration=duration,
+                takes=takes_data,
             )
             
             task.status = TaskStatus.COMPLETED

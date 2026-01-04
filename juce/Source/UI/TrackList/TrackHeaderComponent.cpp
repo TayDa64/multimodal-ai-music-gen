@@ -47,14 +47,14 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     instrumentCombo.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
     addAndMakeVisible(instrumentCombo);
     
-    // Expand/collapse button - smaller for compact mode
-    expandButton.setButtonText(expanded ? juce::String(juce::CharPointer_UTF8("\xe2\x96\xbc")) 
-                                        : juce::String(juce::CharPointer_UTF8("\xe2\x96\xb6")));
+    // Piano Roll button - opens this track in Piano Roll view
+    expandButton.setButtonText(juce::String(juce::CharPointer_UTF8("\xe2\x96\xb6")));  // Always show ▶ (play/edit icon)
     expandButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
     expandButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
+    expandButton.setTooltip("Edit in Piano Roll");
     expandButton.onClick = [this]() {
-        setExpanded(!expanded);
-        listeners.call(&Listener::trackExpandToggled, this, expanded);
+        // Signal to open Piano Roll for this track (expanded=true means "open piano roll")
+        listeners.call(&Listener::trackExpandToggled, this, true);
     };
     addAndMakeVisible(expandButton);
     
@@ -148,13 +148,9 @@ void TrackHeaderComponent::setSelected(bool isSelected)
 
 void TrackHeaderComponent::setExpanded(bool isExpanded)
 {
-    if (expanded != isExpanded)
-    {
-        expanded = isExpanded;
-        expandButton.setButtonText(expanded ? juce::String(juce::CharPointer_UTF8("▼")) 
-                                            : juce::String(juce::CharPointer_UTF8("▶")));
-        repaint();
-    }
+    // No longer toggles visual state - button always shows ▶
+    // This method kept for API compatibility but doesn't change appearance
+    expanded = isExpanded;
 }
 
 void TrackHeaderComponent::setArmed(bool isArmed)
@@ -619,14 +615,13 @@ void TrackListComponent::updateLayout()
         midiSectionHeader->setBounds(0, y, width, sectionHeaderHeight);
         y += sectionHeaderHeight;
         
-        // Layout MIDI tracks
+        // Layout MIDI tracks - all uniform height
         for (auto* header : trackHeaders)
         {
             if (header->getTrackType() != TrackType::Audio)
             {
-                int height = header->isExpanded() ? expandedTrackHeight : collapsedTrackHeight;
-                header->setBounds(0, y, width, height);
-                y += height;
+                header->setBounds(0, y, width, trackHeight);
+                y += trackHeight;
             }
         }
     }
@@ -638,14 +633,13 @@ void TrackListComponent::updateLayout()
         audioSectionHeader->setBounds(0, y, width, sectionHeaderHeight);
         y += sectionHeaderHeight;
         
-        // Layout Audio tracks
+        // Layout Audio tracks - all uniform height
         for (auto* header : trackHeaders)
         {
             if (header->getTrackType() == TrackType::Audio)
             {
-                int height = header->isExpanded() ? expandedTrackHeight : collapsedTrackHeight;
-                header->setBounds(0, y, width, height);
-                y += height;
+                header->setBounds(0, y, width, trackHeight);
+                y += trackHeight;
             }
         }
     }

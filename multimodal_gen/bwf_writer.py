@@ -75,15 +75,27 @@ class BWFWriter:
         elif audio_data.shape[1] == 1:
             audio_data = np.concatenate([audio_data, audio_data], axis=1)
         
-        # Normalize to int16 range
-        if audio_data.dtype != np.int16:
-            audio_data = (audio_data * 32767).astype(np.int16)
+        # Quantize to target bit depth
+        if self.bit_depth == 24:
+            # 24-bit: scale to int32 with 24-bit range
+            if audio_data.dtype not in [np.int32]:
+                # Apply TPDF dither only when reducing bit depth (not for 24-bit)
+                audio_data = (audio_data * 8388607).astype(np.int32)
+            bytes_per_sample = 3
+        else:
+            # 16-bit: scale to int16 range with TPDF dither
+            if audio_data.dtype not in [np.int16]:
+                # Apply simple dither before quantizing to 16-bit
+                from .assets_gen import apply_tpdf_dither
+                audio_float = audio_data if audio_data.dtype in [np.float32, np.float64] else audio_data.astype(np.float64) / 32768
+                audio_dithered = apply_tpdf_dither(audio_float, 16)
+                audio_data = (audio_dithered * 32767).clip(-32768, 32767).astype(np.int16)
+            bytes_per_sample = 2
         
         with open(output_path, 'wb') as f:
             # Calculate sizes
             num_samples = len(audio_data)
             num_channels = audio_data.shape[1]
-            bytes_per_sample = self.bit_depth // 8
             data_size = num_samples * num_channels * bytes_per_sample
             
             # Prepare chunks
@@ -127,7 +139,16 @@ class BWFWriter:
             f.write(data_chunk_header)
             
             # Write audio data
-            audio_data.tofile(f)
+            if self.bit_depth == 24:
+                # 24-bit requires special handling: pack int32 as 3 bytes (little-endian)
+                # Flatten to interleaved format and pack each sample as 3 bytes
+                flat_data = audio_data.flatten()
+                for sample in flat_data:
+                    # Pack lower 3 bytes of int32 (little-endian 24-bit)
+                    f.write(struct.pack('<i', sample)[:3])
+            else:
+                # 16-bit: direct write
+                audio_data.tofile(f)
             
             # Add padding byte if needed for alignment
             if padding:
@@ -316,10 +337,15 @@ def save_wav_with_ai_provenance(
     output_path: str,
     ai_metadata: Optional[Dict[str, Any]] = None,
     sample_rate: int = SAMPLE_RATE,
-    description: str = ""
+    description: str = "",
+    bit_depth: int = 16
 ):
     """
     Convenience function to save WAV with AI provenance metadata.
+    
+    Professional bit-depth policy:
+    - 16-bit: Master delivery format (CD/streaming compatible)
+    - 24-bit: Stems for professional mixing
     
     Args:
         audio_data: Audio data (numpy array)
@@ -327,8 +353,9 @@ def save_wav_with_ai_provenance(
         ai_metadata: Dictionary of AI generation metadata
         sample_rate: Sample rate
         description: Brief description
+        bit_depth: Output bit depth (16 for master, 24 for stems)
     """
-    writer = BWFWriter(sample_rate=sample_rate)
+    writer = BWFWriter(sample_rate=sample_rate, bit_depth=bit_depth)
     writer.write_bwf(
         audio_data,
         output_path,

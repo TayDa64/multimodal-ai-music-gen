@@ -73,7 +73,8 @@ private:
 */
 class ArrangementView : public juce::Component,
                         public TrackListComponent::Listener,
-                        public juce::ValueTree::Listener
+                        public juce::ValueTree::Listener,
+                        public juce::ScrollBar::Listener
 {
 public:
     ArrangementView(mmg::AudioEngine& engine);
@@ -86,6 +87,7 @@ public:
     public:
         virtual ~Listener() = default;
         virtual void arrangementTrackPianoRollRequested(int trackIndex) = 0;  // User wants to edit track in Piano Roll
+        virtual void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) {}  // User wants to regenerate selection
     };
     
     void addListener(Listener* listener) { listeners.add(listener); }
@@ -133,6 +135,9 @@ public:
     void valueTreeChildRemoved(juce::ValueTree& parent, juce::ValueTree& child, int index) override;
     void valueTreeChildOrderChanged(juce::ValueTree&, int, int) override {}
     void valueTreeParentChanged(juce::ValueTree&) override {}
+    
+    // ScrollBar::Listener for synchronizing track list and lanes scroll
+    void scrollBarMoved(juce::ScrollBar* scrollBar, double newRangeStart) override;
 
 private:
     mmg::AudioEngine& audioEngine;
@@ -159,6 +164,9 @@ private:
     
     // Focused track view (-1 = show all)
     int focusedTrackIndex = -1;
+    
+    // Scroll synchronization flag to prevent feedback loops
+    bool isSyncingScroll = false;
     
     // Splitter for resizable track list
     juce::StretchableLayoutManager layoutManager;

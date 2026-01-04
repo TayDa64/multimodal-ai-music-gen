@@ -71,6 +71,7 @@ void TransportComponent::setupButtons()
         menu.addItem(2, "FX Chain", true, false);
         menu.addItem(3, "Expansions", true, false);
         menu.addItem(4, "Mixer", true, false);
+        menu.addItem(5, "Takes", true, false);
         
         menu.showMenuAsync(juce::PopupMenu::Options()
             .withTargetComponent(&toolsButton)

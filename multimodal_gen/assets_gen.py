@@ -2415,43 +2415,172 @@ def generate_shaker_hit(
 # FILE I/O
 # =============================================================================
 
+def apply_tpdf_dither(audio: np.ndarray, bit_depth: int = 16) -> np.ndarray:
+    """
+    Apply TPDF (Triangular Probability Density Function) dither.
+    
+    TPDF dither is the industry standard for bit-depth reduction.
+    It replaces quantization distortion with white noise, preserving
+    perceived dynamic range and eliminating correlated distortion.
+    
+    Industry Reference:
+    - Pro Tools uses POW-r dither (proprietary TPDF variant)
+    - Logic Pro uses TPDF by default
+    - iZotope uses MBIT+ (enhanced TPDF)
+    
+    Args:
+        audio: Float audio array (-1.0 to 1.0)
+        bit_depth: Target bit depth (typically 16)
+        
+    Returns:
+        Dithered float audio ready for quantization
+    """
+    if bit_depth >= 24:
+        # No dither needed for 24-bit (noise floor already below audibility)
+        return audio
+    
+    # Calculate the quantization step size
+    # For 16-bit: 2^16 = 65536 levels, step = 2/65536
+    n_levels = 2 ** bit_depth
+    step_size = 2.0 / n_levels  # For normalized -1 to 1 range
+    
+    # Generate TPDF dither (sum of two uniform distributions)
+    # This creates triangular probability density, which:
+    # - Adds no DC offset
+    # - Has minimum crest factor
+    # - Provides optimal noise shaping
+    shape = audio.shape
+    dither1 = np.random.uniform(-0.5, 0.5, shape)
+    dither2 = np.random.uniform(-0.5, 0.5, shape)
+    tpdf_dither = (dither1 + dither2) * step_size
+    
+    return audio + tpdf_dither
+
+
 def save_wav(
     audio: np.ndarray,
     filepath: str,
     sample_rate: int = SAMPLE_RATE,
-    stereo: bool = False
+    stereo: bool = False,
+    bit_depth: int = 16,
+    apply_dither: bool = True
 ) -> bool:
     """
-    Save audio to WAV file.
+    Save audio to WAV file with configurable bit-depth.
     
-    Uses soundfile if available, falls back to wave module.
+    Professional bit-depth policy:
+    - 24-bit stems: Maximum headroom for mixing/mastering workflows
+    - 16-bit master: Universal compatibility with dither
+    
+    Args:
+        audio: Float audio array (-1.0 to 1.0 range)
+        filepath: Output path for WAV file
+        sample_rate: Sample rate in Hz (default 44100)
+        stereo: Convert mono to stereo if True
+        bit_depth: Target bit depth (16 or 24)
+        apply_dither: Apply TPDF dither when reducing to 16-bit
+    
+    Returns:
+        True if successful
+        
+    Industry Note:
+        24-bit offers 144dB dynamic range vs 96dB for 16-bit.
+        Always use 24-bit for stems, 16-bit for final delivery.
     """
     # Ensure directory exists
     os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
     
-    # Convert to int16
-    audio_int = np.clip(audio * 32767, -32768, 32767).astype(np.int16)
+    # Prepare audio for saving
+    work_audio = audio.copy()
+    
+    # Apply dither if reducing to 16-bit
+    if bit_depth == 16 and apply_dither:
+        work_audio = apply_tpdf_dither(work_audio, bit_depth)
+    
+    # Determine format and scaling
+    if bit_depth == 24:
+        # 24-bit: scale to int32 range (use lower 24 bits)
+        # Max value: 2^23 - 1 = 8388607
+        scale = 8388607
+        audio_int = np.clip(work_audio * scale, -8388608, 8388607).astype(np.int32)
+        subtype = 'PCM_24'
+        sampwidth = 3
+    else:
+        # 16-bit (default): scale to int16 range
+        scale = 32767
+        audio_int = np.clip(work_audio * scale, -32768, 32767).astype(np.int16)
+        subtype = 'PCM_16'
+        sampwidth = 2
     
     if stereo and len(audio_int.shape) == 1:
         # Convert mono to stereo
         audio_int = np.column_stack([audio_int, audio_int])
     
     if HAS_SOUNDFILE:
-        sf.write(filepath, audio_int, sample_rate, subtype='PCM_16')
+        sf.write(filepath, audio_int, sample_rate, subtype=subtype)
     else:
-        # Fallback to wave module
+        # Fallback to wave module (16-bit only)
+        if bit_depth == 24:
+            print(f"Warning: wave module fallback only supports 16-bit, saving as 16-bit")
+            audio_int = np.clip(work_audio * 32767, -32768, 32767).astype(np.int16)
+            sampwidth = 2
+        
         with wave.open(filepath, 'w') as wav:
-            n_channels = 2 if stereo else 1
+            n_channels = 2 if (stereo or len(audio_int.shape) > 1) else 1
             wav.setnchannels(n_channels)
-            wav.setsampwidth(2)  # 16-bit
+            wav.setsampwidth(sampwidth)
             wav.setframerate(sample_rate)
-            
-            if stereo:
-                wav.writeframes(audio_int.tobytes())
-            else:
-                wav.writeframes(audio_int.tobytes())
+            wav.writeframes(audio_int.tobytes())
     
     return True
+
+
+def save_stem(
+    audio: np.ndarray,
+    filepath: str,
+    sample_rate: int = SAMPLE_RATE,
+    stereo: bool = True
+) -> bool:
+    """
+    Save audio as a 24-bit stem (professional mixing format).
+    
+    Convenience wrapper for save_wav with stem-appropriate settings.
+    24-bit preserves full dynamic range for downstream processing.
+    
+    Args:
+        audio: Float audio array
+        filepath: Output path
+        sample_rate: Sample rate in Hz
+        stereo: Convert to stereo if needed
+        
+    Returns:
+        True if successful
+    """
+    return save_wav(audio, filepath, sample_rate, stereo, bit_depth=24, apply_dither=False)
+
+
+def save_master(
+    audio: np.ndarray,
+    filepath: str,
+    sample_rate: int = SAMPLE_RATE,
+    stereo: bool = True
+) -> bool:
+    """
+    Save audio as a 16-bit master (delivery format).
+    
+    Convenience wrapper for save_wav with master-appropriate settings.
+    16-bit with TPDF dither for CD/streaming compatibility.
+    
+    Args:
+        audio: Float audio array
+        filepath: Output path
+        sample_rate: Sample rate in Hz
+        stereo: Convert to stereo if needed
+        
+    Returns:
+        True if successful
+    """
+    return save_wav(audio, filepath, sample_rate, stereo, bit_depth=16, apply_dither=True)
 
 
 # =============================================================================

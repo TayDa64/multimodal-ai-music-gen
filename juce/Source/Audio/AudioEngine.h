@@ -146,6 +146,10 @@ public:
     /** Load MIDI data directly from memory */
     void loadMidiData(const juce::MidiFile& midi);
     
+    /** Load an audio file for playback (WAV, AIFF, etc.)
+        @returns true if loaded successfully */
+    bool loadAudioFile(const juce::File& audioFile);
+    
     /** Clear currently loaded MIDI */
     void clearMidiFile();
     

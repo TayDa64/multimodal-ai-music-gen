@@ -159,6 +159,7 @@ void GenreSelector::loadDefaults()
     };
     
     DefaultGenre defaults[] = {
+        { "auto",        "Auto (from prompt)",   "#607D8B", 60,  180, 100, 0.00f, false },  // Auto-detect from prompt
         { "trap",        "Trap",                 "#FF1744", 130, 160, 140, 0.00f, true  },
         { "trap_soul",   "Trap Soul",            "#E91E63", 70,  95,  82,  0.08f, false },
         { "g_funk",      "G-Funk",               "#9C27B0", 85,  105, 96,  0.15f, false },
@@ -189,8 +190,8 @@ void GenreSelector::loadDefaults()
         genreCombo.addItem(t.displayName, itemId++);
     }
     
-    // Select default genre
-    setSelectedGenre("trap");
+    // Select Auto as default - let AI determine genre from prompt
+    setSelectedGenre("auto");
 }
 
 //==============================================================================

@@ -62,14 +62,24 @@ void PianoRollComponent::setProjectState(Project::ProjectState* state)
 
 void PianoRollComponent::syncNotesFromState()
 {
-    if (!projectState) return;
+    if (!projectState) {
+        DBG("PianoRollComponent::syncNotesFromState - NO PROJECT STATE!");
+        return;
+    }
+    
+    DBG("PianoRollComponent::syncNotesFromState - embeddedMode=" << embeddedMode << ", soloedTrack=" << soloedTrack);
     
     notes.clear();
     // Do NOT clear selection here, as it breaks drag operations.
     // Instead, we validate selection at the end.
     
     auto notesNode = projectState->getState().getChildWithName(Project::IDs::NOTES);
-    if (!notesNode.isValid()) return;
+    if (!notesNode.isValid()) {
+        DBG("  WARNING: NOTES node is invalid!");
+        return;
+    }
+    
+    DBG("  NOTES node has " << notesNode.getNumChildren() << " children");
     
     double secondsPerBeat = 60.0 / currentBPM;
     
@@ -119,26 +129,40 @@ void PianoRollComponent::syncNotesFromState()
             selectedNotes.remove(i);
     }
     
+    DBG("  Loaded " << notes.size() << " notes total, maxTrackIndex=" << maxTrackIndex);
+    
     assignTrackColors(maxTrackIndex + 1);
     
     // Ensure minimum duration for playable area
     totalDuration = juce::jmax(totalDuration, minimumDuration);
     
     updateTrackList();
+    
+    // In embedded mode, auto-zoom to fit the notes for this track
+    if (embeddedMode)
+        zoomToFit();
+    
     repaint();
 }
 
 //==============================================================================
 void PianoRollComponent::loadMidiFile(const juce::File& midiFile)
 {
+    DBG("PianoRollComponent::loadMidiFile - projectState=" << (void*)projectState);
+    
     // Legacy support - import into project state if available
     if (projectState)
     {
+        DBG("  Calling projectState->importMidiFile...");
         projectState->importMidiFile(midiFile);
+        DBG("  Import complete, checking notes...");
+        auto notesNode = projectState->getState().getChildWithName(Project::IDs::NOTES);
+        DBG("  NOTES node has " << notesNode.getNumChildren() << " children after import");
         // syncNotesFromState will be called via listener callback
     }
     else
     {
+        DBG("  WARNING: projectState is NULL, using fallback visualization-only mode!");
         // Fallback to visualization-only mode
         juce::FileInputStream stream(midiFile);
         if (stream.openedOk())
@@ -269,7 +293,7 @@ void PianoRollComponent::zoomToFit()
     if (notes.isEmpty() || totalDuration <= 0)
         return;
     
-    float availableWidth = (float)(getWidth() - pianoKeyWidth);
+    float availableWidth = (float)(getWidth() - getEffectiveKeyWidth());
     if (availableWidth > 0)
     {
         float targetPixelsPerSecond = availableWidth / (float)totalDuration;
@@ -279,6 +303,10 @@ void PianoRollComponent::zoomToFit()
     int minNoteFound = 127, maxNoteFound = 0;
     for (const auto& note : notes)
     {
+        // When soloed to a track, only consider notes from that track
+        if (soloedTrack >= 0 && note.trackIndex != soloedTrack)
+            continue;
+            
         minNoteFound = juce::jmin(minNoteFound, note.noteNumber);
         maxNoteFound = juce::jmax(maxNoteFound, note.noteNumber);
     }
@@ -286,6 +314,17 @@ void PianoRollComponent::zoomToFit()
     if (minNoteFound <= maxNoteFound)
     {
         scrollY = (minNoteFound + maxNoteFound) / 2;
+        
+        // In embedded mode, auto-fit vertical zoom to show all notes
+        if (embeddedMode && getHeight() > 0)
+        {
+            int noteRange = maxNoteFound - minNoteFound + 1;
+            noteRange = juce::jmax(noteRange, 12);  // Minimum 1 octave visible
+            
+            float availableHeight = (float)getHeight();
+            float targetNoteHeight = availableHeight / (float)noteRange;
+            vZoom = juce::jlimit(0.3f, 4.0f, targetNoteHeight / (float)whiteKeyHeight);
+        }
     }
     
     scrollX = 0.0;
@@ -406,7 +445,10 @@ void PianoRollComponent::paint(juce::Graphics& g)
         drawSelectionRect(g);
         
     drawPlayhead(g);
-    drawPianoKeys(g);
+    
+    // Only draw piano keys when NOT in embedded mode
+    if (!embeddedMode)
+        drawPianoKeys(g);
     
     if (hoveredNote != nullptr)
         drawNoteTooltip(g);
@@ -416,7 +458,8 @@ void PianoRollComponent::drawBackground(juce::Graphics& g)
 {
     g.fillAll(AppColours::background);
     
-    auto noteArea = getLocalBounds().withTrimmedLeft(pianoKeyWidth);
+    int keyWidth = getEffectiveKeyWidth();
+    auto noteArea = getLocalBounds().withTrimmedLeft(keyWidth);
     float noteHeight = whiteKeyHeight * vZoom;
     int visibleNotes = (int)(getHeight() / noteHeight) + 2;
     int startNote = scrollY - visibleNotes / 2;
@@ -483,7 +526,8 @@ void PianoRollComponent::drawPianoKeys(juce::Graphics& g)
 
 void PianoRollComponent::drawGridLines(juce::Graphics& g)
 {
-    auto noteArea = getLocalBounds().withTrimmedLeft(pianoKeyWidth);
+    int keyWidth = getEffectiveKeyWidth();
+    auto noteArea = getLocalBounds().withTrimmedLeft(keyWidth);
     if (currentBPM <= 0) return;
     
     double secondsPerBeat = 60.0 / currentBPM;
@@ -499,7 +543,7 @@ void PianoRollComponent::drawGridLines(juce::Graphics& g)
             continue;
         
         float x = timeToX(time);
-        if (x >= pianoKeyWidth && x < getWidth())
+        if (x >= keyWidth && x < getWidth())
         {
             bool isBar = std::fmod(time, secondsPerBar) < 0.001;
             if (isBar)
@@ -525,7 +569,8 @@ void PianoRollComponent::drawLoopRegion(juce::Graphics& g)
     float endX = timeToX(loopRegionEnd);
     
     // Clamp to visible area
-    startX = juce::jmax(startX, (float)pianoKeyWidth);
+    int keyWidth = getEffectiveKeyWidth();
+    startX = juce::jmax(startX, (float)keyWidth);
     endX = juce::jmin(endX, (float)getWidth());
     
     if (endX <= startX)
@@ -562,6 +607,23 @@ void PianoRollComponent::drawNotes(juce::Graphics& g)
 {
     float noteHeight = whiteKeyHeight * vZoom;
     
+    int keyWidth = getEffectiveKeyWidth();
+    
+    // Debug: Draw note count info for embedded mode
+    if (embeddedMode)
+    {
+        int matchingNotes = 0;
+        for (const auto& note : notes)
+        {
+            if (soloedTrack < 0 || note.trackIndex == soloedTrack)
+                matchingNotes++;
+        }
+        
+        g.setColour(juce::Colours::white.withAlpha(0.7f));
+        g.drawText("Track " + juce::String(soloedTrack) + ": " + juce::String(matchingNotes) + "/" + juce::String(notes.size()) + " notes, vZoom=" + juce::String(vZoom, 2) + ", scrollY=" + juce::String(scrollY),
+                   getLocalBounds().reduced(4), juce::Justification::topLeft);
+    }
+    
     for (const auto& note : notes)
     {
         // Filter by track
@@ -579,13 +641,13 @@ void PianoRollComponent::drawNotes(juce::Graphics& g)
         float y = noteToY(note.noteNumber);
         float width = juce::jmax(2.0f, endX - x);
         
-        if (endX < pianoKeyWidth || x > getWidth()) continue;
+        if (endX < keyWidth || x > getWidth()) continue;
         if (y + noteHeight < 0 || y > getHeight()) continue;
         
-        if (x < pianoKeyWidth)
+        if (x < keyWidth)
         {
-            width -= (pianoKeyWidth - x);
-            x = pianoKeyWidth;
+            width -= (keyWidth - x);
+            x = (float)keyWidth;
         }
         
         juce::Colour noteColour = getTrackColour(note.trackIndex);
@@ -647,7 +709,7 @@ void PianoRollComponent::drawSelectionRect(juce::Graphics& g)
 void PianoRollComponent::drawPlayhead(juce::Graphics& g)
 {
     float x = timeToX(playheadPosition);
-    if (x >= pianoKeyWidth && x <= getWidth())
+    if (x >= getEffectiveKeyWidth() && x <= getWidth())
     {
         g.setColour(AppColours::primary);
         g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
@@ -686,12 +748,12 @@ void PianoRollComponent::drawNoteTooltip(juce::Graphics& g)
 //==============================================================================
 float PianoRollComponent::timeToX(double timeSeconds) const
 {
-    return pianoKeyWidth + (float)((timeSeconds - scrollX) * 100.0 * hZoom);
+    return (float)getEffectiveKeyWidth() + (float)((timeSeconds - scrollX) * 100.0 * hZoom);
 }
 
 double PianoRollComponent::xToTime(float x) const
 {
-    return scrollX + (x - pianoKeyWidth) / (100.0 * hZoom);
+    return scrollX + (x - getEffectiveKeyWidth()) / (100.0 * hZoom);
 }
 
 float PianoRollComponent::noteToY(int noteNumber) const
@@ -710,7 +772,7 @@ int PianoRollComponent::yToNote(float y) const
 
 MidiNoteEvent* PianoRollComponent::getNoteAt(juce::Point<float> position)
 {
-    if (position.x < pianoKeyWidth) return nullptr;
+    if (position.x < getEffectiveKeyWidth()) return nullptr;
     float noteHeight = whiteKeyHeight * vZoom;
     
     for (auto& note : notes)
@@ -754,7 +816,7 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
     {
         clickStartTime = juce::Time::currentTimeMillis();
         
-        if (event.x <= pianoKeyWidth) return; // Piano keys
+        if (event.x <= getEffectiveKeyWidth()) return; // Piano keys area (if visible)
         
         auto* note = getNoteAt(event.position);
         
@@ -936,7 +998,7 @@ void PianoRollComponent::mouseUp(const juce::MouseEvent& event)
     else if (!isMoving && !isResizing && !isDragging)
     {
         // Simple click on empty space -> Seek
-        if (event.x > pianoKeyWidth && selectedNotes.isEmpty())
+        if (event.x > getEffectiveKeyWidth() && selectedNotes.isEmpty())
         {
             double time = xToTime(event.position.x);
             audioEngine.setPlaybackPosition(time);
@@ -952,7 +1014,7 @@ void PianoRollComponent::mouseUp(const juce::MouseEvent& event)
 void PianoRollComponent::mouseDoubleClick(const juce::MouseEvent& event)
 {
     if (!projectState) return;
-    if (event.x <= pianoKeyWidth) return;
+    if (event.x <= getEffectiveKeyWidth()) return;
     
     // Only allow adding notes if a specific track is selected (to know where to put it)
     // Or default to track 0 if "All" is selected?

@@ -60,6 +60,19 @@ These were previously tracked as “remaining”, but are already present today:
 - [x] Protocol Tests (Python)
   - Python: `tests/test_protocol.py` (request_id correlation, schema version, OSC addresses, error codes, take messages)
 
+- [x] StylePolicy ("Producer Brain") Layer
+  - Python: `multimodal_gen/style_policy.py` - unified policy layer for coherent musical decisions
+  - PolicyContext with TimingPolicy, VoicingPolicy, DynamicsPolicy, ArrangementPolicy, MixPolicy, InstrumentPolicy
+  - Genre-specific presets for timing/swing, voicing style, ghost note probability, mix parameters
+  - Integration: compile_policy() called in main.py, passed to MidiGenerator.generate()
+  - Physics humanization respects policy context for swing, ghost notes, timing jitter
+  - JSON-able decision records for UI transparency
+
+- [x] Physics-Aware Humanization
+  - Python: `multimodal_gen/humanize_physics.py` - realistic MIDI humanization
+  - Models: fatigue at high BPM, limb conflicts, ghost notes, hand alternation
+  - Integration: MidiGenerator._apply_physics_humanization() uses PolicyContext
+
 ---
 
 ## 1) Priority 0: Protocol Correctness & Contract Alignment
@@ -175,15 +188,13 @@ This maps the NotebookLM phases into *what is already present in code* and *what
 - [x] Note release tail visualization (decay): `juce/Source/UI/Visualization/PianoRollComponent.cpp`
 
 **Remaining gaps**
-- [ ] Surface “takes” in the OSC protocol and UI:
-  - Python: extend generation request to include take config (num_takes, variation axis, role), and return multiple take outputs.
-  - JUCE: add a “Takes” UI (lane selector) in the piano roll / arrangement view to audition and comp.
-- [ ] Sectional regeneration:
-  - Add an OSC endpoint to regenerate only a bar range (e.g. `/regenerate`) including:
-    - request_id
-    - target range (bars or seconds)
-    - seed strategy (new seed vs derived seed)
-  - JUCE: add context menu actions in the timeline/piano roll (“Regenerate selection”).
+- [x] Surface "takes" in the OSC protocol and UI:
+  - ✅ Python: extended generation results with rich take metadata (take_id, variation_type, seed, etc.)
+  - ✅ JUCE: GenerationResult.takesJson parsed in Messages.h, TakeLanePanel populated in onGenerationComplete
+- [x] Sectional regeneration:
+  - ✅ `/regenerate` OSC endpoint in `multimodal_gen/server/osc_server.py`
+  - ✅ JUCE: ArrangementView context menu for "Regenerate Track" / "Regenerate All"
+  - ✅ JUCE: MainComponent::regenerateRequested() sends RegenerationRequest via OSCBridge
 - [ ] Upgrade timeline from “display + seek” to “arrangement”:
   - Add region clips (MIDI + audio) and editing (move/trim/duplicate), then reflect changes into `ProjectState`.
 

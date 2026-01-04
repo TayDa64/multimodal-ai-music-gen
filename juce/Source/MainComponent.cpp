@@ -174,14 +174,20 @@ void MainComponent::setupBottomPanel()
     mixerComponent->setTracks(trackNames);
     addAndMakeVisible(*mixerComponent);
     
+    // Take Lane Panel - shown in bottom panel when triggered
+    takeLanePanel = std::make_unique<TakeLanePanel>();
+    takeLanePanel->setVisible(false);
+    addAndMakeVisible(*takeLanePanel);
+    
     // Now add listeners AFTER all components are created
     genreSelector->addListener(this);
     instrumentBrowser->addListener(this);
     fxChainPanel->addListener(this);
     expansionBrowser->addListener(this);
+    takeLanePanel->addListener(this);
     
-    // Set default genre
-    genreSelector->setSelectedGenre("trap");
+    // Use auto-detect genre by default - let AI determine from prompt
+    // genreSelector->setSelectedGenre("auto"); // Already defaults to auto in loadDefaults()
     
     // Request initial instrument data
     if (instrumentBrowser)
@@ -195,7 +201,7 @@ void MainComponent::toolsMenuItemSelected(int itemId)
 
 void MainComponent::showToolWindow(int toolId)
 {
-    // 1 = Instruments (floating), 2 = FX Chain (bottom), 3 = Expansions (floating), 4 = Mixer (bottom)
+    // 1 = Instruments (floating), 2 = FX Chain (bottom), 3 = Expansions (floating), 4 = Mixer (bottom), 5 = Takes (bottom)
     
     switch (toolId)
     {
@@ -233,6 +239,7 @@ void MainComponent::showToolWindow(int toolId)
                 currentBottomTool = 2;
                 if (fxChainPanel) fxChainPanel->setVisible(true);
                 if (mixerComponent) mixerComponent->setVisible(false);
+                if (takeLanePanel) takeLanePanel->setVisible(false);
                 resized();
             }
             break;
@@ -272,6 +279,25 @@ void MainComponent::showToolWindow(int toolId)
                 currentBottomTool = 4;
                 if (fxChainPanel) fxChainPanel->setVisible(false);
                 if (mixerComponent) mixerComponent->setVisible(true);
+                if (takeLanePanel) takeLanePanel->setVisible(false);
+                resized();
+            }
+            break;
+        }
+        
+        case 5: // Takes - bottom panel
+        {
+            if (currentBottomTool == 5 && bottomPanelVisible)
+            {
+                hideBottomPanel();
+            }
+            else
+            {
+                bottomPanelVisible = true;
+                currentBottomTool = 5;
+                if (fxChainPanel) fxChainPanel->setVisible(false);
+                if (mixerComponent) mixerComponent->setVisible(false);
+                if (takeLanePanel) takeLanePanel->setVisible(true);
                 resized();
             }
             break;
@@ -285,6 +311,7 @@ void MainComponent::hideBottomPanel()
     currentBottomTool = 0;
     if (fxChainPanel) fxChainPanel->setVisible(false);
     if (mixerComponent) mixerComponent->setVisible(false);
+    if (takeLanePanel) takeLanePanel->setVisible(false);
     resized();
 }
 
@@ -437,7 +464,7 @@ void MainComponent::resized()
     // NO separate timeline - ArrangementView has its own ruler (MPC/ProTools style)
     // timelineComponent stays hidden
     
-    // Bottom panel with FX/Mixer - only when visible (toggle from Tools menu)
+    // Bottom panel with FX/Mixer/Takes - only when visible (toggle from Tools menu)
     if (bottomPanelVisible)
     {
         int bottomPanelHeight = Layout::getAdaptiveBottomPanelHeight(bounds.getHeight());
@@ -448,6 +475,8 @@ void MainComponent::resized()
             fxChainPanel->setBounds(bottomPanelArea);
         if (mixerComponent && currentBottomTool == 4)
             mixerComponent->setBounds(bottomPanelArea);
+        if (takeLanePanel && currentBottomTool == 5)
+            takeLanePanel->setBounds(bottomPanelArea);
     }
     
     // Main content area - use FlexBox for responsive layout
@@ -588,6 +617,18 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                 // Also load into piano roll
                 if (visualizationPanel)
                     visualizationPanel->loadMidiFile(midiFile);
+            }
+        }
+        
+        // Pass takes data to TakeLanePanel if available
+        if (result.takesJson.isNotEmpty() && takeLanePanel)
+        {
+            takeLanePanel->setAvailableTakes(result.takesJson);
+            
+            // Auto-show takes panel if we have takes
+            if (takeLanePanel->hasTakes() && !bottomPanelVisible)
+            {
+                showToolWindow(5);  // 5 = Takes
             }
         }
         
@@ -806,11 +847,8 @@ void MainComponent::fileSelected(const juce::File& file)
 {
     currentStatus = "Loaded: " + file.getFileName();
     
-    // If it's a MIDI file, load it into the piano roll
-    if (file.hasFileExtension(".mid;.midi") && visualizationPanel)
-    {
-        visualizationPanel->loadMidiFile(file);
-    }
+    // Note: VisualizationPanel already handles loading MIDI files into piano roll
+    // We just update the status here
     
     juce::MessageManager::callAsync([this]()
     {
@@ -824,6 +862,41 @@ void MainComponent::analyzeFileRequested(const juce::File& file)
     {
         currentStatus = "Analyzing: " + file.getFileName();
         oscBridge->sendAnalyzeFile(file, false);
+        repaint();
+    }
+    else
+    {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Not Connected",
+            "Python backend is not connected.\n\n"
+            "Start the server with:\n"
+            "python main.py --server --verbose"
+        );
+    }
+}
+
+void MainComponent::regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks)
+{
+    DBG("MainComponent: Regenerate requested bars " << startBar << "-" << endBar);
+    
+    if (oscBridge && oscBridge->isConnected())
+    {
+        RegenerationRequest request;
+        request.generateRequestId();
+        request.startBar = startBar;
+        request.endBar = endBar;
+        request.tracks = tracks;
+        request.seedStrategy = "new";
+        
+        // Get current context from app state
+        request.bpm = appState.getBPM();
+        request.key = appState.getKey();
+        request.genre = currentGenre;
+        
+        oscBridge->sendRegenerate(request);
+        
+        currentStatus = "Regenerating bars " + juce::String(startBar) + "-" + juce::String(endBar) + "...";
         repaint();
     }
     else
@@ -1080,6 +1153,104 @@ void MainComponent::onExpansionResolveReceived(const juce::String& json)
 }
 
 //==============================================================================
+// OSCBridge::Listener take callbacks
+void MainComponent::onTakesAvailable(const juce::String& json)
+{
+    DBG("MainComponent: Received takes available");
+    
+    juce::MessageManager::callAsync([this, json]() {
+        if (takeLanePanel)
+        {
+            takeLanePanel->setAvailableTakes(json);
+            
+            // Auto-show the takes panel when takes become available
+            if (takeLanePanel->hasTakes() && !bottomPanelVisible)
+            {
+                showToolWindow(5);  // 5 = Takes
+            }
+        }
+    });
+}
+
+void MainComponent::onTakeSelected(const juce::String& track, const juce::String& takeId)
+{
+    DBG("MainComponent: Take selected - " << track << " / " << takeId);
+    
+    juce::MessageManager::callAsync([this, track, takeId]() {
+        if (takeLanePanel)
+            takeLanePanel->confirmTakeSelection(track, takeId);
+        
+        currentStatus = "Take selected: " + track + " / " + takeId;
+        repaint();
+    });
+}
+
+void MainComponent::onTakeRendered(const juce::String& track, const juce::String& outputPath)
+{
+    DBG("MainComponent: Take rendered - " << track << " -> " << outputPath);
+    
+    juce::MessageManager::callAsync([this, track, outputPath]() {
+        // Load the rendered audio
+        juce::File audioFile(outputPath);
+        if (audioFile.existsAsFile())
+        {
+            audioEngine.loadAudioFile(audioFile);
+        }
+        
+        currentStatus = "Take rendered: " + track;
+        repaint();
+    });
+}
+
+//==============================================================================
+// TakeLanePanel::Listener implementation
+void MainComponent::takeSelected(const juce::String& track, const juce::String& takeId)
+{
+    DBG("MainComponent: User selected take - " << track << " / " << takeId);
+    
+    // Send selection to server via OSC
+    if (oscBridge)
+        oscBridge->sendSelectTake(track, takeId);
+    
+    currentStatus = "Selecting take: " + track + " / " + takeId;
+    repaint();
+}
+
+void MainComponent::takePlayRequested(const juce::String& track, const juce::String& takeId)
+{
+    DBG("MainComponent: User requested take playback - " << track << " / " << takeId);
+    
+    // TODO: Load and audition the specific take MIDI
+    // For now, just log it
+    currentStatus = "Auditioning take: " + track + " / " + takeId;
+    repaint();
+}
+
+void MainComponent::renderTakesRequested()
+{
+    DBG("MainComponent: User requested render of selected takes");
+    
+    if (oscBridge)
+    {
+        // Build render request from selected takes in each track
+        TakeRenderRequest request;
+        request.generateRequestId();
+        request.useComp = true;  // Render the current comp
+        
+        // Output path in project output directory
+        auto outputDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile)
+            .getParentDirectory().getParentDirectory().getParentDirectory()
+            .getParentDirectory().getChildFile("output");
+        request.outputPath = outputDir.getFullPathName();
+        
+        oscBridge->sendRenderTake(request);
+        
+        currentStatus = "Rendering takes...";
+        repaint();
+    }
+}
+
+//==============================================================================
 // ProjectState::Listener overrides
 void MainComponent::valueTreePropertyChanged(juce::ValueTree& tree, const juce::Identifier& property)
 {
@@ -1213,6 +1384,152 @@ void MainComponent::timerCallback()
 //==============================================================================
 bool MainComponent::keyPressed(const juce::KeyPress& key)
 {
+    // ==========================================================================
+    // Skip global shortcuts if a TextEditor has keyboard focus
+    // This allows normal text editing (paste, cut, copy, etc.)
+    // ==========================================================================
+    auto* focusedComponent = juce::Component::getCurrentlyFocusedComponent();
+    if (dynamic_cast<juce::TextEditor*>(focusedComponent) != nullptr)
+    {
+        // Let text editing keys pass through to TextEditor
+        // Only handle Escape to unfocus
+        if (key.isKeyCode(juce::KeyPress::escapeKey))
+        {
+            focusedComponent->giveAwayKeyboardFocus();
+            currentStatus = "Exited text input";
+            return true;
+        }
+        // Don't consume any other keys - let TextEditor handle them
+        return false;
+    }
+    
+    // ==========================================================================
+    // Transport Controls (DAW-standard shortcuts)
+    // ==========================================================================
+    
+    // Space: Toggle Play/Pause
+    if (key.isKeyCode(juce::KeyPress::spaceKey))
+    {
+        if (audioEngine.isPlaying())
+            audioEngine.pause();
+        else
+            audioEngine.play();
+        currentStatus = audioEngine.isPlaying() ? "Playing" : "Paused";
+        return true;
+    }
+    
+    // Home: Return to start (position 0)
+    if (key.isKeyCode(juce::KeyPress::homeKey))
+    {
+        if (key.getModifiers().isShiftDown() && timelineComponent && timelineComponent->hasLoopRegion())
+        {
+            // Shift+Home: Go to loop start
+            audioEngine.setPlaybackPosition(timelineComponent->getLoopRegionStart());
+            currentStatus = "At loop start";
+        }
+        else
+        {
+            // Home: Go to start
+            audioEngine.setPlaybackPosition(0.0);
+            currentStatus = "At start";
+        }
+        return true;
+    }
+    
+    // End: Go to end of track
+    if (key.isKeyCode(juce::KeyPress::endKey))
+    {
+        if (key.getModifiers().isShiftDown() && timelineComponent && timelineComponent->hasLoopRegion())
+        {
+            // Shift+End: Go to loop end
+            audioEngine.setPlaybackPosition(timelineComponent->getLoopRegionEnd());
+            currentStatus = "At loop end";
+        }
+        else
+        {
+            // End: Go to end
+            double duration = audioEngine.getTotalDuration();
+            if (duration > 0)
+            {
+                audioEngine.setPlaybackPosition(duration);
+                currentStatus = "At end";
+            }
+        }
+        return true;
+    }
+    
+    // L: Toggle loop on/off
+    if (key.isKeyCode('l') && !key.getModifiers().isCommandDown())
+    {
+        bool currentLooping = audioEngine.isLooping();
+        audioEngine.setLooping(!currentLooping);
+        currentStatus = audioEngine.isLooping() ? "Loop ON" : "Loop OFF";
+        return true;
+    }
+    
+    // Delete/Backspace on loop region: Clear loop
+    if ((key.isKeyCode(juce::KeyPress::deleteKey) || key.isKeyCode(juce::KeyPress::backspaceKey))
+        && timelineComponent && timelineComponent->hasLoopRegion())
+    {
+        timelineComponent->clearLoopRegion();
+        currentStatus = "Loop region cleared";
+        return true;
+    }
+    
+    // ==========================================================================
+    // Navigation (Bar/Beat Skipping)
+    // ==========================================================================
+    
+    // Arrow keys for navigation
+    if (key.isKeyCode(juce::KeyPress::leftKey) || key.isKeyCode(juce::KeyPress::rightKey))
+    {
+        double currentPos = audioEngine.getPlaybackPosition();
+        int bpm = appState.getBPM();
+        double secondsPerBeat = 60.0 / bpm;
+        double secondsPerBar = secondsPerBeat * 4.0;  // Assume 4/4 time
+        
+        double skipAmount;
+        juce::String skipType;
+        
+        if (key.getModifiers().isShiftDown())
+        {
+            // Shift+Arrow: Fine control (1 beat)
+            skipAmount = secondsPerBeat;
+            skipType = "beat";
+        }
+        else if (key.getModifiers().isCommandDown())
+        {
+            // Ctrl+Arrow: Skip 4 bars
+            skipAmount = secondsPerBar * 4.0;
+            skipType = "4 bars";
+        }
+        else
+        {
+            // Arrow: Skip 1 bar
+            skipAmount = secondsPerBar;
+            skipType = "bar";
+        }
+        
+        double newPos;
+        if (key.isKeyCode(juce::KeyPress::rightKey))
+        {
+            newPos = juce::jmin(currentPos + skipAmount, audioEngine.getTotalDuration());
+            currentStatus = "Skip forward " + skipType;
+        }
+        else
+        {
+            newPos = juce::jmax(currentPos - skipAmount, 0.0);
+            currentStatus = "Skip back " + skipType;
+        }
+        
+        audioEngine.setPlaybackPosition(newPos);
+        return true;
+    }
+    
+    // ==========================================================================
+    // Undo/Redo (Standard shortcuts)
+    // ==========================================================================
+    
     // Undo: Ctrl+Z (or Cmd+Z on Mac)
     if (key.isKeyCode('z') && key.getModifiers().isCommandDown())
     {
@@ -1238,6 +1555,33 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
         appState.getProjectState().redo();
         currentStatus = "Redo";
         repaint();
+        return true;
+    }
+    
+    // ==========================================================================
+    // Quick Generation (G key)
+    // ==========================================================================
+    
+    // G: Focus prompt panel (for quick generation)
+    if (key.isKeyCode('g') && !key.getModifiers().isCommandDown() && !key.getModifiers().isAltDown())
+    {
+        if (promptPanel)
+        {
+            // This would focus the prompt input - requires grabKeyboardFocus on the TextEditor
+            // For now, just indicate the intent
+            currentStatus = "Press Enter in prompt to generate";
+        }
+        return true;
+    }
+    
+    // Escape: Stop playback or cancel generation
+    if (key.isKeyCode(juce::KeyPress::escapeKey))
+    {
+        if (audioEngine.isPlaying())
+        {
+            audioEngine.stop();
+            currentStatus = "Stopped";
+        }
         return true;
     }
     

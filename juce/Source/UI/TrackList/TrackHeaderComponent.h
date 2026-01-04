@@ -213,12 +213,15 @@ public:
     /** Bind to project state. */
     void bindToProject(Project::ProjectState& projectState);
     
-    /** Get collapsed/expanded track height. */
-    int getCollapsedTrackHeight() const { return collapsedTrackHeight; }
-    int getExpandedTrackHeight() const { return expandedTrackHeight; }
+    /** Get uniform track height for all tracks. */
+    int getTrackHeight() const { return trackHeight; }
+    void setTrackHeight(int height) { trackHeight = height; }
     
-    void setCollapsedTrackHeight(int height) { collapsedTrackHeight = height; }
-    void setExpandedTrackHeight(int height) { expandedTrackHeight = height; }
+    /** Get section header height for layout alignment. */
+    int getSectionHeaderHeight() const { return sectionHeaderHeight; }
+    
+    /** Get the viewport for scroll synchronization. */
+    juce::Viewport& getViewport() { return viewport; }
     
     //==============================================================================
     /** Listener interface. */
@@ -252,9 +255,8 @@ private:
     Project::ProjectState* projectState = nullptr;
     
     int selectedTrackIndex = 0;
-    int collapsedTrackHeight = 28;   // MPC-style compact (was 40)
-    int expandedTrackHeight = 100;   // Slightly reduced (was 120)
-    int sectionHeaderHeight = 18;    // MPC-style section header height
+    int trackHeight = 120;          // Uniform track height for all tracks
+    int sectionHeaderHeight = 18;   // MPC-style section header height
     
     // MPC-style section headers
     std::unique_ptr<TrackSectionHeader> midiSectionHeader;

@@ -283,11 +283,20 @@ void AudioEngine::shutdown()
 
 void AudioEngine::play()
 {
+    DBG("AudioEngine::play() called");
+    DBG("  initialised: " << (initialised.load() ? "YES" : "NO"));
+    DBG("  hasMidiLoaded: " << (midiPlayer.hasMidiLoaded() ? "YES" : "NO"));
+    DBG("  testToneEnabled: " << (testToneEnabled.load() ? "YES" : "NO"));
+    
     if (!initialised.load())
+    {
+        DBG("  ABORT: not initialised");
         return;
+    }
         
     setTransportState(TransportState::Starting);
     setTransportState(TransportState::Playing);
+    DBG("  Transport state set to Playing");
 }
 
 void AudioEngine::pause()
@@ -629,6 +638,8 @@ void AudioEngine::notifyListeners(std::function<void(Listener*)> callback)
 
 bool AudioEngine::loadMidiFile(const juce::File& midiFile)
 {
+    DBG("AudioEngine::loadMidiFile - " << midiFile.getFullPathName());
+    
     // Stop playback first
     stop();
     
@@ -639,9 +650,28 @@ bool AudioEngine::loadMidiFile(const juce::File& midiFile)
         DBG("AudioEngine: Loaded MIDI file - " << midiFile.getFileName());
         DBG("  Duration: " << midiPlayer.getTotalDuration() << "s");
         DBG("  BPM: " << midiPlayer.getBPM());
+        DBG("  hasMidiLoaded now: " << (midiPlayer.hasMidiLoaded() ? "YES" : "NO"));
+    }
+    else
+    {
+        DBG("AudioEngine: FAILED to load MIDI file!");
     }
     
     return success;
+}
+
+bool AudioEngine::loadAudioFile(const juce::File& audioFile)
+{
+    // TODO: Phase 2 - Implement full audio file playback
+    // For now, just log and return false until we have an audio file player
+    DBG("AudioEngine: loadAudioFile requested (not yet implemented) - " << audioFile.getFileName());
+    
+    // Future implementation will:
+    // 1. Load audio file using AudioFormatReader
+    // 2. Create AudioTransportSource for playback
+    // 3. Mix with MIDI output through MixerGraph
+    
+    return false;
 }
 
 void AudioEngine::loadMidiData(const juce::MidiFile& midi)

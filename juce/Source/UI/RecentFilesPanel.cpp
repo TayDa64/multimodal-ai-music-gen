@@ -106,11 +106,8 @@ void RecentFilesPanel::FileListBox::listBoxItemClicked(int row, const juce::Mous
     {
         owner.showContextMenu(row);
     }
-    else
-    {
-        // Left-click loads file
-        owner.loadSelectedFile();
-    }
+    // Single left-click only selects, does NOT load
+    // Loading happens on double-click for consistency
 }
 
 void RecentFilesPanel::FileListBox::listBoxItemDoubleClicked(int row, const juce::MouseEvent&)
