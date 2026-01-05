@@ -117,6 +117,8 @@ public:
         virtual void trackNameChanged(TrackHeaderComponent* track, const juce::String& newName) = 0;
         virtual void trackDeleteRequested(TrackHeaderComponent* track) = 0;
         virtual void trackInstrumentChanged(TrackHeaderComponent* track, const juce::String& instrumentId) = 0;
+        virtual void trackLoadSF2Requested(TrackHeaderComponent* track) {}
+        virtual void trackLoadSFZRequested(TrackHeaderComponent* track) {}
     };
     
     void addListener(Listener* listener);
@@ -269,6 +271,8 @@ public:
         virtual void trackCountChanged(int newCount) = 0;
         virtual void trackExpandedChanged(int trackIndex, bool expanded) = 0;
         virtual void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) {}
+        virtual void trackLoadSF2Requested(int trackIndex) {}
+        virtual void trackLoadSFZRequested(int trackIndex) {}
     };
     
     void addListener(Listener* listener);
@@ -287,6 +291,8 @@ public:
     void trackNameChanged(TrackHeaderComponent* track, const juce::String& newName) override;
     void trackDeleteRequested(TrackHeaderComponent* track) override;
     void trackInstrumentChanged(TrackHeaderComponent* track, const juce::String& instrumentId) override;
+    void trackLoadSF2Requested(TrackHeaderComponent* track) override;
+    void trackLoadSFZRequested(TrackHeaderComponent* track) override;
 
 private:
     juce::OwnedArray<TrackHeaderComponent> trackHeaders;

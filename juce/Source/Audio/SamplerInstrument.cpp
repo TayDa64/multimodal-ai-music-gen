@@ -92,8 +92,13 @@ void ZonedSamplerVoice::startNote(int midiNoteNumber, float velocity,
         sourceSamplePosition = 0.0;
         
         // Velocity-sensitive gain with stereo spread
-        lgain = velocity;
-        rgain = velocity;
+        // Apply velocity curve and boost for better audibility
+        // Using a power curve for more natural velocity response
+        // Boost by ~4x (12dB) to compensate for quiet sample levels
+        float velocityCurve = std::pow(velocity, 0.6f);  // Even softer velocity curve for louder low-velocity hits
+        float gainBoost = 4.0f;  // +12dB boost
+        lgain = velocityCurve * gainBoost;
+        rgain = velocityCurve * gainBoost;
         
         // Setup and trigger envelope
         adsr.setParameters(sound->adsrParams);
@@ -199,6 +204,9 @@ SamplerInstrument::~SamplerInstrument()
 bool SamplerInstrument::loadFromDefinition(const InstrumentDefinition& definition,
                                            juce::AudioFormatManager& formatManager)
 {
+    DBG("SamplerInstrument::loadFromDefinition - " << definition.name 
+        << " (" << definition.zones.size() << " zones)");
+    
     clear();
     
     instrumentId = definition.id;
@@ -214,13 +222,14 @@ bool SamplerInstrument::loadFromDefinition(const InstrumentDefinition& definitio
     setPolyphony(definition.polyphony);
     
     int loadedZones = 0;
+    int failedZones = 0;
     
     // Load each sample zone
     for (const auto& zone : definition.zones)
     {
         if (!zone.sampleFile.existsAsFile())
         {
-            DBG("SamplerInstrument: Sample not found: " << zone.sampleFile.getFullPathName());
+            failedZones++;
             continue;
         }
         
@@ -229,7 +238,7 @@ bool SamplerInstrument::loadFromDefinition(const InstrumentDefinition& definitio
         
         if (!reader)
         {
-            DBG("SamplerInstrument: Could not read: " << zone.sampleFile.getFileName());
+            failedZones++;
             continue;
         }
         
@@ -250,17 +259,12 @@ bool SamplerInstrument::loadFromDefinition(const InstrumentDefinition& definitio
         synth.addSound(sound);
         
         loadedZones++;
-        DBG("  Loaded zone: " << zone.sampleName << " (notes " << zone.lowNote 
-            << "-" << zone.highNote << ", root " << zone.rootNote << ")");
     }
     
     loaded = loadedZones > 0;
     
-    if (loaded)
-    {
-        DBG("SamplerInstrument: Loaded " << instrumentName << " with " 
-            << loadedZones << " zones");
-    }
+    DBG("SamplerInstrument: " << instrumentName << " - loaded " << loadedZones 
+        << "/" << definition.zones.size() << " zones");
     
     return loaded;
 }

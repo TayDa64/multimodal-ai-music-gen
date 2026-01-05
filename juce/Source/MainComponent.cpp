@@ -975,17 +975,116 @@ void MainComponent::trackInstrumentSelected(int trackIndex, const juce::String& 
     // Load the instrument for this track
     if (instrumentId == "default_sine")
     {
-        // Reset to simple sine synth
+        // Reset to simple sine synth (quick operation, no async needed)
         audioEngine.loadTrackInstrument(trackIndex, "");
     }
     else
     {
-        bool success = audioEngine.loadTrackInstrument(trackIndex, instrumentId);
-        if (!success)
-        {
-            DBG("Failed to load instrument: " << instrumentId);
-        }
+        // Show loading status
+        currentStatus = "Loading instrument...";
+        repaint();
+        
+        // Load instrument asynchronously to avoid blocking UI
+        juce::Thread::launch([this, trackIndex, instrumentId]() {
+            bool success = audioEngine.loadTrackInstrument(trackIndex, instrumentId);
+            
+            // Update UI on message thread
+            juce::MessageManager::callAsync([this, success, instrumentId]() {
+                if (success)
+                {
+                    currentStatus = "Ready";
+                }
+                else
+                {
+                    currentStatus = "Failed to load instrument";
+                    DBG("Failed to load instrument: " << instrumentId);
+                }
+                repaint();
+            });
+        });
     }
+}
+
+void MainComponent::trackLoadSF2Requested(int trackIndex)
+{
+    DBG("MainComponent: Track " << trackIndex << " load SF2 requested");
+    
+    auto fileChooser = std::make_shared<juce::FileChooser>(
+        "Load SoundFont (SF2)",
+        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+        "*.sf2"
+    );
+    
+    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, trackIndex, fileChooser](const juce::FileChooser& chooser) {
+            auto result = chooser.getResult();
+            if (result.existsAsFile())
+            {
+                currentStatus = "Loading SF2...";
+                repaint();
+                
+                // Load SF2 on background thread
+                juce::Thread::launch([this, trackIndex, file = result]() {
+                    if (auto* track = audioEngine.getTrack(trackIndex))
+                    {
+                        bool success = track->loadSF2(file);
+                        
+                        juce::MessageManager::callAsync([this, success, fileName = file.getFileName()]() {
+                            if (success)
+                            {
+                                currentStatus = "Loaded: " + fileName;
+                            }
+                            else
+                            {
+                                currentStatus = "Failed to load SF2";
+                            }
+                            repaint();
+                        });
+                    }
+                });
+            }
+        });
+}
+
+void MainComponent::trackLoadSFZRequested(int trackIndex)
+{
+    DBG("MainComponent: Track " << trackIndex << " load SFZ requested");
+    
+    auto fileChooser = std::make_shared<juce::FileChooser>(
+        "Load SFZ Instrument",
+        juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+        "*.sfz"
+    );
+    
+    fileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, trackIndex, fileChooser](const juce::FileChooser& chooser) {
+            auto result = chooser.getResult();
+            if (result.existsAsFile())
+            {
+                currentStatus = "Loading SFZ...";
+                repaint();
+                
+                // Load SFZ on background thread
+                juce::Thread::launch([this, trackIndex, file = result]() {
+                    if (auto* track = audioEngine.getTrack(trackIndex))
+                    {
+                        bool success = track->loadSFZ(file);
+                        
+                        juce::MessageManager::callAsync([this, success, fileName = file.getFileName()]() {
+                            if (success)
+                            {
+                                currentStatus = "Loaded: " + fileName;
+                            }
+                            else
+                            {
+                                currentStatus = "Failed to load SFZ";
+                            }
+                            repaint();
+                        });
+                    }
+                });
+            }
+        });
 }
 
 void MainComponent::analyzeUrlRequested(const juce::String& url)

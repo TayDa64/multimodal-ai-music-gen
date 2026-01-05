@@ -444,6 +444,18 @@ void ArrangementView::trackInstrumentSelected(int trackIndex, const juce::String
     listeners.call(&ArrangementView::Listener::arrangementTrackInstrumentSelected, trackIndex, instrumentId);
 }
 
+void ArrangementView::trackLoadSF2Requested(int trackIndex)
+{
+    // Forward SF2 loading request to listeners
+    listeners.call(&ArrangementView::Listener::arrangementTrackLoadSF2Requested, trackIndex);
+}
+
+void ArrangementView::trackLoadSFZRequested(int trackIndex)
+{
+    // Forward SFZ loading request to listeners
+    listeners.call(&ArrangementView::Listener::arrangementTrackLoadSFZRequested, trackIndex);
+}
+
 //==============================================================================
 void ArrangementView::valueTreePropertyChanged(juce::ValueTree& tree, const juce::Identifier& property)
 {

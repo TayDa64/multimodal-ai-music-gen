@@ -34,7 +34,7 @@ struct SineWaveVoice : public juce::SynthesiserVoice
                     juce::SynthesiserSound*, int /*currentPitchWheelPosition*/) override
     {
         currentAngle = 0.0;
-        level = velocity * 0.5; // Increased volume
+        level = velocity * 3.0; // Strong volume boost (+10dB) for audibility
         tailOff = 1.0; // Auto-decay for preview (percussive envelope)
 
         auto cyclesPerSecond = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
@@ -119,6 +119,8 @@ AudioEngine::Track::Track(int id, const juce::String& name, juce::AudioFormatMan
         
     simpleSynth.clearSounds();
     simpleSynth.addSound(new SineWaveSound());
+    
+    activeInstrumentType = InstrumentType::SimpleSynth;
 }
 
 AudioEngine::Track::~Track() {}
@@ -127,11 +129,20 @@ void AudioEngine::Track::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     simpleSynth.setCurrentPlaybackSampleRate(sampleRate);
     sampler.prepareToPlay(sampleRate, samplesPerBlock);
+    
+    if (sf2Instrument)
+        sf2Instrument->setSampleRate(sampleRate);
+    if (sfzInstrument)
+        sfzInstrument->setSampleRate(sampleRate);
 }
 
 void AudioEngine::Track::releaseResources() 
 {
     sampler.releaseResources();
+    if (sf2Instrument)
+        sf2Instrument->allNotesOff();
+    if (sfzInstrument)
+        sfzInstrument->allNotesOff();
 }
 
 void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples)
@@ -146,13 +157,34 @@ void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     {
         const juce::ScopedLock sl(trackLock);
         
-        if (useSimpleSynth || !sampler.isLoaded())
+        switch (activeInstrumentType)
         {
-            simpleSynth.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
-        }
-        else
-        {
-            sampler.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+            case InstrumentType::SF2:
+                if (sf2Instrument && sf2Instrument->isLoaded())
+                {
+                    sf2Instrument->renderNextBlock(tempBuffer, 0, numSamples);
+                }
+                break;
+                
+            case InstrumentType::SFZ:
+                if (sfzInstrument && sfzInstrument->isLoaded())
+                {
+                    sfzInstrument->renderNextBlock(tempBuffer, 0, numSamples);
+                }
+                break;
+                
+            case InstrumentType::ExpansionSampler:
+                if (sampler.isLoaded())
+                {
+                    sampler.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+                }
+                break;
+                
+            case InstrumentType::SimpleSynth:
+            case InstrumentType::None:
+            default:
+                simpleSynth.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+                break;
         }
         midiBuffer.clear();
     }
@@ -170,13 +202,45 @@ void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 void AudioEngine::Track::noteOn(int note, float velocity)
 {
     const juce::ScopedLock sl(trackLock);
-    midiBuffer.addEvent(juce::MidiMessage::noteOn(1, note, velocity), 0);
+    
+    switch (activeInstrumentType)
+    {
+        case InstrumentType::SF2:
+            if (sf2Instrument)
+                sf2Instrument->noteOn(note, velocity);
+            break;
+            
+        case InstrumentType::SFZ:
+            if (sfzInstrument)
+                sfzInstrument->noteOn(note, velocity);
+            break;
+            
+        default:
+            midiBuffer.addEvent(juce::MidiMessage::noteOn(1, note, velocity), 0);
+            break;
+    }
 }
 
 void AudioEngine::Track::noteOff(int note)
 {
     const juce::ScopedLock sl(trackLock);
-    midiBuffer.addEvent(juce::MidiMessage::noteOff(1, note), 0);
+    
+    switch (activeInstrumentType)
+    {
+        case InstrumentType::SF2:
+            if (sf2Instrument)
+                sf2Instrument->noteOff(note);
+            break;
+            
+        case InstrumentType::SFZ:
+            if (sfzInstrument)
+                sfzInstrument->noteOff(note);
+            break;
+            
+        default:
+            midiBuffer.addEvent(juce::MidiMessage::noteOff(1, note), 0);
+            break;
+    }
 }
 
 void AudioEngine::Track::setVolume(float newVolume) { volume = newVolume; }
@@ -201,13 +265,71 @@ bool AudioEngine::Track::loadInstrumentById(const juce::String& instrumentId,
         currentInstrumentId = instrumentId;
         currentInstrumentName = instrument->name;
         useSimpleSynth = false;
+        activeInstrumentType = InstrumentType::ExpansionSampler;
         
-        DBG("Track " << id << ": Loaded instrument " << instrument->name 
-            << " with " << instrument->zones.size() << " zones");
+        DBG("Track " << id << ": Loaded " << instrument->name);
         return true;
     }
     
-    DBG("Track " << id << ": Failed to load instrument " << instrumentId);
+    DBG("Track " << id << ": Failed to load " << instrumentId);
+    return false;
+}
+
+bool AudioEngine::Track::loadSF2(const juce::File& sf2File, int preset)
+{
+    const juce::ScopedLock sl(trackLock);
+    
+    if (!sf2Instrument)
+        sf2Instrument = std::make_unique<SF2Instrument>();
+    
+    if (sf2Instrument->load(sf2File))
+    {
+        // Set the preset if specified
+        if (preset >= 0 && preset < sf2Instrument->getNumPresets())
+            sf2Instrument->setActivePreset(preset);
+        
+        currentInstrumentId = "sf2:" + sf2File.getFileNameWithoutExtension();
+        currentInstrumentName = sf2File.getFileNameWithoutExtension();
+        
+        if (sf2Instrument->getNumPresets() > preset)
+        {
+            auto presetInfo = sf2Instrument->getPresetInfo(preset);
+            if (presetInfo.name.isNotEmpty())
+                currentInstrumentName = presetInfo.name;
+        }
+        
+        activeInstrumentType = InstrumentType::SF2;
+        useSimpleSynth = false;
+        
+        DBG("Track " << id << ": Loaded SF2 " << sf2File.getFileName() << " preset " << preset);
+        return true;
+    }
+    
+    DBG("Track " << id << ": Failed to load SF2 " << sf2File.getFileName());
+    return false;
+}
+
+bool AudioEngine::Track::loadSFZ(const juce::File& sfzFile)
+{
+    const juce::ScopedLock sl(trackLock);
+    
+    if (!sfzInstrument)
+        sfzInstrument = std::make_unique<SFZInstrument>();
+    
+    if (sfzInstrument->loadFromFile(sfzFile))
+    {
+        currentInstrumentId = "sfz:" + sfzFile.getFileNameWithoutExtension();
+        currentInstrumentName = sfzFile.getFileNameWithoutExtension();
+        activeInstrumentType = InstrumentType::SFZ;
+        useSimpleSynth = false;
+        
+        DBG("Track " << id << ": Loaded SFZ " << sfzFile.getFileName() << 
+            " with " << sfzInstrument->getNumRegions() << " regions");
+        return true;
+    }
+    
+    DBG("Track " << id << ": Failed to load SFZ " << sfzFile.getFileName() << 
+        ": " << sfzInstrument->getLastError());
     return false;
 }
 
@@ -234,6 +356,7 @@ void AudioEngine::Track::loadSample(const juce::File& file, juce::AudioFormatMan
             simpleSynth.addVoice(new juce::SamplerVoice());
         
         useSimpleSynth = true;
+        activeInstrumentType = InstrumentType::SimpleSynth;
         currentInstrumentId.clear();
         currentInstrumentName = file.getFileNameWithoutExtension();
             
@@ -248,8 +371,15 @@ void AudioEngine::Track::loadSample(const juce::File& file, juce::AudioFormatMan
 //==============================================================================
 AudioEngine::AudioEngine()
 {
+    // Register audio format readers (WAV, AIFF, etc.) - CRITICAL for sample loading!
+    formatManager.registerBasicFormats();
+    DBG("AudioEngine: Registered " << formatManager.getNumKnownFormats() << " audio formats");
+    
     // Register as listener for device changes
     deviceManager.addChangeListener(this);
+    
+    // Register as MIDI listener to route notes to Track instruments
+    midiPlayer.setMidiListener(this);
     
     // Initialize visualization listeners to nullptr
     for (auto& listener : visualizationListeners)
@@ -644,6 +774,29 @@ void AudioEngine::changeListenerCallback(juce::ChangeBroadcaster* source)
         notifyListeners([](Listener* l) {
             l->audioDeviceChanged();
         });
+    }
+}
+
+//==============================================================================
+// MidiPlayerListener Implementation (for routing MIDI to Tracks)
+//==============================================================================
+
+void AudioEngine::midiNoteOn(int channel, int note, float velocity)
+{
+    // Route MIDI note-on to the appropriate Track
+    // Channel/track index comes from MidiPlayer (0-based)
+    if (auto* track = getTrack(channel))
+    {
+        track->noteOn(note, velocity);
+    }
+}
+
+void AudioEngine::midiNoteOff(int channel, int note)
+{
+    // Route MIDI note-off to the appropriate Track
+    if (auto* track = getTrack(channel))
+    {
+        track->noteOff(note);
     }
 }
 

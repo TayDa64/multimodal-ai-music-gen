@@ -291,6 +291,22 @@ namespace Project
         }
     }
 
+    void ProjectState::deleteNotes(const juce::Array<juce::ValueTree>& noteNodes)
+    {
+        auto notesNode = projectTree.getChildWithName(IDs::NOTES);
+        if (!notesNode.isValid()) return;
+        
+        // Delete in reverse order to avoid index shifting issues
+        for (int i = noteNodes.size() - 1; i >= 0; --i)
+        {
+            const auto& noteNode = noteNodes[i];
+            if (noteNode.isValid() && noteNode.isAChildOf(notesNode))
+            {
+                notesNode.removeChild(noteNode, &undoManager);
+            }
+        }
+    }
+
     void ProjectState::moveNote(juce::ValueTree& noteNode, double newStart, int newNoteNum)
     {
         if (noteNode.isValid())
@@ -318,9 +334,6 @@ namespace Project
 
     void ProjectState::importMidiFile(const juce::File& midiFile)
     {
-        DBG("ProjectState::importMidiFile - " << midiFile.getFullPathName());
-        DBG("  this=" << juce::String::toHexString((juce::pointer_sized_int)this));
-        
         juce::MidiFile midi;
         juce::FileInputStream stream(midiFile);
         
@@ -328,8 +341,6 @@ namespace Project
         {
             int timeFormat = midi.getTimeFormat();
             double ticksPerBeat = (timeFormat > 0) ? (double)timeFormat : 960.0;
-            
-            DBG("  MIDI loaded: " << midi.getNumTracks() << " tracks, timeFormat=" << timeFormat);
 
             undoManager.beginNewTransaction("Import MIDI");
             clearNotes();
@@ -345,11 +356,9 @@ namespace Project
                     if (child.hasType(IDs::TRACK))
                         mixerNode.removeChild(i, &undoManager);
                 }
-                DBG("  Cleared existing tracks from MIXER node");
             }
             
             auto notesNode = projectTree.getChildWithName(IDs::NOTES);
-            DBG("  NOTES node valid: " << (notesNode.isValid() ? "YES" : "NO"));
             int totalNotesAdded = 0;
             
             // Use MidiMessageSequence to pair notes
@@ -403,22 +412,6 @@ namespace Project
                 }
 
                 int trackNoteCount = 0;
-                int totalEvents = seq.getNumEvents();
-                DBG("    Track " << t << " has " << totalEvents << " events in sequence");
-                
-                // Debug: count different message types
-                int noteOnCount = 0, noteOffCount = 0, otherCount = 0;
-                for (int i = 0; i < totalEvents; ++i)
-                {
-                    auto* ev = seq.getEventPointer(i);
-                    if (ev->message.isNoteOn())
-                        noteOnCount++;
-                    else if (ev->message.isNoteOff())
-                        noteOffCount++;
-                    else
-                        otherCount++;
-                }
-                DBG("    Message types: noteOn=" << noteOnCount << ", noteOff=" << noteOffCount << ", other=" << otherCount);
                 
                 for (int i = 0; i < seq.getNumEvents(); ++i)
                 {
@@ -440,14 +433,7 @@ namespace Project
                         trackNoteCount++;
                     }
                 }
-                DBG("  Track " << t << " (" << trackName << "): " << trackNoteCount << " notes");
             }
-            
-            DBG("  Import complete: " << totalNotesAdded << " notes added");
-            
-            // Verify notes node
-            auto verifyNode = projectTree.getChildWithName(IDs::NOTES);
-            DBG("  NOTES node now has " << verifyNode.getNumChildren() << " children");
             
             // Store stats for debug display
             lastImportStats = "Imported " + juce::String(totalNotesAdded) + " notes from " + 
@@ -455,7 +441,6 @@ namespace Project
         }
         else
         {
-            DBG("  ERROR: Failed to open/read MIDI file!");
             lastImportStats = "FAILED to read MIDI";
         }
     }

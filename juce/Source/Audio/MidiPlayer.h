@@ -19,6 +19,29 @@ namespace mmg
 
 //==============================================================================
 /**
+    Listener interface for receiving MIDI events from MidiPlayer.
+    This allows external systems (like AudioEngine's Tracks) to respond
+    to MIDI events during playback.
+*/
+class MidiPlayerListener
+{
+public:
+    virtual ~MidiPlayerListener() = default;
+    
+    /** Called when a note-on event should trigger.
+        @param channel  MIDI channel (1-16), typically maps to track index
+        @param note     MIDI note number (0-127)
+        @param velocity Note velocity (0.0-1.0) */
+    virtual void midiNoteOn(int channel, int note, float velocity) = 0;
+    
+    /** Called when a note-off event should trigger.
+        @param channel  MIDI channel (1-16)
+        @param note     MIDI note number (0-127) */
+    virtual void midiNoteOff(int channel, int note) = 0;
+};
+
+//==============================================================================
+/**
     MidiPlayer loads and plays MIDI files through a Synthesiser.
     
     Responsibilities:
@@ -26,11 +49,13 @@ namespace mmg
     - Schedule MIDI events for playback
     - Manage synthesizer voices
     - Track playback position
+    - Notify listeners of MIDI events for external instrument playback
     
     Usage:
         MidiPlayer player;
         player.prepareToPlay(sampleRate, bufferSize);
         player.loadMidiFile(midiFile);
+        player.setMidiListener(&audioEngine); // Route events to tracks
         player.setPlaying(true);
         // In audio callback:
         player.renderNextBlock(buffer, numSamples);
@@ -124,6 +149,18 @@ public:
     
     /** Get events processed in last block */
     int getLastEventsInBlock() const { return lastEventsInBlock.load(); }
+    
+    //==========================================================================
+    // Listener for external instrument routing
+    //==========================================================================
+    
+    /** Set the MIDI listener for routing events to external instruments.
+        This allows Track SamplerInstruments to receive MIDI notes.
+        @param listener  The listener to notify of MIDI events (or nullptr to disable) */
+    void setMidiListener(MidiPlayerListener* listener) { midiListener = listener; }
+    
+    /** Check if external instrument routing is enabled */
+    bool hasExternalInstruments() const { return midiListener != nullptr; }
 
 private:
     //==========================================================================
@@ -169,6 +206,9 @@ private:
     
     // Voice count
     static constexpr int numVoices { 16 };
+    
+    // External instrument listener (for routing to Track SamplerInstruments)
+    MidiPlayerListener* midiListener { nullptr };
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiPlayer)
 };

@@ -97,6 +97,8 @@ public:
     void analyzeFileRequested(const juce::File& file) override;
     void regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) override;
     void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) override;
+    void trackLoadSF2Requested(int trackIndex) override;
+    void trackLoadSFZRequested(int trackIndex) override;
     
     //==============================================================================
     // GenreSelector::Listener

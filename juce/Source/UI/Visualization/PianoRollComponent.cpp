@@ -62,24 +62,16 @@ void PianoRollComponent::setProjectState(Project::ProjectState* state)
 
 void PianoRollComponent::syncNotesFromState()
 {
-    if (!projectState) {
-        DBG("PianoRollComponent::syncNotesFromState - NO PROJECT STATE!");
+    if (!projectState)
         return;
-    }
-    
-    DBG("PianoRollComponent::syncNotesFromState - embeddedMode=" << (embeddedMode ? "true" : "false") << ", soloedTrack=" << soloedTrack);
     
     notes.clear();
     // Do NOT clear selection here, as it breaks drag operations.
     // Instead, we validate selection at the end.
     
     auto notesNode = projectState->getState().getChildWithName(Project::IDs::NOTES);
-    if (!notesNode.isValid()) {
-        DBG("  WARNING: NOTES node is invalid!");
+    if (!notesNode.isValid())
         return;
-    }
-    
-    DBG("  NOTES node has " << notesNode.getNumChildren() << " children");
     
     double secondsPerBeat = 60.0 / currentBPM;
     
@@ -128,8 +120,6 @@ void PianoRollComponent::syncNotesFromState()
         if (!selectedNotes[i].isValid() || !selectedNotes[i].getParent().isValid())
             selectedNotes.remove(i);
     }
-    
-    DBG("  Loaded " << notes.size() << " notes total, maxTrackIndex=" << maxTrackIndex);
     
     assignTrackColors(maxTrackIndex + 1);
     
@@ -969,10 +959,14 @@ void PianoRollComponent::mouseDrag(const juce::MouseEvent& event)
             std::abs(event.y - (int)dragStartPos.y)
         );
         
-        // Update selection based on rect
+        // Update selection based on rect - respecting track filter
         selectedNotes.clear();
         for (auto& note : notes)
         {
+            // Skip notes from other tracks when in solo/embedded mode
+            if (soloedTrack >= 0 && note.trackIndex != soloedTrack) continue;
+            if (!isTrackVisible(note.trackIndex)) continue;
+            
             float x = timeToX(note.startTime);
             float endX = timeToX(note.endTime);
             float y = noteToY(note.noteNumber);
@@ -1043,12 +1037,23 @@ bool PianoRollComponent::keyPressed(const juce::KeyPress& key)
     {
         if (!selectedNotes.isEmpty() && projectState)
         {
-            projectState->getUndoManager().beginNewTransaction("Delete Notes");
+            // Copy nodes to a local array first, as deletion triggers syncNotesFromState
+            // which can invalidate the selectedNotes during iteration
+            juce::Array<juce::ValueTree> nodesToDelete;
             for (auto& note : selectedNotes)
             {
-                projectState->deleteNote(note);
+                if (note.isValid())
+                    nodesToDelete.add(note);
             }
+            
+            // Clear selection BEFORE deletion to prevent accessing invalid nodes
             selectedNotes.clear();
+            
+            projectState->getUndoManager().beginNewTransaction("Delete Notes");
+            
+            // Use batch delete for better performance
+            projectState->deleteNotes(nodesToDelete);
+            
             return true;
         }
     }

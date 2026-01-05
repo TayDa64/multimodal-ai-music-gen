@@ -20,6 +20,8 @@
 #include "MixerGraph.h"
 #include "ExpansionInstrumentLoader.h"
 #include "SamplerInstrument.h"
+#include "SF2Instrument.h"
+#include "SFZInstrument.h"
 
 namespace mmg // Multimodal Music Generator
 {
@@ -40,7 +42,8 @@ namespace mmg // Multimodal Music Generator
     - Use atomics/locks for shared state
 */
 class AudioEngine : public juce::AudioSource,
-                    public juce::ChangeListener
+                    public juce::ChangeListener,
+                    public MidiPlayerListener  // Receive MIDI events from MidiPlayer
 {
 public:
     //==========================================================================
@@ -235,6 +238,12 @@ public:
                                 const ExpansionInstrumentLoader& loader,
                                 juce::AudioFormatManager& formatManager);
         
+        // Load SF2/SoundFont file
+        bool loadSF2(const juce::File& sf2File, int preset = 0);
+        
+        // Load SFZ instrument file
+        bool loadSFZ(const juce::File& sfzFile);
+        
         // Get currently loaded instrument info
         juce::String getInstrumentId() const { return currentInstrumentId; }
         juce::String getInstrumentName() const { return currentInstrumentName; }
@@ -258,10 +267,20 @@ public:
         juce::String name;
         juce::AudioFormatManager& formatManager;
         
+        // Instrument type enumeration
+        enum class InstrumentType { None, SimpleSynth, ExpansionSampler, SF2, SFZ };
+        InstrumentType activeInstrumentType = InstrumentType::SimpleSynth;
+        
         // Sampler instrument (for expansion instruments)
         SamplerInstrument sampler;
         juce::String currentInstrumentId;
         juce::String currentInstrumentName;
+        
+        // SF2/SoundFont instrument
+        std::unique_ptr<SF2Instrument> sf2Instrument;
+        
+        // SFZ instrument
+        std::unique_ptr<SFZInstrument> sfzInstrument;
         
         // Fallback simple synth (sine wave)
         juce::Synthesiser simpleSynth;
@@ -349,6 +368,12 @@ private:
     // ChangeListener Implementation (for device changes)
     //==========================================================================
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+    
+    //==========================================================================
+    // MidiPlayerListener Implementation (for routing MIDI to Tracks)
+    //==========================================================================
+    void midiNoteOn(int channel, int note, float velocity) override;
+    void midiNoteOff(int channel, int note) override;
     
     //==========================================================================
     // Internal Methods

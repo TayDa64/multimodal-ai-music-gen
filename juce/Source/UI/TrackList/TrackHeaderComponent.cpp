@@ -387,6 +387,12 @@ void TrackHeaderComponent::rebuildInstrumentCombo()
         itemId++;
     }
     
+    // Add SoundFont loading options
+    instrumentCombo.addSeparator();
+    instrumentCombo.addSectionHeading("External Instruments");
+    instrumentCombo.addItem("Load SF2/SoundFont...", 10000);  // Special ID for SF2
+    instrumentCombo.addItem("Load SFZ Instrument...", 10001); // Special ID for SFZ
+    
     // Select the current instrument or default
     if (!selectedInstrumentId.isEmpty())
         setSelectedInstrument(selectedInstrumentId);
@@ -396,7 +402,27 @@ void TrackHeaderComponent::rebuildInstrumentCombo()
 
 void TrackHeaderComponent::onInstrumentSelected()
 {
-    int selectedIndex = instrumentCombo.getSelectedId() - 1;  // 1-based to 0-based
+    int selectedId = instrumentCombo.getSelectedId();
+    
+    // Handle special SoundFont loading options
+    if (selectedId == 10000)
+    {
+        listeners.call(&Listener::trackLoadSF2Requested, this);
+        // Reset combo to previous selection
+        if (!selectedInstrumentId.isEmpty())
+            setSelectedInstrument(selectedInstrumentId);
+        return;
+    }
+    else if (selectedId == 10001)
+    {
+        listeners.call(&Listener::trackLoadSFZRequested, this);
+        // Reset combo to previous selection
+        if (!selectedInstrumentId.isEmpty())
+            setSelectedInstrument(selectedInstrumentId);
+        return;
+    }
+    
+    int selectedIndex = selectedId - 1;  // 1-based to 0-based
     
     if (selectedIndex >= 0 && selectedIndex < (int)instrumentItems.size())
     {
@@ -686,6 +712,20 @@ void TrackListComponent::trackInstrumentChanged(TrackHeaderComponent* track, con
     int index = track->getTrackIndex();
     DBG("Track " + juce::String(index + 1) + " instrument changed to: " + instrumentId);
     listeners.call(&Listener::trackInstrumentSelected, index, instrumentId);
+}
+
+void TrackListComponent::trackLoadSF2Requested(TrackHeaderComponent* track)
+{
+    int index = track->getTrackIndex();
+    DBG("Track " + juce::String(index + 1) + " load SF2 requested");
+    listeners.call(&Listener::trackLoadSF2Requested, index);
+}
+
+void TrackListComponent::trackLoadSFZRequested(TrackHeaderComponent* track)
+{
+    int index = track->getTrackIndex();
+    DBG("Track " + juce::String(index + 1) + " load SFZ requested");
+    listeners.call(&Listener::trackLoadSFZRequested, index);
 }
 
 void TrackListComponent::setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory)

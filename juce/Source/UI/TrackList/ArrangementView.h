@@ -90,6 +90,8 @@ public:
         virtual void arrangementTrackPianoRollRequested(int trackIndex) = 0;  // User wants to edit track in Piano Roll
         virtual void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) {}  // User wants to regenerate selection
         virtual void arrangementTrackInstrumentSelected(int trackIndex, const juce::String& instrumentId) {}  // User selected an instrument for a track
+        virtual void arrangementTrackLoadSF2Requested(int trackIndex) {}  // User wants to load SF2 file
+        virtual void arrangementTrackLoadSFZRequested(int trackIndex) {}  // User wants to load SFZ file
     };
     
     void addListener(Listener* listener) { listeners.add(listener); }
@@ -137,6 +139,8 @@ public:
     void trackCountChanged(int newCount) override;
     void trackExpandedChanged(int trackIndex, bool expanded) override;
     void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) override;
+    void trackLoadSF2Requested(int trackIndex) override;
+    void trackLoadSFZRequested(int trackIndex) override;
     
     // ValueTree::Listener
     void valueTreePropertyChanged(juce::ValueTree& tree, const juce::Identifier& property) override;

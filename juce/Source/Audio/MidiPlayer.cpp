@@ -358,26 +358,38 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
         int sampleOffset = juce::jmax(0, static_cast<int>(offsetSeconds * sampleRate / tempoMultiplier));
         sampleOffset = juce::jmin(sampleOffset, numSamples - 1);
         
-        // Add MIDI message to buffer (skip meta events)
+        // Process MIDI message (skip meta events)
         if (!eventPtr->message.isMetaEvent())
         {
-            midiBuffer.addEvent(eventPtr->message, sampleOffset);
-            eventsAdded++;
+            const auto& msg = eventPtr->message;
             
-            // Debug: log note events
-            if (eventPtr->message.isNoteOn())
+            // Route note events to external instruments (Track SamplerInstruments)
+            if (midiListener)
             {
-                DBG("MidiPlayer: NoteOn - note=" << eventPtr->message.getNoteNumber() 
-                    << " vel=" << eventPtr->message.getVelocity()
-                    << " ch=" << eventPtr->message.getChannel()
-                    << " time=" << eventTime);
+                if (msg.isNoteOn())
+                {
+                    // Channel 1-16 maps to track index 0-15
+                    int trackIndex = msg.getChannel() - 1;
+                    float velocity = msg.getVelocity() / 127.0f;
+                    midiListener->midiNoteOn(trackIndex, msg.getNoteNumber(), velocity);
+                }
+                else if (msg.isNoteOff())
+                {
+                    int trackIndex = msg.getChannel() - 1;
+                    midiListener->midiNoteOff(trackIndex, msg.getNoteNumber());
+                }
             }
+            
+            // Also feed to internal synth (fallback sine waves for unmapped instruments)
+            midiBuffer.addEvent(msg, sampleOffset);
+            eventsAdded++;
         }
         
         ++currentEventIndex;
     }
     
-    // Render synth with MIDI events
+    // Render internal synth with MIDI events (sine wave fallback)
+    // Note: If external instruments are loaded, they render in AudioEngine
     synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
     
     // Track max output level for debug status
@@ -389,14 +401,6 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
     }
     lastMaxSample.store(maxSample);
     lastEventsInBlock.store(eventsAdded);
-    
-    // Debug: check if synth produced any output (periodic logging)
-    static int debugCounter = 0;
-    if (++debugCounter % 500 == 0)
-    {
-        DBG("MidiPlayer: pos=" << currentPositionSeconds << "s, events=" << eventsAdded 
-            << ", voices=" << synth.getNumVoices() << ", maxSample=" << maxSample);
-    }
     
     // Update position
     currentPositionSeconds = endPositionSeconds;

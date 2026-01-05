@@ -127,6 +127,14 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/Audio/SamplerInstrument.cpp
     Source/Audio/SamplerInstrument.h
     
+    # Soundfont Support (SF2/SFZ)
+    Source/Audio/SF2Instrument.cpp
+    Source/Audio/SF2Instrument.h
+    Source/Audio/SFZParser.cpp
+    Source/Audio/SFZParser.h
+    Source/Audio/SFZInstrument.cpp
+    Source/Audio/SFZInstrument.h
+    
     # Audio Processors & Mixer
     Source/Audio/Processors/ProcessorBase.h
     Source/Audio/Processors/GainProcessor.cpp
@@ -271,6 +279,7 @@ target_compile_definitions(MultimodalMusicGen
 target_include_directories(MultimodalMusicGen
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/Source/Audio/External
 )
 
 # ==============================================================================

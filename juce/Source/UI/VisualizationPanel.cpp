@@ -400,6 +400,22 @@ void VisualizationPanel::arrangementTrackInstrumentSelected(int trackIndex, cons
     });
 }
 
+void VisualizationPanel::arrangementTrackLoadSF2Requested(int trackIndex)
+{
+    DBG("Track " << trackIndex << " SF2 load requested");
+    listeners.call([trackIndex](Listener& l) {
+        l.trackLoadSF2Requested(trackIndex);
+    });
+}
+
+void VisualizationPanel::arrangementTrackLoadSFZRequested(int trackIndex)
+{
+    DBG("Track " << trackIndex << " SFZ load requested");
+    listeners.call([trackIndex](Listener& l) {
+        l.trackLoadSFZRequested(trackIndex);
+    });
+}
+
 //==============================================================================
 void VisualizationPanel::addListener(Listener* listener)
 {

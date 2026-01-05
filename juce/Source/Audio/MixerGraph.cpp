@@ -29,6 +29,16 @@ namespace Audio
         // Create Master Bus
         auto masterGain = std::make_unique<GainProcessor>();
         masterGainNodeID = mainGraph->addNode(std::move(masterGain))->nodeID;
+        
+        // Apply default master volume boost (+9dB) to compensate for quiet samples
+        if (auto* node = mainGraph->getNodeForId(masterGainNodeID))
+        {
+            if (auto* gainProc = dynamic_cast<GainProcessor*>(node->getProcessor()))
+            {
+                gainProc->setGainDecibels(9.0f);
+                DBG("MixerGraph: Master gain set to +9dB");
+            }
+        }
 
         // Connect Input -> Master Gain -> Output (direct passthrough by default)
         for (int channel = 0; channel < 2; ++channel)
@@ -39,7 +49,7 @@ namespace Audio
             mainGraph->addConnection({ { masterGainNodeID, channel }, { audioOutputNodeID, channel } });
         }
         
-        DBG("MixerGraph: Initialized with Input -> MasterGain -> Output routing");
+        DBG("MixerGraph: Initialized with Input -> MasterGain -> Output routing (+9dB boost)");
     }
 
     void MixerGraph::prepareToPlay(double sampleRate, int samplesPerBlock)

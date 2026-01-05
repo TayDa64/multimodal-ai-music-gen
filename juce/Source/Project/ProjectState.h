@@ -111,6 +111,7 @@ namespace Project
         void clearNotes();
         void addNote(int noteNum, double startBeats, double lengthBeats, int velocity, int channel);
         void deleteNote(const juce::ValueTree& noteNode);
+        void deleteNotes(const juce::Array<juce::ValueTree>& noteNodes);  // Batch delete
         void moveNote(juce::ValueTree& noteNode, double newStart, int newNoteNum);
         void resizeNote(juce::ValueTree& noteNode, double newLength);
         void setNoteVelocity(juce::ValueTree& noteNode, int newVelocity);
