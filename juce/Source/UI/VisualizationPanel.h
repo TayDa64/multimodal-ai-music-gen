@@ -21,6 +21,7 @@
 #include "RecentFilesPanel.h"
 #include "../Application/AppState.h"
 #include "../Audio/AudioEngine.h"
+#include "../Audio/ExpansionInstrumentLoader.h"
 
 //==============================================================================
 /**
@@ -70,6 +71,13 @@ public:
     void setLoopRegion(double startSeconds, double endSeconds);
     void clearLoopRegion();
     
+    /** Set available instruments for track selection. */
+    void setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory)
+    {
+        if (arrangementView)
+            arrangementView->setAvailableInstruments(byCategory);
+    }
+    
     //==============================================================================
     // Forward listener interface
     class Listener
@@ -79,6 +87,7 @@ public:
         virtual void fileSelected(const juce::File& file) = 0;
         virtual void analyzeFileRequested(const juce::File& file) { juce::ignoreUnused(file); }
         virtual void regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) { juce::ignoreUnused(startBar, endBar, tracks); }
+        virtual void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) { juce::ignoreUnused(trackIndex, instrumentId); }
     };
     
     void addListener(Listener* listener);
@@ -97,6 +106,7 @@ private:
     // ArrangementView::Listener
     void arrangementTrackPianoRollRequested(int trackIndex) override;
     void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) override;
+    void arrangementTrackInstrumentSelected(int trackIndex, const juce::String& instrumentId) override;
     
     // AudioEngine::VisualizationListener (called from audio thread)
     void audioSamplesReady(const float* leftSamples, 

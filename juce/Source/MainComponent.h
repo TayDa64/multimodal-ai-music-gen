@@ -96,6 +96,7 @@ public:
     void fileSelected(const juce::File& file) override;
     void analyzeFileRequested(const juce::File& file) override;
     void regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) override;
+    void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) override;
     
     //==============================================================================
     // GenreSelector::Listener
@@ -229,6 +230,7 @@ private:
     void hideBottomPanel();
     void applyGenreTheme(const juce::String& genreId);
     void applyAnalysisResult(const AnalyzeResult& result);
+    void scanLocalExpansions();  // Scan local expansion packs and populate instruments
     void drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area, 
                         const juce::String& label, juce::Colour colour);
     

@@ -67,7 +67,7 @@ void PianoRollComponent::syncNotesFromState()
         return;
     }
     
-    DBG("PianoRollComponent::syncNotesFromState - embeddedMode=" << embeddedMode << ", soloedTrack=" << soloedTrack);
+    DBG("PianoRollComponent::syncNotesFromState - embeddedMode=" << (embeddedMode ? "true" : "false") << ", soloedTrack=" << soloedTrack);
     
     notes.clear();
     // Do NOT clear selection here, as it breaks drag operations.
@@ -148,7 +148,7 @@ void PianoRollComponent::syncNotesFromState()
 //==============================================================================
 void PianoRollComponent::loadMidiFile(const juce::File& midiFile)
 {
-    DBG("PianoRollComponent::loadMidiFile - projectState=" << (void*)projectState);
+    DBG("PianoRollComponent::loadMidiFile - projectState=" << juce::String::toHexString((juce::pointer_sized_int)projectState));
     
     // Legacy support - import into project state if available
     if (projectState)

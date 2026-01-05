@@ -319,7 +319,7 @@ namespace Project
     void ProjectState::importMidiFile(const juce::File& midiFile)
     {
         DBG("ProjectState::importMidiFile - " << midiFile.getFullPathName());
-        DBG("  this=" << (void*)this);
+        DBG("  this=" << juce::String::toHexString((juce::pointer_sized_int)this));
         
         juce::MidiFile midi;
         juce::FileInputStream stream(midiFile);
@@ -333,6 +333,20 @@ namespace Project
 
             undoManager.beginNewTransaction("Import MIDI");
             clearNotes();
+            
+            // Clear existing tracks from MIXER node before adding new ones
+            auto mixerNode = getMixerNode();
+            if (mixerNode.isValid())
+            {
+                // Remove all TRACK children
+                for (int i = mixerNode.getNumChildren() - 1; i >= 0; --i)
+                {
+                    auto child = mixerNode.getChild(i);
+                    if (child.hasType(IDs::TRACK))
+                        mixerNode.removeChild(i, &undoManager);
+                }
+                DBG("  Cleared existing tracks from MIXER node");
+            }
             
             auto notesNode = projectTree.getChildWithName(IDs::NOTES);
             DBG("  NOTES node valid: " << (notesNode.isValid() ? "YES" : "NO"));

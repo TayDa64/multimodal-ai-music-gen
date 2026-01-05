@@ -20,6 +20,7 @@
 #include "../Visualization/PianoRollComponent.h"
 #include "../TimelineComponent.h"
 #include "../../Audio/AudioEngine.h"
+#include "../../Audio/ExpansionInstrumentLoader.h"
 #include "../../Project/ProjectState.h"
 
 namespace UI
@@ -88,6 +89,7 @@ public:
         virtual ~Listener() = default;
         virtual void arrangementTrackPianoRollRequested(int trackIndex) = 0;  // User wants to edit track in Piano Roll
         virtual void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) {}  // User wants to regenerate selection
+        virtual void arrangementTrackInstrumentSelected(int trackIndex, const juce::String& instrumentId) {}  // User selected an instrument for a track
     };
     
     void addListener(Listener* listener) { listeners.add(listener); }
@@ -107,6 +109,12 @@ public:
     /** Get track list component for external access. */
     TrackListComponent& getTrackList() { return trackList; }
     
+    /** Set available instruments for all tracks. */
+    void setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory)
+    {
+        trackList.setAvailableInstruments(byCategory);
+    }
+
     /** Get selected track index. */
     int getSelectedTrackIndex() const { return trackList.getSelectedTrackIndex(); }
     
@@ -128,6 +136,7 @@ public:
     void trackSelectionChanged(int trackIndex) override;
     void trackCountChanged(int newCount) override;
     void trackExpandedChanged(int trackIndex, bool expanded) override;
+    void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) override;
     
     // ValueTree::Listener
     void valueTreePropertyChanged(juce::ValueTree& tree, const juce::Identifier& property) override;

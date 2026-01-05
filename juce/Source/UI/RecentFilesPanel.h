@@ -147,6 +147,7 @@ private:
     void showContextMenu(int row);
     void deleteSelectedFile();
     void exportSelectedFile();
+    void exportToWav();
     void revealInExplorer();
     void renameSelectedFile();
     void deleteAllFiles();

@@ -17,6 +17,8 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "../../Project/ProjectState.h"
+#include "../../Audio/ExpansionInstrumentLoader.h"
+#include <map>
 
 namespace UI
 {
@@ -30,6 +32,17 @@ enum class TrackType
     MIDI,
     Audio,
     Master
+};
+
+//==============================================================================
+/**
+    Instrument category and instrument list for UI.
+*/
+struct InstrumentMenuItem
+{
+    juce::String id;
+    juce::String name;
+    juce::String category;
 };
 
 //==============================================================================
@@ -77,6 +90,19 @@ public:
     void bindToTrackNode(juce::ValueTree trackNode);
     
     //==============================================================================
+    // Instrument Selection
+    //==============================================================================
+    
+    /** Set available instruments from expansion loader. */
+    void setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory);
+    
+    /** Get currently selected instrument ID. */
+    juce::String getSelectedInstrumentId() const { return selectedInstrumentId; }
+    
+    /** Set the current instrument (by ID). */
+    void setSelectedInstrument(const juce::String& instrumentId);
+    
+    //==============================================================================
     /** Listener interface for track events. */
     class Listener
     {
@@ -90,6 +116,7 @@ public:
         virtual void trackSoloToggled(TrackHeaderComponent* track, bool soloed) = 0;
         virtual void trackNameChanged(TrackHeaderComponent* track, const juce::String& newName) = 0;
         virtual void trackDeleteRequested(TrackHeaderComponent* track) = 0;
+        virtual void trackInstrumentChanged(TrackHeaderComponent* track, const juce::String& instrumentId) = 0;
     };
     
     void addListener(Listener* listener);
@@ -121,6 +148,10 @@ private:
     
     juce::ValueTree boundTrackNode;
     
+    // Instrument selection
+    juce::String selectedInstrumentId;
+    std::vector<InstrumentMenuItem> instrumentItems;  // Flattened list for combo indexing
+    
     // UI Components
     juce::Label nameLabel;
     juce::ComboBox instrumentCombo;  // MPC-style instrument/kit selector
@@ -137,6 +168,8 @@ private:
     void updateFromBoundNode();
     void syncToProjectState();
     void onNameEdited();
+    void onInstrumentSelected();
+    void rebuildInstrumentCombo();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TrackHeaderComponent)
 };
@@ -213,6 +246,9 @@ public:
     /** Bind to project state. */
     void bindToProject(Project::ProjectState& projectState);
     
+    /** Set available instruments for all tracks (from expansion loader). */
+    void setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory);
+    
     /** Get uniform track height for all tracks. */
     int getTrackHeight() const { return trackHeight; }
     void setTrackHeight(int height) { trackHeight = height; }
@@ -232,6 +268,7 @@ public:
         virtual void trackSelectionChanged(int trackIndex) = 0;
         virtual void trackCountChanged(int newCount) = 0;
         virtual void trackExpandedChanged(int trackIndex, bool expanded) = 0;
+        virtual void trackInstrumentSelected(int trackIndex, const juce::String& instrumentId) {}
     };
     
     void addListener(Listener* listener);
@@ -249,10 +286,14 @@ public:
     void trackSoloToggled(TrackHeaderComponent* track, bool soloed) override;
     void trackNameChanged(TrackHeaderComponent* track, const juce::String& newName) override;
     void trackDeleteRequested(TrackHeaderComponent* track) override;
+    void trackInstrumentChanged(TrackHeaderComponent* track, const juce::String& instrumentId) override;
 
 private:
     juce::OwnedArray<TrackHeaderComponent> trackHeaders;
     Project::ProjectState* projectState = nullptr;
+    
+    // Available instruments for track selection (cached for new tracks)
+    std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>> availableInstruments;
     
     int selectedTrackIndex = 0;
     int trackHeight = 120;          // Uniform track height for all tracks

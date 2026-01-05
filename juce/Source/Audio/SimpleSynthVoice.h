@@ -120,6 +120,19 @@ public:
         auto sampleRate = getSampleRate();
         if (sampleRate <= 0)
             return;
+        
+        // Ensure envelope has correct sample rate (in case prepareToPlay wasn't called)
+        if (!envelopeInitialized)
+        {
+            juce::ADSR::Parameters envParams;
+            envParams.attack = 0.01f;   // 10ms attack
+            envParams.decay = 0.1f;     // 100ms decay
+            envParams.sustain = 0.7f;   // 70% sustain level
+            envParams.release = 0.3f;   // 300ms release
+            envelope.setSampleRate(sampleRate);
+            envelope.setParameters(envParams);
+            envelopeInitialized = true;
+        }
             
         const double phaseIncrement = juce::MathConstants<double>::twoPi * frequency / sampleRate;
         
@@ -158,6 +171,7 @@ private:
     double phase { 0.0 };
     double level { 0.0 };
     juce::ADSR envelope;
+    bool envelopeInitialized { false };
 };
 
 } // namespace mmg

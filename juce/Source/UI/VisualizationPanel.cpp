@@ -157,7 +157,7 @@ void VisualizationPanel::resized()
 void VisualizationPanel::loadMidiFile(const juce::File& midiFile)
 {
     DBG("VisualizationPanel::loadMidiFile: " << midiFile.getFullPathName());
-    DBG("  AppState ProjectState address: " << (void*)&appState.getProjectState());
+    DBG("  AppState ProjectState address: " << juce::String::toHexString((juce::pointer_sized_int)&appState.getProjectState()));
     
     if (midiFile.existsAsFile())
     {
@@ -387,6 +387,16 @@ void VisualizationPanel::arrangementRegenerateRequested(int startBar, int endBar
     // Forward to MainComponent via listener
     listeners.call([startBar, endBar, &tracks](Listener& l) {
         l.regenerateRequested(startBar, endBar, tracks);
+    });
+}
+
+void VisualizationPanel::arrangementTrackInstrumentSelected(int trackIndex, const juce::String& instrumentId)
+{
+    DBG("Track " << trackIndex << " instrument selected: " << instrumentId);
+    
+    // Forward to MainComponent via listener
+    listeners.call([trackIndex, &instrumentId](Listener& l) {
+        l.trackInstrumentSelected(trackIndex, instrumentId);
     });
 }
 

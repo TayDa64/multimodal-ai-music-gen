@@ -342,9 +342,24 @@ void TransportComponent::updateTimeDisplay()
 //==============================================================================
 void TransportComponent::playClicked()
 {
+    // Debug: Show state before playing
+    bool hasMidi = audioEngine.hasMidiLoaded();
+    double duration = audioEngine.getTotalDuration();
+    
+    if (!hasMidi)
+    {
+        statusLabel.setText("No MIDI loaded - double-click a file first", juce::dontSendNotification);
+        statusLabel.setColour(juce::Label::textColourId, AppColours::error);
+        return;
+    }
+    
     audioEngine.play();
     isPlaying = true;
     updateButtonStates();
+    
+    statusLabel.setText("Playing... (dur: " + juce::String(duration, 1) + "s)", juce::dontSendNotification);
+    statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+    
     listeners.call(&TransportComponent::Listener::transportPlayRequested);
 }
 
@@ -476,6 +491,9 @@ void TransportComponent::timerCallback()
         currentPosition = audioEngine.getPlaybackPosition();
         totalDuration = audioEngine.getTotalDuration();
         updateTimeDisplay();
+        
+        // Show detailed playback debug status
+        statusLabel.setText(audioEngine.getPlaybackDebugStatus(), juce::dontSendNotification);
     }
     
     // Check if button states need update (e.g. if MIDI was loaded externally)
@@ -484,6 +502,14 @@ void TransportComponent::timerCallback()
     {
         lastHasAudioState = hasAudio;
         updateButtonStates();
+        
+        // Update status when MIDI loaded
+        if (hasAudio && audioEngine.hasMidiLoaded())
+        {
+            statusLabel.setText("MIDI loaded: " + juce::String(audioEngine.getTotalDuration(), 1) + "s", 
+                               juce::dontSendNotification);
+            statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+        }
     }
 }
 

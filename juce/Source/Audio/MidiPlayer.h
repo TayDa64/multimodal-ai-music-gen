@@ -109,12 +109,21 @@ public:
     /** Get the number of tracks in loaded MIDI */
     int getNumTracks() const { return midiFile.getNumTracks(); }
     
+    /** Get number of MIDI events in the combined sequence */
+    int getNumEvents() const { return combinedSequence.getNumEvents(); }
+    
     /** Get time signature (if available) */
     int getTimeSignatureNumerator() const { return timeSignatureNumerator; }
     int getTimeSignatureDenominator() const { return timeSignatureDenominator; }
     
     /** Get BPM (detected or from MIDI) */
     double getBPM() const { return bpm; }
+    
+    /** Get last max sample level (for debug display) */
+    float getLastMaxSample() const { return lastMaxSample.load(); }
+    
+    /** Get events processed in last block */
+    int getLastEventsInBlock() const { return lastEventsInBlock.load(); }
 
 private:
     //==========================================================================
@@ -153,6 +162,10 @@ private:
     double bpm { 120.0 };
     int timeSignatureNumerator { 4 };
     int timeSignatureDenominator { 4 };
+    
+    // Debug tracking
+    std::atomic<float> lastMaxSample { 0.0f };
+    std::atomic<int> lastEventsInBlock { 0 };
     
     // Voice count
     static constexpr int numVoices { 16 };

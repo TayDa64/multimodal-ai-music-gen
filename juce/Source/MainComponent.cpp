@@ -82,6 +82,9 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     
     // Start timer for status updates (OSC setup happens in first timer callback)
     startTimerHz(10);
+    
+    // Scan expansions immediately at startup
+    scanLocalExpansions();
 }
 
 MainComponent::~MainComponent()
@@ -393,6 +396,60 @@ void MainComponent::applyAnalysisResult(const AnalyzeResult& result)
     
     currentStatus = "Analysis applied";
     repaint();
+}
+
+void MainComponent::scanLocalExpansions()
+{
+    // Determine expansions directory relative to the executable
+    auto appDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
+    
+    DBG("MainComponent::scanLocalExpansions - Starting expansion scan");
+    
+    // Try multiple possible expansion locations
+    juce::Array<juce::File> possibleExpansionDirs = {
+        // From Debug build output: .../juce/build/MultimodalMusicGen_artefacts/Debug/
+        // Need to go up 5 levels to get to "AI Music Generator"
+        appDir.getParentDirectory()  // MultimodalMusicGen_artefacts
+              .getParentDirectory()  // build
+              .getParentDirectory()  // juce  
+              .getParentDirectory()  // multimodal-ai-music-gen
+              .getParentDirectory()  // AI Music Generator
+              .getChildFile("expansions"),
+        juce::File("C:/dev/AI Music Generator/expansions")  // Absolute fallback
+    };
+    
+    for (auto& dir : possibleExpansionDirs)
+    {
+        if (dir.isDirectory())
+        {
+            DBG("  Found expansions directory: " << dir.getFullPathName());
+            int count = audioEngine.scanExpansions(dir);
+            DBG("  Scanned " << count << " expansions");
+            
+            // Get total instrument count
+            int totalInstruments = 0;
+            auto instrumentsByCategory = audioEngine.getInstrumentsByCategory();
+            for (const auto& [cat, instruments] : instrumentsByCategory)
+            {
+                DBG("    Category '" << cat << "': " << instruments.size() << " instruments");
+                totalInstruments += (int)instruments.size();
+            }
+            
+            DBG("  Total instruments loaded: " << totalInstruments);
+            
+            if (totalInstruments > 0)
+            {
+                // Pass to visualization panel (which passes to arrangement view)
+                if (visualizationPanel)
+                {
+                    visualizationPanel->setAvailableInstruments(instrumentsByCategory);
+                }
+                
+                currentStatus = "Loaded " + juce::String(totalInstruments) + " expansion instruments";
+            }
+            break;  // Stop after finding first valid directory
+        }
+    }
 }
 
 //==============================================================================
@@ -911,6 +968,26 @@ void MainComponent::regenerateRequested(int startBar, int endBar, const juce::St
     }
 }
 
+void MainComponent::trackInstrumentSelected(int trackIndex, const juce::String& instrumentId)
+{
+    DBG("MainComponent: Track " << trackIndex << " instrument selected: " << instrumentId);
+    
+    // Load the instrument for this track
+    if (instrumentId == "default_sine")
+    {
+        // Reset to simple sine synth
+        audioEngine.loadTrackInstrument(trackIndex, "");
+    }
+    else
+    {
+        bool success = audioEngine.loadTrackInstrument(trackIndex, instrumentId);
+        if (!success)
+        {
+            DBG("Failed to load instrument: " << instrumentId);
+        }
+    }
+}
+
 void MainComponent::analyzeUrlRequested(const juce::String& url)
 {
     if (oscBridge && oscBridge->isConnected())
@@ -1367,10 +1444,26 @@ void MainComponent::stopPythonServer()
 void MainComponent::timerCallback()
 {
     // Delayed OSC setup on first timer call
+    static bool expansionsScanned = false;
+    
     if (!oscBridge)
     {
         setupOSCConnection();
+        
+        // Scan local expansions after OSC is set up
+        if (!expansionsScanned)
+        {
+            scanLocalExpansions();
+            expansionsScanned = true;
+        }
         return;
+    }
+    
+    // Scan expansions if not done yet
+    if (!expansionsScanned)
+    {
+        scanLocalExpansions();
+        expansionsScanned = true;
     }
     
     // Periodic health check

@@ -34,17 +34,13 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     addAndMakeVisible(nameLabel);
     
     // Instrument/Kit dropdown (MPC style) 
-    instrumentCombo.setTextWhenNothingSelected("Select Kit...");
-    instrumentCombo.addItem("Default Kit", 1);
-    instrumentCombo.addItem("Drum Kit", 2);
-    instrumentCombo.addItem("Bass", 3);
-    instrumentCombo.addItem("Keys", 4);
-    instrumentCombo.addItem("Synth", 5);
-    instrumentCombo.addItem("Strings", 6);
+    instrumentCombo.setTextWhenNothingSelected("Select Instrument...");
+    instrumentCombo.addItem("Default (Sine)", 1);
     instrumentCombo.setSelectedId(1, juce::dontSendNotification);
     instrumentCombo.setColour(juce::ComboBox::backgroundColourId, ThemeManager::getSurface().brighter(0.1f));
     instrumentCombo.setColour(juce::ComboBox::textColourId, ThemeManager::getCurrentScheme().textSecondary);
     instrumentCombo.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    instrumentCombo.onChange = [this]() { onInstrumentSelected(); };
     addAndMakeVisible(instrumentCombo);
     
     // Piano Roll button - opens this track in Piano Roll view
@@ -340,6 +336,93 @@ void TrackHeaderComponent::onNameEdited()
     syncToProjectState();
 }
 
+void TrackHeaderComponent::setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory)
+{
+    instrumentItems.clear();
+    
+    // Add default sine instrument
+    InstrumentMenuItem defaultItem;
+    defaultItem.id = "default_sine";
+    defaultItem.name = "Default (Sine)";
+    defaultItem.category = "Default";
+    instrumentItems.push_back(defaultItem);
+    
+    // Add instruments from each category
+    for (const auto& [category, instruments] : byCategory)
+    {
+        for (const auto* inst : instruments)
+        {
+            InstrumentMenuItem item;
+            item.id = inst->id;
+            item.name = inst->name;
+            item.category = category;
+            instrumentItems.push_back(item);
+        }
+    }
+    
+    rebuildInstrumentCombo();
+}
+
+void TrackHeaderComponent::rebuildInstrumentCombo()
+{
+    instrumentCombo.clear();
+    
+    juce::String currentCategory;
+    int itemId = 1;
+    
+    for (const auto& item : instrumentItems)
+    {
+        // Add category header if category changed
+        if (item.category != currentCategory)
+        {
+            if (itemId > 1)  // Add separator before new categories (except first)
+                instrumentCombo.addSeparator();
+            
+            // Add category as disabled item (header)
+            instrumentCombo.addSectionHeading(item.category);
+            currentCategory = item.category;
+        }
+        
+        instrumentCombo.addItem(item.name, itemId);
+        itemId++;
+    }
+    
+    // Select the current instrument or default
+    if (!selectedInstrumentId.isEmpty())
+        setSelectedInstrument(selectedInstrumentId);
+    else if (!instrumentItems.empty())
+        instrumentCombo.setSelectedId(1, juce::dontSendNotification);
+}
+
+void TrackHeaderComponent::onInstrumentSelected()
+{
+    int selectedIndex = instrumentCombo.getSelectedId() - 1;  // 1-based to 0-based
+    
+    if (selectedIndex >= 0 && selectedIndex < (int)instrumentItems.size())
+    {
+        selectedInstrumentId = instrumentItems[selectedIndex].id;
+        listeners.call(&Listener::trackInstrumentChanged, this, selectedInstrumentId);
+    }
+}
+
+void TrackHeaderComponent::setSelectedInstrument(const juce::String& instrumentId)
+{
+    selectedInstrumentId = instrumentId;
+    
+    // Find the instrument in the list
+    for (size_t i = 0; i < instrumentItems.size(); ++i)
+    {
+        if (instrumentItems[i].id == instrumentId)
+        {
+            instrumentCombo.setSelectedId((int)i + 1, juce::dontSendNotification);
+            return;
+        }
+    }
+    
+    // If not found, select default
+    if (!instrumentItems.empty())
+        instrumentCombo.setSelectedId(1, juce::dontSendNotification);
+}
 
 //==============================================================================
 // TrackListComponent
@@ -395,6 +478,10 @@ void TrackListComponent::setTrackCount(int count)
         header->setTrackColour(getNextTrackColour());
         header->addListener(this);
         contentComponent.addAndMakeVisible(header);
+        
+        // Set available instruments if we have them
+        if (!availableInstruments.empty())
+            header->setAvailableInstruments(availableInstruments);
     }
     
     updateLayout();
@@ -415,6 +502,10 @@ void TrackListComponent::addTrack(TrackType type, const juce::String& name)
     
     header->addListener(this);
     contentComponent.addAndMakeVisible(header);
+    
+    // Set available instruments if we have them
+    if (!availableInstruments.empty())
+        header->setAvailableInstruments(availableInstruments);
     
     // Also add to project state if bound
     if (projectState)
@@ -588,6 +679,24 @@ void TrackListComponent::trackDeleteRequested(TrackHeaderComponent* track)
     
     DBG("Track " + juce::String(index + 1) + " delete requested");
     removeTrack(index);
+}
+
+void TrackListComponent::trackInstrumentChanged(TrackHeaderComponent* track, const juce::String& instrumentId)
+{
+    int index = track->getTrackIndex();
+    DBG("Track " + juce::String(index + 1) + " instrument changed to: " + instrumentId);
+    listeners.call(&Listener::trackInstrumentSelected, index, instrumentId);
+}
+
+void TrackListComponent::setAvailableInstruments(const std::map<juce::String, std::vector<const mmg::InstrumentDefinition*>>& byCategory)
+{
+    availableInstruments = byCategory;
+    
+    // Propagate to all track headers
+    for (auto* header : trackHeaders)
+    {
+        header->setAvailableInstruments(byCategory);
+    }
 }
 
 //==============================================================================

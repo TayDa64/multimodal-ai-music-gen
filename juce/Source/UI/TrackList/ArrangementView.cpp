@@ -438,6 +438,12 @@ void ArrangementView::trackExpandedChanged(int trackIndex, bool /*expanded*/)
     listeners.call(&ArrangementView::Listener::arrangementTrackPianoRollRequested, trackIndex);
 }
 
+void ArrangementView::trackInstrumentSelected(int trackIndex, const juce::String& instrumentId)
+{
+    // Forward instrument selection to listeners (MainComponent will handle loading)
+    listeners.call(&ArrangementView::Listener::arrangementTrackInstrumentSelected, trackIndex, instrumentId);
+}
+
 //==============================================================================
 void ArrangementView::valueTreePropertyChanged(juce::ValueTree& tree, const juce::Identifier& property)
 {

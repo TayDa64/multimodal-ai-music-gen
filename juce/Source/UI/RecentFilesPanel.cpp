@@ -51,16 +51,16 @@ void RecentFilesPanel::FileListBox::paintListBoxItem(int rowNumber, juce::Graphi
     
     bounds = bounds.reduced(8, 4);
     
-    // Left side - Icon based on genre
+    // Left side - Icon with genre abbreviation
     auto iconArea = bounds.removeFromLeft(44);
     g.setColour(AppColours::primary.withAlpha(0.8f));
     g.fillRoundedRectangle(iconArea.reduced(4).toFloat(), 8.0f);
     
     // Genre abbreviation as icon
     g.setColour(AppColours::textPrimary);
-    g.setFont(juce::Font(12.0f, juce::Font::bold));
-    juce::String genreAbbrev = info.genre.substring(0, 2).toUpperCase();
-    if (genreAbbrev.isEmpty()) genreAbbrev = "??";
+    g.setFont(juce::Font(11.0f, juce::Font::bold));
+    juce::String genreAbbrev = info.genre.substring(0, 3).toUpperCase();
+    if (genreAbbrev.isEmpty()) genreAbbrev = "???";
     g.drawText(genreAbbrev, iconArea, juce::Justification::centred);
     
     bounds.removeFromLeft(8);
@@ -256,13 +256,13 @@ void RecentFilesPanel::scanDirectory()
     
     files.clear();
 
-    // Find recent MIDI + audio files
+    // Find only MIDI files (WAV can be exported on demand)
     auto foundFiles = outputDirectory.findChildFiles(
         juce::File::findFiles,
         false,
-        "*.mid;*.midi;*.wav;*.mp3;*.flac;*.ogg;*.aiff;*.aif;*.m4a");
+        "*.mid;*.midi");
 
-    DBG("RecentFilesPanel: Found " << foundFiles.size() << " files in " << outputDirectory.getFullPathName());
+    DBG("RecentFilesPanel: Found " << foundFiles.size() << " MIDI files in " << outputDirectory.getFullPathName());
 
     // Sort by date (newest first)
     foundFiles.sort();
@@ -340,7 +340,7 @@ RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& fil
         }
     }
     
-    // Create display name
+    // Create display name (genre with proper capitalization)
     info.displayName = info.genre;
     if (info.displayName.length() > 0)
         info.displayName = info.displayName.substring(0, 1).toUpperCase() 
@@ -428,16 +428,13 @@ void RecentFilesPanel::showContextMenu(int row)
     
     selectedRow = row;
     const auto& info = files[row];
-
-    const bool isAudio = info.file.hasFileExtension(".wav;.mp3;.flac;.ogg;.aiff;.aif;.m4a");
     
     juce::PopupMenu menu;
     menu.addItem(1, "Load File", true);
-    if (isAudio)
-        menu.addItem(7, "Analyze (BPM/Key/Groove)", true);
+    menu.addItem(8, "Export to WAV...", true);  // New option
     menu.addSeparator();
     menu.addItem(2, "Show in Explorer", true);
-    menu.addItem(3, "Export to...", true);
+    menu.addItem(3, "Export MIDI to...", true);
     menu.addItem(4, "Rename...", true);
     menu.addSeparator();
     menu.addItem(5, "Delete", true);
@@ -449,13 +446,86 @@ void RecentFilesPanel::showContextMenu(int row)
             switch (result)
             {
                 case 1: loadSelectedFile(); break;
-                case 7: listeners.call(&Listener::analyzeFileRequested, info.file); break;
+                case 8: exportToWav(); break;  // New handler
                 case 2: revealInExplorer(); break;
                 case 3: exportSelectedFile(); break;
                 case 4: renameSelectedFile(); break;
                 case 5: deleteSelectedFile(); break;
                 case 6: deleteAllFiles(); break;
                 default: break;
+            }
+        });
+}
+
+void RecentFilesPanel::exportToWav()
+{
+    if (selectedRow < 0 || selectedRow >= files.size())
+        return;
+    
+    const auto& info = files[selectedRow];
+    const auto midiFile = info.file;
+    
+    // Create default WAV filename (same name but .wav extension)
+    auto defaultWavFile = midiFile.getParentDirectory()
+                                  .getChildFile(midiFile.getFileNameWithoutExtension() + ".wav");
+    
+    auto chooser = std::make_shared<juce::FileChooser>(
+        "Export to WAV",
+        defaultWavFile,
+        "*.wav"
+    );
+    
+    chooser->launchAsync(juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser, midiFile](const juce::FileChooser& fc)
+        {
+            auto destFile = fc.getResult();
+            if (destFile != juce::File{})
+            {
+                // Ensure .wav extension
+                if (!destFile.hasFileExtension(".wav"))
+                    destFile = destFile.withFileExtension("wav");
+                
+                // Load the MIDI file first
+                if (!audioEngine.loadMidiFile(midiFile))
+                {
+                    juce::AlertWindow::showMessageBoxAsync(
+                        juce::MessageBoxIconType::WarningIcon,
+                        "Export Failed",
+                        "Could not load the MIDI file for rendering."
+                    );
+                    return;
+                }
+                
+                // Show progress message
+                juce::AlertWindow::showMessageBoxAsync(
+                    juce::MessageBoxIconType::InfoIcon,
+                    "Exporting...",
+                    "Rendering MIDI to WAV. This may take a moment..."
+                );
+                
+                // Render to WAV (on background thread would be better, but this works for now)
+                juce::MessageManager::callAsync([this, destFile, midiFile]()
+                {
+                    if (audioEngine.renderToWavFile(destFile))
+                    {
+                        juce::AlertWindow::showMessageBoxAsync(
+                            juce::MessageBoxIconType::InfoIcon,
+                            "Export Complete",
+                            "Successfully exported to:\n\n" + destFile.getFullPathName()
+                        );
+                        
+                        // Optionally reveal in explorer
+                        destFile.revealToUser();
+                    }
+                    else
+                    {
+                        juce::AlertWindow::showMessageBoxAsync(
+                            juce::MessageBoxIconType::WarningIcon,
+                            "Export Failed",
+                            "Could not render the MIDI file to WAV."
+                        );
+                    }
+                });
             }
         });
 }
@@ -673,7 +743,7 @@ void RecentFilesPanel::timerCallback()
         auto foundFiles = outputDirectory.findChildFiles(
             juce::File::findFiles,
             false,
-            "*.mid;*.midi;*.wav;*.mp3;*.flac;*.ogg;*.aiff;*.aif;*.m4a");
+            "*.mid;*.midi");
 
         // Refresh if file count changed
         if (foundFiles.size() != lastFileCount)

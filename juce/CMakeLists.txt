@@ -122,6 +122,10 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/Audio/MidiPlayer.cpp
     Source/Audio/MidiPlayer.h
     Source/Audio/SimpleSynthVoice.h
+    Source/Audio/ExpansionInstrumentLoader.cpp
+    Source/Audio/ExpansionInstrumentLoader.h
+    Source/Audio/SamplerInstrument.cpp
+    Source/Audio/SamplerInstrument.h
     
     # Audio Processors & Mixer
     Source/Audio/Processors/ProcessorBase.h

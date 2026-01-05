@@ -380,20 +380,23 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
     // Render synth with MIDI events
     synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
     
-    // Debug: check if synth produced any output
-    static int debugCounter = 0;
-    if (++debugCounter % 500 == 0)  // Log every ~500 blocks (~10 seconds at 44100/512)
+    // Track max output level for debug status
+    float maxSample = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
     {
-        float maxSample = 0.0f;
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-        {
-            for (int i = 0; i < numSamples; ++i)
-                maxSample = juce::jmax(maxSample, std::abs(buffer.getSample(ch, i)));
-        }
+        for (int i = 0; i < numSamples; ++i)
+            maxSample = juce::jmax(maxSample, std::abs(buffer.getSample(ch, i)));
+    }
+    lastMaxSample.store(maxSample);
+    lastEventsInBlock.store(eventsAdded);
+    
+    // Debug: check if synth produced any output (periodic logging)
+    static int debugCounter = 0;
+    if (++debugCounter % 500 == 0)
+    {
         DBG("MidiPlayer: pos=" << currentPositionSeconds << "s, events=" << eventsAdded 
             << ", voices=" << synth.getNumVoices() << ", maxSample=" << maxSample);
     }
-    synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
     
     // Update position
     currentPositionSeconds = endPositionSeconds;

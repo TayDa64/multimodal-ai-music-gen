@@ -30,11 +30,16 @@ namespace Audio
         auto masterGain = std::make_unique<GainProcessor>();
         masterGainNodeID = mainGraph->addNode(std::move(masterGain))->nodeID;
 
-        // Connect Master to Output
+        // Connect Input -> Master Gain -> Output (direct passthrough by default)
         for (int channel = 0; channel < 2; ++channel)
         {
+            // Input to Master Gain (THIS WAS MISSING!)
+            mainGraph->addConnection({ { audioInputNodeID, channel }, { masterGainNodeID, channel } });
+            // Master Gain to Output
             mainGraph->addConnection({ { masterGainNodeID, channel }, { audioOutputNodeID, channel } });
         }
+        
+        DBG("MixerGraph: Initialized with Input -> MasterGain -> Output routing");
     }
 
     void MixerGraph::prepareToPlay(double sampleRate, int samplesPerBlock)

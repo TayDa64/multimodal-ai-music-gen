@@ -109,25 +109,30 @@ struct SineWaveVoice : public juce::SynthesiserVoice
 // AudioEngine::Track Implementation
 //==============================================================================
 
-AudioEngine::Track::Track(int id, const juce::String& name)
-    : id(id), name(name)
+AudioEngine::Track::Track(int id, const juce::String& name, juce::AudioFormatManager& formatMgr)
+    : id(id), name(name), formatManager(formatMgr)
 {
-    synth.clearVoices();
+    // Setup simple sine synth as fallback
+    simpleSynth.clearVoices();
     for (int i = 0; i < 8; ++i)
-        synth.addVoice(new SineWaveVoice());
+        simpleSynth.addVoice(new SineWaveVoice());
         
-    synth.clearSounds();
-    synth.addSound(new SineWaveSound());
+    simpleSynth.clearSounds();
+    simpleSynth.addSound(new SineWaveSound());
 }
 
 AudioEngine::Track::~Track() {}
 
 void AudioEngine::Track::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    synth.setCurrentPlaybackSampleRate(sampleRate);
+    simpleSynth.setCurrentPlaybackSampleRate(sampleRate);
+    sampler.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
-void AudioEngine::Track::releaseResources() {}
+void AudioEngine::Track::releaseResources() 
+{
+    sampler.releaseResources();
+}
 
 void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples)
 {
@@ -140,7 +145,15 @@ void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     
     {
         const juce::ScopedLock sl(trackLock);
-        synth.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+        
+        if (useSimpleSynth || !sampler.isLoaded())
+        {
+            simpleSynth.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+        }
+        else
+        {
+            sampler.renderNextBlock(tempBuffer, midiBuffer, 0, numSamples);
+        }
         midiBuffer.clear();
     }
     
@@ -170,15 +183,43 @@ void AudioEngine::Track::setVolume(float newVolume) { volume = newVolume; }
 void AudioEngine::Track::setMute(bool shouldMute) { muted = shouldMute; }
 void AudioEngine::Track::setSolo(bool shouldSolo) { soloed = shouldSolo; }
 
-void AudioEngine::Track::loadSample(const juce::File& file, juce::AudioFormatManager& formatManager)
+bool AudioEngine::Track::loadInstrumentById(const juce::String& instrumentId, 
+                                            const ExpansionInstrumentLoader& loader,
+                                            juce::AudioFormatManager& fmtManager)
+{
+    const auto* instrument = loader.getInstrument(instrumentId);
+    if (!instrument)
+    {
+        DBG("Track " << id << ": Instrument not found: " << instrumentId);
+        return false;
+    }
+    
+    const juce::ScopedLock sl(trackLock);
+    
+    if (sampler.loadFromDefinition(*instrument, fmtManager))
+    {
+        currentInstrumentId = instrumentId;
+        currentInstrumentName = instrument->name;
+        useSimpleSynth = false;
+        
+        DBG("Track " << id << ": Loaded instrument " << instrument->name 
+            << " with " << instrument->zones.size() << " zones");
+        return true;
+    }
+    
+    DBG("Track " << id << ": Failed to load instrument " << instrumentId);
+    return false;
+}
+
+void AudioEngine::Track::loadSample(const juce::File& file, juce::AudioFormatManager& fmtManager)
 {
     const juce::ScopedLock sl(trackLock);
     
-    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(file));
+    std::unique_ptr<juce::AudioFormatReader> reader(fmtManager.createReaderFor(file));
     if (reader)
     {
-        synth.clearSounds();
-        synth.clearVoices();
+        simpleSynth.clearSounds();
+        simpleSynth.clearVoices();
         
         // Map to all notes
         juce::BigInteger allNotes;
@@ -186,11 +227,15 @@ void AudioEngine::Track::loadSample(const juce::File& file, juce::AudioFormatMan
         
         // Create SamplerSound
         // Base note 60 (C3), Attack 0.0s, Release 0.1s, Max length 10.0s
-        synth.addSound(new juce::SamplerSound("Sample", *reader, allNotes, 60, 0.0, 0.1, 10.0));
+        simpleSynth.addSound(new juce::SamplerSound("Sample", *reader, allNotes, 60, 0.0, 0.1, 10.0));
         
         // Add SamplerVoices
         for (int i = 0; i < 8; ++i)
-            synth.addVoice(new juce::SamplerVoice());
+            simpleSynth.addVoice(new juce::SamplerVoice());
+        
+        useSimpleSynth = true;
+        currentInstrumentId.clear();
+        currentInstrumentName = file.getFileNameWithoutExtension();
             
         DBG("Track " << id << ": Loaded sample " << file.getFileName());
     }
@@ -430,18 +475,43 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
     // MIDI playback (renders to buffer)
     if (transportState.load() == TransportState::Playing && midiPlayer.hasMidiLoaded() && !testToneEnabled.load())
     {
-        // Create a sub-buffer for the active region
-        juce::AudioBuffer<float> subBuffer(bufferToFill.buffer->getArrayOfWritePointers(),
-                                           bufferToFill.buffer->getNumChannels(),
-                                           bufferToFill.startSample,
-                                           bufferToFill.numSamples);
+        // Render MIDI directly to the output buffer's active region
+        auto* leftChannel = bufferToFill.buffer->getWritePointer(0, bufferToFill.startSample);
+        auto* rightChannel = bufferToFill.buffer->getNumChannels() > 1
+                           ? bufferToFill.buffer->getWritePointer(1, bufferToFill.startSample)
+                           : nullptr;
+        
+        // Create temporary buffer for MIDI rendering
+        juce::AudioBuffer<float> midiBuffer(bufferToFill.buffer->getNumChannels(), bufferToFill.numSamples);
+        midiBuffer.clear();
         
         midiPlayer.setPlaying(true);
-        midiPlayer.renderNextBlock(subBuffer, bufferToFill.numSamples);
+        midiPlayer.renderNextBlock(midiBuffer, bufferToFill.numSamples);
         
-        // Process through mixer graph
-        juce::MidiBuffer emptyMidi;
-        mixerGraph.processBlock(subBuffer, emptyMidi);
+        // Copy MIDI output to the main buffer
+        for (int ch = 0; ch < midiBuffer.getNumChannels(); ++ch)
+        {
+            auto* src = midiBuffer.getReadPointer(ch);
+            auto* dst = bufferToFill.buffer->getWritePointer(ch, bufferToFill.startSample);
+            for (int i = 0; i < bufferToFill.numSamples; ++i)
+            {
+                dst[i] = src[i];
+            }
+        }
+        
+        // Debug: track max sample in MIDI output
+        static int midiDebugCounter = 0;
+        if (++midiDebugCounter % 500 == 0)
+        {
+            float maxSample = 0.0f;
+            for (int ch = 0; ch < midiBuffer.getNumChannels(); ++ch)
+            {
+                auto* data = midiBuffer.getReadPointer(ch);
+                for (int i = 0; i < bufferToFill.numSamples; ++i)
+                    maxSample = juce::jmax(maxSample, std::abs(data[i]));
+            }
+            DBG("AudioEngine: MIDI rendered, maxSample=" << maxSample);
+        }
         
         // Check if playback finished
         if (!midiPlayer.isPlaying())
@@ -692,6 +762,107 @@ bool AudioEngine::hasMidiLoaded() const
     return midiPlayer.hasMidiLoaded();
 }
 
+juce::String AudioEngine::getPlaybackDebugStatus() const
+{
+    juce::String status;
+    auto state = transportState.load();
+    status += (state == TransportState::Playing) ? "PLAY " : "STOP ";
+    status += testToneEnabled.load() ? "TT " : "";
+    status += "E:" + juce::String(midiPlayer.getNumEvents()) + " ";
+    status += "L:" + juce::String(midiPlayer.getLastMaxSample(), 3) + " ";
+    status += juce::String(midiPlayer.getPosition(), 1) + "s";
+    return status;
+}
+
+bool AudioEngine::renderToWavFile(const juce::File& outputFile, double sampleRate, int bitDepth)
+{
+    if (!midiPlayer.hasMidiLoaded())
+    {
+        DBG("AudioEngine::renderToWavFile - No MIDI loaded");
+        return false;
+    }
+    
+    // Create a temporary MidiPlayer for offline rendering
+    MidiPlayer renderPlayer;
+    renderPlayer.prepareToPlay(sampleRate, 512);
+    
+    // Copy MIDI data from current player
+    auto loadedFile = midiPlayer.getLoadedFile();
+    if (!loadedFile.existsAsFile())
+    {
+        DBG("AudioEngine::renderToWavFile - MIDI file not found");
+        return false;
+    }
+    
+    if (!renderPlayer.loadMidiFile(loadedFile))
+    {
+        DBG("AudioEngine::renderToWavFile - Failed to load MIDI for rendering");
+        return false;
+    }
+    
+    double totalDuration = renderPlayer.getTotalDuration();
+    int totalSamples = static_cast<int>(totalDuration * sampleRate) + static_cast<int>(sampleRate); // Add 1 second for tail
+    
+    DBG("AudioEngine::renderToWavFile - Rendering " << totalDuration << "s to " << outputFile.getFullPathName());
+    
+    // Create output buffer
+    juce::AudioBuffer<float> outputBuffer(2, totalSamples);
+    outputBuffer.clear();
+    
+    // Render in blocks
+    const int blockSize = 512;
+    renderPlayer.setPlaying(true);
+    renderPlayer.setPosition(0.0);
+    
+    for (int pos = 0; pos < totalSamples && renderPlayer.isPlaying(); pos += blockSize)
+    {
+        int numSamples = juce::jmin(blockSize, totalSamples - pos);
+        
+        // Create a sub-buffer for this block
+        juce::AudioBuffer<float> blockBuffer(2, numSamples);
+        blockBuffer.clear();
+        
+        renderPlayer.renderNextBlock(blockBuffer, numSamples);
+        
+        // Copy to output buffer
+        for (int ch = 0; ch < 2; ++ch)
+        {
+            outputBuffer.copyFrom(ch, pos, blockBuffer, ch, 0, numSamples);
+        }
+    }
+    
+    // Write to WAV file
+    outputFile.deleteFile();
+    std::unique_ptr<juce::FileOutputStream> outStream(outputFile.createOutputStream());
+    
+    if (outStream == nullptr)
+    {
+        DBG("AudioEngine::renderToWavFile - Could not create output file");
+        return false;
+    }
+    
+    juce::WavAudioFormat wavFormat;
+    std::unique_ptr<juce::AudioFormatWriter> writer(
+        wavFormat.createWriterFor(outStream.get(), sampleRate, 2, bitDepth, {}, 0));
+    
+    if (writer == nullptr)
+    {
+        DBG("AudioEngine::renderToWavFile - Could not create WAV writer");
+        return false;
+    }
+    
+    outStream.release(); // Writer takes ownership
+    
+    if (!writer->writeFromAudioSampleBuffer(outputBuffer, 0, outputBuffer.getNumSamples()))
+    {
+        DBG("AudioEngine::renderToWavFile - Failed to write audio data");
+        return false;
+    }
+    
+    DBG("AudioEngine::renderToWavFile - Successfully rendered to " << outputFile.getFullPathName());
+    return true;
+}
+
 double AudioEngine::getPlaybackPosition() const
 {
     return midiPlayer.getPosition();
@@ -710,8 +881,8 @@ double AudioEngine::getTotalDuration() const
 AudioEngine::Track* AudioEngine::addTrack(const juce::String& name)
 {
     const juce::ScopedLock sl(tracksLock);
-    int id = tracks.size(); // Simple ID generation
-    auto newTrack = std::make_unique<Track>(id, name);
+    int id = (int)tracks.size(); // Simple ID generation
+    auto newTrack = std::make_unique<Track>(id, name, formatManager);
     if (currentSampleRate > 0)
         newTrack->prepareToPlay(currentSampleRate, currentBufferSize);
     
@@ -770,6 +941,40 @@ void AudioEngine::loadInstrument(int trackIndex, const juce::File& sampleFile, c
         if (instrumentName.isNotEmpty())
             track->setName(instrumentName);
     }
+}
+
+//==============================================================================
+// Expansion Instruments
+//==============================================================================
+
+int AudioEngine::scanExpansions(const juce::File& expansionsDir)
+{
+    DBG("AudioEngine: Scanning expansions at " << expansionsDir.getFullPathName());
+    return expansionLoader.scanExpansionsDirectory(expansionsDir);
+}
+
+bool AudioEngine::loadTrackInstrument(int trackIndex, const juce::String& instrumentId)
+{
+    if (auto* track = getTrack(trackIndex))
+    {
+        return track->loadInstrumentById(instrumentId, expansionLoader, formatManager);
+    }
+    return false;
+}
+
+const InstrumentDefinition* AudioEngine::getInstrumentDefinition(const juce::String& instrumentId) const
+{
+    return expansionLoader.getInstrument(instrumentId);
+}
+
+std::map<juce::String, std::vector<const InstrumentDefinition*>> AudioEngine::getInstrumentsByCategory() const
+{
+    return expansionLoader.getInstrumentsByCategory();
+}
+
+juce::StringArray AudioEngine::getInstrumentCategories() const
+{
+    return expansionLoader.getCategories();
 }
 
 } // namespace mmg

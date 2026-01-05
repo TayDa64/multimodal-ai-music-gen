@@ -18,6 +18,8 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "MidiPlayer.h"
 #include "MixerGraph.h"
+#include "ExpansionInstrumentLoader.h"
+#include "SamplerInstrument.h"
 
 namespace mmg // Multimodal Music Generator
 {
@@ -156,6 +158,9 @@ public:
     /** Check if MIDI is loaded */
     bool hasMidiLoaded() const;
     
+    /** Get debug status string for UI display */
+    juce::String getPlaybackDebugStatus() const;
+    
     /** Get current playback position in seconds */
     double getPlaybackPosition() const;
     
@@ -170,6 +175,17 @@ public:
     
     /** Get the MixerGraph for UI access */
     Audio::MixerGraph& getMixerGraph() { return mixerGraph; }
+    
+    //==========================================================================
+    // Offline Rendering
+    //==========================================================================
+    
+    /** Render the currently loaded MIDI to a WAV file.
+        @param outputFile The destination WAV file
+        @param sampleRate Sample rate for rendering (default 44100)
+        @param bitDepth Bit depth (16 or 24, default 16)
+        @returns true if rendering succeeded */
+    bool renderToWavFile(const juce::File& outputFile, double sampleRate = 44100.0, int bitDepth = 16);
     
     //==========================================================================
     // Live Synthesis (Preview)
@@ -201,7 +217,7 @@ public:
     class Track
     {
     public:
-        Track(int id, const juce::String& name);
+        Track(int id, const juce::String& name, juce::AudioFormatManager& formatMgr);
         ~Track();
         
         void prepareToPlay(double sampleRate, int samplesPerBlock);
@@ -211,8 +227,18 @@ public:
         void noteOn(int note, float velocity);
         void noteOff(int note);
         
-        // Load a sample file (WAV, AIFF, etc.)
+        // Load a sample file (WAV, AIFF, etc.) - legacy simple sample loading
         void loadSample(const juce::File& file, juce::AudioFormatManager& formatManager);
+        
+        // Load an instrument from expansion by ID
+        bool loadInstrumentById(const juce::String& instrumentId, 
+                                const ExpansionInstrumentLoader& loader,
+                                juce::AudioFormatManager& formatManager);
+        
+        // Get currently loaded instrument info
+        juce::String getInstrumentId() const { return currentInstrumentId; }
+        juce::String getInstrumentName() const { return currentInstrumentName; }
+        bool hasInstrument() const { return sampler.isLoaded(); }
         
         void setVolume(float newVolume);
         float getVolume() const { return volume.load(); }
@@ -230,7 +256,17 @@ public:
     private:
         int id;
         juce::String name;
-        juce::Synthesiser synth;
+        juce::AudioFormatManager& formatManager;
+        
+        // Sampler instrument (for expansion instruments)
+        SamplerInstrument sampler;
+        juce::String currentInstrumentId;
+        juce::String currentInstrumentName;
+        
+        // Fallback simple synth (sine wave)
+        juce::Synthesiser simpleSynth;
+        bool useSimpleSynth = true;
+        
         std::atomic<float> volume { 1.0f };
         std::atomic<bool> muted { false };
         std::atomic<bool> soloed { false };
@@ -248,6 +284,28 @@ public:
     
     /** Load an instrument sample into a track */
     void loadInstrument(int trackIndex, const juce::File& sampleFile, const juce::String& instrumentName);
+    
+    /** Load an expansion instrument into a track by instrument ID */
+    bool loadTrackInstrument(int trackIndex, const juce::String& instrumentId);
+    
+    //==========================================================================
+    // Expansion Instruments
+    //==========================================================================
+    
+    /** Scan expansions directory and load instrument catalog */
+    int scanExpansions(const juce::File& expansionsDir);
+    
+    /** Get the expansion instrument loader */
+    const ExpansionInstrumentLoader& getExpansionLoader() const { return expansionLoader; }
+    
+    /** Get instrument by ID from loaded expansions */
+    const InstrumentDefinition* getInstrumentDefinition(const juce::String& instrumentId) const;
+    
+    /** Get all instruments organized by category */
+    std::map<juce::String, std::vector<const InstrumentDefinition*>> getInstrumentsByCategory() const;
+    
+    /** Get available categories */
+    juce::StringArray getInstrumentCategories() const;
 
     //==========================================================================
     // Audio Visualization Support
@@ -330,6 +388,9 @@ private:
     
     // Mixer
     Audio::MixerGraph mixerGraph;
+    
+    // Expansion instruments
+    ExpansionInstrumentLoader expansionLoader;
     
     // Tracks
     std::vector<std::unique_ptr<Track>> tracks;
