@@ -56,9 +56,12 @@ jobs:
         key: juce-7.0.9-windows
     
     - name: Download JUCE
-      if: steps.cache-juce.outputs.cache-hit != 'true'
       run: |
-        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+        if (!(Test-Path -Path "JUCE")) {
+          git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+        } else {
+          Write-Host "JUCE already exists (from cache)"
+        }
     
     - name: Cache Build
       uses: actions/cache@v4
@@ -100,9 +103,12 @@ jobs:
         key: juce-7.0.9-macos
     
     - name: Download JUCE
-      if: steps.cache-juce.outputs.cache-hit != 'true'
       run: |
-        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+        if [ ! -d "JUCE" ]; then
+          git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+        else
+          echo "JUCE already exists (from cache)"
+        fi
     
     - name: Cache Build
       uses: actions/cache@v4
