@@ -10,6 +10,12 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 
 
+# Constants
+SATURATION_HEADROOM = 0.95  # Headroom for saturation output
+CLIPPING_THRESHOLD = 0.99   # Maximum peak level to prevent clipping
+RMS_WINDOW_MS = 10          # RMS detection window in milliseconds
+
+
 @dataclass
 class EQBand:
     """Single EQ band configuration."""
@@ -106,11 +112,11 @@ class TrackProcessor:
             processed = self.apply_gain(processed, config.output_gain_db)
         
         # 6. Final safety limiter to prevent clipping
-        # Soft clip any peaks above 0.99
+        # Soft clip any peaks above threshold
         peak = np.max(np.abs(processed))
-        if peak > 0.99:
+        if peak > CLIPPING_THRESHOLD:
             # Apply soft limiting
-            processed = processed * (0.99 / peak)
+            processed = processed * (CLIPPING_THRESHOLD / peak)
         
         return processed
     
@@ -139,11 +145,11 @@ class TrackProcessor:
         # Compensate gain to maintain approximate level
         # Since tanh(x) asymptotes to ±1, we need to scale output
         # to prevent clipping while maintaining musical saturation
-        compensation = 0.95 / np.tanh(drive)  # 0.95 to leave headroom
+        compensation = SATURATION_HEADROOM / np.tanh(drive)
         saturated = saturated * compensation
         
         # Final safety clip to ensure no clipping
-        saturated = np.clip(saturated, -0.99, 0.99)
+        saturated = np.clip(saturated, -CLIPPING_THRESHOLD, CLIPPING_THRESHOLD)
         
         return saturated
     
@@ -318,7 +324,7 @@ class TrackProcessor:
             detect = np.abs(audio)
         
         # RMS detection (more musical than peak)
-        window_size = int(0.01 * self.sample_rate)  # 10ms window
+        window_size = int(RMS_WINDOW_MS * self.sample_rate / 1000)
         if window_size > 0:
             # Simple moving average for RMS
             detect_squared = detect ** 2

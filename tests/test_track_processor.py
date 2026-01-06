@@ -496,7 +496,7 @@ class TestPresets:
         
         # Check for high-frequency cut
         has_high_cut = any(
-            band.band_type in ["high_shelf"] and band.gain_db < 0
+            band.band_type == "high_shelf" and band.gain_db < 0
             for band in config.eq_bands
         )
         assert has_high_cut
