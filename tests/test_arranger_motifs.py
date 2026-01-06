@@ -288,7 +288,7 @@ class TestGetSectionMotif:
         arrangement.motif_assignments["test_invert"] = MotifAssignment(
             motif_index=0,
             transformation="invert",
-            transform_params={"pivot": 0}
+            transform_params={}
         )
         
         motif = get_section_motif(arrangement, "test_invert")
@@ -313,7 +313,7 @@ class TestGetSectionMotif:
         arrangement.motif_assignments["test_retrograde"] = MotifAssignment(
             motif_index=0,
             transformation="retrograde",
-            transform_params=None
+            transform_params={}
         )
         
         motif = get_section_motif(arrangement, "test_retrograde")
@@ -361,10 +361,11 @@ class TestGetSectionMotif:
         )
         
         motif = get_section_motif(arrangement, "test_diminish")
+        base_motif = arrangement.motifs[0]
         
         assert motif is not None
-        # Diminish uses augment internally with 1/factor
-        assert "augmented" in motif.name.lower()
+        # Diminution should result in shorter durations
+        assert motif.get_total_duration() < base_motif.get_total_duration()
     
     def test_get_section_motif_sequence(self):
         """Test sequence transformation."""

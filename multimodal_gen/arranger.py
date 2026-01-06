@@ -284,74 +284,74 @@ class Arrangement:
 # Genre-specific motif mapping presets
 GENRE_MOTIF_MAPPINGS: Dict[str, Dict[str, MotifAssignment]] = {
     "pop": {
-        "intro": MotifAssignment(0, "original", None),
-        "verse": MotifAssignment(0, "original", None),
+        "intro": MotifAssignment(0, "original", {}),
+        "verse": MotifAssignment(0, "original", {}),
         "pre_chorus": MotifAssignment(0, "sequence", {"steps": 2}),
-        "chorus": MotifAssignment(1, "original", None),
-        "bridge": MotifAssignment(0, "invert", None),
-        "outro": MotifAssignment(0, "original", None),
+        "chorus": MotifAssignment(1, "original", {}),
+        "bridge": MotifAssignment(0, "invert", {}),
+        "outro": MotifAssignment(0, "original", {}),
     },
     "hip_hop": {
-        "intro": MotifAssignment(0, "original", None),
-        "verse": MotifAssignment(0, "original", None),
-        "hook": MotifAssignment(1, "original", None),
+        "intro": MotifAssignment(0, "original", {}),
+        "verse": MotifAssignment(0, "original", {}),
+        "hook": MotifAssignment(1, "original", {}),
         "bridge": MotifAssignment(0, "sequence", {"steps": -2}),
-        "outro": MotifAssignment(0, "original", None),
+        "outro": MotifAssignment(0, "original", {}),
     },
     "trap": {
         "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
-        "drop": MotifAssignment(0, "original", None),
-        "breakdown": MotifAssignment(0, "retrograde", None),
+        "drop": MotifAssignment(0, "original", {}),
+        "breakdown": MotifAssignment(0, "retrograde", {}),
         "buildup": MotifAssignment(0, "sequence", {"steps": 2}),
         "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
     },
     "trap_soul": {
         "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
-        "verse": MotifAssignment(0, "original", None),
-        "chorus": MotifAssignment(1, "original", None),
-        "breakdown": MotifAssignment(0, "invert", None),
-        "outro": MotifAssignment(0, "retrograde", None),
+        "verse": MotifAssignment(0, "original", {}),
+        "chorus": MotifAssignment(1, "original", {}),
+        "breakdown": MotifAssignment(0, "invert", {}),
+        "outro": MotifAssignment(0, "retrograde", {}),
     },
     "jazz": {
         "intro": MotifAssignment(0, "diminish", {"factor": 0.5}),
-        "head": MotifAssignment(0, "original", None),
-        "solo": MotifAssignment(0, "invert", None),
-        "bridge": MotifAssignment(1, "retrograde", None),
+        "head": MotifAssignment(0, "original", {}),
+        "solo": MotifAssignment(0, "invert", {}),
+        "bridge": MotifAssignment(1, "retrograde", {}),
         "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
     },
     "classical": {
-        "exposition": MotifAssignment(0, "original", None),
-        "development": MotifAssignment(0, "invert", None),
-        "recapitulation": MotifAssignment(0, "retrograde", None),
+        "exposition": MotifAssignment(0, "original", {}),
+        "development": MotifAssignment(0, "invert", {}),
+        "recapitulation": MotifAssignment(0, "retrograde", {}),
         "coda": MotifAssignment(0, "augment", {"factor": 2.0}),
     },
     "lofi": {
-        "intro": MotifAssignment(0, "original", None),
-        "verse": MotifAssignment(0, "original", None),
+        "intro": MotifAssignment(0, "original", {}),
+        "verse": MotifAssignment(0, "original", {}),
         "breakdown": MotifAssignment(0, "diminish", {"factor": 2.0}),
         "variation": MotifAssignment(0, "sequence", {"steps": 2}),
-        "outro": MotifAssignment(0, "retrograde", None),
+        "outro": MotifAssignment(0, "retrograde", {}),
     },
     "boom_bap": {
-        "intro": MotifAssignment(0, "original", None),
-        "verse": MotifAssignment(0, "original", None),
-        "chorus": MotifAssignment(1, "original", None),
-        "bridge": MotifAssignment(0, "invert", None),
-        "outro": MotifAssignment(0, "original", None),
+        "intro": MotifAssignment(0, "original", {}),
+        "verse": MotifAssignment(0, "original", {}),
+        "chorus": MotifAssignment(1, "original", {}),
+        "bridge": MotifAssignment(0, "invert", {}),
+        "outro": MotifAssignment(0, "original", {}),
     },
     "house": {
         "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
         "buildup": MotifAssignment(0, "sequence", {"steps": 2}),
-        "drop": MotifAssignment(0, "original", None),
-        "breakdown": MotifAssignment(1, "original", None),
+        "drop": MotifAssignment(0, "original", {}),
+        "breakdown": MotifAssignment(1, "original", {}),
         "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
     },
     "rnb": {
-        "intro": MotifAssignment(0, "original", None),
-        "verse": MotifAssignment(0, "original", None),
-        "chorus": MotifAssignment(1, "original", None),
-        "bridge": MotifAssignment(0, "invert", None),
-        "outro": MotifAssignment(0, "retrograde", None),
+        "intro": MotifAssignment(0, "original", {}),
+        "verse": MotifAssignment(0, "original", {}),
+        "chorus": MotifAssignment(1, "original", {}),
+        "bridge": MotifAssignment(0, "invert", {}),
+        "outro": MotifAssignment(0, "retrograde", {}),
     },
 }
 
@@ -822,7 +822,7 @@ def generate_arrangement_with_motifs(
         context = {
             'chord_type': 'minor7' if parsed.scale_type.name == 'MINOR' else 'major7',
             'scale': parsed.scale_type.name.lower(),
-            'mood': parsed.mood,
+            'mood': parsed.mood if hasattr(parsed, 'mood') and parsed.mood else 'neutral',
         }
         motif = generator.generate_motif(parsed.genre, context)
         # Rename for clarity
@@ -857,7 +857,7 @@ def generate_arrangement_with_motifs(
             assignment = MotifAssignment(
                 motif_index=0,
                 transformation="original",
-                transform_params=None
+                transform_params={}
             )
         
         # Ensure motif_index is valid
