@@ -223,9 +223,9 @@ class DynamicsEngine:
         elif shape == DynamicShape.SWELL:
             return curve_swell(position)
         elif shape == DynamicShape.FADE_IN:
-            return curve_crescendo(position)  # Same as crescendo for now
+            return curve_fade_in(position)
         elif shape == DynamicShape.FADE_OUT:
-            return curve_decrescendo(position)  # Same as decrescendo for now
+            return curve_fade_out(position)
         elif shape == DynamicShape.ACCENT_FIRST:
             return curve_accent_first(position)
         elif shape == DynamicShape.ACCENT_LAST:
@@ -236,8 +236,8 @@ class DynamicsEngine:
     def _is_downbeat(self, tick: int, beats_per_bar: int = 4) -> bool:
         """Check if tick falls on beat 1 of a bar."""
         ticks_per_bar = self.ticks_per_beat * beats_per_bar
-        # Allow some tolerance for slightly off-grid notes
-        tolerance = self.ticks_per_beat // 4
+        # Allow some tolerance for slightly off-grid notes (1/16th note)
+        tolerance = self.ticks_per_beat // 8
         return (tick % ticks_per_bar) < tolerance
     
     def _clamp_velocity(self, velocity: int, min_vel: int = 1, max_vel: int = 127) -> int:
@@ -270,6 +270,18 @@ def curve_accent_first(position: float) -> float:
 def curve_accent_last(position: float) -> float:
     """Build to strong final note."""
     return 0.7 + (position * 0.3)
+
+
+def curve_fade_in(position: float) -> float:
+    """Quick crescendo at start using exponential curve."""
+    # Exponential fade in: starts very soft, quickly builds
+    return 0.3 + 0.7 * (position ** 0.5)
+
+
+def curve_fade_out(position: float) -> float:
+    """Quick decrescendo at end using exponential curve."""
+    # Exponential fade out: starts strong, quickly decreases
+    return 1.0 - 0.7 * (position ** 2)
 
 
 # Genre presets
