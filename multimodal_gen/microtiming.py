@@ -10,6 +10,24 @@ from enum import Enum
 import random
 
 
+# =============================================================================
+# CONSTANTS
+# =============================================================================
+
+# Swing timing constants
+TRIPLET_SWING_DIVISOR = 3  # For converting swing to triplet feel (1/3 beat)
+
+# Push/pull timing constants
+PUSH_PULL_DIVISOR = 4  # Push/pull operates on 16th note level (1/4 beat)
+
+# Humanize timing constants
+HUMANIZE_VARIATION_DIVISOR = 8  # Max variation at 1/32nd note (1/8 beat)
+GAUSSIAN_STD_DEV_FACTOR = 3  # Standard deviations for Gaussian distribution
+
+# Offbeat detection constants
+OFFBEAT_TOLERANCE_DIVISOR = 8  # Tolerance for offbeat detection (1/16th note)
+
+
 class GrooveStyle(Enum):
     """Predefined groove timing styles."""
     STRAIGHT = "straight"      # Minimal swing, on-grid
@@ -98,7 +116,7 @@ class MicrotimingEngine:
             return notes
         
         # Calculate swing offset (max = 1/3 of a beat for full triplet swing)
-        max_swing_ticks = self.ticks_per_beat // 3
+        max_swing_ticks = self.ticks_per_beat // TRIPLET_SWING_DIVISOR
         swing_offset = int(max_swing_ticks * swing_amount)
         
         result = []
@@ -129,7 +147,7 @@ class MicrotimingEngine:
             return notes
         
         # Max push/pull = 1/16th note = ticks_per_beat / 4
-        max_shift = self.ticks_per_beat // 4
+        max_shift = self.ticks_per_beat // PUSH_PULL_DIVISOR
         # Negative amount = positive shift (later = behind)
         shift = int(-amount * max_shift)
         
@@ -154,13 +172,13 @@ class MicrotimingEngine:
             return notes
         
         # Random variation up to 1/32nd note at max randomness
-        max_variation = self.ticks_per_beat // 8
+        max_variation = self.ticks_per_beat // HUMANIZE_VARIATION_DIVISOR
         
         result = []
         for tick, duration, pitch, velocity in notes:
             # Use Gaussian distribution for more natural variation
             # Standard deviation = max_variation / 3 so 99.7% of values within max_variation
-            variation = int(random.gauss(0, randomness * max_variation / 3))
+            variation = int(random.gauss(0, randomness * max_variation / GAUSSIAN_STD_DEV_FACTOR))
             new_tick = tick + variation
             result.append((new_tick, duration, pitch, velocity))
         
@@ -176,7 +194,7 @@ class MicrotimingEngine:
         """
         position_in_beat = tick % self.ticks_per_beat
         half_beat = self.ticks_per_beat // 2
-        tolerance = self.ticks_per_beat // 8  # Allow some slop (1/16th note)
+        tolerance = self.ticks_per_beat // OFFBEAT_TOLERANCE_DIVISOR  # Allow some slop (1/16th note)
         
         return abs(position_in_beat - half_beat) < tolerance
     

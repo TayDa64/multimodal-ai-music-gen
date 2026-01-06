@@ -1,7 +1,7 @@
 """
 Unit tests for Microtiming Engine
 
-Tests the microtiming classes and ensure genre-appropriate timing variations.
+Tests the microtiming classes and ensures genre-appropriate timing variations.
 """
 
 import pytest
@@ -332,10 +332,12 @@ class TestGrooveStyle:
             assert hasattr(GrooveStyle, style_name)
     
     def test_groove_style_values(self):
-        """Groove style values should be lowercase strings."""
+        """Groove style values should be lowercase strings or snake_case."""
         for style in GrooveStyle:
             assert isinstance(style.value, str)
-            assert style.value.islower() or '_' in style.value
+            # Check that value is either lowercase or snake_case (lowercase with underscores)
+            is_valid = style.value.replace('_', '').islower()
+            assert is_valid, f"Style value '{style.value}' should be lowercase or snake_case"
 
 
 class TestMicrotimingConfig:
