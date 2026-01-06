@@ -88,21 +88,23 @@ class DrumHumanizer:
         # Get instrument pitches from config
         instrument_pitches = set()
         for inst_name in config.instruments:
-            if inst_name in DRUM_MIDI_MAP:
+            # Check if it's a group name
+            if inst_name in INSTRUMENT_GROUPS:
+                for drum in INSTRUMENT_GROUPS[inst_name]:
+                    if drum in DRUM_MIDI_MAP:
+                        instrument_pitches.add(DRUM_MIDI_MAP[drum])
+            # Otherwise check if it's a direct drum name
+            elif inst_name in DRUM_MIDI_MAP:
                 instrument_pitches.add(DRUM_MIDI_MAP[inst_name])
-            elif inst_name == "snare":
-                instrument_pitches.update([DRUM_MIDI_MAP["snare"], DRUM_MIDI_MAP["snare_rim"]])
-            elif inst_name == "hihat":
-                instrument_pitches.update([
-                    DRUM_MIDI_MAP["hihat_closed"],
-                    DRUM_MIDI_MAP["hihat_open"],
-                    DRUM_MIDI_MAP["hihat_pedal"]
-                ])
         
         # Get avoid pitches
         avoid_pitches = set()
         for inst_name in config.avoid_instruments:
-            if inst_name in DRUM_MIDI_MAP:
+            if inst_name in INSTRUMENT_GROUPS:
+                for drum in INSTRUMENT_GROUPS[inst_name]:
+                    if drum in DRUM_MIDI_MAP:
+                        avoid_pitches.add(DRUM_MIDI_MAP[drum])
+            elif inst_name in DRUM_MIDI_MAP:
                 avoid_pitches.add(DRUM_MIDI_MAP[inst_name])
         
         # Sort notes by time
@@ -210,6 +212,11 @@ class DrumHumanizer:
         if not available_pitches:
             return []
         
+        # Pre-compute available toms for efficient selection
+        available_pitches_set = set(available_pitches)
+        available_toms = [DRUM_MIDI_MAP[tom] for tom in ["tom_high", "tom_mid", "tom_low", "tom_floor"]
+                          if DRUM_MIDI_MAP[tom] in available_pitches_set]
+        
         # Generate fill notes
         fill_notes = []
         min_vel, max_vel = config.velocity_range
@@ -228,16 +235,10 @@ class DrumHumanizer:
             tick = max(0, min(duration_ticks - 1, base_tick + variation))
             
             # Select instrument (favor snare and toms for fills)
-            if random.random() < 0.6 and DRUM_MIDI_MAP["snare"] in available_pitches:
+            if random.random() < 0.6 and DRUM_MIDI_MAP["snare"] in available_pitches_set:
                 pitch = DRUM_MIDI_MAP["snare"]
-            elif random.random() < 0.3 and "tom_high" in [k for k in DRUM_MIDI_MAP.keys() if DRUM_MIDI_MAP[k] in available_pitches]:
-                # Pick a tom
-                toms = [DRUM_MIDI_MAP[k] for k in ["tom_high", "tom_mid", "tom_low", "tom_floor"] 
-                        if k in DRUM_MIDI_MAP and DRUM_MIDI_MAP[k] in available_pitches]
-                if toms:
-                    pitch = random.choice(toms)
-                else:
-                    pitch = random.choice(available_pitches)
+            elif random.random() < 0.3 and available_toms:
+                pitch = random.choice(available_toms)
             else:
                 pitch = random.choice(available_pitches)
             
@@ -390,6 +391,14 @@ DRUM_MIDI_MAP = {
 }
 
 
+# Instrument group mappings for convenience
+INSTRUMENT_GROUPS = {
+    "snare": ["snare", "snare_rim"],
+    "hihat": ["hihat_closed", "hihat_open", "hihat_pedal"],
+    "tom": ["tom_high", "tom_mid", "tom_low", "tom_floor"],
+}
+
+
 # Convenience function
 def add_ghost_notes(
     drum_track: List[Tuple[int, int, int, int]],
@@ -413,7 +422,9 @@ def add_ghost_notes(
     config = humanizer.get_genre_ghost_config(genre)
     
     if density is not None:
-        config.density = density
+        # Create a copy to avoid modifying the shared preset
+        from dataclasses import replace
+        config = replace(config, density=density)
     
     return humanizer.add_ghost_notes(drum_track, config, seed)
 
@@ -438,7 +449,10 @@ def generate_fill(
     """
     humanizer = DrumHumanizer()
     config = humanizer.get_genre_fill_config(genre)
-    config.energy = energy
+    
+    # Create a copy to avoid modifying the shared preset
+    from dataclasses import replace
+    config = replace(config, energy=energy)
     
     return humanizer.generate_fill(genre, duration_beats, config, seed)
 
