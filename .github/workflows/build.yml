@@ -78,7 +78,7 @@ jobs:
         if-no-files-found: warn
 
   juce-build-macos:
-    runs-on: macos-latest
+    runs-on: macos-13  # Use macOS 13 (Ventura) for JUCE 7.0.9 compatibility (macOS 15 deprecated CGWindowListCreateImage)
     
     steps:
     - uses: actions/checkout@v4
