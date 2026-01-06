@@ -26,10 +26,15 @@ TrackLaneContent::TrackLaneContent(int index, mmg::AudioEngine& engine)
     pianoRoll->soloTrack(trackIndex);  // Show only this track's notes
     pianoRoll->setEmbeddedMode(true);  // Hide track selector - redundant in arrangement view
     pianoRoll->setMinimumDuration(600.0);  // 10 minutes minimum playable area
+    pianoRoll->addListener(this);  // Listen for zoom requests
     addAndMakeVisible(*pianoRoll);
 }
 
-TrackLaneContent::~TrackLaneContent() = default;
+TrackLaneContent::~TrackLaneContent()
+{
+    if (pianoRoll)
+        pianoRoll->removeListener(this);
+}
 
 void TrackLaneContent::setTrackIndex(int index)
 {
@@ -76,6 +81,13 @@ void TrackLaneContent::setScrollX(double scroll)
     if (pianoRoll)
         pianoRoll->setScrollX(scroll);
     repaint();
+}
+
+void TrackLaneContent::pianoRollHorizontalZoomRequested(float newZoom)
+{
+    // Forward zoom request to parent ArrangementView via callback
+    if (onZoomRequested)
+        onZoomRequested(newZoom);
 }
 
 void TrackLaneContent::paint(juce::Graphics& g)
@@ -524,9 +536,13 @@ void ArrangementView::syncScrollFromViewport()
     float pixelsPerSecond = 100.0f * hZoom;
     scrollX = lanesViewport.getViewPositionX() / pixelsPerSecond;
     
-    // Sync all track lane piano rolls
-    for (auto* lane : trackLanes)
-        lane->setScrollX(scrollX);
+    // NOTE: We do NOT sync scrollX to embedded PianoRolls because the viewport
+    // already handles visual scrolling. Setting scrollX on embedded PianoRolls
+    // would cause double-scrolling and misalignment with the timeline ruler.
+    // The PianoRolls draw from time=0 at x=0, and the viewport clips/translates.
+    
+    // Repaint timeline ruler to stay in sync
+    repaint();
 }
 
 //==============================================================================
@@ -550,6 +566,11 @@ void ArrangementView::syncTrackLanes()
         int midiTrackIndex = laneIndex + 1;  // Offset by 1 to skip metadata track
         
         auto* lane = trackLanes.add(new TrackLaneContent(midiTrackIndex, audioEngine));
+        
+        // Wire up zoom callback for synchronized zooming across all tracks
+        lane->onZoomRequested = [this](float newZoom) {
+            setHorizontalZoom(newZoom);  // This will sync all lanes + timeline
+        };
         
         if (projectState)
             lane->setProjectState(projectState);
@@ -631,55 +652,76 @@ void ArrangementView::drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> 
     g.drawLine((float)bounds.getX(), (float)bounds.getBottom(),
                (float)bounds.getRight(), (float)bounds.getBottom());
     
-    // Time markers
+    // Bar numbers only - grid lines are drawn in paintOverChildren for perfect alignment
     double secondsPerBeat = 60.0 / currentBPM;
     double secondsPerBar = secondsPerBeat * 4.0;
     float pixelsPerSecond = 100.0f * hZoom;
+    int viewportScrollX = lanesViewport.getViewPositionX();
     
-    // Get current scroll position from viewport (synced with track lanes)
-    double scrollOffset = lanesViewport.getViewPositionX() / pixelsPerSecond;
+    g.setFont(11.0f);
     
-    g.setFont(10.0f);
-    
-    // Draw bar numbers and beat markers with bar.beat format
-    for (double time = 0.0; time < 600.0; time += secondsPerBeat)
+    // Draw bar numbers
+    for (double time = 0.0; time < 600.0; time += secondsPerBar)
     {
-        float x = bounds.getX() + (float)((time - scrollOffset) * pixelsPerSecond);
+        float x = bounds.getX() + (float)(time * pixelsPerSecond) - viewportScrollX;
         
         if (x < bounds.getX() - 50 || x > bounds.getRight() + 50)
             continue;
         
         int bar, beat, tick;
         timeToBarBeat(time, bar, beat, tick);
-        bool isBar = (beat == 1 && tick == 0);
+        
+        // Bar number
+        g.setColour(ThemeManager::getCurrentScheme().text);
+        g.drawText(juce::String(bar), 
+                  (int)x + 4, bounds.getY(), 40, bounds.getHeight(),
+                  juce::Justification::centredLeft);
+    }
+}
+
+void ArrangementView::paintOverChildren(juce::Graphics& g)
+{
+    // Draw unified grid lines that extend from timeline through ALL track lanes
+    // This ensures perfect alignment - ONE source of truth for grid positions
+    
+    double secondsPerBeat = 60.0 / currentBPM;
+    double secondsPerBar = secondsPerBeat * 4.0;
+    float pixelsPerSecond = 100.0f * hZoom;
+    int viewportScrollX = lanesViewport.getViewPositionX();
+    
+    // Grid area: from timeline ruler through track lanes
+    auto gridArea = getLocalBounds();
+    gridArea.removeFromLeft(trackListWidth);  // Start after track list
+    int rulerTop = 0;
+    int lanesBottom = gridArea.getBottom();
+    
+    // Draw grid lines
+    for (double time = 0.0; time < 600.0; time += secondsPerBeat)
+    {
+        float x = gridArea.getX() + (float)(time * pixelsPerSecond) - viewportScrollX;
+        
+        if (x < gridArea.getX() - 2 || x > gridArea.getRight() + 2)
+            continue;
+        
+        int bar, beat, tick;
+        timeToBarBeat(time, bar, beat, tick);
+        bool isBar = (beat == 0 && tick == 0);
         
         if (isBar)
         {
-            // Bar marker - thicker line and bar number
-            g.setColour(ThemeManager::getCurrentScheme().text);
-            g.drawVerticalLine((int)x, (float)bounds.getY() + 12, (float)bounds.getBottom());
-            
-            // Bar number (format: "1" for bar 1, or "1.1" to show bar.beat)
-            g.setFont(11.0f);
-            g.drawText(juce::String(bar), 
-                      (int)x + 3, bounds.getY(), 40, 14,
-                      juce::Justification::centredLeft);
+            // Bar line - thicker, more visible, extends full height
+            g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.8f));
+            g.drawLine(x, (float)rulerTop + 14, x, (float)lanesBottom, 2.0f);  // 2px thick
         }
         else
         {
-            // Beat marker - short tick with beat number at higher zoom
-            g.setColour(ThemeManager::getCurrentScheme().textSecondary.withAlpha(0.5f));
-            g.drawVerticalLine((int)x, (float)bounds.getBottom() - 8, (float)bounds.getBottom());
+            // Beat line - thinner, extends only through track lanes
+            g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.25f));
+            g.drawVerticalLine((int)x, (float)rulerHeight, (float)lanesBottom);
             
-            // Show beat numbers when zoomed in enough
-            if (hZoom >= 0.8f)
-            {
-                g.setFont(8.0f);
-                g.setColour(ThemeManager::getCurrentScheme().textSecondary.withAlpha(0.6f));
-                g.drawText(juce::String(bar) + "." + juce::String(beat), 
-                          (int)x + 2, bounds.getY() + 16, 25, 10,
-                          juce::Justification::centredLeft);
-            }
+            // Small tick mark in ruler area
+            g.setColour(ThemeManager::getCurrentScheme().textSecondary.withAlpha(0.4f));
+            g.drawVerticalLine((int)x, (float)rulerHeight - 6, (float)rulerHeight);
         }
     }
 }
@@ -690,7 +732,7 @@ void ArrangementView::timeToBarBeat(double timeSeconds, int& bar, int& beat, int
 {
     if (currentBPM <= 0)
     {
-        bar = 1; beat = 1; tick = 0;
+        bar = 0; beat = 0; tick = 0;
         return;
     }
     
@@ -698,8 +740,8 @@ void ArrangementView::timeToBarBeat(double timeSeconds, int& bar, int& beat, int
     double beatsTotal = timeSeconds / secondsPerBeat;
     
     int beatsInt = (int)beatsTotal;
-    bar = (beatsInt / 4) + 1;  // 4/4 time signature
-    beat = (beatsInt % 4) + 1;
+    bar = beatsInt / 4;  // 4/4 time signature, 0-indexed
+    beat = beatsInt % 4;  // 0-indexed beats (0-3)
     tick = (int)((beatsTotal - beatsInt) * 480);  // 480 ticks per beat (standard MIDI)
 }
 

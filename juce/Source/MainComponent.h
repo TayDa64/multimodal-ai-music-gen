@@ -219,7 +219,7 @@ private:
     bool serverConnected = false;
     float currentProgress = 0.0f;
     juce::String currentStatus = "Ready";
-    juce::String currentGenre = "trap";  // Default genre (synced with GenreSelector)
+    juce::String currentGenre = "auto";  // Default genre (synced with GenreSelector)
     bool initialInstrumentsRequested = false;
     AnalyzeResult lastAnalyzeResult;  // Store last analysis for Apply action
     

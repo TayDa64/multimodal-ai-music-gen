@@ -128,9 +128,13 @@ void PianoRollComponent::syncNotesFromState()
     
     updateTrackList();
     
-    // In embedded mode, auto-zoom to fit the notes for this track
-    if (embeddedMode)
+    // In embedded mode, auto-zoom to fit the notes for this track ONLY on initial load
+    // Don't auto-zoom when user adds/modifies notes (they may have zoomed in to edit)
+    if (embeddedMode && !hasInitialZoom)
+    {
         zoomToFit();
+        hasInitialZoom = true;
+    }
     
     repaint();
 }
@@ -139,6 +143,9 @@ void PianoRollComponent::syncNotesFromState()
 void PianoRollComponent::loadMidiFile(const juce::File& midiFile)
 {
     DBG("PianoRollComponent::loadMidiFile - projectState=" << juce::String::toHexString((juce::pointer_sized_int)projectState));
+    
+    // Reset initial zoom flag so we zoom to fit on new file
+    hasInitialZoom = false;
     
     // Legacy support - import into project state if available
     if (projectState)
@@ -479,6 +486,11 @@ void PianoRollComponent::drawTimeRuler(juce::Graphics& g)
 {
     int keyWidth = getEffectiveKeyWidth();
     int rulerHeight = getEffectiveRulerHeight();
+    
+    // Skip drawing ruler in embedded mode - ArrangementView has its own timeline ruler
+    if (rulerHeight <= 0)
+        return;
+    
     auto rulerBounds = getLocalBounds().removeFromTop(rulerHeight);
     
     // Background
@@ -513,7 +525,7 @@ void PianoRollComponent::drawTimeRuler(juce::Graphics& g)
         // Calculate bar and beat numbers
         int bar, beat, tick;
         timeToBarBeat(time, bar, beat, tick);
-        bool isBar = (beat == 1 && tick == 0);
+        bool isBar = (beat == 0 && tick == 0);
         
         if (isBar)
         {
@@ -597,15 +609,21 @@ void PianoRollComponent::drawPianoKeys(juce::Graphics& g)
 
 void PianoRollComponent::drawGridLines(juce::Graphics& g)
 {
+    // In embedded mode, ArrangementView draws the unified grid lines
+    // to ensure perfect alignment between timeline ruler and track lanes
+    if (embeddedMode)
+        return;
+    
     int keyWidth = getEffectiveKeyWidth();
     auto noteArea = getLocalBounds().withTrimmedLeft(keyWidth);
     if (currentBPM <= 0) return;
     
     double secondsPerBeat = 60.0 / currentBPM;
     double secondsPerBar = secondsPerBeat * 4.0;
+    float pixelsPerSecond = 100.0f * hZoom;
     
     double startTime = juce::jmax(0.0, scrollX);
-    double endTime = scrollX + noteArea.getWidth() / (100.0f * hZoom);
+    double endTime = scrollX + noteArea.getWidth() / pixelsPerSecond;
     
     g.setColour(AppColours::border.withAlpha(0.3f));
     for (double time = 0.0; time <= totalDuration; time += secondsPerBeat)
@@ -821,12 +839,16 @@ void PianoRollComponent::drawNoteTooltip(juce::Graphics& g)
 //==============================================================================
 float PianoRollComponent::timeToX(double timeSeconds) const
 {
-    return (float)getEffectiveKeyWidth() + (float)((timeSeconds - scrollX) * 100.0 * hZoom);
+    // In embedded mode, parent viewport handles scrolling, so don't subtract scrollX
+    double effectiveScroll = embeddedMode ? 0.0 : scrollX;
+    return (float)getEffectiveKeyWidth() + (float)((timeSeconds - effectiveScroll) * 100.0 * hZoom);
 }
 
 double PianoRollComponent::xToTime(float x) const
 {
-    return scrollX + (x - getEffectiveKeyWidth()) / (100.0 * hZoom);
+    // In embedded mode, parent viewport handles scrolling, so don't add scrollX
+    double effectiveScroll = embeddedMode ? 0.0 : scrollX;
+    return effectiveScroll + (x - getEffectiveKeyWidth()) / (100.0 * hZoom);
 }
 
 float PianoRollComponent::noteToY(int noteNumber) const
@@ -849,7 +871,7 @@ void PianoRollComponent::timeToBarBeat(double timeSeconds, int& bar, int& beat, 
 {
     if (currentBPM <= 0)
     {
-        bar = 1; beat = 1; tick = 0;
+        bar = 0; beat = 0; tick = 0;
         return;
     }
     
@@ -857,8 +879,8 @@ void PianoRollComponent::timeToBarBeat(double timeSeconds, int& bar, int& beat, 
     double beatsTotal = timeSeconds / secondsPerBeat;
     
     int beatsInt = (int)beatsTotal;
-    bar = (beatsInt / 4) + 1;  // 4/4 time signature
-    beat = (beatsInt % 4) + 1;
+    bar = beatsInt / 4;  // 4/4 time signature, 0-indexed
+    beat = beatsInt % 4;  // 0-indexed beats (0-3)
     tick = (int)((beatsTotal - beatsInt) * 480);  // 480 ticks per beat (standard MIDI)
 }
 
@@ -1200,14 +1222,26 @@ void PianoRollComponent::mouseMove(const juce::MouseEvent& event)
 
 void PianoRollComponent::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
-    if (event.mods.isShiftDown())
+    if (event.mods.isCtrlDown() || event.mods.isCommandDown())
     {
+        // Ctrl+scroll = horizontal zoom (time axis) - consistent with ArrangementView
         float zoomFactor = wheel.deltaY > 0 ? 1.15f : 0.87f;
-        hZoom = juce::jlimit(0.1f, 10.0f, hZoom * zoomFactor);
-        repaint();
+        float newZoom = juce::jlimit(0.1f, 10.0f, hZoom * zoomFactor);
+        
+        if (embeddedMode)
+        {
+            // In embedded mode, request parent to handle zoom for synchronization
+            listeners.call(&PianoRollComponent::Listener::pianoRollHorizontalZoomRequested, newZoom);
+        }
+        else
+        {
+            hZoom = newZoom;
+            repaint();
+        }
     }
-    else if (event.mods.isCtrlDown() || event.mods.isCommandDown())
+    else if (event.mods.isShiftDown())
     {
+        // Shift+scroll = vertical zoom (note height)
         float zoomFactor = wheel.deltaY > 0 ? 1.15f : 0.87f;
         vZoom = juce::jlimit(0.5f, 4.0f, vZoom * zoomFactor);
         repaint();

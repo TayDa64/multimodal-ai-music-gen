@@ -30,7 +30,8 @@ namespace UI
 /**
     Track lane component - contains piano roll or waveform for a single track.
 */
-class TrackLaneContent : public juce::Component
+class TrackLaneContent : public juce::Component,
+                         public PianoRollComponent::Listener
 {
 public:
     TrackLaneContent(int trackIndex, mmg::AudioEngine& engine);
@@ -46,8 +47,14 @@ public:
     void setHorizontalZoom(float zoom);
     void setScrollX(double scrollX);
     
+    // Callback for zoom requests from embedded PianoRoll
+    std::function<void(float)> onZoomRequested;
+    
     void paint(juce::Graphics& g) override;
     void resized() override;
+    
+    // PianoRollComponent::Listener
+    void pianoRollHorizontalZoomRequested(float newZoom) override;
     
 private:
     int trackIndex = 0;
@@ -130,6 +137,7 @@ public:
     
     //==============================================================================
     void paint(juce::Graphics& g) override;
+    void paintOverChildren(juce::Graphics& g) override;  // Draw unified grid lines
     void resized() override;
     void mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel) override;
     void mouseDown(const juce::MouseEvent& event) override;

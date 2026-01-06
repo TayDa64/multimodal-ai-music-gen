@@ -189,8 +189,8 @@ void MainComponent::setupBottomPanel()
     expansionBrowser->addListener(this);
     takeLanePanel->addListener(this);
     
-    // Use auto-detect genre by default - let AI determine from prompt
-    // genreSelector->setSelectedGenre("auto"); // Already defaults to auto in loadDefaults()
+    // Sync currentGenre from GenreSelector's initial state (defaults to "auto")
+    currentGenre = genreSelector->getSelectedGenreId();
     
     // Request initial instrument data
     if (instrumentBrowser)
@@ -483,9 +483,15 @@ void MainComponent::paint(juce::Graphics& g)
     g.setColour(connectionColour);
     g.drawText(connectionText, statusArea.removeFromLeft(400), juce::Justification::left);
     
-    // Current genre indicator (center)
+    // Current genre indicator (center) - show display name from GenreSelector
     g.setColour(AppColours::textSecondary);
-    g.drawText("Genre: " + currentGenre, statusArea.reduced(100, 0), juce::Justification::centred);
+    juce::String genreDisplay = currentGenre;
+    if (genreSelector)
+    {
+        if (auto* tmpl = genreSelector->getSelectedGenre())
+            genreDisplay = tmpl->displayName;
+    }
+    g.drawText("Genre: " + genreDisplay, statusArea.reduced(100, 0), juce::Justification::centred);
     
     // Current activity status (right side)
     g.setColour(AppColours::textSecondary);

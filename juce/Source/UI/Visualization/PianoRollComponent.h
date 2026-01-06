@@ -143,6 +143,7 @@ public:
         virtual ~Listener() = default;
         virtual void pianoRollNoteHovered(const MidiNoteEvent* note) {}
         virtual void pianoRollSeekRequested(double positionSeconds) {}
+        virtual void pianoRollHorizontalZoomRequested(float newZoom) {}  // For embedded mode sync
     };
     
     void addListener(Listener* listener);
@@ -221,7 +222,7 @@ private:
     int getEffectiveKeyWidth() const { return embeddedMode ? 0 : pianoKeyWidth; }
     
     // Get effective ruler height (shows in all modes for bar:beat display)
-    int getEffectiveRulerHeight() const { return timeRulerHeight; }
+    int getEffectiveRulerHeight() const { return embeddedMode ? 0 : timeRulerHeight; }
     
     // Note range
     static constexpr int minNote = 21;   // A0
@@ -260,6 +261,9 @@ private:
     // Note visualization options
     bool showReleaseTails = true;  // Show note release/decay tails
     static constexpr double defaultReleaseTime = 0.1;  // 100ms default release
+    
+    // Auto-zoom control - only zoom on initial load, not on incremental changes
+    bool hasInitialZoom = false;
     
     // Generate track colors
     void assignTrackColors(int numTracks);
