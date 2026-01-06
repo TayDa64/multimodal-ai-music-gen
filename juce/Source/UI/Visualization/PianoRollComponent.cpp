@@ -265,6 +265,12 @@ void PianoRollComponent::setHorizontalZoom(float zoom)
     repaint();
 }
 
+void PianoRollComponent::setScrollX(double scrollSeconds)
+{
+    scrollX = juce::jmax(0.0, scrollSeconds);
+    repaint();
+}
+
 void PianoRollComponent::setMinimumDuration(double seconds)
 {
     minimumDuration = seconds;
@@ -427,6 +433,7 @@ void PianoRollComponent::updateTrackList()
 void PianoRollComponent::paint(juce::Graphics& g)
 {
     drawBackground(g);
+    drawTimeRuler(g);   // Bar:Beat timeline ruler at top
     drawGridLines(g);
     drawLoopRegion(g);  // Draw loop region behind notes
     drawNotes(g);
@@ -449,7 +456,8 @@ void PianoRollComponent::drawBackground(juce::Graphics& g)
     g.fillAll(AppColours::background);
     
     int keyWidth = getEffectiveKeyWidth();
-    auto noteArea = getLocalBounds().withTrimmedLeft(keyWidth);
+    int rulerHeight = getEffectiveRulerHeight();
+    auto noteArea = getLocalBounds().withTrimmedLeft(keyWidth).withTrimmedTop(rulerHeight);
     float noteHeight = whiteKeyHeight * vZoom;
     int visibleNotes = (int)(getHeight() / noteHeight) + 2;
     int startNote = scrollY - visibleNotes / 2;
@@ -467,9 +475,82 @@ void PianoRollComponent::drawBackground(juce::Graphics& g)
     }
 }
 
+void PianoRollComponent::drawTimeRuler(juce::Graphics& g)
+{
+    int keyWidth = getEffectiveKeyWidth();
+    int rulerHeight = getEffectiveRulerHeight();
+    auto rulerBounds = getLocalBounds().removeFromTop(rulerHeight);
+    
+    // Background
+    g.setColour(AppColours::surface.darker(0.1f));
+    g.fillRect(rulerBounds);
+    
+    // Border at bottom
+    g.setColour(AppColours::border);
+    g.drawHorizontalLine(rulerBounds.getBottom() - 1, (float)rulerBounds.getX(), (float)rulerBounds.getRight());
+    
+    if (currentBPM <= 0) return;
+    
+    double secondsPerBeat = 60.0 / currentBPM;
+    double secondsPerBar = secondsPerBeat * 4.0;  // Assume 4/4 time
+    
+    // Calculate visible time range
+    double startTime = juce::jmax(0.0, scrollX);
+    double endTime = scrollX + getWidth() / (100.0f * hZoom);
+    
+    // Draw bar and beat markers
+    g.setFont(10.0f);
+    
+    for (double time = 0.0; time <= totalDuration + secondsPerBar; time += secondsPerBeat)
+    {
+        if (time < startTime - secondsPerBar || time > endTime + secondsPerBar)
+            continue;
+        
+        float x = timeToX(time);
+        if (x < keyWidth || x > getWidth())
+            continue;
+        
+        // Calculate bar and beat numbers
+        int bar, beat, tick;
+        timeToBarBeat(time, bar, beat, tick);
+        bool isBar = (beat == 1 && tick == 0);
+        
+        if (isBar)
+        {
+            // Bar marker - tall line with bar number
+            g.setColour(AppColours::textPrimary);
+            g.drawVerticalLine((int)x, (float)rulerBounds.getY() + 10, (float)rulerBounds.getBottom());
+            
+            // Bar number
+            g.drawText(juce::String(bar), 
+                      (int)x + 3, rulerBounds.getY(), 30, rulerHeight,
+                      juce::Justification::centredLeft);
+        }
+        else
+        {
+            // Beat marker - short line
+            g.setColour(AppColours::textSecondary.withAlpha(0.5f));
+            g.drawVerticalLine((int)x, (float)rulerBounds.getBottom() - 6, (float)rulerBounds.getBottom());
+        }
+    }
+    
+    // Draw current position in bar:beat format at left side
+    if (!embeddedMode)
+    {
+        juce::String timeStr = formatBarBeat(playheadPosition);
+        g.setColour(AppColours::accent);
+        g.setFont(11.0f);
+        auto textBounds = rulerBounds.removeFromLeft(keyWidth);
+        g.fillRect(textBounds);
+        g.setColour(AppColours::textPrimary);
+        g.drawText(timeStr, textBounds.reduced(4, 0), juce::Justification::centred);
+    }
+}
+
 void PianoRollComponent::drawPianoKeys(juce::Graphics& g)
 {
-    auto keyArea = getLocalBounds().removeFromLeft(pianoKeyWidth);
+    int rulerHeight = getEffectiveRulerHeight();
+    auto keyArea = getLocalBounds().removeFromLeft(pianoKeyWidth).withTrimmedTop(rulerHeight);
     g.setColour(AppColours::surfaceAlt);
     g.fillRect(keyArea);
     
@@ -713,8 +794,10 @@ void PianoRollComponent::drawNoteTooltip(juce::Graphics& g)
 {
     if (hoveredNote == nullptr) return;
     
+    // Build tooltip with note info and bar:beat position
     juce::String text = MidiNoteEvent::getNoteName(hoveredNote->noteNumber);
     text += " | Vel: " + juce::String(hoveredNote->velocity);
+    text += " | " + formatBarBeat(hoveredNote->startTime);
     text += " | " + juce::String(hoveredNote->getDuration() * 1000.0, 0) + "ms";
     
     g.setFont(12.0f);
@@ -758,6 +841,34 @@ int PianoRollComponent::yToNote(float y) const
     float noteHeight = whiteKeyHeight * vZoom;
     int noteOffset = (int)((getHeight() / 2.0f - y) / noteHeight);
     return scrollY + noteOffset;
+}
+
+//==============================================================================
+// Time formatting helpers
+void PianoRollComponent::timeToBarBeat(double timeSeconds, int& bar, int& beat, int& tick) const
+{
+    if (currentBPM <= 0)
+    {
+        bar = 1; beat = 1; tick = 0;
+        return;
+    }
+    
+    double secondsPerBeat = 60.0 / currentBPM;
+    double beatsTotal = timeSeconds / secondsPerBeat;
+    
+    int beatsInt = (int)beatsTotal;
+    bar = (beatsInt / 4) + 1;  // 4/4 time signature
+    beat = (beatsInt % 4) + 1;
+    tick = (int)((beatsTotal - beatsInt) * 480);  // 480 ticks per beat (standard MIDI)
+}
+
+juce::String PianoRollComponent::formatBarBeat(double timeSeconds) const
+{
+    int bar, beat, tick;
+    timeToBarBeat(timeSeconds, bar, beat, tick);
+    
+    // Format as "Bar.Beat.Tick" like Cubase/DAWs
+    return juce::String(bar) + "." + juce::String(beat) + "." + juce::String(tick).paddedLeft('0', 3);
 }
 
 MidiNoteEvent* PianoRollComponent::getNoteAt(juce::Point<float> position)

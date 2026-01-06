@@ -186,8 +186,13 @@ private:
     
     void syncTrackLanes();
     void updateLanesLayout();
+    void syncScrollFromViewport();  // Sync scrollX from viewport position
     void drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> bounds);
     void showContextMenu(const juce::MouseEvent& event);
+    
+    // Time formatting helpers
+    void timeToBarBeat(double timeSeconds, int& bar, int& beat, int& tick) const;
+    juce::String formatBarBeat(double timeSeconds) const;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ArrangementView)
 };

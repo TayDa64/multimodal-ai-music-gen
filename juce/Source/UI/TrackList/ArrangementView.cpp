@@ -73,7 +73,8 @@ void TrackLaneContent::setHorizontalZoom(float zoom)
 void TrackLaneContent::setScrollX(double scroll)
 {
     scrollPosX = scroll;
-    // Piano roll handles its own scroll internally
+    if (pianoRoll)
+        pianoRoll->setScrollX(scroll);
     repaint();
 }
 
@@ -128,8 +129,9 @@ ArrangementView::ArrangementView(mmg::AudioEngine& engine)
     lanesViewport.setScrollBarsShown(true, true);
     addAndMakeVisible(lanesViewport);
     
-    // Set up scroll bar listeners for synchronization
+    // Set up scroll bar listeners for synchronization (vertical + horizontal)
     lanesViewport.getVerticalScrollBar().addListener(this);
+    lanesViewport.getHorizontalScrollBar().addListener(this);
     trackList.getViewport().getVerticalScrollBar().addListener(this);
     
     // Create initial track lanes
@@ -140,6 +142,7 @@ ArrangementView::~ArrangementView()
 {
     // Remove scroll bar listeners
     lanesViewport.getVerticalScrollBar().removeListener(this);
+    lanesViewport.getHorizontalScrollBar().removeListener(this);
     trackList.getViewport().getVerticalScrollBar().removeListener(this);
     
     if (projectState)
@@ -490,7 +493,7 @@ void ArrangementView::scrollBarMoved(juce::ScrollBar* scrollBar, double newRange
     // Determine which viewport was scrolled and sync the other
     if (scrollBar == &lanesViewport.getVerticalScrollBar())
     {
-        // Lanes viewport was scrolled - sync track list
+        // Lanes viewport was scrolled vertically - sync track list
         trackList.getViewport().setViewPosition(
             trackList.getViewport().getViewPositionX(),
             (int)newRangeStart
@@ -504,8 +507,26 @@ void ArrangementView::scrollBarMoved(juce::ScrollBar* scrollBar, double newRange
             (int)newRangeStart
         );
     }
+    else if (scrollBar == &lanesViewport.getHorizontalScrollBar())
+    {
+        // Horizontal scroll changed - update scrollX and sync track lanes
+        syncScrollFromViewport();
+    }
     
     isSyncingScroll = false;
+    
+    // Repaint to update timeline ruler
+    repaint();
+}
+
+void ArrangementView::syncScrollFromViewport()
+{
+    float pixelsPerSecond = 100.0f * hZoom;
+    scrollX = lanesViewport.getViewPositionX() / pixelsPerSecond;
+    
+    // Sync all track lane piano rolls
+    for (auto* lane : trackLanes)
+        lane->setScrollX(scrollX);
 }
 
 //==============================================================================
@@ -615,12 +636,12 @@ void ArrangementView::drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> 
     double secondsPerBar = secondsPerBeat * 4.0;
     float pixelsPerSecond = 100.0f * hZoom;
     
-    // Get current scroll position
+    // Get current scroll position from viewport (synced with track lanes)
     double scrollOffset = lanesViewport.getViewPositionX() / pixelsPerSecond;
     
     g.setFont(10.0f);
     
-    // Draw bar numbers and beat markers
+    // Draw bar numbers and beat markers with bar.beat format
     for (double time = 0.0; time < 600.0; time += secondsPerBeat)
     {
         float x = bounds.getX() + (float)((time - scrollOffset) * pixelsPerSecond);
@@ -628,26 +649,67 @@ void ArrangementView::drawTimelineRuler(juce::Graphics& g, juce::Rectangle<int> 
         if (x < bounds.getX() - 50 || x > bounds.getRight() + 50)
             continue;
         
-        bool isBar = std::fmod(time, secondsPerBar) < 0.001;
+        int bar, beat, tick;
+        timeToBarBeat(time, bar, beat, tick);
+        bool isBar = (beat == 1 && tick == 0);
         
         if (isBar)
         {
-            // Bar marker - thicker line and number
+            // Bar marker - thicker line and bar number
             g.setColour(ThemeManager::getCurrentScheme().text);
-            g.drawVerticalLine((int)x, (float)bounds.getY() + 15, (float)bounds.getBottom());
+            g.drawVerticalLine((int)x, (float)bounds.getY() + 12, (float)bounds.getBottom());
             
-            int barNumber = (int)(time / secondsPerBar) + 1;
-            g.drawText(juce::String(barNumber), 
-                      (int)x + 2, bounds.getY(), 30, 15,
+            // Bar number (format: "1" for bar 1, or "1.1" to show bar.beat)
+            g.setFont(11.0f);
+            g.drawText(juce::String(bar), 
+                      (int)x + 3, bounds.getY(), 40, 14,
                       juce::Justification::centredLeft);
         }
         else
         {
-            // Beat marker - thinner line
+            // Beat marker - short tick with beat number at higher zoom
             g.setColour(ThemeManager::getCurrentScheme().textSecondary.withAlpha(0.5f));
-            g.drawVerticalLine((int)x, (float)bounds.getY() + 20, (float)bounds.getBottom());
+            g.drawVerticalLine((int)x, (float)bounds.getBottom() - 8, (float)bounds.getBottom());
+            
+            // Show beat numbers when zoomed in enough
+            if (hZoom >= 0.8f)
+            {
+                g.setFont(8.0f);
+                g.setColour(ThemeManager::getCurrentScheme().textSecondary.withAlpha(0.6f));
+                g.drawText(juce::String(bar) + "." + juce::String(beat), 
+                          (int)x + 2, bounds.getY() + 16, 25, 10,
+                          juce::Justification::centredLeft);
+            }
         }
     }
+}
+
+//==============================================================================
+// Time formatting helpers
+void ArrangementView::timeToBarBeat(double timeSeconds, int& bar, int& beat, int& tick) const
+{
+    if (currentBPM <= 0)
+    {
+        bar = 1; beat = 1; tick = 0;
+        return;
+    }
+    
+    double secondsPerBeat = 60.0 / currentBPM;
+    double beatsTotal = timeSeconds / secondsPerBeat;
+    
+    int beatsInt = (int)beatsTotal;
+    bar = (beatsInt / 4) + 1;  // 4/4 time signature
+    beat = (beatsInt % 4) + 1;
+    tick = (int)((beatsTotal - beatsInt) * 480);  // 480 ticks per beat (standard MIDI)
+}
+
+juce::String ArrangementView::formatBarBeat(double timeSeconds) const
+{
+    int bar, beat, tick;
+    timeToBarBeat(timeSeconds, bar, beat, tick);
+    
+    // Format as "Bar.Beat.Tick" like Cubase/DAWs
+    return juce::String(bar) + "." + juce::String(beat) + "." + juce::String(tick).paddedLeft('0', 3);
 }
 
 } // namespace UI

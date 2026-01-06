@@ -104,6 +104,10 @@ public:
     float getVerticalZoom() const { return vZoom; }
     void zoomToFit();
     
+    // Scroll controls (for sync with ArrangementView)
+    void setScrollX(double scrollSeconds);
+    double getScrollX() const { return scrollX; }
+    
     //==============================================================================
     // Track filtering
     void setTrackVisible(int trackIndex, bool visible);
@@ -165,6 +169,7 @@ private:
     //==============================================================================
     // Drawing methods
     void drawBackground(juce::Graphics& g);
+    void drawTimeRuler(juce::Graphics& g);  // Bar:Beat timeline ruler
     void drawPianoKeys(juce::Graphics& g);
     void drawGridLines(juce::Graphics& g);
     void drawLoopRegion(juce::Graphics& g);
@@ -172,6 +177,11 @@ private:
     void drawPlayhead(juce::Graphics& g);
     void drawNoteTooltip(juce::Graphics& g);
     void drawSelectionRect(juce::Graphics& g);
+    
+    //==============================================================================
+    // Time formatting helpers
+    juce::String formatBarBeat(double timeSeconds) const;
+    void timeToBarBeat(double timeSeconds, int& bar, int& beat, int& tick) const;
     
     //==============================================================================
     // Coordinate conversion
@@ -205,9 +215,13 @@ private:
     static constexpr int pianoKeyWidth = 60;
     static constexpr int whiteKeyHeight = 12;
     static constexpr int blackKeyWidth = 35;
+    static constexpr int timeRulerHeight = 24;  // Height of bar:beat time ruler
     
     // Get effective key width (0 in embedded mode to maximize note area)
     int getEffectiveKeyWidth() const { return embeddedMode ? 0 : pianoKeyWidth; }
+    
+    // Get effective ruler height (shows in all modes for bar:beat display)
+    int getEffectiveRulerHeight() const { return timeRulerHeight; }
     
     // Note range
     static constexpr int minNote = 21;   // A0
