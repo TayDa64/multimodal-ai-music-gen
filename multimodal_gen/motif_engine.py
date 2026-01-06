@@ -227,22 +227,18 @@ class Motif:
         Args:
             steps: List of transposition intervals
             scale_intervals: Optional scale to snap to (for diatonic sequences)
+                           NOTE: Currently unused - diatonic sequencing not yet implemented.
+                           For now, all sequences are chromatic (exact transposition).
             
         Returns:
             List of transposed Motif instances
         """
         result = []
         for step in steps:
-            if scale_intervals is not None:
-                # For diatonic sequences, we need to adjust intervals to fit the scale
-                # This is a simplified approach: transpose and then snap to scale degrees
-                transposed = self.transpose(step)
-                # Note: Full diatonic sequencing would require more complex logic
-                # For now, we just do chromatic transposition
-                result.append(transposed)
-            else:
-                # Chromatic sequence: simple transposition
-                result.append(self.transpose(step))
+            # Currently only chromatic sequences are implemented
+            # Diatonic sequences (using scale_intervals) would require additional logic
+            # to map intervals to scale degrees rather than semitones
+            result.append(self.transpose(step))
         return result
     
     def get_total_duration(self) -> float:

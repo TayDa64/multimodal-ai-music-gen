@@ -558,10 +558,11 @@ class TestMotifTransformations:
             genre_tags=["test"]
         )
         
+        expected_duration = sum(motif.rhythm)
         retrograde = motif.retrograde()
         
         assert retrograde.get_total_duration() == motif.get_total_duration()
-        assert retrograde.get_total_duration() == 2.5
+        assert retrograde.get_total_duration() == expected_duration
         
     def test_retrograde_preserves_metadata(self):
         """Test retrograde preserves metadata."""
