@@ -19,6 +19,7 @@ from enum import Enum
 import random
 
 from .prompt_parser import ParsedPrompt
+from .motif_engine import Motif, MotifGenerator, MotifLibrary
 from .utils import (
     TICKS_PER_BEAT,
     TICKS_PER_BAR_4_4,
@@ -44,6 +45,19 @@ class SectionType(Enum):
     BRIDGE = 'bridge'         # Contrast section
     OUTRO = 'outro'           # Decreasing energy, fade
     VARIATION = 'variation'   # Modified repeat of previous
+
+
+@dataclass
+class MotifAssignment:
+    """Defines which motif variant to use for a section."""
+    motif_index: int                    # Which motif (0, 1, 2...)
+    transformation: str = "original"    # "original", "invert", "retrograde", "augment", "diminish", "sequence"
+    transform_params: Optional[Dict] = None  # e.g., {"pivot": 60} for invert, {"steps": 3} for sequence
+    
+    def __post_init__(self):
+        """Initialize transform_params to empty dict if None."""
+        if self.transform_params is None:
+            self.transform_params = {}
 
 
 @dataclass
@@ -247,6 +261,11 @@ class Arrangement:
     bpm: float
     time_signature: Tuple[int, int]
     
+    # NEW: Motif fields for thematic coherence
+    motifs: List[Motif] = field(default_factory=list)
+    motif_assignments: Dict[str, MotifAssignment] = field(default_factory=dict)
+    # Key is section name like "verse_1", "chorus_1", etc.
+    
     def duration_seconds(self) -> float:
         return ticks_to_seconds(self.total_ticks, self.bpm)
     
@@ -256,6 +275,85 @@ class Arrangement:
             if section.start_tick <= tick < section.end_tick:
                 return section
         return None
+
+
+# =============================================================================
+# GENRE-SPECIFIC MOTIF MAPPINGS
+# =============================================================================
+
+# Genre-specific motif mapping presets
+GENRE_MOTIF_MAPPINGS: Dict[str, Dict[str, MotifAssignment]] = {
+    "pop": {
+        "intro": MotifAssignment(0, "original", None),
+        "verse": MotifAssignment(0, "original", None),
+        "pre_chorus": MotifAssignment(0, "sequence", {"steps": 2}),
+        "chorus": MotifAssignment(1, "original", None),
+        "bridge": MotifAssignment(0, "invert", None),
+        "outro": MotifAssignment(0, "original", None),
+    },
+    "hip_hop": {
+        "intro": MotifAssignment(0, "original", None),
+        "verse": MotifAssignment(0, "original", None),
+        "hook": MotifAssignment(1, "original", None),
+        "bridge": MotifAssignment(0, "sequence", {"steps": -2}),
+        "outro": MotifAssignment(0, "original", None),
+    },
+    "trap": {
+        "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
+        "drop": MotifAssignment(0, "original", None),
+        "breakdown": MotifAssignment(0, "retrograde", None),
+        "buildup": MotifAssignment(0, "sequence", {"steps": 2}),
+        "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
+    },
+    "trap_soul": {
+        "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
+        "verse": MotifAssignment(0, "original", None),
+        "chorus": MotifAssignment(1, "original", None),
+        "breakdown": MotifAssignment(0, "invert", None),
+        "outro": MotifAssignment(0, "retrograde", None),
+    },
+    "jazz": {
+        "intro": MotifAssignment(0, "diminish", {"factor": 0.5}),
+        "head": MotifAssignment(0, "original", None),
+        "solo": MotifAssignment(0, "invert", None),
+        "bridge": MotifAssignment(1, "retrograde", None),
+        "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
+    },
+    "classical": {
+        "exposition": MotifAssignment(0, "original", None),
+        "development": MotifAssignment(0, "invert", None),
+        "recapitulation": MotifAssignment(0, "retrograde", None),
+        "coda": MotifAssignment(0, "augment", {"factor": 2.0}),
+    },
+    "lofi": {
+        "intro": MotifAssignment(0, "original", None),
+        "verse": MotifAssignment(0, "original", None),
+        "breakdown": MotifAssignment(0, "diminish", {"factor": 2.0}),
+        "variation": MotifAssignment(0, "sequence", {"steps": 2}),
+        "outro": MotifAssignment(0, "retrograde", None),
+    },
+    "boom_bap": {
+        "intro": MotifAssignment(0, "original", None),
+        "verse": MotifAssignment(0, "original", None),
+        "chorus": MotifAssignment(1, "original", None),
+        "bridge": MotifAssignment(0, "invert", None),
+        "outro": MotifAssignment(0, "original", None),
+    },
+    "house": {
+        "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
+        "buildup": MotifAssignment(0, "sequence", {"steps": 2}),
+        "drop": MotifAssignment(0, "original", None),
+        "breakdown": MotifAssignment(1, "original", None),
+        "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
+    },
+    "rnb": {
+        "intro": MotifAssignment(0, "original", None),
+        "verse": MotifAssignment(0, "original", None),
+        "chorus": MotifAssignment(1, "original", None),
+        "bridge": MotifAssignment(0, "invert", None),
+        "outro": MotifAssignment(0, "retrograde", None),
+    },
+}
 
 
 # =============================================================================
@@ -655,6 +753,181 @@ def get_default_arrangement(bpm: float = 87.0, genre: str = 'trap_soul') -> Arra
         key='C',
     )
     return create_arrangement(parsed)
+
+
+# =============================================================================
+# MOTIF-AWARE ARRANGEMENT FUNCTIONS
+# =============================================================================
+
+def get_default_motif_mapping(genre: str) -> Dict[str, MotifAssignment]:
+    """
+    Get genre-appropriate default motif assignments for sections.
+    
+    Different genres use motifs differently:
+    - Classical: Heavy use of inversion, retrograde, augmentation
+    - Pop/Hip-hop: Simpler - mostly original and sequence
+    - Jazz: More variation with diminution and complex sequences
+    
+    Args:
+        genre: Genre name
+        
+    Returns:
+        Dict mapping section types to MotifAssignments
+    """
+    # Return genre-specific mapping or default to pop-style
+    return GENRE_MOTIF_MAPPINGS.get(genre, GENRE_MOTIF_MAPPINGS.get("pop", {}))
+
+
+def generate_arrangement_with_motifs(
+    parsed: ParsedPrompt,
+    num_motifs: int = 2,
+    seed: Optional[int] = None
+) -> Arrangement:
+    """
+    Generate arrangement with thematic coherence through motifs.
+    
+    Creates 1-3 motifs and assigns transformations to each section:
+    - intro: motif[0] fragment (first half)
+    - verse: motif[0] original
+    - pre_chorus: motif[0] sequence(+3) - transposed up
+    - chorus: motif[1] original (contrast motif)
+    - bridge: motif[0] inversion + motif[1] diminution
+    - outro: motif[0] retrograde (callback to intro)
+    
+    Args:
+        parsed: ParsedPrompt with key, scale, tempo, genre info
+        num_motifs: Number of distinct motifs to generate (1-3)
+        seed: Random seed for reproducibility
+        
+    Returns:
+        Arrangement with motifs and section assignments
+    """
+    # Set random seed if provided
+    if seed is not None:
+        random.seed(seed)
+    
+    # Clamp num_motifs to valid range
+    num_motifs = max(1, min(3, num_motifs))
+    
+    # Create base arrangement
+    arranger = Arranger()
+    arrangement = arranger.create_arrangement(parsed)
+    
+    # Generate motifs using MotifGenerator
+    generator = MotifGenerator()
+    motifs = []
+    
+    for i in range(num_motifs):
+        # Generate motif appropriate for the genre
+        context = {
+            'chord_type': 'minor7' if parsed.scale_type.name == 'MINOR' else 'major7',
+            'scale': parsed.scale_type.name.lower(),
+            'mood': parsed.mood,
+        }
+        motif = generator.generate_motif(parsed.genre, context)
+        # Rename for clarity
+        motif.name = f"{parsed.genre.capitalize()} Motif {i+1}"
+        motifs.append(motif)
+    
+    arrangement.motifs = motifs
+    
+    # Get genre-specific motif mappings
+    mapping_template = get_default_motif_mapping(parsed.genre)
+    
+    # Assign motifs to sections
+    motif_assignments = {}
+    section_counters = {}  # Track how many times each section type appears
+    
+    for i, section in enumerate(arrangement.sections):
+        section_type = section.section_type.value
+        
+        # Track section occurrences for unique naming
+        if section_type not in section_counters:
+            section_counters[section_type] = 0
+        section_counters[section_type] += 1
+        
+        # Create section name like "verse_1", "chorus_2"
+        section_name = f"{section_type}_{section_counters[section_type]}"
+        
+        # Get assignment from template or use defaults
+        if section_type in mapping_template:
+            assignment = mapping_template[section_type]
+        else:
+            # Default: use motif 0 with original transformation
+            assignment = MotifAssignment(
+                motif_index=0,
+                transformation="original",
+                transform_params=None
+            )
+        
+        # Ensure motif_index is valid
+        if assignment.motif_index >= len(motifs):
+            assignment = MotifAssignment(
+                motif_index=0,
+                transformation=assignment.transformation,
+                transform_params=assignment.transform_params
+            )
+        
+        motif_assignments[section_name] = assignment
+    
+    arrangement.motif_assignments = motif_assignments
+    
+    return arrangement
+
+
+def get_section_motif(
+    arrangement: Arrangement,
+    section_name: str
+) -> Optional[Motif]:
+    """
+    Get the transformed motif for a specific section.
+    
+    Args:
+        arrangement: Arrangement with motifs and assignments
+        section_name: e.g., "verse_1", "chorus_2"
+        
+    Returns:
+        Transformed Motif for the section, or None if not assigned
+    """
+    # Check if section has an assignment
+    if section_name not in arrangement.motif_assignments:
+        return None
+    
+    assignment = arrangement.motif_assignments[section_name]
+    
+    # Check if motif index is valid
+    if assignment.motif_index >= len(arrangement.motifs):
+        return None
+    
+    # Get base motif
+    base_motif = arrangement.motifs[assignment.motif_index]
+    
+    # Apply transformation
+    transformation = assignment.transformation.lower()
+    params = assignment.transform_params or {}
+    
+    if transformation == "original":
+        return base_motif
+    elif transformation == "invert":
+        pivot = params.get("pivot", 0)
+        return base_motif.invert(pivot)
+    elif transformation == "retrograde":
+        return base_motif.retrograde()
+    elif transformation == "augment":
+        factor = params.get("factor", 2.0)
+        return base_motif.augment(factor)
+    elif transformation == "diminish":
+        factor = params.get("factor", 2.0)
+        return base_motif.diminish(factor)
+    elif transformation == "sequence":
+        steps = params.get("steps", 2)
+        # For sequence, return the transposed version at the specified step
+        # Create a simple sequence of [0, steps] and return the transposed motif
+        sequences = base_motif.sequence([0, steps])
+        return sequences[1] if len(sequences) > 1 else base_motif
+    else:
+        # Unknown transformation, return original
+        return base_motif
 
 
 if __name__ == '__main__':
