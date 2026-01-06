@@ -48,17 +48,28 @@ jobs:
     - name: Install CMake
       uses: lukka/get-cmake@latest
     
-    - name: Cache JUCE
+    - name: Cache JUCE Framework
+      id: cache-juce
       uses: actions/cache@v4
       with:
-        path: |
-          juce/build/_deps
-        key: juce-windows-${{ hashFiles('juce/CMakeLists.txt') }}
+        path: JUCE
+        key: juce-7.0.9-windows
+    
+    - name: Download JUCE
+      if: steps.cache-juce.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+    
+    - name: Cache Build
+      uses: actions/cache@v4
+      with:
+        path: juce/build/_deps
+        key: juce-build-windows-${{ hashFiles('juce/CMakeLists.txt') }}
     
     - name: Configure CMake
       run: |
         cd juce
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DJUCE_DIR="${{ github.workspace }}/JUCE"
     
     - name: Build
       run: |
@@ -81,17 +92,28 @@ jobs:
     - name: Install CMake
       uses: lukka/get-cmake@latest
     
-    - name: Cache JUCE
+    - name: Cache JUCE Framework
+      id: cache-juce
       uses: actions/cache@v4
       with:
-        path: |
-          juce/build/_deps
-        key: juce-macos-${{ hashFiles('juce/CMakeLists.txt') }}
+        path: JUCE
+        key: juce-7.0.9-macos
+    
+    - name: Download JUCE
+      if: steps.cache-juce.outputs.cache-hit != 'true'
+      run: |
+        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+    
+    - name: Cache Build
+      uses: actions/cache@v4
+      with:
+        path: juce/build/_deps
+        key: juce-build-macos-${{ hashFiles('juce/CMakeLists.txt') }}
     
     - name: Configure CMake
       run: |
         cd juce
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DJUCE_DIR="${{ github.workspace }}/JUCE"
     
     - name: Build
       run: |
