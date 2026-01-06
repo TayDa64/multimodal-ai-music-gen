@@ -477,6 +477,321 @@ class TestCreateMotifHelper:
         assert motif.accent_pattern == [1.0, 0.8, 0.9]
 
 
+class TestMotifTransformations:
+    """Tests for motif transformation methods."""
+    
+    def test_invert_basic(self):
+        """Test basic inversion around root."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4, 7],
+            rhythm=[0.5, 0.5, 0.5, 0.5],
+            genre_tags=["test"]
+        )
+        
+        inverted = motif.invert()
+        
+        # Inversion around 0: [0, 2, 4, 7] -> [0, -2, -4, -7]
+        assert inverted.intervals == [0, -2, -4, -7]
+        assert inverted.rhythm == motif.rhythm
+        assert "inverted" in inverted.name.lower()
+        
+    def test_invert_with_pivot(self):
+        """Test inversion around non-zero pivot."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4, 7],
+            rhythm=[0.5, 0.5, 0.5, 0.5],
+            genre_tags=["test"]
+        )
+        
+        # Invert around pivot 4 (E if root is C)
+        inverted = motif.invert(pivot=4)
+        
+        # Formula: 2*pivot - interval
+        # [0, 2, 4, 7] -> [8, 6, 4, 1]
+        assert inverted.intervals == [8, 6, 4, 1]
+        
+    def test_invert_preserves_metadata(self):
+        """Test inversion preserves metadata."""
+        motif = Motif(
+            name="Jazz",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            accent_pattern=[1.0, 0.8, 0.9],
+            genre_tags=["jazz", "test"],
+            chord_context="major7",
+            description="Test motif"
+        )
+        
+        inverted = motif.invert()
+        
+        assert inverted.genre_tags == ["jazz", "test"]
+        assert inverted.chord_context == "major7"
+        assert inverted.description == "Test motif"
+        assert inverted.accent_pattern == [1.0, 0.8, 0.9]
+        
+    def test_retrograde(self):
+        """Test retrograde (reversal)."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4, 7],
+            rhythm=[0.5, 0.5, 0.5, 1.0],
+            accent_pattern=[1.0, 0.8, 0.9, 0.7],
+            genre_tags=["test"]
+        )
+        
+        retrograde = motif.retrograde()
+        
+        # Everything should be reversed
+        assert retrograde.intervals == [7, 4, 2, 0]
+        assert retrograde.rhythm == [1.0, 0.5, 0.5, 0.5]
+        assert retrograde.accent_pattern == [0.7, 0.9, 0.8, 1.0]
+        assert "retrograde" in retrograde.name.lower()
+        
+    def test_retrograde_preserves_duration(self):
+        """Total duration should remain the same."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4, 7],
+            rhythm=[0.5, 0.5, 0.5, 1.0],
+            genre_tags=["test"]
+        )
+        
+        retrograde = motif.retrograde()
+        
+        assert retrograde.get_total_duration() == motif.get_total_duration()
+        assert retrograde.get_total_duration() == 2.5
+        
+    def test_retrograde_preserves_metadata(self):
+        """Test retrograde preserves metadata."""
+        motif = Motif(
+            name="Jazz",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["jazz", "test"],
+            chord_context="dominant7",
+            description="Test motif"
+        )
+        
+        retrograde = motif.retrograde()
+        
+        assert retrograde.genre_tags == ["jazz", "test"]
+        assert retrograde.chord_context == "dominant7"
+        assert retrograde.description == "Test motif"
+        
+    def test_augment(self):
+        """Test augmentation (slower)."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[0.5, 0.5, 1.0],
+            genre_tags=["test"]
+        )
+        
+        augmented = motif.augment(2.0)
+        
+        # Rhythm should be doubled
+        assert augmented.rhythm == [1.0, 1.0, 2.0]
+        # Intervals unchanged
+        assert augmented.intervals == [0, 2, 4]
+        assert "augmented" in augmented.name.lower()
+        
+    def test_augment_with_custom_factor(self):
+        """Test augmentation with custom factor."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["test"]
+        )
+        
+        augmented = motif.augment(1.5)
+        
+        assert augmented.rhythm == [1.5, 1.5, 1.5]
+        
+    def test_diminish(self):
+        """Test diminution (faster)."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[2.0, 2.0, 4.0],
+            genre_tags=["test"]
+        )
+        
+        diminished = motif.diminish(2.0)
+        
+        # Rhythm should be halved
+        assert diminished.rhythm == [1.0, 1.0, 2.0]
+        # Intervals unchanged
+        assert diminished.intervals == [0, 2, 4]
+        
+    def test_diminish_is_inverse_of_augment(self):
+        """Test that diminish is the inverse of augment."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["test"]
+        )
+        
+        augmented = motif.augment(2.0)
+        back = augmented.diminish(2.0)
+        
+        assert back.rhythm == motif.rhythm
+        
+    def test_augment_preserves_metadata(self):
+        """Test augmentation preserves metadata."""
+        motif = Motif(
+            name="Jazz",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            accent_pattern=[1.0, 0.8, 0.9],
+            genre_tags=["jazz", "test"],
+            chord_context="minor7",
+            description="Test motif"
+        )
+        
+        augmented = motif.augment(2.0)
+        
+        assert augmented.intervals == [0, 2, 4]
+        assert augmented.accent_pattern == [1.0, 0.8, 0.9]
+        assert augmented.genre_tags == ["jazz", "test"]
+        assert augmented.chord_context == "minor7"
+        assert augmented.description == "Test motif"
+        
+    def test_sequence_chromatic(self):
+        """Test chromatic sequence."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["test"]
+        )
+        
+        # Create sequence at 0, 2, 4 semitones
+        sequence = motif.sequence([0, 2, 4])
+        
+        assert len(sequence) == 3
+        
+        # First motif: original (transposed by 0)
+        assert sequence[0].intervals == [0, 2, 4]
+        
+        # Second motif: transposed by 2
+        assert sequence[1].intervals == [2, 4, 6]
+        
+        # Third motif: transposed by 4
+        assert sequence[2].intervals == [4, 6, 8]
+        
+    def test_sequence_single_step(self):
+        """Test sequence with single step."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["test"]
+        )
+        
+        sequence = motif.sequence([5])
+        
+        assert len(sequence) == 1
+        assert sequence[0].intervals == [5, 7, 9]
+        
+    def test_sequence_preserves_rhythm(self):
+        """Test sequence preserves rhythm for each motif."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[0.5, 0.5, 1.0],
+            genre_tags=["test"]
+        )
+        
+        sequence = motif.sequence([0, 3, 5])
+        
+        for sequenced_motif in sequence:
+            assert sequenced_motif.rhythm == [0.5, 0.5, 1.0]
+            
+    def test_sequence_preserves_metadata(self):
+        """Test sequence preserves metadata."""
+        motif = Motif(
+            name="Jazz",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["jazz", "test"],
+            chord_context="major7",
+            description="Test motif"
+        )
+        
+        sequence = motif.sequence([0, 2])
+        
+        for sequenced_motif in sequence:
+            assert "jazz" in sequenced_motif.genre_tags
+            assert "test" in sequenced_motif.genre_tags
+            assert sequenced_motif.chord_context == "major7"
+            assert sequenced_motif.description == "Test motif"
+            
+    def test_transform_chain(self):
+        """Test chaining multiple transformations."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4, 7],
+            rhythm=[0.5, 0.5, 0.5, 0.5],
+            genre_tags=["test"]
+        )
+        
+        # Chain: transpose -> invert -> augment
+        transformed = motif.transpose(5).invert().augment(2.0)
+        
+        # Should be a valid motif
+        assert len(transformed.intervals) == 4
+        assert len(transformed.rhythm) == 4
+        assert transformed.get_total_duration() == 4.0  # 2.0 * 2 (augmented)
+        
+    def test_retrograde_inversion(self):
+        """Test combined retrograde-inversion."""
+        motif = Motif(
+            name="Original",
+            intervals=[0, 2, 4, 7],
+            rhythm=[0.5, 0.5, 0.5, 1.0],
+            genre_tags=["test"]
+        )
+        
+        # Retrograde then inversion (common technique)
+        transformed = motif.retrograde().invert()
+        
+        # Retrograde: [7, 4, 2, 0]
+        # Invert around 0: [0 - 7, 0 - 4, 0 - 2, 0 - 0] = [-7, -4, -2, 0]
+        assert transformed.intervals == [-7, -4, -2, 0]
+        assert transformed.rhythm == [1.0, 0.5, 0.5, 0.5]  # Still retrograded
+        
+    def test_transformations_return_new_instances(self):
+        """Test all transformations return NEW Motif instances (immutable pattern)."""
+        original = Motif(
+            name="Original",
+            intervals=[0, 2, 4],
+            rhythm=[1.0, 1.0, 1.0],
+            genre_tags=["test"]
+        )
+        
+        inverted = original.invert()
+        retrograde = original.retrograde()
+        augmented = original.augment(2.0)
+        diminished = original.diminish(2.0)
+        sequence = original.sequence([0, 2])
+        
+        # Original should be unchanged
+        assert original.intervals == [0, 2, 4]
+        assert original.rhythm == [1.0, 1.0, 1.0]
+        
+        # All should be different instances
+        assert inverted is not original
+        assert retrograde is not original
+        assert augmented is not original
+        assert diminished is not original
+        for seq_motif in sequence:
+            assert seq_motif is not original
+
+
 class TestIntegration:
     """Integration tests for the complete motif system."""
     

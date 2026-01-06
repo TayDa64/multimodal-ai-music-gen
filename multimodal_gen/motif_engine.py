@@ -135,6 +135,116 @@ class Motif:
             description=self.description
         )
     
+    def invert(self, pivot: int = 0) -> 'Motif':
+        """
+        Invert the motif (mirror intervals around pivot point).
+        
+        Example: [0, 2, 4, 7] inverted around 0 becomes [0, -2, -4, -7]
+        
+        Args:
+            pivot: The interval to invert around (default 0 = root)
+            
+        Returns:
+            New Motif with inverted intervals
+        """
+        # Inversion formula: pivot - (interval - pivot) = 2*pivot - interval
+        new_intervals = [2 * pivot - interval for interval in self.intervals]
+        return Motif(
+            name=f"{self.name} (inverted)",
+            intervals=new_intervals,
+            rhythm=self.rhythm.copy(),
+            accent_pattern=self.accent_pattern.copy(),
+            genre_tags=self.genre_tags.copy(),
+            chord_context=self.chord_context,
+            description=self.description
+        )
+    
+    def retrograde(self) -> 'Motif':
+        """
+        Reverse the motif (play backwards).
+        
+        Example: intervals [0, 2, 4, 7], rhythm [0.5, 0.5, 0.5, 1.0]
+                 becomes [7, 4, 2, 0], rhythm [1.0, 0.5, 0.5, 0.5]
+        
+        Returns:
+            New Motif with reversed intervals and rhythm
+        """
+        return Motif(
+            name=f"{self.name} (retrograde)",
+            intervals=self.intervals[::-1],
+            rhythm=self.rhythm[::-1],
+            accent_pattern=self.accent_pattern[::-1],
+            genre_tags=self.genre_tags.copy(),
+            chord_context=self.chord_context,
+            description=self.description
+        )
+    
+    def augment(self, factor: float = 2.0) -> 'Motif':
+        """
+        Augment the motif (stretch rhythm by factor).
+        
+        Example: rhythm [0.5, 0.5, 1.0] with factor 2.0
+                 becomes [1.0, 1.0, 2.0]
+        
+        Args:
+            factor: Multiplication factor for durations (>1 = slower, <1 = faster)
+            
+        Returns:
+            New Motif with augmented rhythm
+        """
+        new_rhythm = [duration * factor for duration in self.rhythm]
+        return Motif(
+            name=f"{self.name} (augmented x{factor})",
+            intervals=self.intervals.copy(),
+            rhythm=new_rhythm,
+            accent_pattern=self.accent_pattern.copy(),
+            genre_tags=self.genre_tags.copy(),
+            chord_context=self.chord_context,
+            description=self.description
+        )
+    
+    def diminish(self, factor: float = 2.0) -> 'Motif':
+        """
+        Diminish the motif (compress rhythm by factor).
+        
+        Shorthand for augment(1/factor).
+        
+        Args:
+            factor: Division factor for durations
+            
+        Returns:
+            New Motif with diminished rhythm
+        """
+        return self.augment(1.0 / factor)
+    
+    def sequence(self, steps: List[int], scale_intervals: Optional[List[int]] = None) -> List['Motif']:
+        """
+        Create a sequence of the motif at different pitch levels.
+        
+        Example: motif sequenced at steps [0, 2, 4] creates 3 copies
+                 transposed by those intervals
+        
+        Args:
+            steps: List of transposition intervals
+            scale_intervals: Optional scale to snap to (for diatonic sequences)
+            
+        Returns:
+            List of transposed Motif instances
+        """
+        result = []
+        for step in steps:
+            if scale_intervals is not None:
+                # For diatonic sequences, we need to adjust intervals to fit the scale
+                # This is a simplified approach: transpose and then snap to scale degrees
+                transposed = self.transpose(step)
+                # Note: Full diatonic sequencing would require more complex logic
+                # For now, we just do chromatic transposition
+                result.append(transposed)
+            else:
+                # Chromatic sequence: simple transposition
+                result.append(self.transpose(step))
+        return result
+    
     def get_total_duration(self) -> float:
         """Get total duration of motif in beats."""
         return sum(self.rhythm)
