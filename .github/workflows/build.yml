@@ -48,20 +48,11 @@ jobs:
     - name: Install CMake
       uses: lukka/get-cmake@latest
     
-    - name: Cache JUCE Framework
-      id: cache-juce
-      uses: actions/cache@v4
-      with:
-        path: JUCE
-        key: juce-7.0.9-windows
-    
     - name: Download JUCE
       run: |
-        if (!(Test-Path -Path "JUCE")) {
-          git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
-        } else {
-          Write-Host "JUCE already exists (from cache)"
-        }
+        if (Test-Path -Path "JUCE") { Remove-Item -Recurse -Force JUCE }
+        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+        Write-Host "JUCE downloaded: $(Test-Path JUCE/modules/juce_core/juce_core.h)"
     
     - name: Cache Build
       uses: actions/cache@v4
@@ -95,20 +86,11 @@ jobs:
     - name: Install CMake
       uses: lukka/get-cmake@latest
     
-    - name: Cache JUCE Framework
-      id: cache-juce
-      uses: actions/cache@v4
-      with:
-        path: JUCE
-        key: juce-7.0.9-macos
-    
     - name: Download JUCE
       run: |
-        if [ ! -d "JUCE" ]; then
-          git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
-        else
-          echo "JUCE already exists (from cache)"
-        fi
+        rm -rf JUCE
+        git clone --depth 1 --branch 7.0.9 https://github.com/juce-framework/JUCE.git JUCE
+        echo "JUCE downloaded: $(test -f JUCE/modules/juce_core/juce_core.h && echo 'yes' || echo 'no')"
     
     - name: Cache Build
       uses: actions/cache@v4
