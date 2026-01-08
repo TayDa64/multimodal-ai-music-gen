@@ -108,3 +108,6 @@ audio_test.py
 !output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.WAV
 
 test_output_integration/
+# Temporary verification scripts (not for commit)
+check_acceptance_criteria.py
+verify_chord_extraction.py
