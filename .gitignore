@@ -111,3 +111,4 @@ test_output_integration/
 # Temporary verification scripts (not for commit)
 check_acceptance_criteria.py
 verify_chord_extraction.py
+.coverage
