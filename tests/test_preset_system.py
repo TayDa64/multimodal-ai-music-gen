@@ -15,6 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Import preset_system directly to avoid __init__.py import issues
+# Note: This pattern is used consistently in other test files (e.g., test_pattern_library.py)
+# to avoid importing the full multimodal_gen package which requires external dependencies
 spec = importlib.util.spec_from_file_location(
     "preset_system",
     Path(__file__).parent.parent / "multimodal_gen" / "preset_system.py"

@@ -362,7 +362,7 @@ class PresetManager:
         """Save user-created presets to file."""
         user_presets = {
             name: preset for name, preset in self.presets.items()
-            if preset.category == PresetCategory.EXPERIMENTAL or name not in GENRE_PRESETS and name not in STYLE_PRESETS and name not in PRODUCTION_PRESETS
+            if preset.category == PresetCategory.EXPERIMENTAL or (name not in GENRE_PRESETS and name not in STYLE_PRESETS and name not in PRODUCTION_PRESETS)
         }
         
         presets_list = []
@@ -759,9 +759,9 @@ def combine_presets(
     manager.apply_preset(genre_preset)
     
     if style_preset:
-        manager.apply_preset(style_preset, partial=True)
+        manager.apply_preset(style_preset)
     
     if production_preset:
-        manager.apply_preset(production_preset, partial=True)
+        manager.apply_preset(production_preset)
     
     return manager.get_all_values()
