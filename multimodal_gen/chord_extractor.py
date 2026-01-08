@@ -157,12 +157,20 @@ class ChordExtractor:
         Returns:
             Chromagram array (12, num_frames)
         """
+        # Handle very short audio
+        nperseg = min(2048, len(audio))
+        noverlap = max(0, nperseg - self.hop_length)
+        
+        # Ensure noverlap is less than nperseg
+        if noverlap >= nperseg:
+            noverlap = nperseg // 2
+        
         # Compute STFT
         f, t, Zxx = signal.stft(
             audio,
             fs=self.sample_rate,
-            nperseg=2048,
-            noverlap=2048 - self.hop_length
+            nperseg=nperseg,
+            noverlap=noverlap
         )
         
         # Get magnitude spectrum
