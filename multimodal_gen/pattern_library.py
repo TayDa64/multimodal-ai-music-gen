@@ -280,7 +280,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Boom Bap Drums
@@ -463,7 +466,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Pop Drums
@@ -590,7 +596,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Jazz Drums
@@ -689,7 +698,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Rock Drums
@@ -825,7 +837,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # House Drums
@@ -956,7 +971,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # R&B Drums
@@ -1058,7 +1076,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Funk Drums
@@ -1181,7 +1202,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Latin Drums - Bossa Nova
@@ -1317,7 +1341,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Reggae Drums - One Drop
@@ -1416,7 +1443,10 @@ class PatternLibrary:
             PatternType.DRUM: [],
             PatternType.BASS: [],
             PatternType.CHORD: [],
-            PatternType.MELODY: []
+            PatternType.MELODY: [],
+            PatternType.ARPEGGIO: [],
+            PatternType.FILL: [],
+            PatternType.TRANSITION: []
         }
         
         # Afrobeat Drums
@@ -1591,3 +1621,575 @@ def build_pattern_set(
             result[pattern_type] = patterns[0]
     
     return result
+
+
+# Add additional pattern variations for each genre to reach 100+ total
+def _add_extended_patterns(library):
+    """Add extended patterns (fills, intros, outros, transitions, arpeggios) to reach 100+ patterns."""
+    
+    # Hip-Hop Extended Patterns
+    genre = "hip_hop"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="hip_hop_fill_snare_roll",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 60, 38, 95),
+            (1500, 60, 38, 98),
+            (1560, 60, 38, 100),
+            (1620, 60, 38, 102),
+            (1680, 60, 38, 105),
+            (1740, 60, 38, 108),
+            (1800, 60, 38, 110),
+            (1860, 60, 38, 112),
+        ],
+        instrument_map={38: "snare"},
+        length_beats=1,
+        intensity=PatternIntensity.HIGH,
+        tags={"fill", "snare_roll"},
+        description="Snare roll fill",
+        section_types={"transition", "outro"}
+    ))
+    
+    library.patterns[genre][PatternType.DRUM].append(DrumPattern(
+        name="hip_hop_intro_minimal",
+        pattern_type=PatternType.DRUM,
+        genre=genre,
+        notes=[
+            (0, 120, 42, 70),
+            (480, 120, 42, 70),
+            (960, 120, 42, 70),
+            (1440, 120, 42, 70),
+        ],
+        instrument_map={42: "hihat_closed"},
+        length_beats=4,
+        intensity=PatternIntensity.MINIMAL,
+        tags={"intro", "minimal"},
+        description="Minimal hi-hat intro",
+        section_types={"intro"}
+    ))
+    
+    library.patterns[genre][PatternType.ARPEGGIO].append(MelodyPattern(
+        name="hip_hop_synth_arp",
+        pattern_type=PatternType.ARPEGGIO,
+        genre=genre,
+        notes=[
+            (0, 200, 0, 80),
+            (240, 200, 4, 75),
+            (480, 200, 7, 80),
+            (720, 200, 12, 85),
+            (960, 200, 7, 75),
+            (1200, 200, 4, 75),
+            (1440, 200, 0, 75),
+            (1680, 200, 7, 80),
+        ],
+        scale_degrees=[1, 3, 5, 8, 5, 3, 1, 5],
+        contour="arch",
+        length_beats=4,
+        intensity=PatternIntensity.MEDIUM,
+        tags={"arpeggio", "synth"},
+        description="Synth arpeggio pattern"
+    ))
+    
+    # Pop Extended Patterns
+    genre = "pop"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="pop_fill_tom_roll",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 120, 50, 100),
+            (1560, 120, 47, 95),
+            (1680, 120, 45, 90),
+            (1800, 120, 36, 105),
+        ],
+        instrument_map={50: "tom_high", 47: "tom_mid", 45: "tom_low", 36: "kick"},
+        length_beats=1,
+        intensity=PatternIntensity.HIGH,
+        tags={"fill", "toms"},
+        description="Tom roll down fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.ARPEGGIO].append(MelodyPattern(
+        name="pop_piano_arp",
+        pattern_type=PatternType.ARPEGGIO,
+        genre=genre,
+        notes=[
+            (0, 200, 0, 85),
+            (240, 200, 4, 82),
+            (480, 200, 7, 85),
+            (720, 200, 12, 88),
+            (960, 200, 16, 90),
+            (1200, 200, 12, 85),
+            (1440, 200, 7, 82),
+            (1680, 200, 4, 80),
+        ],
+        scale_degrees=[1, 3, 5, 8, 10, 8, 5, 3],
+        contour="arch",
+        length_beats=4,
+        intensity=PatternIntensity.MEDIUM,
+        tags={"arpeggio", "piano"},
+        description="Piano arpeggio pattern"
+    ))
+    
+    # Jazz Extended Patterns
+    genre = "jazz"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="jazz_fill_brush_sweep",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 200, 38, 70),
+            (1680, 200, 45, 65),
+        ],
+        instrument_map={38: "snare", 45: "tom_low"},
+        length_beats=1,
+        intensity=PatternIntensity.LOW,
+        tags={"fill", "brush"},
+        description="Brush sweep fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.ARPEGGIO].append(MelodyPattern(
+        name="jazz_piano_comp",
+        pattern_type=PatternType.ARPEGGIO,
+        genre=genre,
+        notes=[
+            (240, 180, 4, 75),
+            (480, 180, 7, 72),
+            (720, 180, 11, 75),
+            (1200, 180, 9, 72),
+            (1440, 180, 7, 75),
+            (1680, 180, 4, 72),
+        ],
+        scale_degrees=[3, 5, 7, 6, 5, 3],
+        contour="wave",
+        length_beats=4,
+        intensity=PatternIntensity.LOW,
+        tags={"arpeggio", "comping"},
+        description="Jazz piano comping pattern"
+    ))
+    
+    # Rock Extended Patterns
+    genre = "rock"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="rock_fill_crash_cymbal",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 120, 50, 110),
+            (1560, 120, 47, 108),
+            (1680, 120, 45, 105),
+            (1800, 120, 36, 115),
+            (1920, 200, 49, 120),
+        ],
+        instrument_map={50: "tom_high", 47: "tom_mid", 45: "tom_low", 36: "kick", 49: "crash"},
+        length_beats=1,
+        intensity=PatternIntensity.INTENSE,
+        tags={"fill", "crash"},
+        description="Crash cymbal fill",
+        section_types={"transition", "chorus"}
+    ))
+    
+    library.patterns[genre][PatternType.TRANSITION].append(DrumPattern(
+        name="rock_transition_buildup",
+        pattern_type=PatternType.TRANSITION,
+        genre=genre,
+        notes=[
+            (0, 80, 42, 80),
+            (120, 80, 42, 82),
+            (240, 80, 42, 84),
+            (360, 80, 42, 86),
+            (480, 80, 42, 88),
+            (600, 80, 42, 90),
+            (720, 80, 42, 92),
+            (840, 80, 42, 94),
+            (960, 80, 42, 96),
+            (1080, 80, 42, 98),
+            (1200, 80, 42, 100),
+            (1320, 80, 42, 102),
+            (1440, 80, 42, 105),
+            (1560, 80, 42, 108),
+            (1680, 80, 42, 110),
+            (1800, 80, 42, 115),
+        ],
+        instrument_map={42: "hihat_closed"},
+        length_beats=4,
+        intensity=PatternIntensity.HIGH,
+        tags={"transition", "buildup"},
+        description="Hi-hat buildup transition",
+        section_types={"transition"}
+    ))
+    
+    # EDM Extended Patterns
+    genre = "edm"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="edm_fill_snare_riser",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (0, 40, 38, 70),
+            (240, 40, 38, 75),
+            (480, 40, 38, 80),
+            (720, 40, 38, 85),
+            (960, 40, 38, 90),
+            (1200, 40, 38, 95),
+            (1440, 40, 38, 100),
+            (1680, 40, 38, 105),
+            (1800, 40, 38, 110),
+            (1860, 40, 38, 115),
+            (1900, 40, 38, 120),
+        ],
+        instrument_map={38: "snare"},
+        length_beats=4,
+        intensity=PatternIntensity.INTENSE,
+        tags={"fill", "riser", "buildup"},
+        description="Snare riser buildup",
+        section_types={"transition", "drop"}
+    ))
+    
+    library.patterns[genre][PatternType.TRANSITION].append(DrumPattern(
+        name="edm_transition_breakdown",
+        pattern_type=PatternType.TRANSITION,
+        genre=genre,
+        notes=[
+            (0, 120, 36, 100),
+            (480, 100, 39, 90),
+            (960, 120, 36, 100),
+            (1440, 100, 39, 90),
+        ],
+        instrument_map={36: "kick", 39: "clap"},
+        length_beats=4,
+        intensity=PatternIntensity.LOW,
+        tags={"transition", "breakdown"},
+        description="Breakdown transition",
+        section_types={"breakdown"}
+    ))
+    
+    library.patterns[genre][PatternType.ARPEGGIO].append(MelodyPattern(
+        name="edm_pluck_arp",
+        pattern_type=PatternType.ARPEGGIO,
+        genre=genre,
+        notes=[
+            (0, 180, 0, 90),
+            (180, 180, 4, 88),
+            (360, 180, 7, 90),
+            (540, 180, 12, 92),
+            (720, 180, 16, 94),
+            (900, 180, 19, 96),
+            (1080, 180, 16, 94),
+            (1260, 180, 12, 92),
+            (1440, 180, 7, 90),
+            (1620, 180, 4, 88),
+            (1800, 180, 0, 86),
+        ],
+        scale_degrees=[1, 3, 5, 8, 10, 12, 10, 8, 5, 3, 1],
+        contour="arch",
+        length_beats=4,
+        intensity=PatternIntensity.HIGH,
+        tags={"arpeggio", "pluck", "fast"},
+        description="Fast pluck synth arpeggio"
+    ))
+    
+    # R&B Extended Patterns
+    genre = "rnb"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="rnb_fill_hihat_roll",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 50, 42, 75),
+            (1490, 50, 42, 78),
+            (1540, 50, 42, 80),
+            (1590, 50, 42, 82),
+            (1640, 50, 42, 85),
+            (1690, 50, 42, 88),
+            (1740, 50, 42, 90),
+            (1790, 50, 42, 92),
+            (1840, 50, 42, 95),
+        ],
+        instrument_map={42: "hihat_closed"},
+        length_beats=1,
+        intensity=PatternIntensity.MEDIUM,
+        tags={"fill", "hihat"},
+        description="Hi-hat roll fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.ARPEGGIO].append(MelodyPattern(
+        name="rnb_rhodes_arp",
+        pattern_type=PatternType.ARPEGGIO,
+        genre=genre,
+        notes=[
+            (0, 300, 0, 75),
+            (360, 300, 4, 72),
+            (720, 300, 7, 75),
+            (1080, 300, 10, 72),
+            (1440, 480, 14, 78),
+        ],
+        scale_degrees=[1, 3, 5, 7, 9],
+        contour="ascending",
+        length_beats=4,
+        intensity=PatternIntensity.LOW,
+        tags={"arpeggio", "rhodes", "lush"},
+        description="Warm Rhodes arpeggio"
+    ))
+    
+    # Funk Extended Patterns
+    genre = "funk"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="funk_fill_funky_break",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 80, 36, 105),
+            (1560, 80, 38, 110),
+            (1680, 80, 45, 95),
+            (1800, 80, 36, 108),
+            (1920, 100, 49, 115),
+        ],
+        instrument_map={36: "kick", 38: "snare", 45: "tom_low", 49: "crash"},
+        length_beats=1,
+        intensity=PatternIntensity.HIGH,
+        tags={"fill", "funky"},
+        description="Funky drum break fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.TRANSITION].append(BassPattern(
+        name="funk_bass_slide_up",
+        pattern_type=PatternType.TRANSITION,
+        genre=genre,
+        notes=[
+            (0, 100, 0, 100),
+            (120, 100, 1, 102),
+            (240, 100, 2, 104),
+            (360, 100, 3, 106),
+            (480, 100, 4, 108),
+            (600, 100, 5, 110),
+            (720, 100, 6, 112),
+            (840, 100, 7, 115),
+        ],
+        root_relative=True,
+        octave=2,
+        length_beats=2,
+        intensity=PatternIntensity.HIGH,
+        tags={"transition", "slide"},
+        description="Bass slide up transition"
+    ))
+    
+    # Latin Extended Patterns
+    genre = "latin"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="latin_fill_conga_roll",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 100, 45, 90),
+            (1560, 100, 47, 95),
+            (1680, 100, 50, 100),
+            (1800, 100, 47, 95),
+        ],
+        instrument_map={45: "tom_low", 47: "tom_mid", 50: "tom_high"},
+        length_beats=1,
+        intensity=PatternIntensity.MEDIUM,
+        tags={"fill", "conga", "percussion"},
+        description="Conga roll fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.TRANSITION].append(MelodyPattern(
+        name="latin_brass_stab",
+        pattern_type=PatternType.TRANSITION,
+        genre=genre,
+        notes=[
+            (0, 200, 7, 105),
+            (0, 200, 12, 105),
+            (0, 200, 16, 105),
+        ],
+        scale_degrees=[5, 8, 10],
+        contour="ascending",
+        length_beats=1,
+        intensity=PatternIntensity.INTENSE,
+        tags={"transition", "brass", "stab"},
+        description="Brass stab transition"
+    ))
+    
+    # Reggae Extended Patterns
+    genre = "reggae"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="reggae_fill_rim_pattern",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (1440, 80, 37, 75),
+            (1560, 80, 37, 78),
+            (1680, 80, 37, 80),
+            (1800, 80, 37, 82),
+        ],
+        instrument_map={37: "rimshot"},
+        length_beats=1,
+        intensity=PatternIntensity.LOW,
+        tags={"fill", "rim"},
+        description="Rim click fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.TRANSITION].append(DrumPattern(
+        name="reggae_transition_drop",
+        pattern_type=PatternType.TRANSITION,
+        genre=genre,
+        notes=[
+            (960, 150, 36, 115),
+            (960, 120, 38, 110),
+        ],
+        instrument_map={36: "kick", 38: "snare"},
+        length_beats=2,
+        intensity=PatternIntensity.HIGH,
+        tags={"transition", "drop", "crash"},
+        description="One-drop transition crash",
+        section_types={"drop"}
+    ))
+    
+    # Afrobeat Extended Patterns
+    genre = "afrobeat"
+    
+    library.patterns[genre][PatternType.FILL].append(DrumPattern(
+        name="afrobeat_fill_clave_break",
+        pattern_type=PatternType.FILL,
+        genre=genre,
+        notes=[
+            (0, 80, 37, 90),
+            (240, 80, 37, 88),
+            (360, 80, 37, 90),
+            (600, 80, 37, 88),
+            (720, 80, 37, 90),
+        ],
+        instrument_map={37: "rimshot"},
+        length_beats=2,
+        intensity=PatternIntensity.MEDIUM,
+        tags={"fill", "clave", "polyrhythm"},
+        description="Clave break fill",
+        section_types={"transition"}
+    ))
+    
+    library.patterns[genre][PatternType.TRANSITION].append(MelodyPattern(
+        name="afrobeat_horn_call",
+        pattern_type=PatternType.TRANSITION,
+        genre=genre,
+        notes=[
+            (0, 240, 7, 105),
+            (240, 240, 9, 105),
+            (480, 480, 12, 110),
+        ],
+        scale_degrees=[5, 6, 8],
+        contour="ascending",
+        length_beats=2,
+        intensity=PatternIntensity.HIGH,
+        tags={"transition", "horn", "call"},
+        description="Horn call transition"
+    ))
+    
+    # Add more drum variations for each genre
+    for genre in ["hip_hop", "pop", "jazz", "rock", "edm", "rnb", "funk", "latin", "reggae", "afrobeat"]:
+        # Add outro pattern
+        library.patterns[genre][PatternType.DRUM].append(DrumPattern(
+            name=f"{genre}_outro_fade",
+            pattern_type=PatternType.DRUM,
+            genre=genre,
+            notes=[
+                (0, 120, 36, 85),
+                (480, 100, 38, 80),
+                (960, 120, 36, 75),
+                (1440, 100, 38, 70),
+            ],
+            instrument_map={36: "kick", 38: "snare"},
+            length_beats=4,
+            intensity=PatternIntensity.LOW,
+            tags={"outro", "fade"},
+            description=f"{genre.replace('_', ' ').title()} outro fade pattern",
+            section_types={"outro"}
+        ))
+        
+        # Add bass variation
+        library.patterns[genre][PatternType.BASS].append(BassPattern(
+            name=f"{genre}_bass_minimal",
+            pattern_type=PatternType.BASS,
+            genre=genre,
+            notes=[
+                (0, 900, 0, 80),
+                (960, 900, 0, 78),
+            ],
+            root_relative=True,
+            octave=1,
+            length_beats=4,
+            intensity=PatternIntensity.LOW,
+            tags={"minimal", "sustained"},
+            description=f"{genre.replace('_', ' ').title()} minimal bass",
+            section_types={"intro", "verse"}
+        ))
+        
+        # Add chord variation
+        library.patterns[genre][PatternType.CHORD].append(ChordPattern(
+            name=f"{genre}_chord_pad",
+            pattern_type=PatternType.CHORD,
+            genre=genre,
+            notes=[
+                (0, 1920, 0, 65),
+                (0, 1920, 4, 62),
+                (0, 1920, 7, 65),
+                (0, 1920, 12, 60),
+            ],
+            voicing_type="pad",
+            length_beats=4,
+            intensity=PatternIntensity.LOW,
+            tags={"pad", "sustained", "ambient"},
+            description=f"{genre.replace('_', ' ').title()} chord pad",
+            section_types={"intro", "verse", "bridge"}
+        ))
+        
+        # Add melody variation
+        library.patterns[genre][PatternType.MELODY].append(MelodyPattern(
+            name=f"{genre}_melody_counter",
+            pattern_type=PatternType.MELODY,
+            genre=genre,
+            notes=[
+                (480, 240, 4, 75),
+                (720, 240, 5, 72),
+                (960, 240, 4, 75),
+                (1440, 480, 2, 72),
+            ],
+            scale_degrees=[3, 4, 3, 2],
+            contour="wave",
+            length_beats=4,
+            intensity=PatternIntensity.LOW,
+            tags={"counter_melody", "subtle"},
+            description=f"{genre.replace('_', ' ').title()} counter melody",
+            section_types={"verse", "chorus"}
+        ))
+
+
+# Initialize extended patterns when library is created
+PatternLibrary._add_extended_patterns = _add_extended_patterns
+
+# Modify __init__ to call _add_extended_patterns
+_original_init = PatternLibrary.__init__
+
+def _new_init(self):
+    self.patterns: Dict[str, Dict[PatternType, List[Pattern]]] = {}
+    # Initialize pattern type lists for extended types
+    self._load_all_patterns()
+    # Add extended patterns (fills, transitions, arpeggios, etc.)
+    _add_extended_patterns(self)
+
+PatternLibrary.__init__ = _new_init
