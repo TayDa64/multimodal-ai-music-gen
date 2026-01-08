@@ -65,7 +65,14 @@ void TrackLaneContent::setProjectState(Project::ProjectState* state)
 {
     projectState = state;
     if (pianoRoll && state)
+    {
         pianoRoll->setProjectState(state);
+        
+        // IMPORTANT: Reset and trigger zoomToFit after loading new project
+        // This ensures notes are visible regardless of track pitch range
+        pianoRoll->resetInitialZoom();
+        pianoRoll->zoomToFit();
+    }
 }
 
 void TrackLaneContent::setHorizontalZoom(float zoom)
@@ -184,6 +191,48 @@ void ArrangementView::setProjectState(Project::ProjectState* state)
         {
             lane->setProjectState(projectState);
         }
+        
+        // Calculate optimal zoom to show the entire song
+        zoomToShowFullSong();
+    }
+}
+
+void ArrangementView::zoomToShowFullSong()
+{
+    if (!projectState)
+        return;
+    
+    // Find total duration from all notes
+    double maxTime = 0.0;
+    auto notesNode = projectState->getState().getChildWithName(Project::IDs::NOTES);
+    if (notesNode.isValid())
+    {
+        double bpm = projectState->getState().getProperty(Project::IDs::bpm, 120.0);
+        double secondsPerBeat = 60.0 / bpm;
+        
+        for (int i = 0; i < notesNode.getNumChildren(); ++i)
+        {
+            auto noteNode = notesNode.getChild(i);
+            double startBeats = noteNode.getProperty(Project::IDs::start);
+            double lengthBeats = noteNode.getProperty(Project::IDs::length);
+            double endTime = (startBeats + lengthBeats) * secondsPerBeat;
+            maxTime = juce::jmax(maxTime, endTime);
+        }
+    }
+    
+    // Add some padding (10%)
+    maxTime *= 1.1;
+    
+    // Minimum 30 seconds visible
+    maxTime = juce::jmax(maxTime, 30.0);
+    
+    // Calculate zoom to fit in viewport
+    int viewportWidth = lanesViewport.getWidth() - 20;  // Account for scrollbar
+    if (viewportWidth > 0 && maxTime > 0)
+    {
+        float pixelsPerSecond = (float)viewportWidth / (float)maxTime;
+        float newZoom = pixelsPerSecond / 100.0f;
+        setHorizontalZoom(juce::jlimit(0.1f, 2.0f, newZoom));  // Cap at 2x for readability
     }
 }
 

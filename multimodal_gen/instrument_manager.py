@@ -37,10 +37,14 @@ import os
 import json
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
-from typing import Dict, List, Optional, Tuple, Any, Union
+from typing import Dict, List, Optional, Tuple, Any, Union, TYPE_CHECKING
 from enum import Enum
 import numpy as np
 import hashlib
+
+# Type hints for InstrumentIntelligence (avoid circular imports)
+if TYPE_CHECKING:
+    from .instrument_intelligence import InstrumentIntelligence
 
 try:
     import soundfile as sf
@@ -526,11 +530,69 @@ class InstrumentMatcher:
     
     Uses the analyzed profiles to find the best-fitting samples
     for a given genre, mood, and instrument type.
+    
+    Now integrates with InstrumentIntelligence for semantic filtering:
+    - First, filters out inappropriate instruments (e.g., whistles for G-Funk)
+    - Then, scores remaining candidates by sonic similarity
     """
     
     def __init__(self, library: 'InstrumentLibrary' = None):
         self.library = library
         self._cache: Dict[str, AnalyzedInstrument] = {}
+        self._intelligence = None  # InstrumentIntelligence instance
+        self._excluded_samples: Dict[str, set] = {}  # genre -> set of excluded filenames
+    
+    def set_library(self, library: 'InstrumentLibrary'):
+        """Set or update the instrument library."""
+        self.library = library
+    
+    def set_intelligence(self, intelligence: 'InstrumentIntelligence'):
+        """
+        Set the InstrumentIntelligence for semantic filtering.
+        
+        This enables the matcher to exclude inappropriate instruments
+        based on genre/mood context (e.g., no whistles in G-Funk).
+        """
+        self._intelligence = intelligence
+        # Pre-compute exclusions for common genres
+        for genre in ['g_funk', 'lofi', 'jazz', 'rnb', 'trap', 'boom_bap']:
+            self._excluded_samples[genre] = set(
+                intelligence.get_excluded_samples(genre)
+            )
+    
+    def _is_excluded(self, instrument: 'AnalyzedInstrument', genre: str) -> bool:
+        """Check if an instrument should be excluded for a genre."""
+        if not self._intelligence:
+            return False
+        
+        genre_key = genre.lower().replace(" ", "_").replace("-", "_")
+        
+        # Check pre-computed exclusions
+        if genre_key in self._excluded_samples:
+            # Check if instrument name is in the exclusion list (exact match)
+            if instrument.name in self._excluded_samples[genre_key]:
+                return True
+            # Also check if the path contains any excluded filename
+            inst_path_lower = instrument.path.lower()
+            inst_name_lower = instrument.name.lower()
+            for excluded_filename in self._excluded_samples[genre_key]:
+                exc_lower = excluded_filename.lower()
+                if exc_lower in inst_path_lower or exc_lower in inst_name_lower:
+                    return True
+        
+        # Also do direct keyword check from GENRE_PROFILES for robustness
+        # This catches cases where the instrument wasn't indexed properly
+        from .instrument_intelligence import GENRE_PROFILES
+        profile = GENRE_PROFILES.get(genre_key, {})
+        excluded_sounds = profile.get('excluded_sounds', [])
+        
+        inst_path_lower = instrument.path.lower()
+        inst_name_lower = instrument.name.lower()
+        for keyword in excluded_sounds:
+            if keyword in inst_path_lower or keyword in inst_name_lower:
+                return True
+        
+        return False
     
     def set_library(self, library: 'InstrumentLibrary'):
         """Set or update the instrument library."""
@@ -672,7 +734,25 @@ class InstrumentMatcher:
         if not candidates:
             return None if top_n == 1 else []
         
-        # Score each candidate
+        # INTELLIGENT FILTERING: Remove excluded instruments for this genre
+        # This is where we prevent inappropriate sounds (whistles in G-Funk, etc.)
+        filtered_candidates = []
+        excluded_count = 0
+        for instrument in candidates:
+            if self._is_excluded(instrument, genre):
+                excluded_count += 1
+            else:
+                filtered_candidates.append(instrument)
+        
+        if excluded_count > 0:
+            print(f"    [IntelligentFilter] Excluded {excluded_count} inappropriate samples for {genre}")
+        
+        candidates = filtered_candidates
+        
+        if not candidates:
+            return None if top_n == 1 else []
+        
+        # Score each candidate based on sonic similarity
         scored = []
         for instrument in candidates:
             if instrument.profile:

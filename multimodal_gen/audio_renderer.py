@@ -485,16 +485,48 @@ class ProceduralRenderer:
         
         # Matcher for intelligent instrument selection
         self._matcher = None
+        self._intelligence = None  # NEW: Semantic instrument intelligence
+        
         if instrument_library:
             try:
                 from .instrument_manager import InstrumentMatcher
                 self._matcher = InstrumentMatcher(instrument_library)
+                
+                # Initialize InstrumentIntelligence for semantic filtering
+                try:
+                    from .instrument_intelligence import InstrumentIntelligence
+                    self._intelligence = InstrumentIntelligence()
+                    
+                    # Index instruments directory - use instruments_dir attribute (not base_path)
+                    instruments_dir = getattr(instrument_library, 'instruments_dir', None)
+                    if instruments_dir:
+                        instruments_path = str(instruments_dir)
+                        count = self._intelligence.index_directory(instruments_path)
+                        if count > 0:
+                            print(f"  [IntelligenceEngine] Indexed {count} instruments for semantic filtering")
+                            self._matcher.set_intelligence(self._intelligence)
+                            # Log exclusions for this genre
+                            excluded = self._intelligence.get_excluded_samples(self.genre)
+                            if excluded:
+                                print(f"  [IntelligenceEngine] {len(excluded)} samples excluded for {self.genre}")
+                        else:
+                            print(f"  [IntelligenceEngine] Warning: No instruments indexed from {instruments_path}")
+                    else:
+                        print(f"  [IntelligenceEngine] Warning: No instruments_dir attribute found")
+                except ImportError as e:
+                    print(f"  [!] InstrumentIntelligence not available: {e}")
+                except Exception as e:
+                    print(f"  [!] InstrumentIntelligence setup failed: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    
             except ImportError:
                 pass
         
         # Pre-generate drum samples (fallback)
         self._drum_cache: Dict[str, np.ndarray] = {}
         self._custom_drum_cache: Dict[str, np.ndarray] = {}  # From library
+        self._custom_melodic_cache: Dict[str, List[Dict]] = {}  # Melodic samples from library
         self._expansion_sample_cache: Dict[str, np.ndarray] = {}  # From expansions
         self._init_drum_cache()
         
@@ -571,7 +603,77 @@ class ProceduralRenderer:
                         print(f"  [*] Loaded custom {drum_name}: {best.name}")
             
             if self._custom_drum_cache:
-                print(f"  [+] Using {len(self._custom_drum_cache)} custom instruments")
+                print(f"  [+] Using {len(self._custom_drum_cache)} custom drum samples")
+            
+            # ===============================================================
+            # MELODIC INSTRUMENTS - Genre-intelligent selection
+            # ===============================================================
+            # Load melodic instruments (synth, bass, keys, pad, brass, strings)
+            # These are used by _synthesize_note for varied, genre-appropriate sounds
+            melodic_mappings = {
+                'synth': InstrumentCategory.SYNTH,
+                'bass': InstrumentCategory.BASS,
+                'keys': InstrumentCategory.KEYS,
+                'pad': InstrumentCategory.SYNTH,  # Pads fallback to synth since no pad category
+                'brass': InstrumentCategory.BRASS,
+                'strings': InstrumentCategory.STRINGS,
+            }
+            
+            loaded_melodic = []
+            for inst_name, category in melodic_mappings.items():
+                # Get multiple candidates for variety using top_n parameter
+                candidates = self._matcher.get_best_match(
+                    category.value,
+                    genre=self.genre,
+                    mood=self.mood,
+                    top_n=3  # Get top 3 matches for variety
+                )
+                
+                # Ensure we have a list
+                if candidates and not isinstance(candidates, list):
+                    candidates = [candidates]
+                
+                if candidates:
+                    # Store all candidates for variety during playback
+                    self._custom_melodic_cache[inst_name] = []
+                    for candidate in candidates:
+                        if candidate.audio is None:
+                            self.instrument_library.load_audio(candidate)
+                        
+                        if candidate.audio is not None:
+                            audio = candidate.audio
+                            # Resample if needed
+                            if candidate.sample_rate != self.sample_rate:
+                                try:
+                                    import librosa
+                                    audio = librosa.resample(
+                                        audio,
+                                        orig_sr=candidate.sample_rate,
+                                        target_sr=self.sample_rate
+                                    )
+                                except ImportError:
+                                    ratio = self.sample_rate / candidate.sample_rate
+                                    new_len = int(len(audio) * ratio)
+                                    audio = np.interp(
+                                        np.linspace(0, len(audio) - 1, new_len),
+                                        np.arange(len(audio)),
+                                        audio
+                                    )
+                            
+                            # Store with metadata for pitch-shifting
+                            self._custom_melodic_cache[inst_name].append({
+                                'audio': audio,
+                                'name': candidate.name,
+                                'root_note': getattr(candidate, 'root_note', 60),  # Default C4
+                                'sample_rate': self.sample_rate
+                            })
+                    
+                    if self._custom_melodic_cache[inst_name]:
+                        loaded_melodic.append(inst_name)
+                        print(f"  [*] Loaded custom {inst_name}: {self._custom_melodic_cache[inst_name][0]['name']}")
+            
+            if loaded_melodic:
+                print(f"  [+] Using {len(loaded_melodic)} custom melodic instruments: {', '.join(loaded_melodic)}")
                 
         except Exception as e:
             print(f"  [!] Custom instrument loading failed: {e}")
@@ -722,17 +824,59 @@ class ProceduralRenderer:
         return self._drum_cache.get(drum_name, self._drum_cache['kick']).copy()
     
     def _synthesize_note(self, note: SynthNote) -> np.ndarray:
-        """Synthesize a melodic note based on MIDI program number."""
+        """Synthesize a melodic note based on MIDI program number.
+        
+        Priority:
+        1. Custom melodic samples from InstrumentLibrary (genre-intelligent)
+        2. Expansion samples (Ethiopian, etc.)
+        3. Procedural synthesis fallback
+        """
         # Convert MIDI pitch to frequency
         freq = 440 * (2 ** ((note.pitch - 69) / 12))
         duration = note.duration_samples / self.sample_rate
         velocity = note.velocity  # Already normalized 0-1 by _render_track_procedural
         
-        # Check for expansion samples first (for Ethiopian and specialized instruments)
+        # Map MIDI program to instrument type for custom sample lookup
+        program_to_type = {
+            # Pianos and Keys (0-7)
+            **{p: 'keys' for p in range(0, 8)},
+            # Chromatic Percussion (12-15)
+            **{p: 'keys' for p in range(12, 16)},
+            # Organ (16-23)
+            **{p: 'keys' for p in range(16, 24)},
+            # Guitar (24-31)
+            **{p: 'keys' for p in range(24, 32)},
+            # Bass (32-39)
+            **{p: 'bass' for p in range(32, 40)},
+            # Strings (40-47)
+            **{p: 'strings' for p in range(40, 48)},
+            # Brass (56-63)
+            **{p: 'brass' for p in range(56, 64)},
+            # Flute/Wind (72-79)
+            **{p: 'synth' for p in range(72, 80)},  # Use synth as fallback
+            # Synth Lead (80-87)
+            **{p: 'synth' for p in range(80, 88)},
+            # Synth Pad (88-95)
+            **{p: 'pad' for p in range(88, 96)},
+        }
+        
+        inst_type = program_to_type.get(note.program)
+        
+        # TRY CUSTOM MELODIC SAMPLES FIRST (genre-intelligent selection)
+        if inst_type and inst_type in self._custom_melodic_cache and self._custom_melodic_cache[inst_type]:
+            return self._pitch_shift_sample(
+                self._custom_melodic_cache[inst_type],
+                note.pitch,
+                duration,
+                velocity
+            )
+        
+        # Check for expansion samples (for Ethiopian and specialized instruments)
         expansion_sample = self._get_expansion_sample_for_program(note.program, freq, duration, velocity)
         if expansion_sample is not None:
             return expansion_sample
         
+        # PROCEDURAL FALLBACK - only if no custom samples available
         # Choose synthesis method based on program
         # Standard GM instruments
         if note.program in [0, 1, 2, 3]:  # Acoustic/bright/honky-tonk
@@ -774,6 +918,80 @@ class ProceduralRenderer:
         else:
             # Default to FM pluck
             return generate_fm_pluck(freq, duration)
+    
+    def _pitch_shift_sample(
+        self,
+        sample_variants: List[Dict],
+        target_pitch: int,
+        duration: float,
+        velocity: float
+    ) -> np.ndarray:
+        """
+        Pitch-shift a sample to match the target MIDI pitch.
+        
+        Uses resampling for pitch shifting. Selects a random variant for variety.
+        
+        Args:
+            sample_variants: List of sample dicts with 'audio', 'root_note', 'sample_rate'
+            target_pitch: Target MIDI note number
+            duration: Duration in seconds
+            velocity: Note velocity (0-1)
+            
+        Returns:
+            Pitch-shifted audio
+        """
+        import random
+        
+        # Select a random variant for variety (weighted toward first for consistency)
+        weights = [0.6, 0.25, 0.15][:len(sample_variants)]
+        weights = [w / sum(weights) for w in weights]  # Normalize
+        variant = random.choices(sample_variants, weights=weights)[0]
+        
+        audio = variant['audio'].copy()
+        root_note = variant.get('root_note', 60)  # Default C4
+        
+        # Calculate pitch shift ratio
+        # Higher ratio = higher pitch (more samples per second = faster playback)
+        semitones = target_pitch - root_note
+        shift_ratio = 2 ** (semitones / 12)
+        
+        # Calculate target length
+        target_samples = int(duration * self.sample_rate)
+        
+        # Pitch shift by resampling
+        if abs(shift_ratio - 1.0) > 0.001:  # Only if significant shift needed
+            try:
+                import librosa
+                # Use librosa's resample for quality pitch shifting
+                # To pitch UP, we need to resample DOWN (fewer samples = faster playback)
+                shifted_sr = int(self.sample_rate / shift_ratio)
+                audio = librosa.resample(audio, orig_sr=shifted_sr, target_sr=self.sample_rate)
+            except ImportError:
+                # Simple linear interpolation fallback
+                new_len = int(len(audio) / shift_ratio)
+                if new_len > 0:
+                    audio = np.interp(
+                        np.linspace(0, len(audio) - 1, new_len),
+                        np.arange(len(audio)),
+                        audio
+                    )
+        
+        # Adjust to target duration
+        if len(audio) > target_samples:
+            # Truncate with fade out
+            audio = audio[:target_samples]
+            fade_len = min(int(0.05 * self.sample_rate), len(audio) // 4)
+            if fade_len > 0:
+                fade = np.linspace(1, 0, fade_len)
+                audio[-fade_len:] *= fade
+        elif len(audio) < target_samples:
+            # Pad with zeros (one-shot samples)
+            audio = np.pad(audio, (0, target_samples - len(audio)))
+        
+        # Apply velocity
+        audio *= velocity
+        
+        return audio
     
     def _get_expansion_sample_for_program(
         self,
@@ -972,6 +1190,56 @@ class AudioRenderer:
             return self.mix_chains.get('lofi')
             
         return None
+    
+    def _infer_program_from_track_name(self, track_name: str) -> Optional[int]:
+        """
+        Infer MIDI program number from track name.
+        
+        This ensures different tracks get different sounds even when the MIDI
+        file doesn't include program change messages.
+        
+        Returns:
+            MIDI program number (0-127) or None if unknown
+        """
+        name = track_name.lower()
+        
+        # Bass instruments (programs 32-39)
+        if 'bass' in name:
+            return 38  # Synth Bass 1
+        
+        # Lead/Melody instruments (programs 80-87 - synth leads)
+        if 'lead' in name or 'melody' in name:
+            return 81  # Lead 2 (sawtooth)
+        
+        # Chord/Pad instruments (programs 88-95 - synth pads)
+        if 'chord' in name or 'pad' in name:
+            return 89  # Pad 2 (warm)
+        
+        # Keys/Piano (programs 0-7)
+        if 'piano' in name or 'keys' in name:
+            return 4  # Electric Piano 1
+        
+        # Synth (programs 80-87)
+        if 'synth' in name:
+            return 81  # Lead 2 (sawtooth)
+        
+        # Brass (programs 56-63)
+        if 'brass' in name or 'horn' in name:
+            return 61  # Brass Section
+        
+        # Strings (programs 40-47)
+        if 'string' in name:
+            return 48  # String Ensemble
+        
+        # Guitar (programs 24-31)
+        if 'guitar' in name:
+            return 25  # Acoustic Guitar (steel)
+        
+        # Organ (programs 16-23)
+        if 'organ' in name:
+            return 16  # Drawbar Organ
+        
+        return None
 
     def _render_procedural(
         self,
@@ -1116,6 +1384,13 @@ class AudioRenderer:
         current_tick = 0
         current_program = 0
         is_drum_track = False
+        
+        # Infer program from track name for better instrument selection
+        # This ensures different tracks get different sounds even without program changes
+        track_name_lower = track.name.lower() if track.name else ""
+        inferred_program = self._infer_program_from_track_name(track_name_lower)
+        if inferred_program is not None:
+            current_program = inferred_program
         
         # Tempo (default 120 BPM)
         tempo = 500000  # microseconds per beat

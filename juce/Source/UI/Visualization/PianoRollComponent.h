@@ -103,6 +103,7 @@ public:
     float getHorizontalZoom() const { return hZoom; }
     float getVerticalZoom() const { return vZoom; }
     void zoomToFit();
+    void resetInitialZoom() { hasInitialZoom = false; }  // Reset so next setProjectState triggers zoomToFit
     
     // Scroll controls (for sync with ArrangementView)
     void setScrollX(double scrollSeconds);

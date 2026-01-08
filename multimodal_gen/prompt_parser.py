@@ -98,6 +98,9 @@ class ParsedPrompt:
     raw_prompt: str = ''
     negative_prompt: str = ''
     
+    # Duration
+    target_duration_seconds: Optional[float] = None  # None = auto (2-4 minutes based on genre)
+    
     # === GENRE INTELLIGENCE ENHANCEMENTS ===
     
     # FX chain recommendations from genre template
@@ -341,7 +344,7 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'emotional trap', 'melodic trap', 'bryson', 'sza', '6lack'
     ],
     'g_funk': [
-        'g-funk', 'g funk', 'gfunk', 'west coast', 'westcoast', 'dr dre',
+        'g_funk', 'g-funk', 'g funk', 'gfunk', 'west coast', 'westcoast', 'dr dre',
         'snoop', 'snoop dogg', 'warren g', 'nate dogg', 'death row',
         'california', 'la hip hop', 'gangsta funk', '213', 'doggystyle',
         'the chronic', 'regulate', 'long beach'
@@ -656,6 +659,7 @@ class PromptParser:
         sections = self._extract_sections(prompt_lower)
         style_modifiers = self._extract_style_modifiers(prompt_lower)
         sonic_adjectives = self._extract_sonic_adjectives(prompt_lower)
+        duration = self._extract_duration(prompt_lower)
         
         # Apply genre defaults if BPM not specified
         if bpm is None:
@@ -697,6 +701,7 @@ class PromptParser:
             swing_amount=swing_amount,
             raw_prompt=prompt,
             negative_prompt=negative_prompt,
+            target_duration_seconds=duration,
         )
 
     def _extract_style_modifiers(self, prompt: str) -> List[str]:
@@ -764,6 +769,73 @@ class PromptParser:
                     continue
         return None
     
+    def _extract_duration(self, prompt: str) -> Optional[float]:
+        """
+        Extract target duration from prompt.
+        
+        Supports formats like:
+        - "2 minute song", "2 minutes", "2 min"
+        - "4 minute track", "4 minutes long"  
+        - "120 seconds", "120s"
+        - "2:30" (mm:ss format)
+        - "short" (~1:30), "long" (~4:00), "extended" (~5:00)
+        
+        Returns:
+            Duration in seconds, or None for auto/default
+        """
+        # Minutes patterns: "2 minute", "2 minutes", "2min", "2-minute"
+        minutes_patterns = [
+            r'(\d+(?:\.\d+)?)\s*(?:-?\s*)?(?:minute|minutes|min)\b',
+            r'(\d+(?:\.\d+)?)\s*(?:-?\s*)?(?:minute|minutes|min)\s+(?:song|track|beat|instrumental)',
+        ]
+        for pattern in minutes_patterns:
+            match = re.search(pattern, prompt, re.IGNORECASE)
+            if match:
+                try:
+                    minutes = float(match.group(1))
+                    if 0.5 <= minutes <= 10:  # Reasonable range: 30sec to 10min
+                        return minutes * 60
+                except (ValueError, IndexError):
+                    continue
+        
+        # Seconds patterns: "120 seconds", "120s", "90 sec"
+        seconds_patterns = [
+            r'(\d+)\s*(?:seconds?|secs?|s)\b',
+        ]
+        for pattern in seconds_patterns:
+            match = re.search(pattern, prompt, re.IGNORECASE)
+            if match:
+                try:
+                    seconds = float(match.group(1))
+                    if 30 <= seconds <= 600:  # 30sec to 10min
+                        return seconds
+                except (ValueError, IndexError):
+                    continue
+        
+        # Time format: "2:30" or "3:00"
+        time_pattern = r'\b(\d+):(\d{2})\b'
+        match = re.search(time_pattern, prompt)
+        if match:
+            try:
+                minutes = int(match.group(1))
+                seconds = int(match.group(2))
+                total = minutes * 60 + seconds
+                if 30 <= total <= 600:
+                    return float(total)
+            except (ValueError, IndexError):
+                pass
+        
+        # Keyword-based duration hints
+        if any(kw in prompt for kw in ['short', 'quick', 'brief', 'snippet']):
+            return 90.0  # 1:30
+        if any(kw in prompt for kw in ['extended', 'long version', 'full length']):
+            return 300.0  # 5:00
+        if 'long' in prompt and 'song' in prompt:
+            return 240.0  # 4:00
+        
+        # No duration specified - return None for auto
+        return None
+
     def _extract_key(self, prompt: str) -> Tuple[str, ScaleType]:
         """Extract musical key and scale type from prompt."""
         for pattern in KEY_PATTERNS:

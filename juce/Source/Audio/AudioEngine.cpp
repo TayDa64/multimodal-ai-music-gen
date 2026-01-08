@@ -500,6 +500,13 @@ void AudioEngine::stop()
         midiPlayer.setPlaying(false);
         midiPlayer.setPosition(0.0);
         
+        // Send all notes off to stop any sustaining sounds
+        for (auto& track : tracks)
+        {
+            if (track)
+                track->releaseResources();
+        }
+        
         // Reset test tone
         testTonePhase = 0.0;
         

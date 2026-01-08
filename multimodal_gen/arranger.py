@@ -480,21 +480,25 @@ class Arranger:
     for each section type, respecting genre conventions.
     """
     
+    # Default duration: 3 minutes (~180 seconds) for a complete song feel
+    DEFAULT_DURATION_SECONDS = 180.0
+    
     def __init__(
         self,
         target_duration_seconds: Optional[float] = None,
-        min_bars: int = 32,
-        max_bars: int = 96,
+        min_bars: int = 48,   # ~2 minutes at 90 BPM
+        max_bars: int = 128,  # ~4.5 minutes at 90 BPM
     ):
         """
         Initialize the arranger.
         
         Args:
-            target_duration_seconds: Target song length (None = auto)
+            target_duration_seconds: Target song length (None = use DEFAULT_DURATION_SECONDS)
             min_bars: Minimum arrangement length in bars
             max_bars: Maximum arrangement length in bars
         """
-        self.target_duration = target_duration_seconds
+        # Use default duration if not specified
+        self.target_duration = target_duration_seconds if target_duration_seconds is not None else self.DEFAULT_DURATION_SECONDS
         self.min_bars = min_bars
         self.max_bars = max_bars
     

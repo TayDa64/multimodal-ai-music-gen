@@ -115,6 +115,9 @@ public:
     void setHorizontalZoom(float zoom);
     float getHorizontalZoom() const { return hZoom; }
     
+    /** Zoom to show the entire song duration. */
+    void zoomToShowFullSong();
+    
     /** Get track list component for external access. */
     TrackListComponent& getTrackList() { return trackList; }
     

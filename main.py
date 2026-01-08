@@ -421,8 +421,17 @@ def run_generation(
     # Step 2: Create arrangement
     print_step("2/6", "Creating arrangement...")
     report_progress("arranging", 0.15, "Creating arrangement...")
-    arranger = Arranger()
+    
+    # Pass user-specified duration if provided, otherwise Arranger uses its default (3 min)
+    arranger = Arranger(target_duration_seconds=parsed.target_duration_seconds)
     arrangement = arranger.create_arrangement(parsed)
+    
+    # Log duration info
+    estimated_duration = arrangement.total_bars * 4 * 60 / parsed.bpm  # bars * beats/bar * sec/min / bpm
+    if parsed.target_duration_seconds:
+        print_info(f"Target duration: {parsed.target_duration_seconds/60:.1f} min → {arrangement.total_bars} bars (~{estimated_duration/60:.1f} min)")
+    else:
+        print_info(f"Default duration: ~{estimated_duration/60:.1f} min ({arrangement.total_bars} bars)")
     
     if verbose:
         print_info(f"Arrangement: {len(arrangement.sections)} sections, {arrangement.total_bars} bars")
@@ -797,7 +806,14 @@ def run_generation(
     except Exception as e:
         print_warning(f"Sample generation issue: {e}")
     
-    # Step 4.5: Discover and analyze instruments (if paths provided)
+    # Step 4.5: Discover and analyze instruments (if paths provided or default exists)
+    default_instruments = Path(__file__).parent / "instruments"
+    
+    # Auto-load from default instruments directory if no explicit path provided
+    if not instruments_paths and default_instruments.exists() and any(default_instruments.iterdir()):
+        instruments_paths = [str(default_instruments)]
+        print_info(f"Auto-loading instruments from {default_instruments}")
+    
     if instruments_paths:
         print_step("4.5/6", "Discovering and analyzing instruments...")
         report_progress("discovering_instruments", 0.55, "Discovering and analyzing instruments...")
@@ -886,11 +902,6 @@ def run_generation(
         except Exception as e:
             print_warning(f"Instrument discovery failed: {e}")
             instrument_library = None
-    else:
-        # Check for default instruments directory
-        default_instruments = Path(__file__).parent / "instruments"
-        if default_instruments.exists() and any(default_instruments.iterdir()):
-            print_info(f"Tip: Add samples to {default_instruments} or use --instruments <path>")
     
     # Step 4.7: Load expansion packs for specialized instruments (Ethiopian, etc.)
     expansion_manager = None

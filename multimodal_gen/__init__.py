@@ -51,6 +51,14 @@ from .instrument_manager import (
     get_best_instruments_for_genre,
     analyze_sample,
 )
+from .instrument_intelligence import (
+    InstrumentIntelligence,
+    InstrumentMetadata,
+    SampleFilenameParser,
+    GENRE_PROFILES,
+    create_instrument_intelligence,
+    select_instruments_for_prompt,
+)
 from .expansion_manager import (
     ExpansionManager,
     ExpansionPack,
@@ -138,6 +146,13 @@ __all__ = [
     "load_multiple_libraries",
     "get_best_instruments_for_genre",
     "analyze_sample",
+    # Instrument Intelligence (semantic filtering)
+    "InstrumentIntelligence",
+    "InstrumentMetadata",
+    "SampleFilenameParser",
+    "GENRE_PROFILES",
+    "create_instrument_intelligence",
+    "select_instruments_for_prompt",
     # Expansion Manager (AI-powered instrument resolution)
     "ExpansionManager",
     "ExpansionPack",
