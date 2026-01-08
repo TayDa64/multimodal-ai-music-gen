@@ -73,6 +73,9 @@ class TensionArc:
         for i in range(len(self.points) - 1):
             p1, p2 = self.points[i], self.points[i + 1]
             if p1.position <= position <= p2.position:
+                # Handle duplicate positions (avoid division by zero)
+                if p2.position == p1.position:
+                    return p1.tension
                 # Interpolate
                 t = (position - p1.position) / (p2.position - p1.position)
                 return p1.tension + t * (p2.tension - p1.tension)
@@ -118,39 +121,58 @@ class TensionArcGenerator:
     
     def _generate_flat(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate flat tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.base_tension)]
         return [
-            TensionPoint(i / max(1, num_sections - 1), config.base_tension)
+            TensionPoint(i / (num_sections - 1), config.base_tension)
             for i in range(num_sections)
         ]
     
     def _generate_linear_build(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate linear build tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.base_tension)]
+        
         min_tension, max_tension = config.tension_range
         return [
             TensionPoint(
-                i / max(1, num_sections - 1),
-                min_tension + (max_tension - min_tension) * (i / max(1, num_sections - 1))
+                i / (num_sections - 1),
+                min_tension + (max_tension - min_tension) * (i / (num_sections - 1))
             )
             for i in range(num_sections)
         ]
     
     def _generate_linear_decay(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate linear decay tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.tension_range[1])]
+        
         min_tension, max_tension = config.tension_range
         return [
             TensionPoint(
-                i / max(1, num_sections - 1),
-                max_tension - (max_tension - min_tension) * (i / max(1, num_sections - 1))
+                i / (num_sections - 1),
+                max_tension - (max_tension - min_tension) * (i / (num_sections - 1))
             )
             for i in range(num_sections)
         ]
     
     def _generate_peak_middle(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate peak in middle tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.tension_range[1])]
+        
         min_tension, max_tension = config.tension_range
         points = []
         for i in range(num_sections):
-            pos = i / max(1, num_sections - 1)
+            pos = i / (num_sections - 1)
             # Use sine curve for smooth build and release
             tension = min_tension + (max_tension - min_tension) * np.sin(pos * np.pi)
             points.append(TensionPoint(pos, tension))
@@ -158,10 +180,15 @@ class TensionArcGenerator:
     
     def _generate_peak_end(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate peak at end tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.tension_range[1])]
+        
         min_tension, max_tension = config.tension_range
         points = []
         for i in range(num_sections):
-            pos = i / max(1, num_sections - 1)
+            pos = i / (num_sections - 1)
             # Use power curve for gradual then steep build
             tension = min_tension + (max_tension - min_tension) * (pos ** 1.5)
             points.append(TensionPoint(pos, tension))
@@ -169,12 +196,17 @@ class TensionArcGenerator:
     
     def _generate_double_peak(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate double peak tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.base_tension)]
+        
         min_tension, max_tension = config.tension_range
         mid_tension = (min_tension + max_tension) / 2
         amplitude = (max_tension - min_tension) / 2
         points = []
         for i in range(num_sections):
-            pos = i / max(1, num_sections - 1)
+            pos = i / (num_sections - 1)
             # Two sine waves (abs to keep positive, creating two peaks)
             tension = mid_tension + amplitude * abs(np.sin(pos * 2 * np.pi))
             points.append(TensionPoint(pos, tension))
@@ -182,12 +214,17 @@ class TensionArcGenerator:
     
     def _generate_wave(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate wave tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.base_tension)]
+        
         min_tension, max_tension = config.tension_range
         mid_tension = (min_tension + max_tension) / 2
         amplitude = (max_tension - min_tension) / 2
         points = []
         for i in range(num_sections):
-            pos = i / max(1, num_sections - 1)
+            pos = i / (num_sections - 1)
             # Continuous wave
             tension = mid_tension + amplitude * np.sin(pos * 3 * np.pi)
             points.append(TensionPoint(pos, tension))
@@ -195,28 +232,43 @@ class TensionArcGenerator:
     
     def _generate_step_up(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate stepwise increase tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.base_tension)]
+        
         min_tension, max_tension = config.tension_range
-        step_size = (max_tension - min_tension) / max(1, num_sections - 1)
+        step_size = (max_tension - min_tension) / (num_sections - 1)
         return [
-            TensionPoint(i / max(1, num_sections - 1), min_tension + i * step_size)
+            TensionPoint(i / (num_sections - 1), min_tension + i * step_size)
             for i in range(num_sections)
         ]
     
     def _generate_step_down(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate stepwise decrease tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.tension_range[1])]
+        
         min_tension, max_tension = config.tension_range
-        step_size = (max_tension - min_tension) / max(1, num_sections - 1)
+        step_size = (max_tension - min_tension) / (num_sections - 1)
         return [
-            TensionPoint(i / max(1, num_sections - 1), max_tension - i * step_size)
+            TensionPoint(i / (num_sections - 1), max_tension - i * step_size)
             for i in range(num_sections)
         ]
     
     def _generate_dramatic(self, num_sections: int, config: TensionConfig) -> List[TensionPoint]:
         """Generate dramatic low-high-low tension arc."""
+        if num_sections <= 0:
+            return []
+        if num_sections == 1:
+            return [TensionPoint(0.0, config.base_tension)]
+        
         min_tension, max_tension = config.tension_range
         points = []
         for i in range(num_sections):
-            pos = i / max(1, num_sections - 1)
+            pos = i / (num_sections - 1)
             if pos < 0.25:
                 # Low tension
                 tension = min_tension
@@ -280,10 +332,15 @@ class TensionArcGenerator:
             config = TensionConfig()
         
         num_sections = len(tension_values)
-        points = [
-            TensionPoint(i / max(1, num_sections - 1), tension_values[i])
-            for i in range(num_sections)
-        ]
+        if num_sections == 0:
+            points = []
+        elif num_sections == 1:
+            points = [TensionPoint(0.0, tension_values[0])]
+        else:
+            points = [
+                TensionPoint(i / (num_sections - 1), tension_values[i])
+                for i in range(num_sections)
+            ]
         
         return TensionArc(points=points, shape=ArcShape.FLAT, config=config)
     
@@ -316,8 +373,12 @@ class TensionArcGenerator:
         genre_profile = GENRE_TENSION_PROFILES.get(genre.lower(), {})
         
         points = []
+        num_sections = len(section_types)
         for i, section_type in enumerate(section_types):
-            pos = i / max(1, len(section_types) - 1)
+            if num_sections <= 1:
+                pos = 0.0
+            else:
+                pos = i / (num_sections - 1)
             
             # Normalize section type
             section_key = section_type.lower().replace(" ", "_")
@@ -503,7 +564,12 @@ class TensionArcGenerator:
         tension = arc.points[section_index].tension
         
         # Determine how many instruments to use based on tension
-        num_instruments = max(1, int(len(available_instruments) * tension))
+        # Use ceiling to ensure at least some instruments even at very low tension
+        # Map tension 0.0-1.0 to at least 1 instrument, up to all instruments
+        min_instruments = max(1, int(len(available_instruments) * 0.3))  # At least 30% of instruments
+        max_instruments = len(available_instruments)
+        num_instruments = min_instruments + int((max_instruments - min_instruments) * tension)
+        num_instruments = max(1, min(num_instruments, len(available_instruments)))
         
         # Prioritize certain instruments based on tension
         # Low tension: prefer pads, ambient sounds
