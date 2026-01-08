@@ -6,7 +6,7 @@ while maintaining thematic coherence and recognizability.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Optional, Set
+from typing import List, Dict, Tuple, Optional, Set, Any
 from enum import Enum
 import random
 
@@ -562,7 +562,7 @@ class SectionVariationEngine:
 
 
 # Section-specific variation strategies
-SECTION_VARIATION_STRATEGIES: Dict[str, Dict[str, any]] = {
+SECTION_VARIATION_STRATEGIES: Dict[str, Dict[str, Any]] = {
     "verse": {
         "max_intensity": 0.4,  # Verses can vary moderately
         "preferred_types": [
