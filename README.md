@@ -102,6 +102,26 @@ sudo apt install fluidsynth
 
 > 💡 **Note:** FluidSynth is optional. The generator works without it using built-in synthesis.
 
+### Step 2.1: (Recommended) Add a SoundFont (.sf2)
+
+For best results with FluidSynth, place a SoundFont file in:
+
+- `multimodal-ai-music-gen/assets/soundfonts/`
+
+The renderer auto-detects common names there (see `assets/soundfonts/README.md`).
+
+Alternatively, pass an explicit path:
+
+```bash
+python main.py "smooth g-funk beat at 92 BPM" --soundfont "./assets/soundfonts/default.sf2"
+```
+
+If you want the run to fail instead of falling back to procedural audio:
+
+```bash
+python main.py "smooth g-funk beat at 92 BPM" --require-soundfont
+```
+
 ### Step 3: Generate Your First Beat
 
 ```bash

@@ -380,6 +380,24 @@ def check_fluidsynth_available() -> bool:
         return False
 
 
+def get_fluidsynth_version() -> Optional[str]:
+    """Return the FluidSynth version string if available, else None."""
+    try:
+        result = subprocess.run(
+            ['fluidsynth', '--version'],
+            capture_output=True,
+            text=True
+        )
+        if result.returncode != 0:
+            return None
+        # Typical output: "FluidSynth 2.3.3"
+        return (result.stdout or result.stderr).strip() or None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+
 def find_soundfont() -> Optional[str]:
     """Try to find a SoundFont file."""
     # Common locations
@@ -1072,6 +1090,7 @@ class AudioRenderer:
         sample_rate: int = SAMPLE_RATE,
         use_fluidsynth: bool = True,
         soundfont_path: Optional[str] = None,
+        require_soundfont: bool = False,
         instrument_library: 'InstrumentLibrary' = None,
         expansion_manager: 'ExpansionManager' = None,
         genre: str = None,
@@ -1081,8 +1100,11 @@ class AudioRenderer:
         tail_seconds: float = 2.0
     ):
         self.sample_rate = sample_rate
-        self.use_fluidsynth = use_fluidsynth and check_fluidsynth_available()
+        self.fluidsynth_available = check_fluidsynth_available()
+        self.fluidsynth_version = get_fluidsynth_version() if self.fluidsynth_available else None
+        self.use_fluidsynth = use_fluidsynth and self.fluidsynth_available
         self.soundfont_path = soundfont_path or find_soundfont()
+        self.require_soundfont = require_soundfont
         self.instrument_library = instrument_library
         self.expansion_manager = expansion_manager
         self.genre = genre
@@ -1090,6 +1112,8 @@ class AudioRenderer:
         self.use_bwf = use_bwf
         self.ai_metadata = ai_metadata or {}
         self.tail_seconds = tail_seconds
+
+        self._last_render_report: Optional[Dict] = None
         
         # Initialize mix chains
         self.mix_chains = {
@@ -1158,23 +1182,204 @@ class AudioRenderer:
             if new_genre != self.procedural.genre or new_mood != self.procedural.mood:
                 self.procedural.set_genre_mood(new_genre, new_mood)
         
-        # Try FluidSynth first (only if no custom instruments loaded)
-        if self.use_fluidsynth and self.soundfont_path and not self.procedural._custom_drum_cache:
-            success = render_midi_with_fluidsynth(
+        warnings: List[str] = []
+
+        if self.require_soundfont:
+            if not self.fluidsynth_available:
+                warnings.append("FluidSynth not available but --require-soundfont enabled")
+            if not self.soundfont_path:
+                warnings.append("No SoundFont (.sf2) found but --require-soundfont enabled")
+
+            if warnings:
+                self._last_render_report = self._build_render_report(
+                    midi_path=midi_path,
+                    output_path=output_path,
+                    parsed=parsed,
+                    renderer_path="none",
+                    fluidsynth_allowed=bool(self.use_fluidsynth and self.soundfont_path),
+                    fluidsynth_attempted=False,
+                    fluidsynth_success=False,
+                    fluidsynth_skip_reason="require_soundfont",
+                    warnings=warnings,
+                )
+                return False
+
+        custom_drums_loaded = len(getattr(self.procedural, '_custom_drum_cache', {}) or {})
+
+        fluidsynth_allowed = bool(self.use_fluidsynth and self.soundfont_path)
+        fluidsynth_skip_reason: Optional[str] = None
+        fluidsynth_attempted = False
+        fluidsynth_success = False
+
+        # Try FluidSynth first (only if no custom drums loaded)
+        if fluidsynth_allowed and custom_drums_loaded == 0:
+            fluidsynth_attempted = True
+            fluidsynth_success = render_midi_with_fluidsynth(
                 midi_path,
                 output_path,
                 self.soundfont_path,
                 self.sample_rate
             )
-            
-            if success:
-                # Post-process if needed
+
+            if fluidsynth_success:
                 if parsed:
                     self._post_process(output_path, parsed)
+
+                self._last_render_report = self._build_render_report(
+                    midi_path=midi_path,
+                    output_path=output_path,
+                    parsed=parsed,
+                    renderer_path="fluidsynth",
+                    fluidsynth_allowed=fluidsynth_allowed,
+                    fluidsynth_attempted=True,
+                    fluidsynth_success=True,
+                    fluidsynth_skip_reason=fluidsynth_skip_reason,
+                    warnings=warnings,
+                )
                 return True
-        
+
+            warnings.append("FluidSynth render failed; falling back to procedural")
+        elif fluidsynth_allowed and custom_drums_loaded > 0:
+            warnings.append(
+                f"FluidSynth skipped because custom drum samples are loaded (count={custom_drums_loaded})"
+            )
+            fluidsynth_skip_reason = f"custom_drums_loaded:{custom_drums_loaded}"
+        elif self.use_fluidsynth and not self.soundfont_path:
+            warnings.append("FluidSynth available but no SoundFont (.sf2) found; using procedural")
+            fluidsynth_skip_reason = "no_soundfont"
+        elif not self.fluidsynth_available:
+            warnings.append("FluidSynth not available; using procedural")
+            fluidsynth_skip_reason = "not_available"
+        elif not self.use_fluidsynth:
+            fluidsynth_skip_reason = "disabled"
+
         # Fall back to procedural rendering (uses custom instruments if available)
-        return self._render_procedural(midi_path, output_path, parsed)
+        procedural_success = self._render_procedural(midi_path, output_path, parsed)
+        self._last_render_report = self._build_render_report(
+            midi_path=midi_path,
+            output_path=output_path,
+            parsed=parsed,
+            renderer_path="procedural" if procedural_success else "none",
+            fluidsynth_allowed=fluidsynth_allowed,
+            fluidsynth_attempted=fluidsynth_attempted,
+            fluidsynth_success=fluidsynth_success,
+            fluidsynth_skip_reason=fluidsynth_skip_reason,
+            warnings=warnings,
+        )
+        return procedural_success
+
+    def _build_render_report(
+        self,
+        midi_path: str,
+        output_path: str,
+        parsed: Optional[ParsedPrompt],
+        renderer_path: str,
+        fluidsynth_allowed: bool,
+        fluidsynth_attempted: bool,
+        fluidsynth_success: bool,
+        fluidsynth_skip_reason: Optional[str],
+        warnings: List[str],
+    ) -> Dict:
+        """Build a stable diagnostics payload for this render."""
+        # Instrument library stats (best-effort, keep it robust)
+        instrument_stats: Dict[str, object] = {
+            "loaded": self.instrument_library is not None,
+            "total_instruments": None,
+            "categories": None,
+            "sources": None,
+        }
+        if self.instrument_library is not None:
+            try:
+                instrument_stats["total_instruments"] = len(getattr(self.instrument_library, 'instruments', []) or [])
+            except Exception:
+                pass
+            try:
+                if hasattr(self.instrument_library, 'list_categories'):
+                    instrument_stats["categories"] = self.instrument_library.list_categories()
+            except Exception:
+                pass
+            try:
+                if hasattr(self.instrument_library, 'get_source_summary'):
+                    instrument_stats["sources"] = self.instrument_library.get_source_summary()
+            except Exception:
+                pass
+
+        # Expansion stats
+        expansion_stats: Dict[str, object] = {
+            "loaded": self.expansion_manager is not None,
+            "count": None,
+            "expansions": None,
+            "categories": None,
+        }
+        if self.expansion_manager is not None:
+            try:
+                if hasattr(self.expansion_manager, 'list_expansions'):
+                    expansion_stats["expansions"] = self.expansion_manager.list_expansions()
+                    expansion_stats["count"] = len(expansion_stats["expansions"]) if expansion_stats["expansions"] else 0
+            except Exception:
+                pass
+            try:
+                if hasattr(self.expansion_manager, 'get_categories'):
+                    expansion_stats["categories"] = self.expansion_manager.get_categories()
+            except Exception:
+                pass
+
+        custom_drums_loaded = len(getattr(self.procedural, '_custom_drum_cache', {}) or {})
+        custom_melodic_loaded = {}
+        try:
+            melodic_cache = getattr(self.procedural, '_custom_melodic_cache', {}) or {}
+            custom_melodic_loaded = {k: len(v) for k, v in melodic_cache.items()}
+        except Exception:
+            custom_melodic_loaded = {}
+
+        prompt_meta = {
+            "genre": getattr(parsed, 'genre', None) if parsed else self.genre,
+            "bpm": getattr(parsed, 'bpm', None) if parsed else None,
+            "key": getattr(parsed, 'key', None) if parsed else None,
+        }
+
+        return {
+            "schema_version": 1,
+            "renderer_path": renderer_path,
+            "midi_path": midi_path,
+            "output_path": output_path,
+            "prompt_meta": prompt_meta,
+            "fluidsynth": {
+                "available": bool(self.fluidsynth_available),
+                "version": self.fluidsynth_version,
+                "enabled": bool(self.use_fluidsynth),
+                "allowed": bool(fluidsynth_allowed),
+                "attempted": bool(fluidsynth_attempted),
+                "success": bool(fluidsynth_success),
+                "skip_reason": fluidsynth_skip_reason,
+            },
+            "soundfont_path": self.soundfont_path,
+            "require_soundfont": bool(self.require_soundfont),
+            "custom_audio": {
+                "custom_drums_loaded": custom_drums_loaded,
+                "custom_melodic_loaded": custom_melodic_loaded,
+            },
+            "instrument_library": instrument_stats,
+            "expansions": expansion_stats,
+            "warnings": warnings,
+        }
+
+    def get_last_render_report(self) -> Optional[Dict]:
+        """Return the most recent render report (if any)."""
+        return self._last_render_report
+
+    def write_last_render_report(self, report_path: str) -> bool:
+        """Write the most recent render report to a JSON file."""
+        if not self._last_render_report:
+            return False
+
+        try:
+            os.makedirs(os.path.dirname(report_path) or '.', exist_ok=True)
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(self._last_render_report, f, indent=2)
+            return True
+        except Exception:
+            return False
     
     def _get_chain_for_track(self, track_name: str, is_drums: bool) -> Optional[MixChain]:
         """Get appropriate mix chain for a track."""
@@ -1520,6 +1725,7 @@ class AudioRenderer:
             Dict mapping track name to output file path
         """
         import mido
+        import re
         
         os.makedirs(output_dir, exist_ok=True)
         stems = {}
@@ -1538,8 +1744,13 @@ class AudioRenderer:
             track_name = f'track_{i}'
             for msg in track:
                 if msg.type == 'track_name':
-                    track_name = msg.name.replace(' ', '_').lower()
+                    track_name = msg.name
                     break
+
+            display_name = str(track_name)
+            safe_name = re.sub(r"[^a-zA-Z0-9_-]+", "_", display_name.strip().replace(" ", "_"))
+            safe_name = re.sub(r"_+", "_", safe_name).strip("_")
+            track_name = (safe_name or f"track_{i}").lower()
             
             # Skip meta track
             if track_name.lower() == 'meta':
@@ -1557,6 +1768,19 @@ class AudioRenderer:
                 is_drums = (i == 9) # Rough guess if channel info lost, but usually track name helps
                 # Better check:
                 is_drums = 'drum' in track_name.lower()
+
+                role = "other"
+                name_l = track_name.lower()
+                if 'drum' in name_l or 'perc' in name_l:
+                    role = "drums"
+                elif 'bass' in name_l or '808' in name_l:
+                    role = "bass"
+                elif 'chord' in name_l or 'pad' in name_l or 'keys' in name_l or 'piano' in name_l or 'organ' in name_l:
+                    role = "melodic"
+                elif 'melody' in name_l or 'lead' in name_l or 'flute' in name_l:
+                    role = "melodic"
+                elif 'fx' in name_l or 'sfx' in name_l:
+                    role = "fx"
                 
                 chain = self._get_chain_for_track(track_name, is_drums)
                 if chain:
@@ -1580,6 +1804,8 @@ class AudioRenderer:
                 # Store metadata
                 stem_metadata[track_name] = {
                     "file": stem_filename,
+                    "display_name": display_name,
+                    "role": role,
                     "peak": peak_level,
                     "rms": rms_level,
                     "is_drums": is_drums,

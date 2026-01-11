@@ -550,6 +550,10 @@ class SectionMarker:
     energy_level: float = 0.5  # 0.0 - 1.0
     drum_density: float = 0.5
     instrument_density: float = 0.5
+
+    # Narrative
+    tension: float = 0.5
+    complexity: float = 0.5
     
     # Enabled elements
     enable_kick: bool = True
@@ -690,6 +694,9 @@ class SessionGraph:
     
     # Arrangement
     sections: List[SectionMarker] = field(default_factory=list)
+
+    # Emotional narrative (optional)
+    tension_arc: Optional[Dict[str, Any]] = None
     
     # Tracks
     tracks: List[Track] = field(default_factory=list)
@@ -837,6 +844,7 @@ class SessionGraph:
             "genre": self.genre,
             "global_constraints": self.global_constraints.to_dict() if self.global_constraints else None,
             "sections": [s.to_dict() for s in self.sections],
+            "tension_arc": self.tension_arc,
             "tracks": [t.to_dict() for t in self.tracks],
             "groove_template": self.groove_template.to_dict() if self.groove_template else None,
             "midi_path": self.midi_path,
@@ -1124,9 +1132,65 @@ class SessionGraphBuilder:
         """
         graph.total_ticks = arrangement.total_ticks
         graph.total_bars = arrangement.total_bars
+
+        # Persist tension arc (if available) for UI visualization and downstream shaping.
+        arc = getattr(arrangement, "tension_arc", None)
+        if arc and arrangement.total_ticks > 0:
+            curve_points = 128
+            curve = [
+                float(arc.get_tension_at(i / (curve_points - 1)))
+                for i in range(curve_points)
+            ]
+
+            # Derive a complexity curve (0-1) from tension and arc config.
+            influence = 0.5
+            try:
+                influence = float(getattr(getattr(arc, 'config', None), 'complexity_influence', 0.5))
+            except Exception:
+                influence = 0.5
+            baseline = 0.30
+            complexity_curve = []
+            for t in curve:
+                c = (t * influence) + (baseline * (1 - influence))
+                complexity_curve.append(max(0.0, min(1.0, float(c))))
+
+            graph.tension_arc = {
+                "shape": getattr(getattr(arc, "shape", None), "value", None),
+                "points": [
+                    {
+                        "position": float(p.position),
+                        "tension": float(p.tension),
+                        "label": getattr(p, "label", "") or "",
+                    }
+                    for p in getattr(arc, "points", [])
+                ],
+                "curve": curve,
+                "complexity_curve": complexity_curve,
+                "curve_points": curve_points,
+            }
+        else:
+            graph.tension_arc = None
         
         # Add section markers
         for arr_section in arrangement.sections:
+            tension = 0.5
+            complexity = 0.5
+            if arc and arrangement.total_ticks > 0:
+                try:
+                    mid_tick = (arr_section.start_tick + arr_section.end_tick) / 2.0
+                    tension = float(arc.get_tension_at(mid_tick / float(arrangement.total_ticks)))
+
+                    influence = 0.5
+                    try:
+                        influence = float(getattr(getattr(arc, 'config', None), 'complexity_influence', 0.5))
+                    except Exception:
+                        influence = 0.5
+                    baseline = 0.30
+                    complexity = (tension * influence) + (baseline * (1 - influence))
+                    complexity = float(max(0.0, min(1.0, complexity)))
+                except Exception:
+                    tension = 0.5
+                    complexity = 0.5
             section = graph.add_section(
                 name=arr_section.section_type.value,
                 section_type=arr_section.section_type.value,
@@ -1135,6 +1199,8 @@ class SessionGraphBuilder:
                 energy_level=arr_section.config.energy_level,
                 drum_density=arr_section.config.drum_density,
                 instrument_density=arr_section.config.instrument_density,
+                tension=tension,
+                complexity=complexity,
                 enable_kick=arr_section.config.enable_kick,
                 enable_snare=arr_section.config.enable_snare,
                 enable_hihat=arr_section.config.enable_hihat,

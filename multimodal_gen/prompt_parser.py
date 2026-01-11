@@ -93,6 +93,15 @@ class ParsedPrompt:
     use_sidechain: bool = False
     use_swing: bool = False
     swing_amount: float = 0.0
+
+    # Preset system (explicit opt-in only; None means no preset requested)
+    preset: Optional[str] = None
+    style_preset: Optional[str] = None
+    production_preset: Optional[str] = None
+
+    # Optional tension arc overrides (used by Arranger)
+    tension_arc_shape: Optional[str] = None
+    tension_intensity: Optional[float] = None
     
     # Raw prompt for reference
     raw_prompt: str = ''
@@ -334,17 +343,17 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'hard trap', 'dark trap'
     ],
     'rnb': [
-        'rnb', 'r&b', 'r and b', 'rhythm and blues', 'neo soul', 'neo-soul',
+        'rnb', 'r&b', 'r and b', 'r n b', 'rhythm and blues', 'neo soul', 'neo-soul',
         'contemporary rnb', 'modern rnb', 'soul', 'soulful', 'usher',
         'the weeknd', 'frank ocean', 'daniel caesar', 'h.e.r', 'summer walker',
         'slow jam', 'slow jams', 'groove', 'groovy'
     ],
     'trap_soul': [
-        'trap soul', 'trapsoul', 'rnb trap', 'r&b trap', 'soul trap',
+        'trap soul', 'trap-soul', 'trapsoul', 'rnb trap', 'r&b trap', 'soul trap',
         'emotional trap', 'melodic trap', 'bryson', 'sza', '6lack'
     ],
     'g_funk': [
-        'g_funk', 'g-funk', 'g funk', 'gfunk', 'west coast', 'westcoast', 'dr dre',
+        'g_funk', 'g-funk', 'g funk', 'gfunk', 'west coast', 'west-coast', 'westcoast', 'dr dre',
         'snoop', 'snoop dogg', 'warren g', 'nate dogg', 'death row',
         'california', 'la hip hop', 'gangsta funk', '213', 'doggystyle',
         'the chronic', 'regulate', 'long beach'
@@ -354,12 +363,16 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'chill beats', 'nujabes', 'lofi hip hop', 'lofi hiphop'
     ],
     'boom_bap': [
-        'boom bap', 'boombap', '90s', 'golden era', 'old school',
+        'boom bap', 'boom-bap', 'boombap', '90s', 'golden era', 'old school',
         'classic hip hop', 'east coast', 'ny', 'pete rock', 'dilla'
     ],
     'house': [
-        'house', 'deep house', 'tech house', 'future house',
-        'progressive house', 'disco house'
+        'house',
+        'deep house', 'deep-house', 'deephouse',
+        'tech house', 'tech-house', 'techhouse',
+        'future house', 'future-house', 'futurehouse',
+        'progressive house', 'progressive-house',
+        'disco house', 'disco-house'
     ],
     'ambient': [
         'ambient', 'atmospheric', 'cinematic', 'soundscape',
@@ -660,6 +673,8 @@ class PromptParser:
         style_modifiers = self._extract_style_modifiers(prompt_lower)
         sonic_adjectives = self._extract_sonic_adjectives(prompt_lower)
         duration = self._extract_duration(prompt_lower)
+
+        preset, style_preset, production_preset = self._extract_presets(prompt_lower)
         
         # Apply genre defaults if BPM not specified
         if bpm is None:
@@ -699,10 +714,42 @@ class PromptParser:
             use_sidechain=use_sidechain,
             use_swing=use_swing,
             swing_amount=swing_amount,
+            preset=preset,
+            style_preset=style_preset,
+            production_preset=production_preset,
             raw_prompt=prompt,
             negative_prompt=negative_prompt,
             target_duration_seconds=duration,
         )
+
+    def _extract_presets(self, prompt: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Extract explicit preset requests.
+
+        Supported explicit forms:
+          - "preset: edm_house" / "preset edm_house"
+          - "style preset: chill" / "style_preset chill"
+          - "production preset: polished" / "production_preset polished"
+        """
+        def _norm(name: str) -> str:
+            return name.strip().lower().replace('-', '_')
+
+        preset = None
+        style_preset = None
+        production_preset = None
+
+        m = re.search(r'\bpreset\s*(?::|=)?\s*([a-z0-9_\-]+)\b', prompt)
+        if m:
+            preset = _norm(m.group(1))
+
+        m = re.search(r'\bstyle\s*(?:preset|_preset)\s*(?::|=)?\s*([a-z0-9_\-]+)\b', prompt)
+        if m:
+            style_preset = _norm(m.group(1))
+
+        m = re.search(r'\bproduction\s*(?:preset|_preset)\s*(?::|=)?\s*([a-z0-9_\-]+)\b', prompt)
+        if m:
+            production_preset = _norm(m.group(1))
+
+        return preset, style_preset, production_preset
 
     def _extract_style_modifiers(self, prompt: str) -> List[str]:
         """Extract style modifiers (e.g., church/gospel performance cues)."""
@@ -875,6 +922,47 @@ class PromptParser:
         Priority order: more specific genres are checked first (e.g., 'eskista' 
         before 'ethiopian_traditional') to avoid false matches.
         """
+        def _keyword_matches(kw: str) -> bool:
+            kw = kw.strip().lower()
+            if not kw:
+                return False
+            # If the keyword is a phrase or contains punctuation, use a simple substring match.
+            # For single-word keywords, use word boundaries to reduce false positives
+            # (e.g., avoid matching "in-house" as the genre "house").
+            if any(ch in kw for ch in [' ', '-', '&', '/']):
+                return kw in prompt
+            return re.search(rf'\b{re.escape(kw)}\b', prompt) is not None
+
+        def _keyword_weight(genre_name: str, kw: str) -> int:
+            kw = kw.strip().lower()
+            if not kw:
+                return 0
+            # Strong signal: keyword is essentially the genre name.
+            genre_variants = {
+                genre_name,
+                genre_name.replace('_', ' '),
+                genre_name.replace('_', '-'),
+            }
+            if kw in genre_variants:
+                return 10
+
+            # Strong signal: multi-token genre phrase is explicitly present.
+            # Example: genre_name='ethiopian_traditional', kw='traditional ethiopian'
+            genre_tokens = [t for t in genre_name.replace('_', ' ').split() if t]
+            if len(genre_tokens) >= 2 and all(t in kw for t in genre_tokens):
+                return 11
+            # Generic words that appear in many prompts/genres.
+            generic = {
+                'groove', 'groovy', 'vibe', 'vibes', 'smooth', 'chill', 'club',
+                'dance', 'beat', 'track', 'song', 'instrumental',
+            }
+            if kw in generic:
+                return 1
+            # Phrases are usually more specific than single words.
+            if any(ch in kw for ch in [' ', '-', '&', '/']):
+                return 6
+            return 3
+
         # Define priority order - more specific genres first
         # IMPORTANT: trap_soul MUST come before rnb because 'soul' is in both
         priority_order = [
@@ -884,27 +972,31 @@ class PromptParser:
             'ethiopian_traditional',  # Traditional with instruments
             'ethiopian',  # General Ethiopian
             'trap_soul',  # MUST be before rnb (both have 'soul' keyword)
+            'house',
             'rnb',  # R&B
             'trap',
             'lofi',
             'boom_bap',
-            'house',
             'ambient',
         ]
-        
-        # Check genres in priority order
-        for genre in priority_order:
-            if genre in GENRE_KEYWORDS:
-                for keyword in GENRE_KEYWORDS[genre]:
-                    if keyword in prompt:
-                        return genre
-        
-        # Check any remaining genres not in priority list
-        for genre, keywords in GENRE_KEYWORDS.items():
-            if genre not in priority_order:
-                for keyword in keywords:
-                    if keyword in prompt:
-                        return genre
+
+        # Score all matching genres, then break ties by priority.
+        scores: Dict[str, int] = {}
+
+        for genre_name, keywords in GENRE_KEYWORDS.items():
+            best = 0
+            for keyword in keywords:
+                if _keyword_matches(keyword):
+                    best = max(best, _keyword_weight(genre_name, keyword))
+            if best > 0:
+                scores[genre_name] = best
+
+        if scores:
+            def _priority_index(g: str) -> int:
+                return priority_order.index(g) if g in priority_order else 10_000
+
+            # Highest score wins; if tied, earlier priority_order wins.
+            return sorted(scores.items(), key=lambda item: (-item[1], _priority_index(item[0]), item[0]))[0][0]
         
         # Default based on other hints
         if '808' in prompt or 'hihat roll' in prompt:

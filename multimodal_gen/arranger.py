@@ -20,6 +20,7 @@ import random
 
 from .prompt_parser import ParsedPrompt
 from .motif_engine import Motif, MotifGenerator, MotifLibrary
+from .tension_arc import TensionArc, TensionArcGenerator, ArcShape, TensionConfig
 from .utils import (
     TICKS_PER_BEAT,
     TICKS_PER_BAR_4_4,
@@ -265,6 +266,9 @@ class Arrangement:
     motifs: List[Motif] = field(default_factory=list)
     motif_assignments: Dict[str, MotifAssignment] = field(default_factory=dict)
     # Key is section name like "verse_1", "chorus_1", etc.
+
+    # NEW: Tension arc for emotional narrative shaping
+    tension_arc: Optional[TensionArc] = None
     
     def duration_seconds(self) -> float:
         return ticks_to_seconds(self.total_ticks, self.bpm)
@@ -562,12 +566,60 @@ class Arranger:
         total_ticks = current_tick
         total_bars = sum(s.bars for s in sections)
         
+        tension_arc = None
+        try:
+            generator = TensionArcGenerator()
+            shape_override = getattr(parsed, "tension_arc_shape", None)
+            intensity = getattr(parsed, "tension_intensity", None)
+
+            if shape_override:
+                shape_key = str(shape_override).strip().lower()
+                shape_aliases = {
+                    "gradual_build": "linear_build",
+                    "build": "linear_build",
+                    "linear": "linear_build",
+                    "plateau": "flat",
+                    "swell": "peak_middle",
+                }
+                shape_key = shape_aliases.get(shape_key, shape_key)
+
+                arc_shape = ArcShape(shape_key)
+                config = TensionConfig()
+                if intensity is not None:
+                    try:
+                        it = max(0.0, min(1.0, float(intensity)))
+                        # Expand/compress the tension range around base tension.
+                        min_t = max(0.0, 0.5 - 0.3 * it)
+                        max_t = min(1.0, 0.5 + 0.5 * it)
+                        config.tension_range = (min_t, max_t)
+                    except Exception:
+                        pass
+
+                tension_arc = generator.create_arc(
+                    arc_shape,
+                    num_sections=len(sections),
+                    config=config,
+                )
+
+                # Label points with section names for UI/debugging.
+                for pt, sec in zip(tension_arc.points, sections):
+                    pt.label = sec.section_type.value
+            else:
+                tension_arc = generator.create_arc_for_sections(
+                    [s.section_type.value for s in sections],
+                    genre=(parsed.genre or "pop")
+                )
+        except Exception:
+            # Keep tension arc optional and never block generation.
+            tension_arc = None
+
         return Arrangement(
             sections=sections,
             total_bars=total_bars,
             total_ticks=total_ticks,
             bpm=parsed.bpm,
             time_signature=parsed.time_signature,
+            tension_arc=tension_arc,
         )
     
     def _get_template(
@@ -785,7 +837,8 @@ def get_default_motif_mapping(genre: str) -> Dict[str, MotifAssignment]:
 def generate_arrangement_with_motifs(
     parsed: ParsedPrompt,
     num_motifs: int = 2,
-    seed: Optional[int] = None
+    seed: Optional[int] = None,
+    target_duration_seconds: Optional[float] = None
 ) -> Arrangement:
     """
     Generate arrangement with thematic coherence through motifs.
@@ -814,7 +867,7 @@ def generate_arrangement_with_motifs(
     num_motifs = max(1, min(3, num_motifs))
     
     # Create base arrangement
-    arranger = Arranger()
+    arranger = Arranger(target_duration_seconds=target_duration_seconds)
     arrangement = arranger.create_arrangement(parsed)
     
     # Generate motifs using MotifGenerator

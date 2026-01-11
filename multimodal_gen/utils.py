@@ -139,6 +139,59 @@ NOTE_NAMES_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', '
 
 
 # =============================================================================
+# GENRE NORMALIZATION
+# =============================================================================
+
+def normalize_genre(genre: str) -> str:
+    """Normalize user-facing genre strings to internal keys.
+
+    This prevents subtle regressions where different spellings (e.g. "gfunk")
+    bypass keyword extraction or overrides and cause downstream modules to
+    default to unrelated genres.
+
+    Examples:
+        "gfunk" -> "g_funk"
+        "g-funk" -> "g_funk"
+        "ethio jazz" -> "ethio_jazz"
+    """
+    if not genre:
+        return ""
+
+    g = str(genre).strip().lower()
+    g = g.replace("-", "_").replace(" ", "_")
+    while "__" in g:
+        g = g.replace("__", "_")
+
+    aliases = {
+        # G-Funk
+        "gfunk": "g_funk",
+        "g_funk": "g_funk",
+        "westcoast": "g_funk",
+        "west_coast": "g_funk",
+
+        # Ethio
+        "ethio_jazz": "ethio_jazz",
+        "ethio_jazz_": "ethio_jazz",
+        "ethio": "ethiopian",
+        "ethiopia": "ethiopian",
+        "ethiopian": "ethiopian",
+        "ethiopian_traditional": "ethiopian_traditional",
+
+        # Common formatting variants
+        "lo_fi": "lofi",
+        "lofi": "lofi",
+        "boom_bap": "boom_bap",
+        "boombap": "boom_bap",
+        "trap_soul": "trap_soul",
+        "trapsoul": "trap_soul",
+        "r&b": "rnb",
+        "rnb": "rnb",
+    }
+
+    return aliases.get(g, g)
+
+
+# =============================================================================
 # TIMING / CONVERSION FUNCTIONS
 # =============================================================================
 

@@ -25,6 +25,7 @@ from multimodal_gen.server.worker import (
     GenerationRequest,
     GenerationResult,
     TaskStatus,
+    build_run_generation_kwargs,
 )
 
 
@@ -150,6 +151,8 @@ class TestOSCAddresses:
         assert OSCAddresses.CANCEL == "/cancel"
         assert OSCAddresses.ANALYZE == "/analyze"
         assert OSCAddresses.FX_CHAIN == "/fx_chain"
+        assert OSCAddresses.CONTROLS_SET == "/controls/set"
+        assert OSCAddresses.CONTROLS_CLEAR == "/controls/clear"
         assert OSCAddresses.PING == "/ping"
         assert OSCAddresses.SHUTDOWN == "/shutdown"
     
@@ -244,6 +247,47 @@ class TestRequestIdCorrelation:
         data = json.loads(progress_json)
         assert "request_id" in data
         assert data["request_id"] == "test-req"
+
+
+class TestPhase52OptionForwarding:
+    def test_build_run_generation_kwargs_includes_controls(self):
+        request = GenerationRequest(
+            prompt="test",
+            genre="g_funk",
+            bpm=92,
+            key="A",
+            duration_bars=8,
+            export_mpc=True,
+            export_stems=False,
+            options={
+                "preset": "legendary",
+                "style_preset": "g_funk_90s",
+                "production_preset": "wide_modern",
+                "tension_arc_shape": "linear_build",
+                "tension_intensity": 0.75,
+                "motif_mode": "on",
+                "num_motifs": 3,
+                "seed": 123,
+            },
+        )
+
+        def _progress(step: str, pct: float, msg: str):
+            pass
+
+        kwargs = build_run_generation_kwargs(request, output_dir="out", progress_callback=_progress)
+
+        assert kwargs["genre_override"] == "g_funk"
+        assert kwargs["bpm_override"] == 92
+        assert kwargs["key_override"] == "A"
+        assert kwargs["duration_bars"] == 8
+        assert kwargs["preset"] == "legendary"
+        assert kwargs["style_preset"] == "g_funk_90s"
+        assert kwargs["production_preset"] == "wide_modern"
+        assert kwargs["tension_arc_shape"] == "linear_build"
+        assert kwargs["tension_intensity"] == 0.75
+        assert kwargs["motif_mode"] == "on"
+        assert kwargs["num_motifs"] == 3
+        assert kwargs["seed"] == 123
     
     def test_error_message_format(self):
         """Test that error messages include request_id."""

@@ -114,6 +114,8 @@ class MusicGenOSCServer:
         self._lock = threading.Lock()
         self._current_request_id: Optional[str] = None  # Track current request for correlation
         self._current_fx_chain: Dict[str, Any] = {}     # FX chain configuration for render parity
+        # Phase 5.2: persisted control overrides (merged into /generate + /regenerate)
+        self._control_overrides: Dict[str, Any] = {}
         
         # Callbacks for external integration (optional)
         self.on_generation_start: Optional[callable] = None
@@ -130,6 +132,8 @@ class MusicGenOSCServer:
         self._dispatcher.map(OSCAddresses.ANALYZE, self._handle_analyze)
         self._dispatcher.map(OSCAddresses.REGENERATE, self._handle_regenerate)
         self._dispatcher.map(OSCAddresses.FX_CHAIN, self._handle_fx_chain)
+        self._dispatcher.map(OSCAddresses.CONTROLS_SET, self._handle_controls_set)
+        self._dispatcher.map(OSCAddresses.CONTROLS_CLEAR, self._handle_controls_clear)
         self._dispatcher.map(OSCAddresses.GET_INSTRUMENTS, self._handle_get_instruments)
         self._dispatcher.map(OSCAddresses.PING, self._handle_ping)
         self._dispatcher.map(OSCAddresses.SHUTDOWN, self._handle_shutdown)
@@ -348,6 +352,47 @@ class MusicGenOSCServer:
             if not prompt:
                 self._send_error(ErrorCode.INVALID_PROMPT, "Prompt is required", request_id=request_id)
                 return
+
+            # Phase 5.2: accept optional controls in "options" and/or top-level
+            raw_options = data.get("options", {})
+            options: Dict[str, Any] = raw_options if isinstance(raw_options, dict) else {}
+
+            # Top-level convenience fields (mirrors CLI args/pipeline fields)
+            for k in (
+                "tension_arc_shape",
+                "tension_intensity",
+                "motif_mode",
+                "num_motifs",
+                "preset",
+                "style_preset",
+                "production_preset",
+                "seed",
+            ):
+                if k in data and k not in options:
+                    options[k] = data.get(k)
+
+            # Merge persisted overrides with per-request options (per-request wins)
+            if self._control_overrides:
+                options = {**self._control_overrides, **options}
+
+            # duration_bars can be either top-level or inside options
+            duration_bars = data.get("duration_bars", options.get("duration_bars", 8))
+            try:
+                duration_bars = int(duration_bars)
+            except Exception:
+                duration_bars = 8
+
+            # Take generation (optional)
+            num_takes = data.get("num_takes", options.get("num_takes", 1))
+            take_variation = data.get("take_variation", options.get("take_variation", ""))
+            try:
+                num_takes = int(num_takes)
+            except Exception:
+                num_takes = 1
+            try:
+                take_variation = str(take_variation) if take_variation is not None else ""
+            except Exception:
+                take_variation = ""
             
             # Build request with request_id
             request = GenerationRequest(
@@ -357,6 +402,7 @@ class MusicGenOSCServer:
                 genre=data.get("genre", ""),  # Genre ID from JUCE GenreSelector
                 bpm=int(data.get("bpm", 0)),
                 key=data.get("key", ""),
+                duration_bars=duration_bars,
                 output_dir=data.get("output_dir", self.config.default_output_dir),
                 instruments=data.get("instruments", self.config.instrument_paths),
                 soundfont=data.get("soundfont", self.config.default_soundfont or ""),
@@ -365,6 +411,9 @@ class MusicGenOSCServer:
                 export_mpc=data.get("export_mpc", self.config.auto_export_mpc),
                 reference_url=data.get("reference_url", ""),
                 verbose=data.get("verbose", self.config.verbose),
+                num_takes=num_takes,
+                take_variation=take_variation,
+                options=options,
             )
             
             self._log(f"   Request ID: {request_id}" if request_id else "   Request ID: (none)")
@@ -550,7 +599,12 @@ class MusicGenOSCServer:
             tracks = data.get("tracks", [])  # Empty = all tracks
             seed_strategy = data.get("seed_strategy", "new")
             prompt_override = data.get("prompt", "")
-            options = data.get("options", {})
+            raw_options = data.get("options", {})
+            options: Dict[str, Any] = raw_options if isinstance(raw_options, dict) else {}
+
+            # Merge persisted overrides (Phase 5.2) with per-request options (per-request wins)
+            if self._control_overrides:
+                options = {**self._control_overrides, **options}
             
             # Validate bar range
             if start_bar < 0 or end_bar <= start_bar:
@@ -674,6 +728,136 @@ class MusicGenOSCServer:
             self._log(f"   ⚠️  Invalid FX chain JSON: {e}")
         except Exception as e:
             self._log(f"   ⚠️  FX chain error: {e}")
+
+    def _handle_controls_set(self, address: str, *args):
+        """Handle /controls/set to persistently store generation overrides.
+
+        Expected args (JSON string):
+            {
+              "schema_version": 1,
+              "request_id": "uuid",
+              "overrides": {
+                 "tension_arc_shape": "linear_build",
+                 "tension_intensity": 0.8,
+                 "motif_mode": "on",          // auto|on|off
+                 "num_motifs": 2,
+                 "preset": "legendary",
+                 "style_preset": "g_funk_90s",
+                 "production_preset": "wide_modern",
+                 "duration_bars": 8,
+                 "seed": 123,
+                 "num_takes": 1,
+                 "take_variation": "timing"
+              }
+            }
+        """
+        self._log(f"📥 Received: {address}")
+
+        request_id = ""
+        try:
+            if not args:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "No parameters provided")
+                return
+
+            data = json.loads(args[0]) if isinstance(args[0], str) else {}
+
+            request_id = data.get("request_id", str(uuid.uuid4()))
+            schema_version = int(data.get("schema_version", 1))
+            if schema_version > SCHEMA_VERSION:
+                self._send_error(
+                    ErrorCode.SCHEMA_VERSION_MISMATCH,
+                    f"Client schema {schema_version} is newer than server {SCHEMA_VERSION}",
+                    request_id=request_id,
+                )
+                return
+
+            raw_overrides = data.get("overrides", {})
+            overrides = raw_overrides if isinstance(raw_overrides, dict) else {}
+
+            allowed_keys = {
+                "tension_arc_shape",
+                "tension_intensity",
+                "motif_mode",
+                "num_motifs",
+                "preset",
+                "style_preset",
+                "production_preset",
+                "duration_bars",
+                "seed",
+                "num_takes",
+                "take_variation",
+            }
+
+            updated: Dict[str, Any] = {}
+            for k, v in overrides.items():
+                if k in allowed_keys:
+                    self._control_overrides[k] = v
+                    updated[k] = v
+
+            self._send_status(
+                "controls_updated",
+                {"request_id": request_id, "updated": updated, "overrides": self._control_overrides},
+                request_id=request_id,
+            )
+
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}", request_id=request_id)
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
+
+    def _handle_controls_clear(self, address: str, *args):
+        """Handle /controls/clear to remove persisted overrides.
+
+        Expected args (JSON string):
+            {
+              "schema_version": 1,
+              "request_id": "uuid",
+              "keys": ["tension_intensity", "motif_mode"]  // optional
+            }
+        If keys are omitted/empty, clears all overrides.
+        """
+        self._log(f"📥 Received: {address}")
+
+        request_id = ""
+        try:
+            if not args:
+                self._send_error(ErrorCode.MISSING_PARAMETER, "No parameters provided")
+                return
+
+            data = json.loads(args[0]) if isinstance(args[0], str) else {}
+
+            request_id = data.get("request_id", str(uuid.uuid4()))
+            schema_version = int(data.get("schema_version", 1))
+            if schema_version > SCHEMA_VERSION:
+                self._send_error(
+                    ErrorCode.SCHEMA_VERSION_MISMATCH,
+                    f"Client schema {schema_version} is newer than server {SCHEMA_VERSION}",
+                    request_id=request_id,
+                )
+                return
+
+            keys = data.get("keys")
+            cleared: List[str] = []
+            if keys and isinstance(keys, list):
+                for k in keys:
+                    ks = str(k)
+                    if ks in self._control_overrides:
+                        self._control_overrides.pop(ks, None)
+                        cleared.append(ks)
+            else:
+                cleared = list(self._control_overrides.keys())
+                self._control_overrides.clear()
+
+            self._send_status(
+                "controls_cleared",
+                {"request_id": request_id, "cleared": cleared, "overrides": self._control_overrides},
+                request_id=request_id,
+            )
+
+        except json.JSONDecodeError as e:
+            self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}", request_id=request_id)
+        except Exception as e:
+            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
     
     def _handle_get_instruments(self, address: str, *args):
         """

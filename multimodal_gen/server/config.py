@@ -127,6 +127,9 @@ class OSCAddresses:
     ANALYZE = "/analyze"
     REGENERATE = "/regenerate"  # Sectional regeneration
     FX_CHAIN = "/fx_chain"      # FX chain configuration for render parity
+    # Phase 5.2: near-realtime-ish control overrides (persisted server-side)
+    CONTROLS_SET = "/controls/set"
+    CONTROLS_CLEAR = "/controls/clear"
     GET_INSTRUMENTS = "/instruments"
     PING = "/ping"
     SHUTDOWN = "/shutdown"

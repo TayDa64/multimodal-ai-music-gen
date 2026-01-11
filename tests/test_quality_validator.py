@@ -66,6 +66,14 @@ class TestQualityValidator:
         assert MetricCategory.HUMANIZATION in categories
         assert MetricCategory.MUSIC_THEORY in categories
         assert MetricCategory.GENRE_CONFORMANCE in categories
+
+    def test_validate_includes_motif_coherence_metric(self):
+        """Ensure the motif coherence heuristic is present."""
+        validator = QualityValidator()
+        notes = [(i * 240, 120, 60 + (i * 7) % 12, 70 + (i % 6) * 3) for i in range(24)]
+        report = validator.validate(notes)
+        metric_names = {m.name for m in report.metrics}
+        assert "Motif Coherence" in metric_names
     
     def test_validate_produces_recommendations(self):
         """Test that validation produces recommendations."""

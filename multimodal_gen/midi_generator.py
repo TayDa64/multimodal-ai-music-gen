@@ -41,6 +41,8 @@ from .utils import (
     GM_DRUM_NOTES,
     TRAP_808_NOTES,
     ScaleType,
+    GENRE_DEFAULTS,
+    normalize_genre,
     bpm_to_microseconds_per_beat,
     bars_to_ticks,
     beats_to_ticks,
@@ -53,9 +55,25 @@ from .utils import (
     note_name_to_midi,
     midi_to_note_name,
 )
+
+from .ethio_melody import embellish_melody_qenet
 from .prompt_parser import ParsedPrompt
-from .arranger import Arrangement, SongSection, SectionType
+from .arranger import Arrangement, SongSection, SectionType, get_section_motif
 from .groove_templates import GrooveTemplate, GrooveApplicator, get_groove_for_genre
+
+
+def _nearest_note_in_scale(pitch: int, scale_notes: List[int]) -> int:
+    if not scale_notes:
+        return max(0, min(127, int(pitch)))
+    pitch = max(0, min(127, int(pitch)))
+    best = scale_notes[0]
+    best_dist = abs(best - pitch)
+    for candidate in scale_notes[1:]:
+        dist = abs(candidate - pitch)
+        if dist < best_dist or (dist == best_dist and candidate < best):
+            best = candidate
+            best_dist = dist
+    return best
 
 # Physics-aware humanization for realistic performances
 try:
@@ -963,7 +981,10 @@ def generate_chord_progression_midi(
     octave: int = 4,
     base_velocity: int = 85,
     rhythm_style: str = 'block',
-    chord_color: bool = False
+    chord_color: bool = False,
+    complexity: float = 0.5,
+    genre: Optional[str] = None,
+    section_type: Optional[str] = None
 ) -> List[Tuple[int, int, int, int]]:
     """
     Generate chord progression MIDI.
@@ -980,6 +1001,84 @@ def generate_chord_progression_midi(
     Returns:
         List of (tick, duration, pitch, velocity) tuples
     """
+    complexity = max(0.0, min(1.0, float(complexity)))
+    genre_lower = (genre or "").lower().strip()
+
+    def _base_degree_qualities() -> List[str]:
+        if scale_type in [ScaleType.MAJOR, ScaleType.MIXOLYDIAN, ScaleType.LYDIAN]:
+            return ['major', 'minor', 'minor', 'major', 'major', 'minor', 'dim']
+        return ['minor', 'dim', 'major', 'minor', 'minor', 'major', 'major']
+
+    def _color_quality_for_degree(base_quality: str, degree: int) -> str:
+        """Map triad quality to 7th/9th/sus/add9 flavor based on complexity + genre."""
+        # Always keep diminished stable.
+        if base_quality == 'dim':
+            return 'dim7' if complexity >= 0.7 else 'dim'
+
+        # Conservative genres: keep chord vocabulary simpler.
+        conservative = genre_lower in ['trap', 'trap_soul', 'g_funk', 'ethiopian_traditional', 'eskista']
+        jazzier = genre_lower in ['jazz', 'ethio_jazz']
+
+        # Base probability of richer chords.
+        # 0.0 -> almost always triads, 1.0 -> mostly 7ths/9ths
+        p_color = 0.10 + 0.80 * max(0.0, complexity - 0.30) / 0.70
+        if conservative:
+            p_color *= 0.6
+        if jazzier:
+            p_color *= 1.15
+
+        use_color = chord_color or (random.random() < p_color)
+        if not use_color:
+            # Add occasional sus at medium complexity for movement without "jazzy" harmony.
+            if complexity >= 0.45 and random.random() < (0.08 if conservative else 0.12):
+                return random.choice(['sus2', 'sus4'])
+            return base_quality
+
+        # Choose 7ths vs 9ths.
+        wants_9 = complexity >= 0.78 and random.random() < (0.30 if jazzier else 0.18)
+
+        # Dominant on V (degree 5) reads "pro" in many genres.
+        if degree == 5:
+            return '9' if wants_9 and not conservative else '7'
+
+        if base_quality == 'major':
+            if wants_9 and not conservative:
+                return random.choice(['add9', 'maj7'])
+            return 'maj7'
+
+        # Minor
+        if wants_9 and jazzier:
+            return 'm9'
+        return 'm7'
+
+    def _voice_lead(prev: Optional[List[int]], chord_notes: List[int]) -> List[int]:
+        """Very small voice-leading: choose inversions to minimize distance to previous chord."""
+        if not prev or len(chord_notes) < 3 or complexity < 0.55:
+            return chord_notes
+
+        best = chord_notes
+        best_cost = float('inf')
+
+        # Try up to 3 inversions (rotate lowest note up an octave)
+        candidate = chord_notes[:]
+        for _ in range(3):
+            prev_center = sum(prev) / len(prev)
+            cand_center = sum(candidate) / len(candidate)
+            # cost: distance between centers + summed nearest-note distances
+            center_cost = abs(cand_center - prev_center)
+            nn_cost = 0.0
+            for n in candidate:
+                nn_cost += min(abs(n - p) for p in prev)
+            cost = center_cost + 0.15 * nn_cost
+            if cost < best_cost:
+                best_cost = cost
+                best = candidate[:]
+
+            # Next inversion
+            candidate = candidate[1:] + [candidate[0] + 12]
+
+        return best
+
     if progression is None:
         # Default progressions by mood
         if scale_type == ScaleType.MINOR:
@@ -990,28 +1089,23 @@ def generate_chord_progression_midi(
     pattern = []
     ticks_per_bar = TICKS_PER_BAR_4_4
 
-    if chord_color:
-        # Rebuild progression here so we can use 7ths/9ths for gospel/church color.
-        scale_notes = get_scale_notes(key, scale_type, octave, 1)
-        if scale_type in [ScaleType.MAJOR, ScaleType.MIXOLYDIAN, ScaleType.LYDIAN]:
-            qualities = ['maj7', 'm7', 'm7', 'maj7', '7', 'm7', 'dim7']
-        else:
-            qualities = ['m7', 'dim7', 'maj7', 'm7', 'm7', 'maj7', '7']
-
-        chords = []
-        for degree in progression:
-            if 1 <= degree <= 7:
-                root_note = scale_notes[degree - 1]
-                root_name, _ = midi_to_note_name(root_note)
-                quality = qualities[degree - 1]
-                chords.append(get_chord_notes(root_name, quality, octave))
-    else:
-        chords = get_chord_progression(key, scale_type, progression, octave)
+    # Build scale degrees to chord notes with complexity-aware qualities.
+    scale_notes = get_scale_notes(key, scale_type, octave, 1)
+    base_qualities = _base_degree_qualities()
+    chords = []
+    for degree in progression:
+        if 1 <= degree <= 7:
+            root_note = scale_notes[degree - 1]
+            root_name, _ = midi_to_note_name(root_note)
+            base_quality = base_qualities[degree - 1]
+            quality = _color_quality_for_degree(base_quality, degree)
+            chords.append(get_chord_notes(root_name, quality, octave))
     
     # How many bars per chord
     bars_per_chord = max(1, bars // len(progression))
     
     chord_index = 0
+    prev_chord_notes: Optional[List[int]] = None
     for bar in range(bars):
         bar_offset = bar * ticks_per_bar
         
@@ -1020,12 +1114,29 @@ def generate_chord_progression_midi(
             chord_index = (chord_index + 1) % len(chords)
         
         chord_notes = chords[chord_index]
+        chord_notes = _voice_lead(prev_chord_notes, chord_notes)
+        prev_chord_notes = chord_notes
         
         if rhythm_style == 'block':
             # Play full chord at start of bar, hold for bar
             for pitch in chord_notes:
                 vel = humanize_velocity(base_velocity, variation=0.1)
                 pattern.append((bar_offset, ticks_per_bar, pitch, vel))
+
+            # Optional passing/approach hit near bar end for jazzier contexts.
+            # Keep it subtle and only at higher complexity.
+            if complexity >= 0.82 and genre_lower in ['jazz', 'ethio_jazz', 'rnb'] and random.random() < 0.22:
+                next_index = (chord_index + 1) % len(chords)
+                next_chord = chords[next_index]
+                # Use a sus/add9 color on the next root for a tasteful push.
+                passing_root_name, _ = midi_to_note_name(next_chord[0])
+                passing_quality = random.choice(['sus2', 'sus4', 'add9'])
+                passing = get_chord_notes(passing_root_name, passing_quality, octave)
+                passing = _voice_lead(chord_notes, passing)
+                passing_tick = bar_offset + beats_to_ticks(3.5)
+                for pitch in passing[: min(4, len(passing))]:
+                    vel = humanize_velocity(int(base_velocity * 0.92), variation=0.12)
+                    pattern.append((passing_tick, TICKS_PER_8TH, pitch, vel))
         
         elif rhythm_style == 'arpeggiate':
             # Arpeggiate through chord notes
@@ -1362,6 +1473,65 @@ class MidiGenerator:
                 mid.tracks.append(melody_track)
         
         return mid
+
+    def _tension_multiplier(self, tension: float, min_mult: float, max_mult: float) -> float:
+        tension = max(0.0, min(1.0, float(tension)))
+        return min_mult + (max_mult - min_mult) * tension
+
+    def _get_section_tension(self, arrangement: Arrangement, section: SongSection) -> float:
+        """Return tension (0-1) at the section midpoint, if available."""
+        arc = getattr(arrangement, "tension_arc", None)
+        if not arc or arrangement.total_ticks <= 0:
+            return 0.5
+
+        mid_tick = (section.start_tick + section.end_tick) / 2.0
+        position = mid_tick / float(arrangement.total_ticks)
+        try:
+            value = arc.get_tension_at(position)
+            if value is None:
+                return 0.5
+            return max(0.0, min(1.0, float(value)))
+        except Exception:
+            return 0.5
+
+    def _get_section_complexity(self, arrangement: Arrangement, section: SongSection, genre: str) -> float:
+        """Derive a 0-1 complexity target from tension + genre defaults."""
+        base_by_genre = {
+            'g_funk': 0.45,
+            'trap': 0.40,
+            'trap_soul': 0.45,
+            'rnb': 0.55,
+            'lofi': 0.50,
+            'house': 0.55,
+            'ethiopian_traditional': 0.35,
+            'eskista': 0.40,
+            'ethiopian': 0.45,
+            'ethio_jazz': 0.70,
+            'jazz': 0.75,
+            'classical': 0.70,
+            'pop': 0.50,
+            'hip_hop': 0.50,
+        }
+        genre_key = (genre or 'pop').lower()
+        base = base_by_genre.get(genre_key, 0.50)
+
+        tension = self._get_section_tension(arrangement, section)
+        arc = getattr(arrangement, "tension_arc", None)
+        influence = 0.5
+        try:
+            influence = float(getattr(getattr(arc, 'config', None), 'complexity_influence', 0.5)) if arc else 0.5
+        except Exception:
+            influence = 0.5
+
+        # Section-type shaping (small): choruses/drops can tolerate more.
+        if section.section_type in [SectionType.CHORUS, SectionType.DROP, SectionType.VARIATION]:
+            base += 0.05
+        if section.section_type in [SectionType.INTRO, SectionType.BREAKDOWN, SectionType.OUTRO]:
+            base -= 0.05
+
+        # Convert tension (0-1) into a signed modulation around base.
+        mod = (tension - 0.5) * 0.90 * influence
+        return max(0.0, min(1.0, base + mod))
     
     def _create_meta_track(
         self,
@@ -1438,7 +1608,8 @@ class MidiGenerator:
         all_notes = []
         
         for section in arrangement.sections:
-            section_notes = self._generate_drums_for_section(section, parsed)
+            tension = self._get_section_tension(arrangement, section)
+            section_notes = self._generate_drums_for_section(section, parsed, tension)
             all_notes.extend(section_notes)
         
         # Convert to MIDI messages with physics humanization
@@ -1456,11 +1627,16 @@ class MidiGenerator:
     def _generate_drums_for_section(
         self,
         section: SongSection,
-        parsed: ParsedPrompt
+        parsed: ParsedPrompt,
+        tension: float = 0.5
     ) -> List[NoteEvent]:
         """Generate drums for a single section."""
         notes = []
         config = section.config
+
+        # Apply tension as a subtle velocity scaler. Keep it subtle and
+        # avoid changing boolean decisions or pattern choice.
+        vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
         # Determine pattern type based on genre and section
         # CRITICAL: Only pure trap/drill get dense 16th note hi-hats
@@ -1471,7 +1647,7 @@ class MidiGenerator:
                 kicks = generate_trap_kick_pattern(
                     section.bars,
                     variation=section.pattern_variation,
-                    base_velocity=int(100 * config.drum_density)
+                    base_velocity=int(100 * config.drum_density * vel_mult)
                 )
                 for tick, dur, vel in kicks:
                     notes.append(NoteEvent(
@@ -1486,7 +1662,7 @@ class MidiGenerator:
                 snares = generate_trap_snare_pattern(
                     section.bars,
                     variation=section.pattern_variation,
-                    base_velocity=int(95 * config.drum_density),
+                    base_velocity=int(95 * config.drum_density * vel_mult),
                     add_ghost_notes=config.drum_density > 0.5,
                     half_time=True
                 )
@@ -1520,7 +1696,7 @@ class MidiGenerator:
                 hihats = generate_trap_hihat_pattern(
                     section.bars,
                     variation=section.pattern_variation,
-                    base_velocity=int(75 * config.drum_density),
+                    base_velocity=int(75 * config.drum_density * vel_mult),
                     include_rolls=include_rolls,
                     swing=parsed.swing_amount
                 )
@@ -1554,7 +1730,7 @@ class MidiGenerator:
                         pitch=GM_DRUM_NOTES['crash'],
                         start_tick=section.start_tick,
                         duration_ticks=TICKS_PER_BEAT,
-                        velocity=humanize_velocity(int(85 * config.drum_density), variation=0.10),
+                        velocity=humanize_velocity(int(85 * config.drum_density * vel_mult), variation=0.10),
                         channel=GM_DRUM_CHANNEL
                     ))
         
@@ -1564,7 +1740,7 @@ class MidiGenerator:
                 kicks = generate_trap_kick_pattern(
                     section.bars,
                     variation=section.pattern_variation,
-                    base_velocity=int(90 * config.drum_density)
+                    base_velocity=int(90 * config.drum_density * vel_mult)
                 )
                 for tick, dur, vel in kicks:
                     notes.append(NoteEvent(
@@ -1579,7 +1755,7 @@ class MidiGenerator:
                 snares = generate_trap_snare_pattern(
                     section.bars,
                     variation=section.pattern_variation,
-                    base_velocity=int(85 * config.drum_density),
+                    base_velocity=int(85 * config.drum_density * vel_mult),
                     add_ghost_notes=False,  # Cleaner for trap_soul
                     half_time=False
                 )
@@ -1608,7 +1784,7 @@ class MidiGenerator:
                 hihats = generate_standard_hihat_pattern(
                     section.bars,
                     density='8th',  # Clean 8th notes, not dense 16ths
-                    base_velocity=int(70 * config.drum_density),
+                    base_velocity=int(70 * config.drum_density * vel_mult),
                     swing=parsed.swing_amount or 0.08,
                     include_rolls=False  # No rolls for trap_soul
                 )
@@ -1626,7 +1802,7 @@ class MidiGenerator:
             patterns = generate_rnb_drum_pattern(
                 section.bars,
                 swing=parsed.swing_amount or 0.08,
-                base_velocity=int(80 * config.drum_density)
+                base_velocity=int(80 * config.drum_density * vel_mult)
             )
             
             if config.enable_kick:
@@ -1675,7 +1851,7 @@ class MidiGenerator:
             patterns = generate_lofi_drum_pattern(
                 section.bars,
                 swing=parsed.swing_amount or 0.12,
-                base_velocity=int(85 * config.drum_density)
+                base_velocity=int(85 * config.drum_density * vel_mult)
             )
             
             if config.enable_kick:
@@ -1713,7 +1889,7 @@ class MidiGenerator:
             patterns = generate_gfunk_drum_pattern(
                 section.bars,
                 swing=parsed.swing_amount or 0.15,
-                base_velocity=int(85 * config.drum_density)
+                base_velocity=int(85 * config.drum_density * vel_mult)
             )
             
             if config.enable_kick:
@@ -1761,7 +1937,7 @@ class MidiGenerator:
             # Four-on-the-floor
             patterns = generate_house_drum_pattern(
                 section.bars,
-                base_velocity=int(100 * config.drum_density)
+                base_velocity=int(100 * config.drum_density * vel_mult)
             )
             
             for drum_type, note_num in [('kick', 'kick'), ('clap', 'clap'), 
@@ -1781,7 +1957,7 @@ class MidiGenerator:
             patterns = generate_ethiopian_drum_pattern(
                 section.bars,
                 style=parsed.genre,
-                base_velocity=int(95 * config.drum_density)
+                base_velocity=int(95 * config.drum_density * vel_mult)
             )
             
             # Map Ethiopian drum types to GM percussion notes
@@ -1840,6 +2016,8 @@ class MidiGenerator:
         all_notes = []
         
         for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.90, 1.12)
             if section.config.enable_bass:
                 if parsed.genre == 'g_funk':
                     bass_pattern = generate_gfunk_bass_pattern(
@@ -1847,7 +2025,7 @@ class MidiGenerator:
                         parsed.key,
                         parsed.scale_type,
                         octave=1,
-                        base_velocity=int(100 * section.config.energy_level)
+                        base_velocity=int(100 * section.config.energy_level * vel_mult)
                     )
                 else:
                     bass_pattern = generate_808_bass_pattern(
@@ -1855,7 +2033,7 @@ class MidiGenerator:
                         parsed.key,
                         parsed.scale_type,
                         octave=1,
-                        base_velocity=int(100 * section.config.energy_level),
+                        base_velocity=int(100 * section.config.energy_level * vel_mult),
                         genre=parsed.genre
                     )
                 
@@ -1931,15 +2109,21 @@ class MidiGenerator:
             rhythm_style = 'block'
         
         for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
+            complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
             if section.config.enable_chords:
                 chord_pattern = generate_chord_progression_midi(
                     section.bars,
                     parsed.key,
                     parsed.scale_type,
                     octave=4,
-                    base_velocity=int(85 * section.config.instrument_density),
+                    base_velocity=int(85 * section.config.instrument_density * vel_mult),
                     rhythm_style=rhythm_style,
-                    chord_color=wants_church
+                    chord_color=wants_church,
+                    complexity=complexity,
+                    genre=parsed.genre,
+                    section_type=section.section_type.value
                 )
                 
                 for tick, dur, pitch, vel in chord_pattern:
@@ -1968,6 +2152,9 @@ class MidiGenerator:
 
         all_notes = []
         for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.90, 1.08)
+            complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
             # Keep organ mostly in drops/choruses; avoid clutter in intro/breakdown
             if section.section_type not in [SectionType.DROP, SectionType.CHORUS, SectionType.VARIATION]:
                 continue
@@ -1979,9 +2166,12 @@ class MidiGenerator:
                 parsed.key,
                 parsed.scale_type,
                 octave=3,
-                base_velocity=int(55 * section.config.instrument_density),
+                base_velocity=int(55 * section.config.instrument_density * vel_mult),
                 rhythm_style='block',
-                chord_color=True
+                chord_color=True,
+                complexity=min(1.0, complexity + 0.10),
+                genre=parsed.genre,
+                section_type=section.section_type.value
             )
             for tick, dur, pitch, vel in chord_pattern:
                 # Reduce density: only keep lower notes to avoid masking piano
@@ -2027,28 +2217,134 @@ class MidiGenerator:
         track.append(Message('program_change', program=program, channel=3, time=0))
         
         all_notes = []
+
+        normalized_genre = normalize_genre(parsed.genre or '')
+        is_ethiopian_genre = normalized_genre in [
+            'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'
+        ]
+        genre_cfg = GENRE_DEFAULTS.get(normalized_genre, {})
+        wants_call_response = bool(genre_cfg.get('call_response', False))
         
+        section_counters: Dict[str, int] = {}
+
         for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.90, 1.12)
+            density_mult = self._tension_multiplier(tension, 0.85, 1.15)
+            complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
             if section.config.enable_melody and section.section_type in [
                 SectionType.CHORUS, SectionType.DROP, SectionType.VARIATION
             ]:
-                if parsed.genre == 'g_funk':
-                    melody = generate_gfunk_lead_pattern(
-                        section.bars,
-                        parsed.key,
-                        parsed.scale_type,
-                        octave=5,
-                        base_velocity=int(95 * section.config.energy_level)
+                # Section name convention matches arranger.generate_arrangement_with_motifs:
+                # "chorus_1", "drop_1", etc.
+                st = section.section_type.value
+                section_counters[st] = section_counters.get(st, 0) + 1
+                section_name = f"{st}_{section_counters[st]}"
+
+                motif = None
+                if getattr(arrangement, 'motifs', None) and getattr(arrangement, 'motif_assignments', None):
+                    try:
+                        motif = get_section_motif(arrangement, section_name)
+                    except Exception:
+                        motif = None
+
+                if motif is not None:
+                    # Build motif melody and snap pitches to the active scale.
+                    root_pitch = note_name_to_midi(parsed.key, 5)
+                    base_velocity = int(90 * section.config.energy_level * vel_mult)
+                    motif_notes = motif.to_midi_notes(
+                        root_pitch=root_pitch,
+                        start_tick=0,
+                        ticks_per_beat=TICKS_PER_BEAT,
+                        base_velocity=base_velocity,
                     )
+
+                    # Determine motif length in ticks.
+                    motif_len_ticks = 0
+                    if motif_notes:
+                        last_tick, last_dur, _, _ = motif_notes[-1]
+                        motif_len_ticks = int(last_tick + last_dur)
+                    motif_len_ticks = max(motif_len_ticks, TICKS_PER_BEAT)
+
+                    section_ticks = int(bars_to_ticks(section.bars, arrangement.time_signature))
+                    density = min(1.0, section.config.instrument_density * 0.5 * density_mult)
+
+                    scale_notes = get_scale_notes(parsed.key, parsed.scale_type, octave=1, num_octaves=8)
+                    melody = []
+                    # Repeat count scales with density (theme-first, not constant noodling).
+                    max_repeats = max(1, int(1 + density * 3))
+                    gap = int(TICKS_PER_BEAT * (0.5 + (1.0 - density)))
+
+                    offset = 0
+                    repeats = 0
+                    while offset < section_ticks and repeats < max_repeats:
+                        for tick, dur, pitch, vel in motif_notes:
+                            abs_tick = offset + int(tick)
+                            if abs_tick >= section_ticks:
+                                continue
+                            dur = int(dur)
+                            if abs_tick + dur > section_ticks:
+                                dur = max(1, section_ticks - abs_tick)
+                            snapped_pitch = _nearest_note_in_scale(int(pitch), scale_notes)
+                            melody.append((abs_tick, dur, snapped_pitch, int(vel)))
+                        offset += motif_len_ticks + gap
+                        repeats += 1
                 else:
-                    melody = generate_melody(
-                        section.bars,
-                        parsed.key,
-                        parsed.scale_type,
-                        octave=5,
-                        density=section.config.instrument_density * 0.5,
-                        base_velocity=int(90 * section.config.energy_level)
-                    )
+                    # Fallback generators when motifs are not available.
+                    if normalize_genre(parsed.genre or '') == 'g_funk':
+                        melody = generate_gfunk_lead_pattern(
+                            section.bars,
+                            parsed.key,
+                            parsed.scale_type,
+                            octave=5,
+                            base_velocity=int(95 * section.config.energy_level * vel_mult)
+                        )
+                    else:
+                        melody = generate_melody(
+                            section.bars,
+                            parsed.key,
+                            parsed.scale_type,
+                            octave=5,
+                            density=min(1.0, section.config.instrument_density * 0.5 * density_mult),
+                            base_velocity=int(90 * section.config.energy_level * vel_mult)
+                        )
+
+                # Ethiopian / ethio-jazz mode-aware embellishment.
+                # This avoids chromatic approach tones and instead uses neighbor/grace ornaments
+                # constrained to the selected mode (qenet or ethio-jazz scale).
+                if melody and is_ethiopian_genre:
+                    effective_scale = parsed.scale_type
+                    if isinstance(parsed.scale_type, ScaleType) and parsed.scale_type in (ScaleType.MAJOR, ScaleType.MINOR):
+                        effective_scale = genre_cfg.get('scale', parsed.scale_type)
+                    try:
+                        melody = embellish_melody_qenet(
+                            melody,
+                            key=parsed.key,
+                            scale_type=effective_scale,
+                            time_signature=arrangement.time_signature,
+                            section_bars=section.bars,
+                            complexity=complexity,
+                            call_response=wants_call_response,
+                        )
+                    except Exception:
+                        # Fail open: never break generation due to embellishment.
+                        pass
+
+                # Complexity ornamentation: occasional 16th-note approach tones.
+                # Keep for non-Ethiopian styles.
+                if melody and (not is_ethiopian_genre) and complexity >= 0.78:
+                    allow = (parsed.genre or '').lower() in ['jazz', 'rnb', 'g_funk']
+                    if allow:
+                        embellished = []
+                        for tick, dur, pitch, vel in melody:
+                            embellished.append((tick, dur, pitch, vel))
+                            if tick >= TICKS_PER_16TH and random.random() < (0.10 + 0.12 * (complexity - 0.78) / 0.22):
+                                step = random.choice([-1, 1])
+                                approach_pitch = max(0, min(127, pitch + step))
+                                approach_tick = max(0, tick - TICKS_PER_16TH)
+                                approach_vel = max(20, int(vel * 0.55))
+                                embellished.append((approach_tick, TICKS_PER_16TH, approach_pitch, approach_vel))
+                        melody = embellished
                 
                 for tick, dur, pitch, vel in melody:
                     all_notes.append(NoteEvent(

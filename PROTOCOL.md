@@ -48,9 +48,23 @@ Start a music generation request.
   "key": "A",
   "mode": "minor",
   "duration_bars": 8,
-  "options": {}
+  "options": {
+    "tension_arc_shape": "linear_build",
+    "tension_intensity": 0.8,
+    "motif_mode": "auto",
+    "num_motifs": 2,
+    "preset": "legendary",
+    "style_preset": "g_funk_90s",
+    "production_preset": "wide_modern",
+    "seed": 123
+  }
 }
 ```
+
+**Notes:**
+- All fields are optional except `schema_version`, `request_id`, and `prompt`.
+- `options.*` fields are backward-compatible: older clients can send `options: {}` and get default behavior.
+- Some implementations also accept these keys at the top-level (e.g., `tension_intensity`) for convenience; prefer `options` for forward compatibility.
 
 ### `/cancel`
 Cancel an in-progress generation.
@@ -80,7 +94,15 @@ Regenerate a specific bar range of the current project (sectional regeneration).
     "bpm": 92,
     "key": "A",
     "mode": "minor",
-    "genre": "g_funk"
+    "genre": "g_funk",
+    "tension_arc_shape": "linear_build",
+    "tension_intensity": 0.8,
+    "motif_mode": "auto",
+    "num_motifs": 2,
+    "preset": "legendary",
+    "style_preset": "g_funk_90s",
+    "production_preset": "wide_modern",
+    "seed": 123
   }
 }
 ```
@@ -94,6 +116,43 @@ Regenerate a specific bar range of the current project (sectional regeneration).
 | seed_strategy | string | ⚪ | "new" for fresh seed, "derived" to vary existing |
 | prompt | string | ⚪ | Optional override prompt for this section |
 | options | object | ⚪ | Generation context (bpm, key, mode, genre) |
+
+### `/controls/set`
+Persist control overrides on the server. These overrides are merged into subsequent `/generate` and `/regenerate` requests.
+
+**Payload:**
+```json
+{
+  "schema_version": 1,
+  "request_id": "uuid-string",
+  "overrides": {
+    "tension_arc_shape": "linear_build",
+    "tension_intensity": 0.8,
+    "motif_mode": "on",
+    "num_motifs": 2,
+    "preset": "legendary",
+    "style_preset": "g_funk_90s",
+    "production_preset": "wide_modern",
+    "duration_bars": 8,
+    "seed": 123
+  }
+}
+```
+
+### `/controls/clear`
+Clear persisted control overrides.
+
+**Payload:**
+```json
+{
+  "schema_version": 1,
+  "request_id": "uuid-string",
+  "keys": ["tension_intensity", "motif_mode"]
+}
+```
+
+**Notes:**
+- If `keys` is omitted or empty, the server clears all overrides.
 
 ### `/analyze`
 Analyze an audio file or URL for BPM, key, and other characteristics.

@@ -29,6 +29,9 @@ import random
 import numpy as np
 from typing import Callable, Optional
 
+# Keep CLI/JSON outputs clean if pygame is imported indirectly
+os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -50,7 +53,7 @@ from multimodal_gen import (
 
 # Import StylePolicy for coherent producer decisions
 try:
-    from multimodal_gen.style_policy import StylePolicy, compile_policy, PolicyContext
+    from multimodal_gen.style_policy import StylePolicy, compile_policy, PolicyContext, ArrangementDensity
     HAS_STYLE_POLICY = True
 except ImportError:
     HAS_STYLE_POLICY = False
@@ -215,6 +218,15 @@ def run_generation(
     takes: int = 0,
     comp: bool = False,
     comp_bars: int = 2,
+    require_soundfont: bool = False,
+    preset: str = None,
+    style_preset: str = None,
+    production_preset: str = None,
+    duration_bars: Optional[int] = None,
+    tension_arc_shape: Optional[str] = None,
+    tension_intensity: Optional[float] = None,
+    motif_mode: Optional[str] = None,
+    num_motifs: Optional[int] = None,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -350,6 +362,14 @@ def run_generation(
     base_parsed = parser.parse(base_prompt)
     parsed = parser.parse(prompt)
 
+    # Normalize genre strings early so downstream modules always see internal keys.
+    try:
+        from multimodal_gen.utils import normalize_genre
+        base_parsed.genre = normalize_genre(base_parsed.genre)
+        parsed.genre = normalize_genre(parsed.genre)
+    except Exception:
+        pass
+
     # If the user explicitly asked for a genre/instruments in the original prompt,
     # do not let reference-based hinting override that intent.
     if base_parsed.genre and base_parsed.genre != parsed.genre:
@@ -361,11 +381,12 @@ def run_generation(
     
     # Apply overrides
     if genre_override:
-        parsed.genre = genre_override
+        from multimodal_gen.utils import normalize_genre
+        parsed.genre = normalize_genre(genre_override)
         # Re-apply genre intelligence to update drum/instrument defaults
         parsed._apply_genre_intelligence()
         if verbose:
-            print_info(f"Genre override applied: {genre_override}")
+            print_info(f"Genre override applied: {parsed.genre}")
     
     if bpm_override:
         parsed.bpm = bpm_override
@@ -383,6 +404,74 @@ def run_generation(
             parsed.scale_type = ScaleType.MAJOR
         if verbose:
             print_info(f"Key override applied: {parsed.key} {parsed.scale_type.value}")
+
+    # Apply preset system (explicit opt-in only)
+    preset_values: dict = {}
+    try:
+        from multimodal_gen.preset_system import PresetManager
+
+        requested_preset = (preset or getattr(parsed, 'preset', None))
+        requested_style = (style_preset or getattr(parsed, 'style_preset', None))
+        requested_production = (production_preset or getattr(parsed, 'production_preset', None))
+
+        if requested_preset or requested_style or requested_production:
+            manager = PresetManager()
+            # Precedence: base preset -> style -> production
+            if requested_preset:
+                manager.apply_preset(str(requested_preset))
+            if requested_style:
+                manager.apply_preset(str(requested_style))
+            if requested_production:
+                manager.apply_preset(str(requested_production))
+
+            preset_values = {k: pv.value for k, pv in manager.get_all_values().items()}
+
+            # Apply a few key overrides onto ParsedPrompt so arrangement/MIDI have a consistent view.
+            if 'swing_amount' in preset_values:
+                try:
+                    parsed.swing_amount = float(preset_values['swing_amount'])
+                    parsed.use_swing = parsed.swing_amount > 0
+                except Exception:
+                    pass
+            if 'tension_arc_shape' in preset_values and not getattr(parsed, 'tension_arc_shape', None):
+                parsed.tension_arc_shape = str(preset_values['tension_arc_shape'])
+            if 'tension_intensity' in preset_values and getattr(parsed, 'tension_intensity', None) is None:
+                try:
+                    parsed.tension_intensity = float(preset_values['tension_intensity'])
+                except Exception:
+                    pass
+
+            if verbose:
+                applied_names = [n for n in [requested_preset, requested_style, requested_production] if n]
+                print_info(f"Preset(s) applied: {', '.join(applied_names)}")
+    except Exception as e:
+        if verbose:
+            print_warning(f"Preset system skipped: {e}")
+
+    # Phase 5.2: apply explicit OSC/CLI overrides after presets, before arranging.
+    if tension_arc_shape is not None:
+        try:
+            shape = str(tension_arc_shape).strip()
+            parsed.tension_arc_shape = shape if shape else None
+        except Exception:
+            pass
+
+    if tension_intensity is not None:
+        try:
+            parsed.tension_intensity = max(0.0, min(1.0, float(tension_intensity)))
+        except Exception:
+            pass
+
+    if duration_bars is not None:
+        try:
+            bars = int(duration_bars)
+            if bars > 0:
+                beats_per_bar = parsed.time_signature[0] if parsed.time_signature else 4
+                bpm_val = float(parsed.bpm) if parsed.bpm else 120.0
+                bpm_val = max(30.0, bpm_val)
+                parsed.target_duration_seconds = (bars * beats_per_bar * 60.0) / bpm_val
+        except Exception:
+            pass
     
     print_parsed_prompt(parsed, reference_info)
     
@@ -424,7 +513,51 @@ def run_generation(
     
     # Pass user-specified duration if provided, otherwise Arranger uses its default (3 min)
     arranger = Arranger(target_duration_seconds=parsed.target_duration_seconds)
-    arrangement = arranger.create_arrangement(parsed)
+
+    # Motif wiring (Phase 2): for prioritized genres, generate motifs + per-section assignments
+    # to drive coherent melodic themes across the full arrangement.
+    try:
+        from multimodal_gen.arranger import generate_arrangement_with_motifs
+        from multimodal_gen.utils import normalize_genre
+
+        normalized_genre = normalize_genre(parsed.genre)
+        use_motifs = normalized_genre in [
+            'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista',
+            'g_funk'
+        ]
+
+        # Phase 5.2: explicit override (auto|on|off)
+        force_motifs = None
+        try:
+            mm = (motif_mode or "").strip().lower()
+            if mm in ("on", "true", "1", "yes", "enable", "enabled"):
+                force_motifs = True
+            elif mm in ("off", "false", "0", "no", "disable", "disabled"):
+                force_motifs = False
+        except Exception:
+            force_motifs = None
+
+        if force_motifs is not None:
+            use_motifs = force_motifs
+
+        nm = 2
+        try:
+            if num_motifs is not None:
+                nm = max(1, min(3, int(num_motifs)))
+        except Exception:
+            nm = 2
+
+        if use_motifs:
+            arrangement = generate_arrangement_with_motifs(
+                parsed,
+                num_motifs=nm,
+                seed=seed,
+                target_duration_seconds=parsed.target_duration_seconds,
+            )
+        else:
+            arrangement = arranger.create_arrangement(parsed)
+    except Exception:
+        arrangement = arranger.create_arrangement(parsed)
     
     # Log duration info
     estimated_duration = arrangement.total_bars * 4 * 60 / parsed.bpm  # bars * beats/bar * sec/min / bpm
@@ -471,6 +604,108 @@ def run_generation(
     if HAS_STYLE_POLICY and compile_policy:
         try:
             policy_context = compile_policy(parsed)
+
+            # Apply preset values onto the policy context (if requested).
+            if preset_values:
+                # Timing
+                if 'swing_amount' in preset_values:
+                    try:
+                        policy_context.timing.swing_amount = max(0.0, min(1.0, float(preset_values['swing_amount'])))
+                    except Exception:
+                        pass
+
+                # Prefer groove_tightness -> timing variance mapping if provided.
+                jitter = None
+                if 'groove_tightness' in preset_values:
+                    try:
+                        tight = max(0.0, min(1.0, float(preset_values['groove_tightness'])))
+                        jitter = 0.005 + 0.05 * (1.0 - tight)
+                    except Exception:
+                        jitter = None
+                if jitter is None and 'timing_variance' in preset_values:
+                    try:
+                        tv = max(0.0, min(1.0, float(preset_values['timing_variance'])))
+                        jitter = 0.005 + 0.055 * tv
+                    except Exception:
+                        jitter = None
+                if jitter is None and 'microtiming_intensity' in preset_values:
+                    try:
+                        mt = max(0.0, min(1.0, float(preset_values['microtiming_intensity'])))
+                        jitter = 0.005 + 0.055 * mt
+                    except Exception:
+                        jitter = None
+                if jitter is not None:
+                    policy_context.timing.timing_jitter = float(jitter)
+
+                if 'humanize_amount' in preset_values:
+                    try:
+                        ha = max(0.0, min(1.0, float(preset_values['humanize_amount'])))
+                        policy_context.timing.velocity_variation = 0.05 + 0.20 * ha
+                        policy_context.timing.timing_jitter = max(policy_context.timing.timing_jitter, 0.005 + 0.045 * ha)
+                    except Exception:
+                        pass
+
+                # Dynamics
+                if 'accent_strength' in preset_values:
+                    try:
+                        policy_context.dynamics.accent_strength = max(0.0, min(1.0, float(preset_values['accent_strength'])))
+                    except Exception:
+                        pass
+                if 'ghost_note_probability' in preset_values:
+                    try:
+                        policy_context.dynamics.ghost_note_probability = max(0.0, min(1.0, float(preset_values['ghost_note_probability'])))
+                    except Exception:
+                        pass
+                if 'velocity_range' in preset_values:
+                    try:
+                        vmin, vmax = preset_values['velocity_range']
+                        vmin_i = int(max(1, min(126, int(vmin))))
+                        vmax_i = int(max(vmin_i + 1, min(127, int(vmax))))
+
+                        def _clamp_rng(rng):
+                            a, b = rng
+                            a2 = int(max(vmin_i, min(vmax_i - 1, int(a))))
+                            b2 = int(max(a2 + 1, min(vmax_i, int(b))))
+                            return (a2, b2)
+
+                        policy_context.dynamics.kick_velocity_range = _clamp_rng(policy_context.dynamics.kick_velocity_range)
+                        policy_context.dynamics.snare_velocity_range = _clamp_rng(policy_context.dynamics.snare_velocity_range)
+                        policy_context.dynamics.hihat_velocity_range = _clamp_rng(policy_context.dynamics.hihat_velocity_range)
+                        policy_context.dynamics.bass_velocity_range = _clamp_rng(policy_context.dynamics.bass_velocity_range)
+                        policy_context.dynamics.chord_velocity_range = _clamp_rng(policy_context.dynamics.chord_velocity_range)
+                    except Exception:
+                        pass
+
+                # Arrangement
+                if 'variation_intensity' in preset_values:
+                    try:
+                        policy_context.arrangement.variation_intensity = max(0.0, min(1.0, float(preset_values['variation_intensity'])))
+                    except Exception:
+                        pass
+                if 'pattern_intensity' in preset_values:
+                    try:
+                        pi = str(preset_values['pattern_intensity']).strip().lower()
+                        density_map = {
+                            'low': ArrangementDensity.SPARSE,
+                            'medium': ArrangementDensity.MODERATE,
+                            'high': ArrangementDensity.DENSE,
+                            'intense': ArrangementDensity.DENSE,
+                        }
+                        policy_context.arrangement.density = density_map.get(pi, policy_context.arrangement.density)
+                        if pi == 'low':
+                            policy_context.arrangement.fill_frequency_bars = 16
+                            policy_context.arrangement.fill_intensity = min(policy_context.arrangement.fill_intensity, 0.35)
+                        elif pi == 'medium':
+                            policy_context.arrangement.fill_frequency_bars = 8
+                        elif pi == 'high':
+                            policy_context.arrangement.fill_frequency_bars = 4
+                            policy_context.arrangement.fill_intensity = max(policy_context.arrangement.fill_intensity, 0.6)
+                        elif pi == 'intense':
+                            policy_context.arrangement.fill_frequency_bars = 2
+                            policy_context.arrangement.fill_intensity = max(policy_context.arrangement.fill_intensity, 0.75)
+                    except Exception:
+                        pass
+
             print_info(f"Style policy: {parsed.genre} -> swing={policy_context.timing.swing_amount:.0%}, "
                       f"ghost={policy_context.dynamics.ghost_note_probability:.0%}, "
                       f"voicing={policy_context.voicing.style.value}")
@@ -985,6 +1220,7 @@ def run_generation(
     
     renderer = AudioRenderer(
         soundfont_path=soundfont_path,
+        require_soundfont=require_soundfont,
         instrument_library=instrument_library,
         expansion_manager=expansion_manager,
         genre=parsed.genre,
@@ -1001,7 +1237,18 @@ def run_generation(
             results["audio"] = str(audio_path)
             print_success(f"Audio saved: {audio_path.name}")
         else:
-            print_warning("Audio rendering returned no output (FluidSynth may not be available)")
+            if require_soundfont:
+                print_warning("Audio rendering returned no output (SoundFont required)")
+            else:
+                print_warning("Audio rendering returned no output (FluidSynth may not be available)")
+
+        # Always write a per-generation render report (diagnostics)
+        try:
+            render_report_path = output_dir / f"{project_name}_render_report.json"
+            if renderer.write_last_render_report(str(render_report_path)):
+                results["render_report"] = str(render_report_path)
+        except Exception:
+            pass
         
         # Export stems if requested
         if export_stems:
@@ -1011,6 +1258,11 @@ def run_generation(
             stem_paths = renderer.render_stems(str(midi_path), str(stems_dir), parsed)
             results["stems"] = stem_paths
             print_success(f"Exported {len(stem_paths)} stems to {stems_dir.name}/")
+            if session_graph:
+                try:
+                    session_graph.stems_path = str(stems_dir.relative_to(output_dir))
+                except ValueError:
+                    session_graph.stems_path = str(stems_dir)
             
     except Exception as e:
         print_warning(f"Audio rendering issue: {e}")
@@ -1500,7 +1752,8 @@ Supported Genres:
 
 Audio Notes:
   - Default: Procedural synthesis (no external dependencies)
-  - For better sound: Provide --soundfont path to a .sf2 file
+    - For better sound: Put a .sf2 in ./assets/soundfonts/ (auto-detected) or pass --soundfont
+    - Strict mode: Use --require-soundfont to fail instead of falling back
   - MPC export creates [ProjectData] folder with samples
   - Reference analysis extracts BPM, key, genre from any audio/video
 
@@ -1614,6 +1867,31 @@ Server Mode (for JUCE integration):
         type=str,
         help="Override key from prompt (e.g., 'Am', 'C', 'F#m')",
     )
+
+    # Preset system (explicit opt-in)
+    parser.add_argument(
+        "--preset",
+        type=str,
+        default=None,
+        help="Apply a named preset (see --list-presets). Example: edm_house, rnb_neosoul",
+    )
+    parser.add_argument(
+        "--style-preset",
+        type=str,
+        default=None,
+        help="Apply an additional style preset on top of --preset (e.g., chill, energetic)",
+    )
+    parser.add_argument(
+        "--production-preset",
+        type=str,
+        default=None,
+        help="Apply an additional production preset on top (e.g., polished, demo_rough)",
+    )
+    parser.add_argument(
+        "--list-presets",
+        action="store_true",
+        help="List available preset names and exit",
+    )
     
     # Export options
     parser.add_argument(
@@ -1632,6 +1910,16 @@ Server Mode (for JUCE integration):
         "--soundfont",
         type=str,
         help="Path to SoundFont (.sf2) file for audio rendering",
+    )
+    parser.add_argument(
+        "--require-soundfont",
+        action="store_true",
+        help="Fail if FluidSynth/SoundFont render cannot be used (no procedural fallback)",
+    )
+    parser.add_argument(
+        "--diagnose-audio",
+        action="store_true",
+        help="Print audio renderer diagnostics (FluidSynth + SoundFont + instrument folders) and exit",
     )
     parser.add_argument(
         "--samples",
@@ -1720,6 +2008,66 @@ Server Mode (for JUCE integration):
     )
     
     args = parser.parse_args()
+
+    if args.list_presets:
+        try:
+            from multimodal_gen.preset_system import PresetManager
+            mgr = PresetManager()
+            presets = mgr.list_presets()
+            print("Available presets:")
+            for p in sorted(presets, key=lambda x: (x.category.value, x.name)):
+                print(f"  - {p.name}  ({p.category.value})  {p.description}")
+            return
+        except Exception as e:
+            parser.error(f"Failed to list presets: {e}")
+
+    if args.diagnose_audio:
+        from multimodal_gen.audio_renderer import (
+            check_fluidsynth_available,
+            get_fluidsynth_version,
+            find_soundfont,
+        )
+
+        project_root = Path(__file__).parent
+        default_instruments_dir = project_root / "instruments"
+        soundfonts_dir = project_root / "assets" / "soundfonts"
+        expansions_dir = project_root.parent / "expansions"
+
+        def count_audio_files(p: Path) -> int:
+            if not p.exists() or not p.is_dir():
+                return 0
+            exts = {".wav", ".wave", ".aif", ".aiff", ".flac", ".mp3", ".ogg"}
+            try:
+                return sum(1 for f in p.rglob("*") if f.is_file() and f.suffix.lower() in exts)
+            except Exception:
+                return 0
+
+        report = {
+            "schema_version": 1,
+            "fluidsynth": {
+                "available": bool(check_fluidsynth_available()),
+                "version": get_fluidsynth_version(),
+            },
+            "soundfont": {
+                "cli_arg": args.soundfont,
+                "discovered": find_soundfont(),
+                "soundfonts_dir": str(soundfonts_dir),
+                "soundfonts_dir_exists": soundfonts_dir.exists(),
+            },
+            "instruments": {
+                "default_dir": str(default_instruments_dir),
+                "default_dir_exists": default_instruments_dir.exists(),
+                "default_audio_file_count": count_audio_files(default_instruments_dir),
+                "cli_paths": args.instruments or [],
+            },
+            "expansions": {
+                "default_dir": str(expansions_dir),
+                "default_dir_exists": expansions_dir.exists(),
+            },
+        }
+
+        print(json.dumps(report, indent=2))
+        return 0
 
     # MIDI device listing is a standalone action
     if args.list_midi:
@@ -1915,7 +2263,13 @@ Server Mode (for JUCE integration):
             takes=args.takes,
             comp=args.comp,
             comp_bars=args.comp_bars,
+            require_soundfont=args.require_soundfont,
+            preset=args.preset,
+            style_preset=args.style_preset,
+            production_preset=args.production_preset,
         )
+
+        require_soundfont_failed = bool(args.require_soundfont and not results.get('audio'))
 
         # Replace generated part with recorded performance (if present)
         if recorded_midi_path and results.get('midi'):
@@ -1943,6 +2297,12 @@ Server Mode (for JUCE integration):
         # Parse prompt again for metadata (could optimize)
         parser_instance = PromptParser()
         parsed = parser_instance.parse(args.prompt)
+        if args.preset:
+            parsed.preset = str(args.preset).strip().lower().replace('-', '_')
+        if args.style_preset:
+            parsed.style_preset = str(args.style_preset).strip().lower().replace('-', '_')
+        if args.production_preset:
+            parsed.production_preset = str(args.production_preset).strip().lower().replace('-', '_')
         if args.bpm:
             parsed.bpm = args.bpm
         if args.key:
@@ -1965,9 +2325,8 @@ Server Mode (for JUCE integration):
         
         if args.json:
             # JSON output mode
-            import json
             output = {
-                "success": True,
+                "success": not require_soundfont_failed,
                 "results": results,
                 "metadata": str(metadata_path),
             }
@@ -2019,8 +2378,8 @@ Server Mode (for JUCE integration):
             except UnicodeEncodeError:
                 print(f"\n  [Output]    {output_dir.absolute()}")
             print()
-        
-        return 0
+
+        return 2 if require_soundfont_failed else 0
         
     except KeyboardInterrupt:
         if not args.json:

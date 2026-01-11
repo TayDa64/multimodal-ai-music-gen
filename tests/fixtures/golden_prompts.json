@@ -1,0 +1,87 @@
+[
+  {
+    "id": "g_funk_west_coast_smooth",
+    "prompt": "smooth g-funk west coast beat at 92 bpm in G minor with funky bassline and talkbox lead",
+    "expected_genre": "g_funk"
+  },
+  {
+    "id": "g_funk_west_coast_hyphen",
+    "prompt": "west-coast gfunk bounce 94 bpm in A minor with whiny lead and laid back swing",
+    "expected_genre": "g_funk"
+  },
+  {
+    "id": "ethio_jazz_qenet",
+    "prompt": "ethio-jazz groove in D dorian with qenet style flute phrasing and krar comping",
+    "expected_genre": "ethio_jazz"
+  },
+  {
+    "id": "ethiopian_traditional_krar_kebero",
+    "prompt": "traditional ethiopian folk in C minor with krar melody, masenqo answers, and kebero drums",
+    "expected_genre": "ethiopian_traditional"
+  },
+  {
+    "id": "eskista_shoulder_dance",
+    "prompt": "eskista shoulder dance groove with kebero and bright washint riffs",
+    "expected_genre": "eskista"
+  },
+  {
+    "id": "ethiopian_tizita_habesha",
+    "prompt": "habesha tizita vibe in E minor with addis nightlife energy and azmari vocal ad-libs",
+    "expected_genre": "ethiopian"
+  },
+  {
+    "id": "trap_808_dark",
+    "prompt": "dark trap beat 140 bpm in F minor with rolling hi-hats and heavy 808",
+    "expected_genre": "trap"
+  },
+  {
+    "id": "trap_uk_drill",
+    "prompt": "uk drill trap energy 142 bpm in D minor with sliding 808 and tight snare patterns",
+    "expected_genre": "trap"
+  },
+  {
+    "id": "trap_soul_hyphenated",
+    "prompt": "trap-soul slow jam 78 bpm in B minor with airy pads and emotional vocal chops",
+    "expected_genre": "trap_soul"
+  },
+  {
+    "id": "rnb_r_n_b_variant",
+    "prompt": "modern r n b neo-soul groove 92 bpm in F# minor with lush chords and smooth bass",
+    "expected_genre": "rnb"
+  },
+  {
+    "id": "lofi_chill",
+    "prompt": "lofi chill beat 80 bpm in C major with dusty drums and mellow rhodes",
+    "expected_genre": "lofi"
+  },
+  {
+    "id": "lofi_lo_fi_spaced",
+    "prompt": "lo fi study beat at 84 bpm in A minor with vinyl crackle and jazzhop chords",
+    "expected_genre": "lofi"
+  },
+  {
+    "id": "boom_bap_hyphen",
+    "prompt": "boom-bap golden era east coast 94 bpm in G minor with chopped samples and punchy drums",
+    "expected_genre": "boom_bap"
+  },
+  {
+    "id": "house_four_on_floor",
+    "prompt": "uplifting house track 128 bpm in A minor with four on the floor and bright chords",
+    "expected_genre": "house"
+  },
+  {
+    "id": "house_deep_house",
+    "prompt": "deep house 122 bpm in C minor with warm chords and steady 4/4 kick",
+    "expected_genre": "house"
+  },
+  {
+    "id": "house_tech_house_hyphen",
+    "prompt": "tech-house club track 126 bpm in D minor with tight bass groove and short stabs",
+    "expected_genre": "house"
+  },
+  {
+    "id": "ambient_cinematic_soundscape",
+    "prompt": "ambient cinematic soundscape in C minor with atmospheric pads, drone, and long reverb tails",
+    "expected_genre": "ambient"
+  }
+]

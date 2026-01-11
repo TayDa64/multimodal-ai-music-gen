@@ -155,6 +155,81 @@ class GenerationResult:
 ProgressCallback = Callable[[str, float, str], None]
 
 
+def build_run_generation_kwargs(
+    request: GenerationRequest,
+    output_dir: str,
+    progress_callback: ProgressCallback,
+) -> Dict[str, Any]:
+    """Build kwargs for main.run_generation from a GenerationRequest.
+
+    Keeps server/protocol option mapping isolated and unit-testable.
+    """
+
+    options = request.options if isinstance(request.options, dict) else {}
+
+    def _opt(key: str, default: Any = None) -> Any:
+        return options.get(key, default)
+
+    def _as_int(v: Any) -> Optional[int]:
+        try:
+            if v is None:
+                return None
+            return int(v)
+        except Exception:
+            return None
+
+    def _as_float(v: Any) -> Optional[float]:
+        try:
+            if v is None:
+                return None
+            return float(v)
+        except Exception:
+            return None
+
+    def _as_str(v: Any) -> Optional[str]:
+        try:
+            if v is None:
+                return None
+            return str(v)
+        except Exception:
+            return None
+
+    seed_opt = _as_int(_opt("seed"))
+    preset_opt = _as_str(_opt("preset"))
+    style_preset_opt = _as_str(_opt("style_preset"))
+    production_preset_opt = _as_str(_opt("production_preset"))
+    tension_arc_shape_opt = _as_str(_opt("tension_arc_shape"))
+    tension_intensity_opt = _as_float(_opt("tension_intensity"))
+    motif_mode_opt = _as_str(_opt("motif_mode"))
+    num_motifs_opt = _as_int(_opt("num_motifs"))
+
+    return {
+        "prompt": request.prompt,
+        "output_dir": output_dir,
+        "genre_override": request.genre if request.genre else None,
+        "bpm_override": request.bpm if request.bpm and request.bpm > 0 else None,
+        "key_override": request.key if request.key else None,
+        "reference_url": request.reference_url if request.reference_url else None,
+        "export_mpc": request.export_mpc,
+        "export_stems": request.export_stems,
+        "soundfont_path": request.soundfont if request.soundfont else None,
+        "template_path": request.template if request.template else None,
+        "instruments_paths": request.instruments if request.instruments else None,
+        "verbose": request.verbose,
+        "progress_callback": progress_callback,
+        "seed": seed_opt,
+        "takes": request.num_takes if request.num_takes and request.num_takes > 1 else 0,
+        "preset": preset_opt,
+        "style_preset": style_preset_opt,
+        "production_preset": production_preset_opt,
+        "duration_bars": request.duration_bars,
+        "tension_arc_shape": tension_arc_shape_opt,
+        "tension_intensity": tension_intensity_opt,
+        "motif_mode": motif_mode_opt,
+        "num_motifs": num_motifs_opt,
+    }
+
+
 @dataclass
 class Task:
     """
@@ -369,23 +444,15 @@ class GenerationWorker:
             output_dir = task.request.output_dir or str(
                 Path(__file__).parent.parent.parent / "output"
             )
-            
-            # Execute generation
-            results = run_generation(
-                prompt=task.request.prompt,
+
+            kwargs = build_run_generation_kwargs(
+                request=task.request,
                 output_dir=output_dir,
-                genre_override=task.request.genre if task.request.genre else None,
-                bpm_override=task.request.bpm if task.request.bpm > 0 else None,
-                key_override=task.request.key if task.request.key else None,
-                reference_url=task.request.reference_url if task.request.reference_url else None,
-                export_mpc=task.request.export_mpc,
-                export_stems=task.request.export_stems,
-                soundfont_path=task.request.soundfont if task.request.soundfont else None,
-                template_path=task.request.template if task.request.template else None,
-                instruments_paths=task.request.instruments if task.request.instruments else None,
-                verbose=task.request.verbose,
                 progress_callback=progress_with_cancel_check,
             )
+
+            # Execute generation
+            results = run_generation(**kwargs)
             
             # Build result
             duration = time.time() - start_time

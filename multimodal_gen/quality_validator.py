@@ -175,6 +175,7 @@ class QualityValidator:
         
         # Structure Metrics
         metrics.append(self.analyze_phrase_structure(notes, ticks_per_beat))
+        metrics.append(self.analyze_motif_coherence(notes, ticks_per_beat))
         metrics.append(self.analyze_rhythmic_consistency(notes, ticks_per_beat))
         
         # Dynamics Metrics
@@ -1010,6 +1011,88 @@ class QualityValidator:
             quality_level=level,
             threshold_min=1,
             threshold_max=8,
+            details=details,
+            suggestions=suggestions
+        )
+
+    def analyze_motif_coherence(self, notes, ticks_per_beat) -> MetricResult:
+        """Analyze whether there is a recurring motif-like shape.
+
+        This is intentionally heuristic and note-list only: it looks for repeating
+        interval+rhythm n-grams in the monophonic projection of the sequence.
+        """
+        if len(notes) < 10:
+            return self._create_acceptable_metric("Motif Coherence", MetricCategory.STRUCTURE, 0.7)
+
+        # Project chords to a monophonic line (highest note at each start time)
+        by_start: Dict[int, List[Tuple[int, int]]] = {}
+        for start_tick, _dur, pitch, velocity in notes:
+            by_start.setdefault(int(start_tick), []).append((int(pitch), int(velocity)))
+
+        events = []
+        for start_tick in sorted(by_start.keys()):
+            pitches = [p for p, _v in by_start[start_tick]]
+            events.append((start_tick, max(pitches)))
+
+        if len(events) < 10:
+            return self._create_acceptable_metric("Motif Coherence", MetricCategory.STRUCTURE, 0.7)
+
+        # Build interval+rhythm pairs
+        pairs = []
+        for i in range(1, len(events)):
+            prev_start, prev_pitch = events[i - 1]
+            cur_start, cur_pitch = events[i]
+
+            dp = int(cur_pitch - prev_pitch)
+            dp = max(-12, min(12, dp))
+
+            dt_beats = (cur_start - prev_start) / max(float(ticks_per_beat), 1.0)
+            # Quantize to 16th-note grid for robustness
+            dt_q = round(dt_beats * 4) / 4.0
+            pairs.append((dp, dt_q))
+
+        gram_len = 4
+        if len(pairs) < gram_len + 1:
+            return self._create_acceptable_metric("Motif Coherence", MetricCategory.STRUCTURE, 0.7)
+
+        grams: Dict[Tuple[Tuple[int, float], ...], int] = {}
+        for i in range(0, len(pairs) - gram_len + 1):
+            gram = tuple(pairs[i:i + gram_len])
+            grams[gram] = grams.get(gram, 0) + 1
+
+        best_count = max(grams.values()) if grams else 1
+        repeating = best_count >= 2
+
+        # Approximate how much of the line is covered by the most frequent gram
+        approx_coverage = min(1.0, (best_count * (gram_len + 1)) / max(len(events), 1))
+
+        if not repeating or approx_coverage < 0.25:
+            score = max(0.3, approx_coverage)
+            level = self._score_to_level(score)
+            details = f"Weak motif signal (top pattern coverage ≈ {approx_coverage:.2f})"
+            suggestions = [
+                "Introduce a short motif and repeat it with variation (sequence/inversion/rhythm shift)",
+                "If available, enable motif-driven melody or increase motif density",
+            ]
+        elif approx_coverage <= 0.75:
+            score = 1.0
+            level = QualityLevel.EXCELLENT
+            details = f"Good motif coherence (top pattern coverage ≈ {approx_coverage:.2f})"
+            suggestions = []
+        else:
+            score = 0.75
+            level = QualityLevel.GOOD
+            details = f"Very strong repetition (top pattern coverage ≈ {approx_coverage:.2f})"
+            suggestions = ["Consider adding variation to avoid feeling looped"]
+
+        return MetricResult(
+            name="Motif Coherence",
+            category=MetricCategory.STRUCTURE,
+            value=approx_coverage,
+            normalized_score=score,
+            quality_level=level,
+            threshold_min=0.25,
+            threshold_max=0.75,
             details=details,
             suggestions=suggestions
         )
