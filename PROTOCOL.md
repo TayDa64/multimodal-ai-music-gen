@@ -65,6 +65,7 @@ Start a music generation request.
 - All fields are optional except `schema_version`, `request_id`, and `prompt`.
 - `options.*` fields are backward-compatible: older clients can send `options: {}` and get default behavior.
 - Some implementations also accept these keys at the top-level (e.g., `tension_intensity`) for convenience; prefer `options` for forward compatibility.
+- Backward compatibility: some clients use `bars` instead of `duration_bars`.
 
 ### `/cancel`
 Cancel an in-progress generation.

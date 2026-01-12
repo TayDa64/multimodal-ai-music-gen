@@ -375,8 +375,12 @@ class MusicGenOSCServer:
             if self._control_overrides:
                 options = {**self._control_overrides, **options}
 
-            # duration_bars can be either top-level or inside options
-            duration_bars = data.get("duration_bars", options.get("duration_bars", 8))
+            # duration_bars can be either top-level or inside options.
+            # Backward-compat: JUCE currently sends "bars".
+            duration_bars = data.get(
+                "duration_bars",
+                data.get("bars", options.get("duration_bars", options.get("bars", 8))),
+            )
             try:
                 duration_bars = int(duration_bars)
             except Exception:
