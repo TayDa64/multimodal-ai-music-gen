@@ -199,9 +199,64 @@ Protect existing capabilities while raising musicality.
   - Where: `multimodal_gen/preset_system.py` + `PromptParser`/`main.py`
   - Goal: “production presets” that set `tension_arc_shape`, motif density, swing/microtiming, etc.
 
-- [ ] **P5.2 Expose tension/motif controls over OSC**
-  - Where: `PROTOCOL.md` + `multimodal_gen/server/osc_server.py`
-  - Keep backward-compatible: optional fields with defaults.
+- [x] **P5.2 Expose tension/motif/preset/duration controls over OSC**
+  - Where: `PROTOCOL.md` + `multimodal_gen/server/osc_server.py` + `multimodal_gen/server/worker.py` + `main.py`
+  - Backward-compatible: schema v1, optional fields, and accept legacy `bars` as alias for `duration_bars`.
+  - Added persisted global overrides via `/controls/set` and `/controls/clear` (per-request overrides win).
+
+---
+
+## Phase 6 — JUCE UI: ControlsWindow + MultiView (regen-first)
+
+### Objective
+Expose Phase 5.2 controls in the JUCE app with a **user-friendly**, MPC-like workflow:
+- **Global defaults** persisted via OSC `/controls/*` (default)
+- **Per-request overrides** (per-tab/channel later) that can override globals
+- Regen-first iteration: timeline loop/region → regenerate that region quickly
+
+### Tasks (JUCE)
+- [x] **P6.1 Add OSC address constants for `/controls/set` and `/controls/clear`**
+  - Where: `juce/Source/Communication/Messages.h` (`namespace OSCAddresses`)
+
+- [x] **P6.2 Implement OSCBridge helpers for global controls**
+  - Where: `juce/Source/Communication/OSCBridge.h/.cpp`
+  - Add: `sendControlsSet(overridesJson)` and `sendControlsClear(keys)`
+  - Payload must include: `request_id` + `schema_version` (+ `overrides` / `keys`)
+
+- [x] **P6.3 Add a floating ControlsWindow (graceful exit)**
+  - Where: `juce/Source/UI/ControlsWindow.*` + `juce/Source/UI/ControlsPanel.*`
+  - Controls (Phase 5.2):
+    - tension: `tension_arc_shape`, `tension_intensity`
+    - motifs: `motif_mode` (auto/on/off), `num_motifs` (1–3)
+    - presets: `preset`, `style_preset`, `production_preset`
+    - generation: `seed`, `duration_bars` (still show “Bars”)
+  - Actions:
+    - “Apply Global” → `/controls/set`
+    - “Clear Global” → `/controls/clear`
+  - Graceful exit: close button hides window (does not crash/kill app)
+
+- [x] **P6.4 Wire ControlsWindow into Tools menu + MainComponent**
+  - Where: `juce/Source/UI/TransportComponent.*` + `juce/Source/MainComponent.*`
+  - Add Tools menu item: “Controls”
+  - MainComponent forwards apply/clear actions to `OSCBridge`
+
+- [ ] **P6.4b Add per-request overrides (apply-once) from ControlsWindow**
+  - Where: `juce/Source/Communication/Messages.h` + `juce/Source/MainComponent.*` + `juce/Source/UI/ControlsPanel.*`
+  - Behavior:
+    - “Apply Next” arms overrides for the next `/generate` and `/regenerate` request only (then clears)
+    - Overrides are sent via `options` (do not persist)
+    - Existing fields remain compatible (JUCE still sends `bars`; Python accepts `duration_bars` and legacy `bars`)
+
+### Tasks (next: MultiView tabs)
+- [ ] **P6.5 MultiView channel tabs (design + implement)**
+  - Concept: Overview tab + N “channels” (tabs) that act like per-track/per-scene workspaces
+  - Default behavior: global controls apply everywhere; per-tab overrides optional
+  - Regen-first: each channel can store a loop region + last request_id + prompt snapshot
+
+### Acceptance
+- [ ] Changing controls in JUCE affects Python generation without breaking existing `/generate`/`/regenerate`.
+- [ ] ControlsWindow can be opened/closed repeatedly without leaks/crashes.
+- [ ] Protocol remains schema v1 compatible.
 
 ---
 

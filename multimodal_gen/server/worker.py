@@ -11,6 +11,7 @@ from __future__ import annotations
 import threading
 import traceback
 import uuid
+import json
 from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -591,9 +592,11 @@ class InstrumentScanWorker:
         self,
         completion_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
         error_callback: Optional[Callable[[int, str], None]] = None,
+        progress_callback: Optional[Callable[[str, float, str], None]] = None,
     ):
         self.completion_callback = completion_callback
         self.error_callback = error_callback
+        self.progress_callback = progress_callback
         self._executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="InstrumentScan-")
     
     def scan(self, paths: List[str], cache_dir: Optional[str] = None) -> str:
@@ -615,12 +618,27 @@ class InstrumentScanWorker:
         """Execute instrument scan in background thread."""
         try:
             from multimodal_gen import load_multiple_libraries
+
+            def _progress(p: float, msg: str):
+                if self.progress_callback:
+                    try:
+                        self.progress_callback("discovering_instruments", float(p), msg)
+                    except Exception:
+                        pass
+
+            if self.progress_callback:
+                _progress(0.0, "Starting instrument scan")
             
             library = load_multiple_libraries(
                 paths,
                 cache_dir=cache_dir,
-                verbose=True
+                auto_load_audio=False,
+                verbose=True,
+                progress_callback=_progress,
             )
+
+            if self.progress_callback:
+                _progress(1.0, f"Scan complete: {len(library.instruments)} instruments")
             
             # Serialize instruments by category
             instruments_by_category = {}
@@ -664,18 +682,45 @@ class InstrumentScanWorker:
                 
                 instruments_by_category[cat_name] = instruments_list
 
-            result = {
+            full_result: Dict[str, Any] = {
                 "schema_version": SCHEMA_VERSION,
                 "scan_id": scan_id,
                 "success": True,
                 "count": len(library.instruments),
                 "categories": library.list_categories(),
                 "sources": library.get_source_summary(),
-                "instruments": instruments_by_category
+                "instruments": instruments_by_category,
             }
-            
+
+            # OSC messages have practical size limits; send a small summary payload and
+            # write the full manifest to disk for the client to load.
+            manifest_path = ""
+            try:
+                if cache_dir:
+                    cache_dir_path = Path(cache_dir)
+                    cache_dir_path.mkdir(parents=True, exist_ok=True)
+                    manifest_file = cache_dir_path / f"instrument_scan_{scan_id}.json"
+                    manifest_file.write_text(
+                        json.dumps(full_result, ensure_ascii=False),
+                        encoding="utf-8",
+                    )
+                    manifest_path = str(manifest_file)
+            except Exception:
+                manifest_path = ""
+
+            summary: Dict[str, Any] = {
+                "schema_version": SCHEMA_VERSION,
+                "scan_id": scan_id,
+                "success": True,
+                "count": len(library.instruments),
+                "categories": library.list_categories(),
+                "sources": library.get_source_summary(),
+            }
+            if manifest_path:
+                summary["manifest_path"] = manifest_path
+
             if self.completion_callback:
-                self.completion_callback(result)
+                self.completion_callback(summary)
                 
         except Exception as e:
             if self.error_callback:

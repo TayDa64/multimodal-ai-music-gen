@@ -18,12 +18,63 @@ TakeLaneItem::TakeLaneItem(const TakeLane& take)
     : takeLane(take)
 {
     playButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff3498db));
+    stopButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xffc0392b));
+
+    for (auto* b : { &muteButton, &soloButton, &keepButton, &favoriteButton })
+    {
+        b->setClickingTogglesState(true);
+        b->setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2c3e50));
+        b->setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xff34495e));
+    }
+
+    muteButton.setTooltip("Mute this take");
+    soloButton.setTooltip("Solo this take");
+    keepButton.setTooltip("Keep this take");
+    favoriteButton.setTooltip("Favorite this take");
+    playButton.setTooltip("Audition this take");
+    stopButton.setTooltip("Stop audition");
+
     playButton.onClick = [this]()
     {
         if (onPlayClicked)
-            onPlayClicked(takeLane.takeId);
+            onPlayClicked(takeLane.takeId, takeLane.midiPath);
     };
+    stopButton.onClick = [this]()
+    {
+        if (onStopClicked)
+            onStopClicked();
+    };
+    muteButton.onClick = [this]()
+    {
+        setMuted(muteButton.getToggleState());
+        if (onMuteToggled)
+            onMuteToggled(takeLane.takeId, muted);
+    };
+    soloButton.onClick = [this]()
+    {
+        setSolo(soloButton.getToggleState());
+        if (onSoloToggled)
+            onSoloToggled(takeLane.takeId, solo);
+    };
+    keepButton.onClick = [this]()
+    {
+        setKept(keepButton.getToggleState());
+        if (onKeepToggled)
+            onKeepToggled(takeLane.takeId, kept);
+    };
+    favoriteButton.onClick = [this]()
+    {
+        setFavorite(favoriteButton.getToggleState());
+        if (onFavoriteToggled)
+            onFavoriteToggled(takeLane.takeId, favorite);
+    };
+
     addAndMakeVisible(playButton);
+    addAndMakeVisible(stopButton);
+    addAndMakeVisible(muteButton);
+    addAndMakeVisible(soloButton);
+    addAndMakeVisible(keepButton);
+    addAndMakeVisible(favoriteButton);
 }
 
 void TakeLaneItem::paint(juce::Graphics& g)
@@ -38,6 +89,9 @@ void TakeLaneItem::paint(juce::Graphics& g)
         bgColour = juce::Colour(0xff3498db).withAlpha(0.2f);
     else
         bgColour = juce::Colour(0xff2c3e50);
+
+    if (playing)
+        bgColour = juce::Colour(0xff16a085).withAlpha(selected ? 0.40f : 0.25f);
     
     g.setColour(bgColour);
     g.fillRoundedRectangle(bounds.reduced(1), Layout::borderRadiusSM);
@@ -48,14 +102,29 @@ void TakeLaneItem::paint(juce::Graphics& g)
         g.setColour(juce::Colour(0xff2980b9));
         g.fillRoundedRectangle(bounds.removeFromLeft(4).reduced(0, 2), 2.0f);
     }
+
+    // Keep/Favorite mini indicators
+    auto indicatorArea = bounds.removeFromRight(52).reduced(0, 6);
+    if (kept)
+    {
+        g.setColour(juce::Colour(0xfff1c40f).withAlpha(0.9f));
+        g.setFont(Layout::fontSizeXS);
+        g.drawText("K", indicatorArea.removeFromLeft(16), juce::Justification::centred);
+    }
+    if (favorite)
+    {
+        g.setColour(juce::Colour(0xfff39c12).withAlpha(0.9f));
+        g.setFont(Layout::fontSizeXS);
+        g.drawText("F", indicatorArea.removeFromLeft(16), juce::Justification::centred);
+    }
     
     // Take ID
-    g.setColour(juce::Colours::white);
+    g.setColour(muted ? juce::Colours::grey : juce::Colours::white);
     g.setFont(Layout::fontSizeMD);
-    g.drawText(takeLane.takeId, 40, 0, 100, getHeight(), juce::Justification::centredLeft);
+    g.drawText(takeLane.takeId, 98, 0, 120, getHeight(), juce::Justification::centredLeft);
     
     // Variation type badge
-    auto badgeBounds = juce::Rectangle<float>(145, (getHeight() - 18) / 2.0f, 70, 18);
+    auto badgeBounds = juce::Rectangle<float>(220, (getHeight() - 18) / 2.0f, 70, 18);
     juce::Colour badgeColour;
     
     if (takeLane.variationType == "rhythm")
@@ -77,19 +146,28 @@ void TakeLaneItem::paint(juce::Graphics& g)
     // Seed (smaller, dimmed)
     g.setColour(juce::Colours::grey);
     g.setFont(Layout::fontSizeXS);
-    g.drawText("seed: " + juce::String(takeLane.seed), 220, 0, 80, getHeight(), juce::Justification::centredLeft);
+    g.drawText("seed: " + juce::String(takeLane.seed), 295, 0, 90, getHeight(), juce::Justification::centredLeft);
 }
 
 void TakeLaneItem::resized()
 {
-    auto bounds = getLocalBounds();
-    playButton.setBounds(8, (bounds.getHeight() - 24) / 2, 28, 24);
+    auto bounds = getLocalBounds().reduced(6, 4);
+
+    auto left = bounds.removeFromLeft(92);
+    playButton.setBounds(left.removeFromLeft(44).reduced(2));
+    stopButton.setBounds(left.removeFromLeft(44).reduced(2));
+
+    auto right = bounds.removeFromRight(110);
+    favoriteButton.setBounds(right.removeFromRight(24).reduced(2));
+    keepButton.setBounds(right.removeFromRight(24).reduced(2));
+    soloButton.setBounds(right.removeFromRight(24).reduced(2));
+    muteButton.setBounds(right.removeFromRight(24).reduced(2));
 }
 
 void TakeLaneItem::mouseDown(const juce::MouseEvent& e)
 {
     if (!selected && onSelected)
-        onSelected(takeLane.takeId);
+        onSelected(takeLane.takeId, takeLane.midiPath);
 }
 
 void TakeLaneItem::mouseEnter(const juce::MouseEvent& e)
@@ -113,6 +191,43 @@ void TakeLaneItem::setSelected(bool shouldBeSelected)
     }
 }
 
+void TakeLaneItem::setPlaying(bool shouldBePlaying)
+{
+    if (playing != shouldBePlaying)
+    {
+        playing = shouldBePlaying;
+        repaint();
+    }
+}
+
+void TakeLaneItem::setMuted(bool shouldBeMuted)
+{
+    muted = shouldBeMuted;
+    muteButton.setToggleState(muted, juce::dontSendNotification);
+    repaint();
+}
+
+void TakeLaneItem::setSolo(bool shouldBeSolo)
+{
+    solo = shouldBeSolo;
+    soloButton.setToggleState(solo, juce::dontSendNotification);
+    repaint();
+}
+
+void TakeLaneItem::setKept(bool shouldBeKept)
+{
+    kept = shouldBeKept;
+    keepButton.setToggleState(kept, juce::dontSendNotification);
+    repaint();
+}
+
+void TakeLaneItem::setFavorite(bool shouldBeFavorite)
+{
+    favorite = shouldBeFavorite;
+    favoriteButton.setToggleState(favorite, juce::dontSendNotification);
+    repaint();
+}
+
 //==============================================================================
 // TrackTakeLaneContainer
 //==============================================================================
@@ -124,6 +239,13 @@ TrackTakeLaneContainer::TrackTakeLaneContainer(const juce::String& name)
     headerLabel.setFont(juce::Font(Layout::fontSizeLG).boldened());
     headerLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(headerLabel);
+}
+
+int TrackTakeLaneContainer::getPreferredHeight() const
+{
+    const int numTakes = takeItems.size();
+    const int takesHeight = numTakes > 0 ? (takeItemSpacing + numTakes * (takeItemHeight + takeItemSpacing)) : 0;
+    return headerHeight + takesHeight + Layout::paddingSM;
 }
 
 void TrackTakeLaneContainer::paint(juce::Graphics& g)
@@ -158,15 +280,47 @@ void TrackTakeLaneContainer::setTakes(const std::vector<TakeLane>& takes)
 {
     takeItems.clear();
     selectedTakeId.clear();
+    playingTakeId.clear();
     
     for (const auto& take : takes)
     {
         auto* item = new TakeLaneItem(take);
-        item->onSelected = [this](const juce::String& takeId) { handleTakeSelected(takeId); };
-        item->onPlayClicked = [this](const juce::String& takeId)
+        item->onSelected = [this](const juce::String& takeId, const juce::String& midiPath)
         {
-            if (onPlayRequested)
-                onPlayRequested(trackName, takeId);
+            handleTakeSelected(takeId, midiPath);
+        };
+        item->onPlayClicked = [this](const juce::String& takeId, const juce::String& midiPath)
+        {
+            handlePlayRequested(takeId, midiPath);
+        };
+        item->onStopClicked = [this]()
+        {
+            handleStopRequested();
+        };
+        auto updateAlpha = [this]()
+        {
+            bool anySolo = false;
+            for (auto* i : takeItems)
+                anySolo = anySolo || i->isSolo();
+
+            for (auto* i : takeItems)
+            {
+                float a = 1.0f;
+                if (i->isMuted())
+                    a = 0.50f;
+                if (anySolo && !i->isSolo())
+                    a = 0.35f;
+                i->setAlpha(a);
+            }
+        };
+
+        item->onSoloToggled = [updateAlpha](const juce::String&, bool)
+        {
+            updateAlpha();
+        };
+        item->onMuteToggled = [updateAlpha](const juce::String&, bool)
+        {
+            updateAlpha();
         };
         takeItems.add(item);
         addAndMakeVisible(item);
@@ -199,12 +353,32 @@ void TrackTakeLaneContainer::selectTake(const juce::String& takeId)
     selectedTakeId = takeId;
 }
 
-void TrackTakeLaneContainer::handleTakeSelected(const juce::String& takeId)
+void TrackTakeLaneContainer::handlePlayRequested(const juce::String& takeId, const juce::String& midiPath)
+{
+    playingTakeId = takeId;
+    for (auto* item : takeItems)
+        item->setPlaying(item->getTakeLane().takeId == takeId);
+
+    if (onPlayRequested)
+        onPlayRequested(trackName, takeId, midiPath);
+}
+
+void TrackTakeLaneContainer::handleStopRequested()
+{
+    playingTakeId.clear();
+    for (auto* item : takeItems)
+        item->setPlaying(false);
+
+    if (onStopRequested)
+        onStopRequested(trackName);
+}
+
+void TrackTakeLaneContainer::handleTakeSelected(const juce::String& takeId, const juce::String& midiPath)
 {
     selectTake(takeId);
     
     if (onTakeSelected)
-        onTakeSelected(trackName, takeId);
+    onTakeSelected(trackName, takeId, midiPath);
 }
 
 //==============================================================================
@@ -221,6 +395,14 @@ TakeLanePanel::TakeLanePanel()
     renderButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff27ae60));
     renderButton.onClick = [this]() { handleRenderClicked(); };
     addAndMakeVisible(renderButton);
+
+    commitButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2980b9));
+    commitButton.onClick = [this]() { handleCommitClicked(); };
+    addAndMakeVisible(commitButton);
+
+    revertButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff8e44ad));
+    revertButton.onClick = [this]() { handleRevertClicked(); };
+    addAndMakeVisible(revertButton);
     
     emptyLabel.setText("Generate music with multiple takes to see options here.\nSet 'Takes' > 1 in generation settings.", 
                        juce::dontSendNotification);
@@ -250,7 +432,9 @@ void TakeLanePanel::resized()
     // Header
     auto headerBounds = bounds.removeFromTop(40);
     titleLabel.setBounds(headerBounds.removeFromLeft(200).reduced(Layout::paddingMD));
-    renderButton.setBounds(headerBounds.removeFromRight(130).reduced(Layout::paddingMD));
+    renderButton.setBounds(headerBounds.removeFromRight(140).reduced(Layout::paddingMD));
+    revertButton.setBounds(headerBounds.removeFromRight(120).reduced(Layout::paddingMD));
+    commitButton.setBounds(headerBounds.removeFromRight(120).reduced(Layout::paddingMD));
     
     // Main content area
     bounds.reduce(Layout::paddingMD, 0);
@@ -307,13 +491,17 @@ void TakeLanePanel::setAvailableTakes(const juce::String& takesJson)
         {
             auto* container = new TrackTakeLaneContainer(trackName);
             container->setTakes(takes);
-            container->onTakeSelected = [this](const juce::String& track, const juce::String& takeId)
+            container->onTakeSelected = [this](const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
             {
-                handleTrackTakeSelected(track, takeId);
+                handleTrackTakeSelected(track, takeId, midiPath);
             };
-            container->onPlayRequested = [this](const juce::String& track, const juce::String& takeId)
+            container->onPlayRequested = [this](const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
             {
-                handlePlayRequested(track, takeId);
+                handlePlayRequested(track, takeId, midiPath);
+            };
+            container->onStopRequested = [this](const juce::String& track)
+            {
+                handleStopRequested(track);
             };
             trackContainers.add(container);
             containerHolder.addAndMakeVisible(container);
@@ -351,19 +539,27 @@ void TakeLanePanel::removeListener(Listener* listener)
     listeners.remove(listener);
 }
 
-void TakeLanePanel::handleTrackTakeSelected(const juce::String& track, const juce::String& takeId)
+void TakeLanePanel::handleTrackTakeSelected(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
 {
-    listeners.call([track, takeId](Listener& l)
+    listeners.call([track, takeId, midiPath](Listener& l)
     {
-        l.takeSelected(track, takeId);
+        l.takeSelected(track, takeId, midiPath);
     });
 }
 
-void TakeLanePanel::handlePlayRequested(const juce::String& track, const juce::String& takeId)
+void TakeLanePanel::handlePlayRequested(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
 {
-    listeners.call([track, takeId](Listener& l)
+    listeners.call([track, takeId, midiPath](Listener& l)
     {
-        l.takePlayRequested(track, takeId);
+        l.takePlayRequested(track, takeId, midiPath);
+    });
+}
+
+void TakeLanePanel::handleStopRequested(const juce::String& track)
+{
+    listeners.call([track](Listener& l)
+    {
+        l.takeStopRequested(track);
     });
 }
 
@@ -375,37 +571,35 @@ void TakeLanePanel::handleRenderClicked()
     });
 }
 
+void TakeLanePanel::handleCommitClicked()
+{
+    listeners.call([](Listener& l)
+    {
+        l.commitCompRequested();
+    });
+}
+
+void TakeLanePanel::handleRevertClicked()
+{
+    listeners.call([](Listener& l)
+    {
+        l.revertCompRequested();
+    });
+}
+
 void TakeLanePanel::updateLayout()
 {
-    // Calculate total height needed for all containers
     int totalHeight = 0;
-    
     for (auto* container : trackContainers)
-    {
-        // Each container: header + takes
-        int containerHeight = 28 + 2; // header + spacing
-        auto* takeItems = reinterpret_cast<juce::OwnedArray<TakeLaneItem>*>(
-            static_cast<char*>(static_cast<void*>(container)) + 
-            sizeof(juce::String) * 2 + // trackName, selectedTakeId
-            sizeof(juce::Label) // headerLabel
-        );
-        
-        // Safer: just estimate based on track name
-        containerHeight += 4 * (36 + 2); // Assume max 4 takes per track for sizing
-        
-        totalHeight += containerHeight + Layout::paddingMD;
-    }
-    
-    // Set container holder size
-    containerHolder.setBounds(0, 0, viewport.getWidth() - 12, totalHeight);
-    
-    // Layout containers
+        totalHeight += container->getPreferredHeight() + Layout::paddingMD;
+
+    containerHolder.setBounds(0, 0, juce::jmax(0, viewport.getWidth() - 12), totalHeight);
+
     int y = 0;
     for (auto* container : trackContainers)
     {
-        int numTakes = 3; // Default estimate - TODO: expose count from container
-        int containerHeight = 28 + 2 + numTakes * (36 + 2) + Layout::paddingMD;
-        container->setBounds(0, y, containerHolder.getWidth(), containerHeight);
-        y += containerHeight + Layout::paddingMD;
+        const int h = container->getPreferredHeight();
+        container->setBounds(0, y, containerHolder.getWidth(), h);
+        y += h + Layout::paddingMD;
     }
 }

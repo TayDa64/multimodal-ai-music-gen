@@ -951,9 +951,21 @@ class InstrumentLibrary:
             if profile:
                 profile.category = category.value
                 self._cache[path] = profile
-        
+
+        # If analysis isn't available (e.g., optional deps missing), still index the file
+        # so the UI can browse instruments. Matching will be less intelligent.
         if profile is None:
-            return None
+            try:
+                file_hash = self._analyzer._compute_hash(path)
+            except Exception:
+                file_hash = ""
+            profile = SonicProfile(
+                sample_path=path,
+                sample_name=Path(path).stem,
+                category=category.value,
+                duration_sec=0.0,
+                file_hash=file_hash,
+            )
         
         # Load audio if requested
         audio = None
@@ -1214,7 +1226,8 @@ def load_multiple_libraries(
     paths: List[str],
     cache_dir: str = None,
     auto_load_audio: bool = True,
-    verbose: bool = False
+    verbose: bool = False,
+    progress_callback: callable = None,
 ) -> InstrumentLibrary:
     """
     Load and merge multiple instrument sources into one library.
@@ -1232,7 +1245,22 @@ def load_multiple_libraries(
         return InstrumentLibrary()
     
     merged_library = None
-    
+
+    num_sources = len(paths)
+
+    def make_source_progress_callback(source_index: int, source_name: str):
+        def _cb(current: int, total: int, name: str):
+            if not progress_callback:
+                return
+            try:
+                source_fraction = 1.0 / max(1, num_sources)
+                within_source = (float(current) / float(max(1, total))) if total else 0.0
+                overall = (source_index * source_fraction) + (within_source * source_fraction)
+                progress_callback(overall, f"Scanning {source_name}: {name} ({current}/{total})")
+            except Exception:
+                pass
+        return _cb
+
     for i, path in enumerate(paths):
         path_obj = Path(path)
         if not path_obj.exists():
@@ -1264,8 +1292,10 @@ def load_multiple_libraries(
             cache_file=cache_file,
             auto_load_audio=auto_load_audio
         )
-        
-        count = library.discover_and_analyze()
+
+        count = library.discover_and_analyze(
+            progress_callback=make_source_progress_callback(i, path_obj.name)
+        )
         
         if verbose:
             print(f"     Found {count} instruments")

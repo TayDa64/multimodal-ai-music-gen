@@ -112,6 +112,9 @@ public:
     
     int getDurationBars() const;
     void setDurationBars(int bars);
+
+    int getNumTakes() const;
+    void setNumTakes(int takes);
     
     bool isGenerating() const;
     void setGenerating(bool g);
@@ -154,6 +157,7 @@ private:
     // Current generation
     GenerationState currentGeneration;
     int durationBars = 8;
+    int numTakes = 1;
     bool generating = false;
     GenerationProgress currentProgress;
     

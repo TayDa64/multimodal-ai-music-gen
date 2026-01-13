@@ -194,6 +194,15 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/UI/TakeLaneComponent.h
     Source/UI/PromptHistoryManager.cpp
     Source/UI/PromptHistoryManager.h
+
+    # Phase 5.2 Controls UI
+    Source/UI/ControlsPanel.cpp
+    Source/UI/ControlsPanel.h
+    Source/UI/ControlsWindow.cpp
+    Source/UI/ControlsWindow.h
+
+    Source/UI/FloatingToolWindow.cpp
+    Source/UI/FloatingToolWindow.h
     
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp

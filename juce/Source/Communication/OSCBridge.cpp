@@ -115,6 +115,35 @@ void OSCBridge::sendRegenerate(const RegenerationRequest& request)
     sendMessage(OSCAddresses::regenerate, mutableRequest.toJson());
 }
 
+void OSCBridge::sendControlsSet(const juce::var& overrides)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("request_id", juce::Uuid().toString());
+    obj->setProperty("schema_version", SCHEMA_VERSION);
+    obj->setProperty("overrides", overrides);
+
+    DBG("OSCBridge: Sending controls/set");
+    sendMessage(OSCAddresses::controlsSet, juce::JSON::toString(juce::var(obj.get()), true));
+}
+
+void OSCBridge::sendControlsClear(const juce::StringArray& keys)
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("request_id", juce::Uuid().toString());
+    obj->setProperty("schema_version", SCHEMA_VERSION);
+
+    if (!keys.isEmpty())
+    {
+        juce::Array<juce::var> keysArray;
+        for (const auto& key : keys)
+            keysArray.add(key);
+        obj->setProperty("keys", keysArray);
+    }
+
+    DBG("OSCBridge: Sending controls/clear");
+    sendMessage(OSCAddresses::controlsClear, juce::JSON::toString(juce::var(obj.get()), true));
+}
+
 void OSCBridge::sendAnalyzeFile(const juce::File& file, bool verbose)
 {
     if (!file.existsAsFile())

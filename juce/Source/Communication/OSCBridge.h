@@ -126,6 +126,8 @@ public:
     // Outgoing messages
     void sendGenerate(const GenerationRequest& request);
     void sendRegenerate(const RegenerationRequest& request);
+    void sendControlsSet(const juce::var& overrides);
+    void sendControlsClear(const juce::StringArray& keys = {});
     void sendAnalyzeFile(const juce::File& file, bool verbose = false);
     void sendAnalyzeUrl(const juce::String& url, bool verbose = false);
     void sendCancel(const juce::String& taskId = {});

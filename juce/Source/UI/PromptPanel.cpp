@@ -143,6 +143,24 @@ void PromptPanel::setupDurationControls()
         appState.setDurationBars(bars);
     };
     addAndMakeVisible(durationSlider);
+
+    // Takes label
+    takesLabel.setText("Takes", juce::dontSendNotification);
+    takesLabel.setFont(juce::Font(12.0f));
+    takesLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    addAndMakeVisible(takesLabel);
+
+    // Takes slider
+    takesSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    takesSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
+    takesSlider.setRange(1, 8, 1);
+    takesSlider.setValue(appState.getNumTakes());
+    takesSlider.setTextValueSuffix(" takes");
+    takesSlider.onValueChange = [this] {
+        int takes = (int)takesSlider.getValue();
+        appState.setNumTakes(takes);
+    };
+    addAndMakeVisible(takesSlider);
     
     // Value label no longer needed since slider shows it
     durationValueLabel.setVisible(false);
@@ -400,9 +418,9 @@ void PromptPanel::resized()
     bounds.removeFromTop(Layout::paddingSM);
     
     // Calculate available height for prompt input
-    // Reserve: negative prompt label (18) + input (26) + gap (10) + 
-    //          duration row (26) + gap (10) + button row (34) + margins
-    int reservedHeight = 18 + 26 + 10 + 26 + 10 + 34 + Layout::paddingMD * 3;
+    // Reserve: negative prompt label (18) + input (26) + gap +
+    //          duration row (26) + takes row (26) + gap + button row (34) + margins
+    int reservedHeight = 18 + 26 + 10 + 26 + 26 + 10 + 34 + Layout::paddingMD * 3;
     int availableForPrompt = bounds.getHeight() - reservedHeight;
     
     // Prompt input - use more space on taller windows
@@ -424,6 +442,15 @@ void PromptPanel::resized()
     durationFlex.items.add(juce::FlexItem(durationSlider).withFlex(1.0f).withHeight(26.0f));
     durationFlex.performLayout(durationRow);
     
+    bounds.removeFromTop(Layout::paddingMD);
+
+    // Takes row
+    auto takesRow = bounds.removeFromTop(26);
+    juce::FlexBox takesFlex = Layout::createRowFlex();
+    takesFlex.items.add(juce::FlexItem(takesLabel).withWidth(60.0f).withHeight(26.0f));
+    takesFlex.items.add(juce::FlexItem(takesSlider).withFlex(1.0f).withHeight(26.0f));
+    takesFlex.performLayout(takesRow);
+
     bounds.removeFromTop(Layout::paddingMD);
     
     // Button row - Generate + History + Analyze buttons using FlexBox

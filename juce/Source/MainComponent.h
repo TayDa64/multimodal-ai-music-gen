@@ -12,6 +12,8 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_osc/juce_osc.h>
+
+#include <map>
 #include "Application/AppState.h"
 #include "Audio/AudioEngine.h"
 #include "Communication/OSCBridge.h"
@@ -28,6 +30,8 @@
 #include "UI/ExpansionBrowserPanel.h"
 #include "UI/Mixer/MixerComponent.h"
 #include "UI/TakeLaneComponent.h"
+#include "UI/ControlsWindow.h"
+#include "UI/FloatingToolWindow.h"
 #include "UI/Theme/LayoutConstants.h"
 
 //==============================================================================
@@ -60,6 +64,7 @@ class MainComponent : public juce::Component,
                       public TimelineComponent::Listener,
                       public TransportComponent::Listener,
                       public Project::ProjectState::Listener,
+                      public ControlsPanel::Listener,
                       public juce::Timer
 {
 public:
@@ -136,9 +141,12 @@ public:
     
     //==============================================================================
     // TakeLanePanel::Listener
-    void takeSelected(const juce::String& track, const juce::String& takeId) override;
-    void takePlayRequested(const juce::String& track, const juce::String& takeId) override;
+    void takeSelected(const juce::String& track, const juce::String& takeId, const juce::String& midiPath) override;
+    void takePlayRequested(const juce::String& track, const juce::String& takeId, const juce::String& midiPath) override;
+    void takeStopRequested(const juce::String& track) override;
     void renderTakesRequested() override;
+    void commitCompRequested() override;
+    void revertCompRequested() override;
     
     //==============================================================================
     // ProjectState::Listener overrides
@@ -195,8 +203,9 @@ private:
     std::unique_ptr<TakeLanePanel> takeLanePanel;  // Take lanes for comping
     
     // Floating windows for Instruments and Expansions (MPC-style)
-    std::unique_ptr<juce::DocumentWindow> instrumentsWindow;
-    std::unique_ptr<juce::DocumentWindow> expansionsWindow;
+    std::unique_ptr<FloatingToolWindow> instrumentsWindow;
+    std::unique_ptr<FloatingToolWindow> expansionsWindow;
+    std::unique_ptr<ControlsWindow> controlsWindow;
     
     // Bottom panel visibility state (for FX Chain and Mixer)
     bool bottomPanelVisible = false;
@@ -222,19 +231,38 @@ private:
     juce::String currentGenre = "auto";  // Default genre (synced with GenreSelector)
     bool initialInstrumentsRequested = false;
     AnalyzeResult lastAnalyzeResult;  // Store last analysis for Apply action
+
+    // Apply-once overrides injected into the next /generate and /regenerate request.
+    juce::var nextGenerateOverrides;
+    juce::var nextRegenerateOverrides;
+
+    // Take comping: snapshot of original per-track notes (keyed by track index).
+    std::map<int, juce::ValueTree> takeCompSnapshots;
     
     //==============================================================================
     void startPythonServer();
     void stopPythonServer();
     void setupOSCConnection();
     void setupBottomPanel();
-    void showToolWindow(int toolId);  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer
+    void showToolWindow(int toolId);  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer, 5=Takes, 6=Controls
     void hideBottomPanel();
+
+    int resolveTrackIndexForName(const juce::String& trackName);
+    juce::File resolveTakeMidiFile(const juce::String& midiPath) const;
+    bool applyTakeCompToProject(const juce::String& track, const juce::String& takeId, const juce::String& midiPath);
     void applyGenreTheme(const juce::String& genreId);
     void applyAnalysisResult(const AnalyzeResult& result);
     void scanLocalExpansions();  // Scan local expansion packs and populate instruments
     void drawPlaceholder(juce::Graphics& g, juce::Rectangle<int> area, 
                         const juce::String& label, juce::Colour colour);
+
+    // ControlsPanel::Listener
+    void controlsApplyGlobalRequested(const juce::var& overrides) override;
+    void controlsClearGlobalRequested(const juce::StringArray& keys) override;
+    void controlsApplyNextRequestRequested(const juce::var& overrides, ControlsPanel::NextScope scope) override;
+    void controlsClearNextRequestRequested() override;
+
+    void updateControlsNextOverridesUi();
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

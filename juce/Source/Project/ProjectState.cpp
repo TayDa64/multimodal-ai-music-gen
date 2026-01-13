@@ -332,6 +332,112 @@ namespace Project
         }
     }
 
+    juce::ValueTree ProjectState::copyNotesForTrack(int trackIndex) const
+    {
+        juce::ValueTree snapshot("NOTES_SNAPSHOT");
+
+        auto notesNode = projectTree.getChildWithName(IDs::NOTES);
+        if (!notesNode.isValid())
+            return snapshot;
+
+        for (const auto& note : notesNode)
+        {
+            if (note.hasType(IDs::NOTE) && (int)note.getProperty(IDs::channel) == trackIndex)
+                snapshot.addChild(note.createCopy(), -1, nullptr);
+        }
+
+        return snapshot;
+    }
+
+    void ProjectState::restoreNotesForTrack(int trackIndex, const juce::ValueTree& snapshot)
+    {
+        auto notesNode = projectTree.getChildWithName(IDs::NOTES);
+        if (!notesNode.isValid())
+            return;
+
+        undoManager.beginNewTransaction("Revert Take Comp");
+
+        for (int i = notesNode.getNumChildren() - 1; i >= 0; --i)
+        {
+            auto child = notesNode.getChild(i);
+            if (child.hasType(IDs::NOTE) && (int)child.getProperty(IDs::channel) == trackIndex)
+                notesNode.removeChild(i, &undoManager);
+        }
+
+        for (int i = 0; i < snapshot.getNumChildren(); ++i)
+        {
+            auto child = snapshot.getChild(i);
+            if (child.hasType(IDs::NOTE))
+                notesNode.addChild(child.createCopy(), -1, &undoManager);
+        }
+    }
+
+    bool ProjectState::replaceNotesForTrackFromMidiFile(int trackIndex, const juce::File& midiFile)
+    {
+        juce::MidiFile midi;
+        juce::FileInputStream stream(midiFile);
+
+        if (!(stream.openedOk() && midi.readFrom(stream)))
+        {
+            lastImportStats = "FAILED to read take MIDI";
+            return false;
+        }
+
+        int timeFormat = midi.getTimeFormat();
+        double ticksPerBeat = (timeFormat > 0) ? (double)timeFormat : 960.0;
+
+        auto notesNode = projectTree.getChildWithName(IDs::NOTES);
+        if (!notesNode.isValid())
+        {
+            lastImportStats = "FAILED: NOTES node missing";
+            return false;
+        }
+
+        undoManager.beginNewTransaction("Apply Take Comp");
+
+        // Clear existing notes for this track/channel only.
+        for (int i = notesNode.getNumChildren() - 1; i >= 0; --i)
+        {
+            auto child = notesNode.getChild(i);
+            if (child.hasType(IDs::NOTE) && (int)child.getProperty(IDs::channel) == trackIndex)
+                notesNode.removeChild(i, &undoManager);
+        }
+
+        int totalNotesAdded = 0;
+
+        for (int t = 0; t < midi.getNumTracks(); ++t)
+        {
+            const auto* track = midi.getTrack(t);
+            juce::MidiMessageSequence seq;
+            seq.addSequence(*track, 0.0, 0.0, 1e10);
+            seq.updateMatchedPairs();
+
+            for (int i = 0; i < seq.getNumEvents(); ++i)
+            {
+                auto* ev = seq.getEventPointer(i);
+                if (ev->message.isNoteOn())
+                {
+                    double start = ev->message.getTimeStamp() / ticksPerBeat;
+                    double length = 0.25;
+                    if (auto* noteOff = ev->noteOffObject)
+                        length = (noteOff->message.getTimeStamp() - ev->message.getTimeStamp()) / ticksPerBeat;
+
+                    addNote(
+                        ev->message.getNoteNumber(),
+                        start,
+                        juce::jmax(0.0, length),
+                        ev->message.getVelocity(),
+                        trackIndex
+                    );
+                    totalNotesAdded++;
+                }
+            }
+        }
+
+        lastImportStats = "Applied take comp: " + juce::String(totalNotesAdded) + " notes to track " + juce::String(trackIndex);
+        return true;
+    }
+
     void ProjectState::importMidiFile(const juce::File& midiFile)
     {
         juce::MidiFile midi;

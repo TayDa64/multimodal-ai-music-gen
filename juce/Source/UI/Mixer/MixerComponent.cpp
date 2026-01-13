@@ -1,4 +1,5 @@
 #include "MixerComponent.h"
+#include "../Theme/ColourScheme.h"
 
 namespace UI
 {
@@ -17,7 +18,7 @@ namespace UI
 
     void MixerComponent::paint(juce::Graphics& g)
     {
-        g.fillAll(juce::Colours::black);
+        g.fillAll(AppColours::surface.darker(0.15f));
     }
 
     void MixerComponent::resized()

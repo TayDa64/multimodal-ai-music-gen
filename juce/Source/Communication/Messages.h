@@ -31,11 +31,13 @@ struct GenerationRequest
     juce::String genre;             // Genre ID from GenreSelector (e.g., "g_funk", "trap")
     int bpm = 0;                    // 0 = auto-detect
     int bars = 8;                   // Number of bars to generate
+    int numTakes = 1;               // Number of takes per track (1 = disabled)
     juce::String key;               // Empty = auto-detect
     juce::String outputDir;
     juce::StringArray instrumentPaths;
     juce::String soundfontPath;
     juce::String referenceUrl;
+    juce::var options;             // Optional Phase 5.2 per-request overrides
     bool renderAudio = true;
     bool exportStems = false;
     bool exportMpc = false;
@@ -59,10 +61,13 @@ struct GenerationRequest
         obj->setProperty("genre", genre);
         obj->setProperty("bpm", bpm);
         obj->setProperty("bars", bars);
+        obj->setProperty("num_takes", numTakes);
         obj->setProperty("key", key);
         obj->setProperty("output_dir", outputDir);
         obj->setProperty("soundfont", soundfontPath);
         obj->setProperty("reference_url", referenceUrl);
+        if (options.isObject() || options.isArray())
+            obj->setProperty("options", options);
         obj->setProperty("render_audio", renderAudio);
         obj->setProperty("export_stems", exportStems);
         obj->setProperty("export_mpc", exportMpc);
@@ -98,6 +103,9 @@ struct RegenerationRequest
     juce::String key;
     juce::String mode;
     juce::String genre;
+
+    // Optional Phase 5.2 per-request overrides (merged into options)
+    juce::var extraOptions;
     
     void generateRequestId()
     {
@@ -126,6 +134,15 @@ struct RegenerationRequest
         options->setProperty("key", key);
         options->setProperty("mode", mode);
         options->setProperty("genre", genre);
+
+        if (extraOptions.isObject())
+        {
+            if (auto* extra = extraOptions.getDynamicObject())
+            {
+                for (const auto& prop : extra->getProperties())
+                    options->setProperty(prop.name, prop.value);
+            }
+        }
         obj->setProperty("options", juce::var(options.get()));
         
         return juce::JSON::toString(juce::var(obj.get()), true);
@@ -548,6 +565,8 @@ namespace OSCAddresses
     // Client → Server
     static constexpr const char* generate = "/generate";
     static constexpr const char* regenerate = "/regenerate";
+    static constexpr const char* controlsSet = "/controls/set";
+    static constexpr const char* controlsClear = "/controls/clear";
     static constexpr const char* cancel = "/cancel";
     static constexpr const char* analyze = "/analyze";
     static constexpr const char* fxChain = "/fx_chain";   // Send FX chain for render parity

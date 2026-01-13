@@ -115,6 +115,11 @@ namespace Project
         void moveNote(juce::ValueTree& noteNode, double newStart, int newNoteNum);
         void resizeNote(juce::ValueTree& noteNode, double newLength);
         void setNoteVelocity(juce::ValueTree& noteNode, int newVelocity);
+
+        // Track-scoped Note Utilities (for take comping)
+        juce::ValueTree copyNotesForTrack(int trackIndex) const;
+        void restoreNotesForTrack(int trackIndex, const juce::ValueTree& snapshot);
+        bool replaceNotesForTrackFromMidiFile(int trackIndex, const juce::File& midiFile);
         
         // Import/Export
         void importMidiFile(const juce::File& midiFile);

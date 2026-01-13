@@ -179,8 +179,11 @@ namespace Layout
     /** Get bottom panel height based on available height */
     inline int getAdaptiveBottomPanelHeight(int availableHeight)
     {
-        int dynamicHeight = availableHeight / bottomPanelRatio;
-        return juce::jlimit(bottomPanelHeightMin, availableHeight / 2, dynamicHeight);
+        // The bottom panel hosts dense UIs (FX/Mixer/Takes). Give it a bit more room
+        // than a strict 1/3 split, while still protecting timeline space.
+        int dynamicHeight = (int)juce::roundToInt(availableHeight * 0.42f);
+        int maxHeight = (int)juce::roundToInt(availableHeight * 0.55f);
+        return juce::jlimit(bottomPanelHeightMin, maxHeight, dynamicHeight);
     }
     
     /** Create a responsive FlexBox with standard settings */

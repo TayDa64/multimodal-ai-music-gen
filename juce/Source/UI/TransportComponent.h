@@ -46,7 +46,7 @@ public:
         virtual void transportStopRequested() = 0;
         virtual void transportPositionChanged(double newPosition) = 0;
         virtual void transportBPMChanged(int newBPM) = 0;
-        virtual void toolsMenuItemSelected(int itemId) {}  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer
+          virtual void toolsMenuItemSelected(int itemId) {}  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer, 5=Takes, 6=Controls
     };
     
     void addListener(Listener* listener);

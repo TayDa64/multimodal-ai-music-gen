@@ -346,6 +346,9 @@ SamplePreviewPanel::SamplePreviewPanel(juce::AudioDeviceManager& dm)
     
     tagsLabel.setFont(12.0f);
     tagsLabel.setColour(juce::Label::textColourId, juce::Colour(100, 150, 200));
+
+    playButton.setTooltip("Play preview");
+    stopButton.setTooltip("Stop preview");
 }
 
 SamplePreviewPanel::~SamplePreviewPanel()
@@ -407,9 +410,9 @@ void SamplePreviewPanel::resized()
     bounds.removeFromBottom(70); // Waveform area
     bounds = bounds.reduced(10, 5);
     
-    auto buttonArea = bounds.removeFromLeft(70);
-    playButton.setBounds(buttonArea.removeFromLeft(32).reduced(2));
-    stopButton.setBounds(buttonArea.removeFromLeft(32).reduced(2));
+    auto buttonArea = bounds.removeFromLeft(124);
+    playButton.setBounds(buttonArea.removeFromLeft(58).reduced(2));
+    stopButton.setBounds(buttonArea.removeFromLeft(58).reduced(2));
     
     bounds.removeFromLeft(10);
     nameLabel.setBounds(bounds.removeFromTop(22));
@@ -543,6 +546,12 @@ InstrumentBrowserPanel::InstrumentBrowserPanel(juce::AudioDeviceManager& deviceM
     scanButton.onClick = [this]() { requestInstrumentData(); };
     addAndMakeVisible(scanButton);
 
+    statusLabel.setFont(juce::Font(12.0f));
+    statusLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    statusLabel.setText("Ready", juce::dontSendNotification);
+    addAndMakeVisible(statusLabel);
+
     addAndMakeVisible(searchLabel);
     addAndMakeVisible(searchBox);
     addAndMakeVisible(categoryTabs);
@@ -557,43 +566,43 @@ InstrumentBrowserPanel::InstrumentBrowserPanel(juce::AudioDeviceManager& deviceM
     
     InstrumentCategory drums;
     drums.name = "drums";
-    drums.displayName = "🥁 Drums";
+    drums.displayName = "Drums";
     drums.subcategories = { "kicks", "snares", "hihats", "claps", "808s" };
     defaultCategories.add(drums);
     
     InstrumentCategory bass;
     bass.name = "bass";
-    bass.displayName = "🎸 Bass";
+    bass.displayName = "Bass";
     bass.subcategories = { "808", "sub", "reese", "pluck" };
     defaultCategories.add(bass);
     
     InstrumentCategory keys;
     keys.name = "keys";
-    keys.displayName = "🎹 Keys";
+    keys.displayName = "Keys";
     keys.subcategories = { "piano", "organ", "rhodes" };
     defaultCategories.add(keys);
     
     InstrumentCategory synths;
     synths.name = "synths";
-    synths.displayName = "🎛️ Synths";
+    synths.displayName = "Synths";
     synths.subcategories = { "lead", "pad", "pluck", "arp" };
     defaultCategories.add(synths);
     
     InstrumentCategory strings;
     strings.name = "strings";
-    strings.displayName = "🎻 Strings";
+    strings.displayName = "Strings";
     strings.subcategories = { "violin", "cello", "ensemble" };
     defaultCategories.add(strings);
     
     InstrumentCategory fx;
     fx.name = "fx";
-    fx.displayName = "✨ FX";
+    fx.displayName = "FX";
     fx.subcategories = { "riser", "impact", "texture", "foley" };
     defaultCategories.add(fx);
     
     InstrumentCategory ethiopian;
     ethiopian.name = "ethiopian";
-    ethiopian.displayName = "🇪🇹 Ethiopian";
+    ethiopian.displayName = "Ethiopian";
     ethiopian.subcategories = { "masinko", "krar", "washint", "kebero" };
     defaultCategories.add(ethiopian);
     
@@ -616,9 +625,10 @@ void InstrumentBrowserPanel::resized()
     auto searchArea = bounds.removeFromTop(40).reduced(Layout::paddingMD, Layout::paddingSM);
     
     juce::FlexBox searchFlex = Layout::createRowFlex();
-    searchFlex.items.add(juce::FlexItem(searchLabel).withWidth(25.0f).withHeight(30.0f));
+    searchFlex.items.add(juce::FlexItem(searchLabel).withWidth(60.0f).withHeight(30.0f));
     searchFlex.items.add(juce::FlexItem(searchBox).withFlex(1.0f).withHeight(30.0f).withMargin({0, Layout::paddingSM, 0, Layout::paddingSM}));
-    searchFlex.items.add(juce::FlexItem(scanButton).withWidth(60.0f).withHeight(30.0f));
+    searchFlex.items.add(juce::FlexItem(statusLabel).withWidth(180.0f).withHeight(30.0f).withMargin({0, 0, 0, Layout::paddingSM}));
+    searchFlex.items.add(juce::FlexItem(scanButton).withWidth(70.0f).withHeight(30.0f));
     searchFlex.performLayout(searchArea);
     
     // Category tabs (adaptive height)
@@ -635,22 +645,55 @@ void InstrumentBrowserPanel::resized()
 
 void InstrumentBrowserPanel::loadFromJSON(const juce::String& json)
 {
+    scanButton.setEnabled(true);
+
     auto parsedJSON = juce::JSON::parse(json);
-    
     if (parsedJSON.isVoid())
+    {
+        statusLabel.setText("Invalid instrument data", juce::dontSendNotification);
         return;
+    }
+
+    // If backend provided a manifest file path (to avoid oversized OSC payloads), load it.
+    auto manifestVar = parsedJSON.getProperty("manifest_path", juce::var());
+    if (manifestVar.isString())
+    {
+        const auto manifestPath = manifestVar.toString();
+        juce::File manifestFile(manifestPath);
+        if (manifestFile.existsAsFile())
+        {
+            auto manifestText = manifestFile.loadFileAsString();
+            auto manifestJson = juce::JSON::parse(manifestText);
+            if (!manifestJson.isVoid())
+                parsedJSON = manifestJson;
+        }
+    }
     
-    // Parse categories
-    if (auto* catsObj = parsedJSON.getProperty("categories", juce::var()).getDynamicObject())
+    // Parse categories (supports either object map or string array)
+    auto catsVar = parsedJSON.getProperty("categories", juce::var());
+    if (auto* catsObj = catsVar.getDynamicObject())
     {
         categories.clear();
-        
         for (const auto& prop : catsObj->getProperties())
-        {
             categories.add(InstrumentCategory::fromJSON(prop.name.toString(), prop.value));
-        }
-        
         categoryTabs.setCategories(categories);
+    }
+    else if (auto* catsArr = catsVar.getArray())
+    {
+        juce::Array<InstrumentCategory> parsedCategories;
+        for (const auto& c : *catsArr)
+        {
+            InstrumentCategory cat;
+            cat.name = c.toString();
+            cat.displayName = cat.name.substring(0, 1).toUpperCase() + cat.name.substring(1);
+            parsedCategories.add(cat);
+        }
+
+        if (!parsedCategories.isEmpty())
+        {
+            categories = parsedCategories;
+            categoryTabs.setCategories(categories);
+        }
     }
     
     // Parse instruments by category
@@ -673,12 +716,24 @@ void InstrumentBrowserPanel::loadFromJSON(const juce::String& json)
             instrumentsByCategory[prop.name.toString()] = categoryInstruments;
         }
     }
+
+    const int count = (int) parsedJSON.getProperty("count", 0);
+    if (count > 0)
+        statusLabel.setText("Loaded " + juce::String(count) + " instruments", juce::dontSendNotification);
+    else
+        statusLabel.setText("Loaded", juce::dontSendNotification);
+
+    // If current category isn't present, fall back to the first available category.
+    if (instrumentsByCategory.find(currentCategory) == instrumentsByCategory.end() && !instrumentsByCategory.empty())
+        currentCategory = instrumentsByCategory.begin()->first;
     
     updateInstrumentList();
 }
 
 void InstrumentBrowserPanel::requestInstrumentData()
 {
+    statusLabel.setText("Scanning...", juce::dontSendNotification);
+    scanButton.setEnabled(false);
     // Request data from backend via listener
     listeners.call([&](Listener& l) { l.requestLibraryInstruments(); });
 }

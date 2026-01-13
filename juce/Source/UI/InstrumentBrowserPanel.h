@@ -96,7 +96,7 @@ struct InstrumentCategory
         InstrumentCategory cat;
         cat.name = categoryName;
         cat.displayName = json.getProperty("display_name", categoryName).toString();
-        cat.icon = json.getProperty("icon", "📁").toString();
+        cat.icon = json.getProperty("icon", "").toString();
         cat.instrumentCount = json.getProperty("count", 0);
         
         if (auto* subcats = json.getProperty("subcategories", juce::var()).getArray())
@@ -276,8 +276,8 @@ private:
     juce::AudioThumbnail thumbnail { 512, formatManager, thumbnailCache };
     
     // UI
-    juce::TextButton playButton { "▶" };
-    juce::TextButton stopButton { "■" };
+    juce::TextButton playButton { "Play" };
+    juce::TextButton stopButton { "Stop" };
     
     juce::Label nameLabel;
     juce::Label detailsLabel;
@@ -368,8 +368,9 @@ private:
     //==============================================================================
     // Search bar
     juce::TextEditor searchBox;
-    juce::Label searchLabel { {}, "🔍" };
+    juce::Label searchLabel { {}, "Search" };
     juce::TextButton scanButton { "Scan" };
+    juce::Label statusLabel { {}, "" };
     
     // Category tabs
     CategoryTabBar categoryTabs;

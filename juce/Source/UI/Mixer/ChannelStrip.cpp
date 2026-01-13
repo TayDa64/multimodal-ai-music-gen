@@ -1,4 +1,5 @@
 #include "ChannelStrip.h"
+#include "../Theme/ColourScheme.h"
 
 namespace UI
 {
@@ -7,7 +8,7 @@ namespace UI
         // Name
         nameLabel.setText(trackName, juce::dontSendNotification);
         nameLabel.setJustificationType(juce::Justification::centred);
-        nameLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+        nameLabel.setColour(juce::Label::textColourId, AppColours::textPrimary);
         nameLabel.setFont(12.0f);
         addAndMakeVisible(nameLabel);
 
@@ -16,9 +17,9 @@ namespace UI
         volumeSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
         volumeSlider.setRange(0.0, 1.0); // Linear gain for now
         volumeSlider.setValue(0.8);
-        volumeSlider.setColour(juce::Slider::thumbColourId, juce::Colours::white);
-        volumeSlider.setColour(juce::Slider::trackColourId, juce::Colours::grey);
-        volumeSlider.setColour(juce::Slider::backgroundColourId, juce::Colours::darkgrey);
+        volumeSlider.setColour(juce::Slider::thumbColourId, AppColours::textPrimary);
+        volumeSlider.setColour(juce::Slider::trackColourId, AppColours::primary.withAlpha(0.8f));
+        volumeSlider.setColour(juce::Slider::backgroundColourId, AppColours::surface.darker(0.25f));
         addAndMakeVisible(volumeSlider);
 
         // Pan
@@ -26,19 +27,19 @@ namespace UI
         panSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
         panSlider.setRange(-1.0, 1.0);
         panSlider.setValue(0.0);
-        panSlider.setColour(juce::Slider::rotarySliderFillColourId, juce::Colours::cyan);
-        panSlider.setColour(juce::Slider::thumbColourId, juce::Colours::white);
+        panSlider.setColour(juce::Slider::rotarySliderFillColourId, AppColours::accent);
+        panSlider.setColour(juce::Slider::thumbColourId, AppColours::textPrimary);
         addAndMakeVisible(panSlider);
 
         // Mute/Solo
         muteButton.setButtonText("M");
-        muteButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-        muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
-        muteButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+        muteButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.05f));
+        muteButton.setColour(juce::TextButton::buttonOnColourId, AppColours::error);
+        muteButton.setColour(juce::TextButton::textColourOnId, AppColours::textPrimary);
         
         soloButton.setButtonText("S");
-        soloButton.setColour(juce::TextButton::buttonColourId, juce::Colours::darkgrey);
-        soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
+        soloButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.05f));
+        soloButton.setColour(juce::TextButton::buttonOnColourId, AppColours::warning);
         soloButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
 
         addAndMakeVisible(muteButton);
@@ -57,24 +58,24 @@ namespace UI
         auto bounds = getLocalBounds();
         
         // Background
-        g.fillAll(juce::Colours::darkgrey.darker(0.2f));
+        g.fillAll(AppColours::surface.darker(0.2f));
         
         // Selection highlight
         if (selected)
         {
-            g.setColour(juce::Colours::cyan.withAlpha(0.1f));
+            g.setColour(AppColours::accent.withAlpha(0.12f));
             g.fillRect(bounds);
-            g.setColour(juce::Colours::cyan);
+            g.setColour(AppColours::accent);
             g.drawRect(bounds, 2);
         }
         else
         {
-            g.setColour(juce::Colours::black);
+            g.setColour(AppColours::border);
             g.drawRect(bounds, 1);
         }
         
         // Separator lines
-        g.setColour(juce::Colours::black.withAlpha(0.5f));
+        g.setColour(AppColours::border.withAlpha(0.6f));
         // Line below pan
         g.drawHorizontalLine(45, 5.0f, (float)getWidth() - 5.0f);
         // Line above name

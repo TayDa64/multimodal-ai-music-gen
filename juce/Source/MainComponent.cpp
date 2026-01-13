@@ -95,6 +95,7 @@ MainComponent::~MainComponent()
     // Close floating windows
     instrumentsWindow.reset();
     expansionsWindow.reset();
+    controlsWindow.reset();
     
     // Send graceful shutdown to Python server before cleaning up
     stopPythonServer();
@@ -212,14 +213,12 @@ void MainComponent::showToolWindow(int toolId)
         {
             if (!instrumentsWindow)
             {
-                instrumentsWindow = std::make_unique<juce::DocumentWindow>(
+                instrumentsWindow = std::make_unique<FloatingToolWindow>(
                     "Instruments",
                     AppColours::background,
-                    juce::DocumentWindow::allButtons);
-                instrumentsWindow->setContentNonOwned(instrumentBrowser.get(), true);
+                    instrumentBrowser.get());
                 instrumentsWindow->setResizable(true, false);
                 instrumentsWindow->centreWithSize(600, 500);
-                instrumentsWindow->setUsingNativeTitleBar(true);
             }
             instrumentsWindow->setVisible(true);
             instrumentsWindow->toFront(true);
@@ -252,14 +251,12 @@ void MainComponent::showToolWindow(int toolId)
         {
             if (!expansionsWindow)
             {
-                expansionsWindow = std::make_unique<juce::DocumentWindow>(
+                expansionsWindow = std::make_unique<FloatingToolWindow>(
                     "Expansions",
                     AppColours::background,
-                    juce::DocumentWindow::allButtons);
-                expansionsWindow->setContentNonOwned(expansionBrowser.get(), true);
+                    expansionBrowser.get());
                 expansionsWindow->setResizable(true, false);
                 expansionsWindow->centreWithSize(700, 500);
-                expansionsWindow->setUsingNativeTitleBar(true);
             }
             expansionsWindow->setVisible(true);
             expansionsWindow->toFront(true);
@@ -267,6 +264,21 @@ void MainComponent::showToolWindow(int toolId)
             // Request expansion list
             if (expansionBrowser)
                 expansionBrowser->requestExpansionList();
+            break;
+        }
+
+        case 6: // Controls - floating window
+        {
+            if (!controlsWindow)
+            {
+                controlsWindow = std::make_unique<ControlsWindow>();
+                if (auto* panel = controlsWindow->getControlsPanel())
+                    panel->addListener(this);
+            }
+
+            updateControlsNextOverridesUi();
+            controlsWindow->setVisible(true);
+            controlsWindow->toFront(true);
             break;
         }
         
@@ -305,6 +317,46 @@ void MainComponent::showToolWindow(int toolId)
             }
             break;
         }
+    }
+}
+
+void MainComponent::controlsApplyGlobalRequested(const juce::var& overrides)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        oscBridge->sendControlsSet(overrides);
+        currentStatus = "Applied global controls";
+        repaint();
+    }
+    else
+    {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Not Connected",
+            "Python backend is not connected.\n\n"
+            "Start the server with:\n"
+            "python main.py --server --verbose"
+        );
+    }
+}
+
+void MainComponent::controlsClearGlobalRequested(const juce::StringArray& keys)
+{
+    if (oscBridge && oscBridge->isConnected())
+    {
+        oscBridge->sendControlsClear(keys);
+        currentStatus = "Cleared global controls";
+        repaint();
+    }
+    else
+    {
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Not Connected",
+            "Python backend is not connected.\n\n"
+            "Start the server with:\n"
+            "python main.py --server --verbose"
+        );
     }
 }
 
@@ -835,7 +887,25 @@ void MainComponent::generateRequested(const juce::String& prompt)
         request.genre = currentGenre;  // Pass genre from GenreSelector
         request.bpm = appState.getBPM();
         request.bars = appState.getDurationBars();
+        request.numTakes = appState.getNumTakes();
         request.renderAudio = true;
+
+        // Apply-once per-request overrides (sent via options)
+        if (nextGenerateOverrides.isObject())
+        {
+            request.options = nextGenerateOverrides;
+
+            // If duration_bars provided, keep the legacy bars field aligned for this request.
+            if (auto* obj = nextGenerateOverrides.getDynamicObject())
+            {
+                if (obj->hasProperty("duration_bars"))
+                    request.bars = (int) obj->getProperty("duration_bars");
+            }
+
+            // Clear after one use
+            nextGenerateOverrides = juce::var();
+            updateControlsNextOverridesUi();
+        }
         
         // Collect instrument paths from loaded tracks
         auto& projectState = appState.getProjectState();
@@ -956,6 +1026,14 @@ void MainComponent::regenerateRequested(int startBar, int endBar, const juce::St
         request.bpm = appState.getBPM();
         request.key = appState.getKey();
         request.genre = currentGenre;
+
+        // Apply-once per-request overrides (merged into options)
+        if (nextRegenerateOverrides.isObject())
+        {
+            request.extraOptions = nextRegenerateOverrides;
+            nextRegenerateOverrides = juce::var();
+            updateControlsNextOverridesUi();
+        }
         
         oscBridge->sendRegenerate(request);
         
@@ -971,6 +1049,50 @@ void MainComponent::regenerateRequested(int startBar, int endBar, const juce::St
             "Start the server with:\n"
             "python main.py --server --verbose"
         );
+    }
+}
+
+void MainComponent::controlsApplyNextRequestRequested(const juce::var& overrides, ControlsPanel::NextScope scope)
+{
+    if (scope == ControlsPanel::NextScope::GenerateOnly)
+    {
+        nextGenerateOverrides = overrides;
+    }
+    else if (scope == ControlsPanel::NextScope::RegenerateOnly)
+    {
+        nextRegenerateOverrides = overrides;
+    }
+    else
+    {
+        nextGenerateOverrides = overrides;
+        nextRegenerateOverrides = overrides;
+    }
+
+    updateControlsNextOverridesUi();
+    currentStatus = "Armed overrides for next request";
+    repaint();
+}
+
+void MainComponent::controlsClearNextRequestRequested()
+{
+    nextGenerateOverrides = juce::var();
+    nextRegenerateOverrides = juce::var();
+
+    updateControlsNextOverridesUi();
+    currentStatus = "Cleared next-request overrides";
+    repaint();
+}
+
+void MainComponent::updateControlsNextOverridesUi()
+{
+    if (!controlsWindow)
+        return;
+
+    if (auto* panel = controlsWindow->getControlsPanel())
+    {
+        const bool gen = nextGenerateOverrides.isObject();
+        const bool regen = nextRegenerateOverrides.isObject();
+        panel->setNextOverridesIndicator(gen, regen);
     }
 }
 
@@ -1178,13 +1300,44 @@ void MainComponent::requestLibraryInstruments()
     if (oscBridge && oscBridge->isConnected())
     {
         DBG("MainComponent: Requesting library instruments");
-        // Request instruments from default paths (configured in server)
-        // We send "instruments" to point to the default instruments folder
-        oscBridge->sendGetInstruments({"instruments"});
+
+        auto findInstrumentsDirectory = []() -> juce::File {
+            juce::Array<juce::File> startPoints;
+            startPoints.add(juce::File::getCurrentWorkingDirectory());
+            startPoints.add(juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory());
+
+            for (auto start : startPoints)
+            {
+                auto dir = start;
+                for (int depth = 0; depth < 10 && dir.exists(); ++depth)
+                {
+                    auto instrumentsDir = dir.getChildFile("instruments");
+                    if (instrumentsDir.isDirectory())
+                        return instrumentsDir;
+                    dir = dir.getParentDirectory();
+                }
+            }
+            return {};
+        };
+
+        juce::StringArray paths;
+        if (auto instrumentsDir = findInstrumentsDirectory(); instrumentsDir.isDirectory())
+            paths.add(instrumentsDir.getFullPathName());
+
+        // If we couldn't resolve a stable absolute path, fall back to the server-side defaults.
+        // (Server will error if it has no configured defaults.)
+        oscBridge->sendGetInstruments(paths);
     }
     else
     {
         DBG("MainComponent: Cannot request instruments - not connected");
+        juce::AlertWindow::showMessageBoxAsync(
+            juce::MessageBoxIconType::WarningIcon,
+            "Not Connected",
+            "Python backend is not connected.\n\n"
+            "Start the server with:\n"
+            "python main.py --server --verbose"
+        );
     }
 }
 
@@ -1386,25 +1539,69 @@ void MainComponent::onTakeRendered(const juce::String& track, const juce::String
 
 //==============================================================================
 // TakeLanePanel::Listener implementation
-void MainComponent::takeSelected(const juce::String& track, const juce::String& takeId)
+void MainComponent::takeSelected(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
 {
-    DBG("MainComponent: User selected take - " << track << " / " << takeId);
-    
-    // Send selection to server via OSC
+    DBG("MainComponent: User selected take - " << track << " / " << takeId << " (" << midiPath << ")");
+
+    const bool applied = applyTakeCompToProject(track, takeId, midiPath);
+
+    // Send selection to server via OSC (for persistence / future render comp)
     if (oscBridge)
         oscBridge->sendSelectTake(track, takeId);
-    
-    currentStatus = "Selecting take: " + track + " / " + takeId;
+
+    currentStatus = applied
+        ? ("Comp applied: " + track + " / " + takeId)
+        : ("Selecting take: " + track + " / " + takeId);
     repaint();
 }
 
-void MainComponent::takePlayRequested(const juce::String& track, const juce::String& takeId)
+void MainComponent::takePlayRequested(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
 {
-    DBG("MainComponent: User requested take playback - " << track << " / " << takeId);
-    
-    // TODO: Load and audition the specific take MIDI
-    // For now, just log it
-    currentStatus = "Auditioning take: " + track + " / " + takeId;
+    DBG("MainComponent: User requested take playback - " << track << " / " << takeId << " (" << midiPath << ")");
+
+    juce::File midiFile(midiPath);
+    if (!midiFile.existsAsFile())
+    {
+        // Try to resolve relative paths against common roots.
+        auto cwdCandidate = juce::File::getCurrentWorkingDirectory().getChildFile(midiPath);
+        if (cwdCandidate.existsAsFile())
+            midiFile = cwdCandidate;
+        else
+        {
+            auto exeDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
+            auto exeCandidate = exeDir.getChildFile(midiPath);
+            if (exeCandidate.existsAsFile())
+                midiFile = exeCandidate;
+        }
+    }
+
+    if (!midiFile.existsAsFile())
+    {
+        currentStatus = "Take MIDI not found: " + track + " / " + takeId;
+        repaint();
+        return;
+    }
+
+    if (audioEngine.loadMidiFile(midiFile))
+    {
+        if (visualizationPanel)
+            visualizationPanel->loadMidiFile(midiFile);
+        audioEngine.play();
+        currentStatus = "Auditioning take: " + track + " / " + takeId;
+    }
+    else
+    {
+        currentStatus = "Failed to load take MIDI: " + midiFile.getFileName();
+    }
+
+    repaint();
+}
+
+void MainComponent::takeStopRequested(const juce::String& track)
+{
+    juce::ignoreUnused(track);
+    audioEngine.stop();
+    currentStatus = "Audition stopped";
     repaint();
 }
 
@@ -1430,6 +1627,87 @@ void MainComponent::renderTakesRequested()
         currentStatus = "Rendering takes...";
         repaint();
     }
+}
+
+void MainComponent::commitCompRequested()
+{
+    takeCompSnapshots.clear();
+    currentStatus = "Comp committed";
+    repaint();
+}
+
+void MainComponent::revertCompRequested()
+{
+    auto& projectState = appState.getProjectState();
+    for (auto& kv : takeCompSnapshots)
+        projectState.restoreNotesForTrack(kv.first, kv.second);
+
+    takeCompSnapshots.clear();
+    currentStatus = "Comp reverted";
+    repaint();
+}
+
+int MainComponent::resolveTrackIndexForName(const juce::String& trackName)
+{
+    const auto nameLower = trackName.trim().toLowerCase();
+
+    auto mixerNode = appState.getProjectState().getMixerNode();
+    if (mixerNode.isValid())
+    {
+        for (auto child : mixerNode)
+        {
+            if (!child.hasType(Project::IDs::TRACK))
+                continue;
+            auto n = child.getProperty(Project::IDs::name).toString().trim().toLowerCase();
+            if (n.isNotEmpty() && n == nameLower)
+                return (int)child.getProperty(Project::IDs::index);
+        }
+    }
+
+    // Common fallbacks
+    if (nameLower == "drums" || nameLower == "drum") return 0;
+    if (nameLower == "bass" || nameLower == "808") return 1;
+    if (nameLower == "chords" || nameLower == "keys") return 2;
+    if (nameLower == "melody" || nameLower == "lead") return 3;
+
+    return -1;
+}
+
+juce::File MainComponent::resolveTakeMidiFile(const juce::String& midiPath) const
+{
+    juce::File midiFile(midiPath);
+    if (midiFile.existsAsFile())
+        return midiFile;
+
+    auto cwdCandidate = juce::File::getCurrentWorkingDirectory().getChildFile(midiPath);
+    if (cwdCandidate.existsAsFile())
+        return cwdCandidate;
+
+    auto exeDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
+    auto exeCandidate = exeDir.getChildFile(midiPath);
+    if (exeCandidate.existsAsFile())
+        return exeCandidate;
+
+    return juce::File();
+}
+
+bool MainComponent::applyTakeCompToProject(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
+{
+    juce::ignoreUnused(takeId);
+
+    const int trackIndex = resolveTrackIndexForName(track);
+    if (trackIndex < 0)
+        return false;
+
+    auto midiFile = resolveTakeMidiFile(midiPath);
+    if (!midiFile.existsAsFile())
+        return false;
+
+    auto& projectState = appState.getProjectState();
+    if (takeCompSnapshots.find(trackIndex) == takeCompSnapshots.end())
+        takeCompSnapshots[trackIndex] = projectState.copyNotesForTrack(trackIndex);
+
+    return projectState.replaceNotesForTrackFromMidiFile(trackIndex, midiFile);
 }
 
 //==============================================================================

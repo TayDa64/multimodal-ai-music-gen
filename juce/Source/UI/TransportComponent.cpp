@@ -72,6 +72,7 @@ void TransportComponent::setupButtons()
         menu.addItem(3, "Expansions", true, false);
         menu.addItem(4, "Mixer", true, false);
         menu.addItem(5, "Takes", true, false);
+        menu.addItem(6, "Controls", true, false);
         
         menu.showMenuAsync(juce::PopupMenu::Options()
             .withTargetComponent(&toolsButton)

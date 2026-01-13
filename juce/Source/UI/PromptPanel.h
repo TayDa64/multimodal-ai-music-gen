@@ -122,6 +122,10 @@ private:
     juce::Slider durationSlider;
     juce::Label durationLabel;
     juce::Label durationValueLabel;
+
+    // Takes control
+    juce::Slider takesSlider;
+    juce::Label takesLabel;
     
     // Generate button
     juce::TextButton generateButton{ "Generate" };

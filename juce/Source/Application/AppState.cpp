@@ -288,6 +288,17 @@ void AppState::setDurationBars(int bars)
     unsavedChanges = true;
 }
 
+int AppState::getNumTakes() const
+{
+    return numTakes;
+}
+
+void AppState::setNumTakes(int takes)
+{
+    numTakes = juce::jmax(1, takes);
+    unsavedChanges = true;
+}
+
 juce::String AppState::getPrompt() const
 {
     return currentGeneration.prompt;

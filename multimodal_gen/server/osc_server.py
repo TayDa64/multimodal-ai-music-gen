@@ -266,6 +266,7 @@ class MusicGenOSCServer:
         self._instrument_worker = InstrumentScanWorker(
             completion_callback=self._on_instruments_loaded,
             error_callback=self._on_error,
+            progress_callback=self._on_progress,
         )
     
     # =========================================================================
