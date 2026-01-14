@@ -190,8 +190,22 @@ public:
                 }
                 else
                 {
-                    // Clamp saved bounds to current resize limits.
-                    setBoundsConstrained(savedBounds);
+                    // If the saved bounds are off-screen (monitor changes) or look like a maximized window,
+                    // start at a sensible default size instead of forcing full-screen every launch.
+                    const auto* display = juce::Desktop::getInstance().getDisplays().getDisplayForRect(savedBounds);
+                    const auto userArea = (display != nullptr)
+                        ? display->userArea
+                        : juce::Desktop::getInstance().getDisplays().getMainDisplay().userArea;
+
+                    const bool offScreen = ! userArea.intersects(savedBounds);
+                    const bool looksMaximized = savedBounds.getWidth() >= (userArea.getWidth() - 8)
+                                              && savedBounds.getHeight() >= (userArea.getHeight() - 8);
+
+                    if (offScreen || looksMaximized)
+                        centreWithSize(Layout::defaultWindowWidth, Layout::defaultWindowHeight);
+                    else
+                        // Clamp saved bounds to current resize limits.
+                        setBoundsConstrained(savedBounds);
                 }
             #endif
 
