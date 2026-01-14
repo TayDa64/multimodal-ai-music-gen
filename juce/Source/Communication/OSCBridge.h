@@ -12,6 +12,7 @@
 
 #include <juce_osc/juce_osc.h>
 #include <juce_core/juce_core.h>
+#include <unordered_map>
 #include "Messages.h"
 
 //==============================================================================
@@ -179,6 +180,7 @@ private:
     // Expansion handlers
     void handleExpansionList(const juce::OSCMessage& message);
     void handleExpansionInstruments(const juce::OSCMessage& message);
+    void handleExpansionInstrumentsChunk(const juce::OSCMessage& message);
     void handleExpansionResolve(const juce::OSCMessage& message);
     
     // Take handlers
@@ -207,6 +209,15 @@ private:
     // Request tracking
     juce::String currentRequestId;
     juce::String currentAnalyzeRequestId;
+
+    struct ChunkAssembly
+    {
+        int totalChunks = 0;
+        int receivedChunks = 0;
+        juce::StringArray chunks;
+    };
+
+    std::unordered_map<std::string, ChunkAssembly> expansionInstrumentsChunkAssembly;
     
     // Timing
     std::atomic<int64_t> lastPongTime { 0 };

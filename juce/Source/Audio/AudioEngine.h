@@ -214,6 +214,27 @@ public:
     bool hasLoopRegion() const { return loopRegionStart.load() >= 0 && loopRegionEnd.load() > loopRegionStart.load(); }
 
     //==========================================================================
+    // Default Synth ("Default (Sine)") Controls
+    //==========================================================================
+
+    enum class DefaultSynthWaveform
+    {
+        Sine = 0,
+        Triangle = 1,
+        Saw = 2,
+        Square = 3
+    };
+
+    enum class DefaultSynthParam
+    {
+        AttackSeconds,
+        ReleaseSeconds,
+        CutoffHz,
+        LfoRateHz,
+        LfoDepth
+    };
+
+    //==========================================================================
     // Track Architecture
     //==========================================================================
     
@@ -261,6 +282,20 @@ public:
         int getId() const { return id; }
         juce::String getName() const { return name; }
         void setName(const juce::String& newName) { name = newName; }
+
+        struct DefaultSynthState
+        {
+            std::atomic<int> waveform { (int)DefaultSynthWaveform::Sine };
+            std::atomic<float> attackSeconds { 0.001f };
+            std::atomic<float> releaseSeconds { 0.2f };
+            std::atomic<float> cutoffHz { 16000.0f };
+            std::atomic<float> lfoRateHz { 5.0f };
+            std::atomic<float> lfoDepth { 0.0f }; // 0..1 amplitude modulation
+        };
+
+        // Default synth controls (used when instrument is "default_sine" / empty)
+        void setDefaultSynthWaveform(DefaultSynthWaveform waveform);
+        void setDefaultSynthParam(DefaultSynthParam param, float value);
         
     private:
         int id;
@@ -285,6 +320,8 @@ public:
         // Fallback simple synth (sine wave)
         juce::Synthesiser simpleSynth;
         bool useSimpleSynth = true;
+
+        DefaultSynthState defaultSynth;
         
         std::atomic<float> volume { 1.0f };
         std::atomic<bool> muted { false };
@@ -300,6 +337,12 @@ public:
     void removeTrack(int index);
     Track* getTrack(int index);
     int getNumTracks() const;
+
+    /** Set the waveform used by a track's Default Synth ("Default (Sine)"). */
+    void setTrackDefaultSynthWaveform(int trackIndex, DefaultSynthWaveform waveform);
+
+    /** Set a numeric parameter on a track's Default Synth ("Default (Sine)"). */
+    void setTrackDefaultSynthParam(int trackIndex, DefaultSynthParam param, float value);
     
     /** Load an instrument sample into a track */
     void loadInstrument(int trackIndex, const juce::File& sampleFile, const juce::String& instrumentName);

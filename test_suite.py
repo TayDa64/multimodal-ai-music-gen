@@ -23,7 +23,7 @@ results = {
     'skipped': []
 }
 
-def test(name):
+def mark_test(name):
     """Decorator to mark test functions."""
     def decorator(func):
         def wrapper():
@@ -49,14 +49,14 @@ def test(name):
 # TEST: IMPORTS
 # =============================================================================
 
-@test("Core imports")
+@mark_test("Core imports")
 def test_core_imports():
     import numpy as np
     import mido  # Using mido instead of midiutil
     from scipy.io import wavfile
     assert np.__version__, "NumPy not loaded"
 
-@test("Multimodal_gen package")
+@mark_test("Multimodal_gen package")
 def test_multimodal_gen_import():
     from multimodal_gen import (
         PromptParser,
@@ -66,7 +66,7 @@ def test_multimodal_gen_import():
     )
     assert PromptParser is not None
 
-@test("Ethiopian instruments import")
+@mark_test("Ethiopian instruments import")
 def test_ethiopian_imports():
     from multimodal_gen.assets_gen import (
         generate_krar_tone,
@@ -82,7 +82,7 @@ def test_ethiopian_imports():
 # TEST: PROMPT PARSER
 # =============================================================================
 
-@test("Prompt parser - basic parsing")
+@mark_test("Prompt parser - basic parsing")
 def test_prompt_parser_basic():
     from multimodal_gen import PromptParser
     parser = PromptParser()
@@ -92,7 +92,7 @@ def test_prompt_parser_basic():
     # scale_type could be enum or string, check the key for minor indication
     assert 'D' in result.key or result.key == 'D', f"Expected key D, got {result.key}"
 
-@test("Prompt parser - genre detection")
+@mark_test("Prompt parser - genre detection")
 def test_prompt_parser_genre():
     from multimodal_gen import PromptParser
     parser = PromptParser()
@@ -107,7 +107,7 @@ def test_prompt_parser_genre():
         result = parser.parse(prompt)
         assert expected_genre in result.genre.lower(), f"Expected {expected_genre} in {result.genre}"
 
-@test("Prompt parser - Ethiopian detection")
+@mark_test("Prompt parser - Ethiopian detection")
 def test_prompt_parser_ethiopian():
     from multimodal_gen import PromptParser
     parser = PromptParser()
@@ -120,7 +120,7 @@ def test_prompt_parser_ethiopian():
 # TEST: ETHIOPIAN INSTRUMENTS - SYNTHESIS
 # =============================================================================
 
-@test("Krar synthesis (Karplus-Strong)")
+@mark_test("Krar synthesis (Karplus-Strong)")
 def test_krar_synthesis():
     import numpy as np
     from multimodal_gen.assets_gen import generate_krar_tone, SAMPLE_RATE
@@ -131,7 +131,7 @@ def test_krar_synthesis():
     assert np.max(np.abs(audio)) > 0.01, "Audio too quiet"
     assert np.max(np.abs(audio)) <= 1.0, "Audio clipping"
 
-@test("Masenqo synthesis (Bowed fiddle)")
+@mark_test("Masenqo synthesis (Bowed fiddle)")
 def test_masenqo_synthesis():
     import numpy as np
     from multimodal_gen.assets_gen import generate_masenqo_tone, SAMPLE_RATE
@@ -147,7 +147,7 @@ def test_masenqo_synthesis():
     assert np.max(np.abs(audio)) > 0.01
     assert not np.isnan(audio).any(), "NaN values in audio"
 
-@test("Begena synthesis (Bass lyre with buzz)")
+@mark_test("Begena synthesis (Bass lyre with buzz)")
 def test_begena_synthesis():
     import numpy as np
     from multimodal_gen.assets_gen import generate_begena_tone, SAMPLE_RATE
@@ -157,7 +157,7 @@ def test_begena_synthesis():
     assert len(audio) == SAMPLE_RATE
     assert np.max(np.abs(audio)) > 0.01
 
-@test("Kebero synthesis (Drum)")
+@mark_test("Kebero synthesis (Drum)")
 def test_kebero_synthesis():
     import numpy as np
     from multimodal_gen.assets_gen import generate_kebero_hit, SAMPLE_RATE
@@ -167,7 +167,7 @@ def test_kebero_synthesis():
     assert len(audio) > 0, "No audio generated"
     assert np.max(np.abs(audio)) > 0.01
 
-@test("Ethiopian instrument attack times < 10ms")
+@mark_test("Ethiopian instrument attack times < 10ms")
 def test_attack_times():
     import numpy as np
     from multimodal_gen.assets_gen import (
@@ -206,7 +206,7 @@ def test_attack_times():
 # TEST: MIDI GENERATION
 # =============================================================================
 
-@test("MIDI generator - basic generation")
+@mark_test("MIDI generator - basic generation")
 def test_midi_generator():
     from multimodal_gen import MidiGenerator
     
@@ -214,7 +214,7 @@ def test_midi_generator():
     generator = MidiGenerator(velocity_variation=0.12, timing_variation=0.03, swing=0.0)
     assert generator is not None
 
-@test("MIDI file creation")
+@mark_test("MIDI file creation")
 def test_midi_file_creation():
     from mido import MidiFile, MidiTrack, Message, MetaMessage
     import tempfile
@@ -242,13 +242,13 @@ def test_midi_file_creation():
 # TEST: AUDIO RENDERING
 # =============================================================================
 
-@test("Audio renderer initialization")
+@mark_test("Audio renderer initialization")
 def test_audio_renderer():
     from multimodal_gen import AudioRenderer
     renderer = AudioRenderer()
     assert renderer is not None
 
-@test("WAV file writing")
+@mark_test("WAV file writing")
 def test_wav_writing():
     import numpy as np
     from scipy.io import wavfile
@@ -280,7 +280,7 @@ def test_wav_writing():
 # TEST: ARRANGER
 # =============================================================================
 
-@test("Arranger - song structure")
+@mark_test("Arranger - song structure")
 def test_arranger():
     from multimodal_gen import Arranger, PromptParser
     
@@ -298,7 +298,7 @@ def test_arranger():
 # TEST: FULL GENERATION PIPELINE
 # =============================================================================
 
-@test("Full generation pipeline (MIDI only)")
+@mark_test("Full generation pipeline (MIDI only)")
 def test_full_pipeline():
     from multimodal_gen import PromptParser, Arranger, MidiGenerator
     
@@ -325,7 +325,7 @@ def test_full_pipeline():
 # TEST: ETHIOPIAN SONG GENERATION
 # =============================================================================
 
-@test("Ethiopian song generation")
+@mark_test("Ethiopian song generation")
 def test_ethiopian_song():
     import numpy as np
     from multimodal_gen.assets_gen import (
@@ -360,7 +360,7 @@ def test_ethiopian_song():
 # TEST: INSTRUMENT SHAPER COMPONENTS
 # =============================================================================
 
-@test("FFT spectrum computation")
+@mark_test("FFT spectrum computation")
 def test_fft_spectrum():
     import numpy as np
     from scipy import signal

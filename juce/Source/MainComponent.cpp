@@ -17,8 +17,10 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     : appState(state),
       audioEngine(engine)
 {
+    appState.addListener(this);
+
     // Listen to project state changes
-    appState.getProjectState().getState().addListener(this);
+    appState.getProjectState().addStateListener(this);
 
     // Set size with enforced minimum dimensions for responsive design
     setSize(Layout::defaultWindowWidth, Layout::defaultWindowHeight);
@@ -85,11 +87,16 @@ MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     
     // Scan expansions immediately at startup
     scanLocalExpansions();
+
+    // Apply any persisted per-track state (instrument + Default Synth params) to the audio engine.
+    // This avoids needing to click through tracks after startup or project load.
+    syncTrackAudioFromProjectState();
 }
 
 MainComponent::~MainComponent()
 {
-    appState.getProjectState().getState().removeListener(this);
+    appState.removeListener(this);
+    appState.getProjectState().removeStateListener(this);
     stopTimer();
     
     // Close floating windows
@@ -120,6 +127,76 @@ MainComponent::~MainComponent()
     
     if (expansionBrowser)
         expansionBrowser->removeListener(this);
+}
+
+//==============================================================================
+// AppState::Listener
+void MainComponent::onNewProjectCreated()
+{
+    syncTrackAudioFromProjectState();
+}
+
+void MainComponent::onProjectLoaded(const juce::File& /*file*/)
+{
+    syncTrackAudioFromProjectState();
+}
+
+//==============================================================================
+void MainComponent::syncTrackAudioFromProjectState()
+{
+    auto mixerNode = appState.getProjectState().getMixerNode();
+    if (!mixerNode.isValid())
+        return;
+
+    for (const auto& child : mixerNode)
+    {
+        if (!child.hasType(Project::IDs::TRACK))
+            continue;
+
+        const int trackIndex = (int)child.getProperty(Project::IDs::index, 0);
+        juce::String instrumentId = child.getProperty(Project::IDs::instrumentId).toString();
+        if (instrumentId.isEmpty())
+            instrumentId = "default_sine";
+
+        // Reuse the same codepath as user selection so behavior stays consistent.
+        trackInstrumentSelected(trackIndex, instrumentId);
+    }
+}
+
+void MainComponent::applyDefaultSynthSettingsForTrackFromProjectState(int trackIndex)
+{
+    auto trackNode = appState.getProjectState().getTrackNode(trackIndex);
+    if (!trackNode.isValid())
+        return;
+
+    const int wfId = (int)trackNode.getProperty(Project::IDs::defaultSynthWaveform, 1);
+    mmg::AudioEngine::DefaultSynthWaveform waveformEnum = mmg::AudioEngine::DefaultSynthWaveform::Sine;
+    switch (wfId)
+    {
+        case 2: waveformEnum = mmg::AudioEngine::DefaultSynthWaveform::Triangle; break;
+        case 3: waveformEnum = mmg::AudioEngine::DefaultSynthWaveform::Saw; break;
+        case 4: waveformEnum = mmg::AudioEngine::DefaultSynthWaveform::Square; break;
+        case 1:
+        default: waveformEnum = mmg::AudioEngine::DefaultSynthWaveform::Sine; break;
+    }
+
+    audioEngine.setTrackDefaultSynthWaveform(trackIndex, waveformEnum);
+
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::AttackSeconds,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthAttack, 0.001f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::ReleaseSeconds,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthRelease, 0.2f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::CutoffHz,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthCutoff, 16000.0f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::LfoRateHz,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthLfoRate, 5.0f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::LfoDepth,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthLfoDepth, 0.0f));
 }
 
 //==============================================================================
@@ -322,42 +399,69 @@ void MainComponent::showToolWindow(int toolId)
 
 void MainComponent::controlsApplyGlobalRequested(const juce::var& overrides)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        oscBridge->sendControlsSet(overrides);
-        currentStatus = "Applied global controls";
-        repaint();
-    }
-    else
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Not Connected",
-            "Python backend is not connected.\n\n"
-            "Start the server with:\n"
-            "python main.py --server --verbose"
-        );
-    }
+    if (!ensureBackendConnected("Apply global controls"))
+        return;
+
+    oscBridge->sendControlsSet(overrides);
+    currentStatus = "Applied global controls";
+    repaint();
 }
 
 void MainComponent::controlsClearGlobalRequested(const juce::StringArray& keys)
 {
+    if (!ensureBackendConnected("Clear global controls"))
+        return;
+
+    oscBridge->sendControlsClear(keys);
+    currentStatus = "Cleared global controls";
+    repaint();
+}
+
+bool MainComponent::ensureBackendConnected(const juce::String& actionLabel)
+{
     if (oscBridge && oscBridge->isConnected())
+        return true;
+
+    const auto now = juce::Time::currentTimeMillis();
+
+    // Always attempt to (re)connect when an action requires the backend.
+    // This covers the common case where the server is started externally
+    // (e.g. `npm run start:server`) so pythonManager->isRunning() is false.
+    constexpr juce::int64 connectAttemptIntervalMs = 1000;
+    constexpr juce::int64 connectGracePeriodMs = 2000;
+    if (now - lastBackendConnectAttemptMs > connectAttemptIntervalMs)
     {
-        oscBridge->sendControlsClear(keys);
-        currentStatus = "Cleared global controls";
+        lastBackendConnectAttemptMs = now;
+        setupOSCConnection();
         repaint();
     }
-    else
+
+    const bool pythonRunning = (pythonManager && pythonManager->isRunning());
+    if (pythonRunning || (now - lastBackendConnectAttemptMs) < connectGracePeriodMs)
     {
+        // Server is likely coming up or reconnecting; avoid spamming a modal warning.
+        currentStatus = actionLabel + " (waiting for server connection...)";
+        repaint();
+        return false;
+    }
+
+    // Server isn't running; show a debounced warning.
+    if (now - lastBackendNotConnectedWarningMs > 2500)
+    {
+        lastBackendNotConnectedWarningMs = now;
         juce::AlertWindow::showMessageBoxAsync(
             juce::MessageBoxIconType::WarningIcon,
             "Not Connected",
             "Python backend is not connected.\n\n"
             "Start the server with:\n"
-            "python main.py --server --verbose"
+            "npm run start:server\n\n"
+            "(or) python -m multimodal_gen.server --verbose"
         );
     }
+
+    currentStatus = "Server Offline";
+    repaint();
+    return false;
 }
 
 void MainComponent::hideBottomPanel()
@@ -880,7 +984,7 @@ void MainComponent::generateRequested(const juce::String& prompt)
         return;
     }
     
-    if (oscBridge && oscBridge->isConnected())
+    if (ensureBackendConnected("Generate"))
     {
         GenerationRequest request;
         request.prompt = prompt;
@@ -942,16 +1046,6 @@ void MainComponent::generateRequested(const juce::String& prompt)
         oscBridge->sendGenerate(request);
         appState.setGenerating(true);
     }
-    else
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Not Connected",
-            "Python backend is not connected.\n\n"
-            "Start the server with:\n"
-            "python main.py --server --verbose"
-        );
-    }
 }
 
 void MainComponent::cancelRequested()
@@ -991,29 +1085,21 @@ void MainComponent::fileSelected(const juce::File& file)
 
 void MainComponent::analyzeFileRequested(const juce::File& file)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        currentStatus = "Analyzing: " + file.getFileName();
-        oscBridge->sendAnalyzeFile(file, false);
-        repaint();
-    }
-    else
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Not Connected",
-            "Python backend is not connected.\n\n"
-            "Start the server with:\n"
-            "python main.py --server --verbose"
-        );
-    }
+    if (!ensureBackendConnected("Analyze"))
+        return;
+
+    currentStatus = "Analyzing: " + file.getFileName();
+    oscBridge->sendAnalyzeFile(file, false);
+    repaint();
 }
 
 void MainComponent::regenerateRequested(int startBar, int endBar, const juce::StringArray& tracks)
 {
     DBG("MainComponent: Regenerate requested bars " << startBar << "-" << endBar);
-    
-    if (oscBridge && oscBridge->isConnected())
+
+    if (!ensureBackendConnected("Regenerate"))
+        return;
+
     {
         RegenerationRequest request;
         request.generateRequestId();
@@ -1039,16 +1125,6 @@ void MainComponent::regenerateRequested(int startBar, int endBar, const juce::St
         
         currentStatus = "Regenerating bars " + juce::String(startBar) + "-" + juce::String(endBar) + "...";
         repaint();
-    }
-    else
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Not Connected",
-            "Python backend is not connected.\n\n"
-            "Start the server with:\n"
-            "python main.py --server --verbose"
-        );
     }
 }
 
@@ -1105,6 +1181,9 @@ void MainComponent::trackInstrumentSelected(int trackIndex, const juce::String& 
     {
         // Reset to simple sine synth (quick operation, no async needed)
         audioEngine.loadTrackInstrument(trackIndex, "");
+
+        // Apply persisted Default Synth settings immediately (so playback matches without selecting tracks).
+        applyDefaultSynthSettingsForTrackFromProjectState(trackIndex);
     }
     else
     {
@@ -1217,22 +1296,12 @@ void MainComponent::trackLoadSFZRequested(int trackIndex)
 
 void MainComponent::analyzeUrlRequested(const juce::String& url)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        currentStatus = "Analyzing URL...";
-        oscBridge->sendAnalyzeUrl(url, false);
-        repaint();
-    }
-    else
-    {
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Not Connected",
-            "Python backend is not connected.\n\n"
-            "Start the server with:\n"
-            "python main.py --server --verbose"
-        );
-    }
+    if (!ensureBackendConnected("Analyze URL"))
+        return;
+
+    currentStatus = "Analyzing URL...";
+    oscBridge->sendAnalyzeUrl(url, false);
+    repaint();
 }
 
 //==============================================================================
@@ -1297,7 +1366,9 @@ void MainComponent::onInstrumentsLoaded(const juce::String& json)
 
 void MainComponent::requestLibraryInstruments()
 {
-    if (oscBridge && oscBridge->isConnected())
+    if (!ensureBackendConnected("Request instruments"))
+        return;
+
     {
         DBG("MainComponent: Requesting library instruments");
 
@@ -1327,17 +1398,6 @@ void MainComponent::requestLibraryInstruments()
         // If we couldn't resolve a stable absolute path, fall back to the server-side defaults.
         // (Server will error if it has no configured defaults.)
         oscBridge->sendGetInstruments(paths);
-    }
-    else
-    {
-        DBG("MainComponent: Cannot request instruments - not connected");
-        juce::AlertWindow::showMessageBoxAsync(
-            juce::MessageBoxIconType::WarningIcon,
-            "Not Connected",
-            "Python backend is not connected.\n\n"
-            "Start the server with:\n"
-            "python main.py --server --verbose"
-        );
     }
 }
 
@@ -1384,75 +1444,71 @@ void MainComponent::fxChainChanged(FXChainPanel* panel)
 // ExpansionBrowserPanel::Listener
 void MainComponent::requestExpansionListOSC()
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        DBG("MainComponent: Requesting expansion list");
-        oscBridge->sendExpansionList();
-    }
-    else
-    {
-        DBG("MainComponent: Cannot request expansions - not connected");
-    }
+    if (!ensureBackendConnected("Request expansion list"))
+        return;
+
+    DBG("MainComponent: Requesting expansion list");
+    oscBridge->sendExpansionList();
 }
 
 void MainComponent::requestInstrumentsOSC(const juce::String& expansionId)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        DBG("MainComponent: Requesting instruments for expansion: " + expansionId);
-        oscBridge->sendExpansionInstruments(expansionId);
-    }
+    if (!ensureBackendConnected("Request expansion instruments"))
+        return;
+
+    DBG("MainComponent: Requesting instruments for expansion: " + expansionId);
+    oscBridge->sendExpansionInstruments(expansionId);
 }
 
 void MainComponent::requestResolveOSC(const juce::String& instrument, const juce::String& genre)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        DBG("MainComponent: Resolving instrument: " + instrument + " for genre: " + genre);
-        oscBridge->sendExpansionResolve(instrument, genre);
-    }
+    if (!ensureBackendConnected("Resolve expansion instrument"))
+        return;
+
+    DBG("MainComponent: Resolving instrument: " + instrument + " for genre: " + genre);
+    oscBridge->sendExpansionResolve(instrument, genre);
 }
 
 void MainComponent::requestImportExpansionOSC(const juce::String& path)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        DBG("MainComponent: Importing expansion from: " + path);
-        oscBridge->sendExpansionImport(path);
-        
-        // Refresh list after import
-        juce::Timer::callAfterDelay(1000, [this]() {
-            requestExpansionListOSC();
-        });
-    }
+    if (!ensureBackendConnected("Import expansion"))
+        return;
+
+    DBG("MainComponent: Importing expansion from: " + path);
+    oscBridge->sendExpansionImport(path);
+
+    // Refresh list after import
+    juce::Timer::callAfterDelay(1000, [this]() {
+        requestExpansionListOSC();
+    });
 }
 
 void MainComponent::requestScanExpansionsOSC(const juce::String& directory)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        DBG("MainComponent: Scanning expansions in: " + directory);
-        oscBridge->sendExpansionScan(directory);
-        
-        // Refresh list after scan
-        juce::Timer::callAfterDelay(2000, [this]() {
-            requestExpansionListOSC();
-        });
-    }
+    if (!ensureBackendConnected("Scan expansions"))
+        return;
+
+    DBG("MainComponent: Scanning expansions in: " + directory);
+    oscBridge->sendExpansionScan(directory);
+
+    // Refresh list after scan
+    juce::Timer::callAfterDelay(2000, [this]() {
+        requestExpansionListOSC();
+    });
 }
 
 void MainComponent::requestExpansionEnableOSC(const juce::String& expansionId, bool enabled)
 {
-    if (oscBridge && oscBridge->isConnected())
-    {
-        DBG("MainComponent: Setting expansion " + expansionId + " enabled=" + (enabled ? "true" : "false"));
-        oscBridge->sendExpansionEnable(expansionId, enabled);
-        
-        // Refresh expansion list to get updated state
-        juce::Timer::callAfterDelay(500, [this]() {
-            requestExpansionListOSC();
-        });
-    }
+    if (!ensureBackendConnected("Enable/disable expansion"))
+        return;
+
+    DBG("MainComponent: Setting expansion " + expansionId + " enabled=" + (enabled ? "true" : "false"));
+    oscBridge->sendExpansionEnable(expansionId, enabled);
+
+    // Refresh expansion list to get updated state
+    juce::Timer::callAfterDelay(500, [this]() {
+        requestExpansionListOSC();
+    });
 }
 
 //==============================================================================
@@ -1545,6 +1601,14 @@ void MainComponent::takeSelected(const juce::String& track, const juce::String& 
 
     const bool applied = applyTakeCompToProject(track, takeId, midiPath);
 
+    // Ensure playback updates immediately (don't rely on async ValueTree callbacks).
+    if (applied)
+    {
+        auto midi = appState.getProjectState().exportToMidiFile();
+        audioEngine.loadMidiData(midi);
+        hasAuditionBackupMidi = false; // selection becomes the new "main" state
+    }
+
     // Send selection to server via OSC (for persistence / future render comp)
     if (oscBridge)
         oscBridge->sendSelectTake(track, takeId);
@@ -1558,6 +1622,11 @@ void MainComponent::takeSelected(const juce::String& track, const juce::String& 
 void MainComponent::takePlayRequested(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
 {
     DBG("MainComponent: User requested take playback - " << track << " / " << takeId << " (" << midiPath << ")");
+
+    // Audition should not modify the main project state/visualization. Back up the current
+    // project MIDI so we can restore after the audition.
+    auditionBackupMidi = appState.getProjectState().exportToMidiFile();
+    hasAuditionBackupMidi = true;
 
     juce::File midiFile(midiPath);
     if (!midiFile.existsAsFile())
@@ -1584,8 +1653,6 @@ void MainComponent::takePlayRequested(const juce::String& track, const juce::Str
 
     if (audioEngine.loadMidiFile(midiFile))
     {
-        if (visualizationPanel)
-            visualizationPanel->loadMidiFile(midiFile);
         audioEngine.play();
         currentStatus = "Auditioning take: " + track + " / " + takeId;
     }
@@ -1601,6 +1668,14 @@ void MainComponent::takeStopRequested(const juce::String& track)
 {
     juce::ignoreUnused(track);
     audioEngine.stop();
+
+    // Restore main project playback MIDI after audition.
+    if (hasAuditionBackupMidi)
+    {
+        audioEngine.loadMidiData(auditionBackupMidi);
+        hasAuditionBackupMidi = false;
+    }
+
     currentStatus = "Audition stopped";
     repaint();
 }

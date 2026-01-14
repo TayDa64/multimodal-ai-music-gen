@@ -52,6 +52,7 @@
     └─────────────────────────────────────────────────────────────────────────┘
 */
 class MainComponent : public juce::Component,
+                      public AppState::Listener,
                       public OSCBridge::Listener,
                       public PromptPanel::Listener,
                       public ProgressOverlay::Listener,
@@ -75,6 +76,11 @@ public:
     //==============================================================================
     void paint(juce::Graphics& g) override;
     void resized() override;
+
+    //==============================================================================
+    // AppState::Listener
+    void onNewProjectCreated() override;
+    void onProjectLoaded(const juce::File& file) override;
     
     //==============================================================================
     // OSCBridge::Listener
@@ -194,6 +200,7 @@ private:
     std::unique_ptr<ProgressOverlay> progressOverlay;
     std::unique_ptr<VisualizationPanel> visualizationPanel;
     
+  juce::int64 lastBackendConnectAttemptMs = 0;
     // NB Phase 2: Genre-aware components
     std::unique_ptr<GenreSelector> genreSelector;
     std::unique_ptr<InstrumentBrowserPanel> instrumentBrowser;
@@ -219,6 +226,10 @@ private:
     // Layout constants - now use Layout:: namespace from LayoutConstants.h
     // These are kept for backward compatibility but prefer using Layout:: directly
     static constexpr int transportHeight = Layout::transportHeightDefault;
+
+    //==============================================================================
+    void syncTrackAudioFromProjectState();
+    void applyDefaultSynthSettingsForTrackFromProjectState(int trackIndex);
     static constexpr int timelineHeight = Layout::timelineHeightDefault;
     static constexpr int promptPanelWidth = Layout::sidebarWidthDefault;
     static constexpr int padding = Layout::paddingSM;
@@ -231,6 +242,9 @@ private:
     juce::String currentGenre = "auto";  // Default genre (synced with GenreSelector)
     bool initialInstrumentsRequested = false;
     AnalyzeResult lastAnalyzeResult;  // Store last analysis for Apply action
+
+    // Debounce for backend connectivity warnings.
+    juce::int64 lastBackendNotConnectedWarningMs = 0;
 
     // Apply-once overrides injected into the next /generate and /regenerate request.
     juce::var nextGenerateOverrides;
@@ -247,9 +261,17 @@ private:
     void showToolWindow(int toolId);  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer, 5=Takes, 6=Controls
     void hideBottomPanel();
 
+    // Returns true when OSC is connected. If Python is running but OSC isn't ready yet,
+    // this updates the status bar (non-modal) instead of showing a misleading warning.
+    bool ensureBackendConnected(const juce::String& actionLabel);
+
     int resolveTrackIndexForName(const juce::String& trackName);
     juce::File resolveTakeMidiFile(const juce::String& midiPath) const;
     bool applyTakeCompToProject(const juce::String& track, const juce::String& takeId, const juce::String& midiPath);
+
+    // Take audition: keep the main project MIDI intact and restore it after audition.
+    juce::MidiFile auditionBackupMidi;
+    bool hasAuditionBackupMidi = false;
     void applyGenreTheme(const juce::String& genreId);
     void applyAnalysisResult(const AnalyzeResult& result);
     void scanLocalExpansions();  // Scan local expansion packs and populate instruments

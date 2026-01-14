@@ -11,6 +11,9 @@
 #include "PianoRollComponent.h"
 #include "../Theme/ColourScheme.h"
 
+#include <limits>
+#include <numeric>
+
 //==============================================================================
 PianoRollComponent::PianoRollComponent(mmg::AudioEngine& engine)
     : audioEngine(engine)
@@ -27,9 +30,16 @@ PianoRollComponent::PianoRollComponent(mmg::AudioEngine& engine)
     
     // Setup Track Selector
     addAndMakeVisible(trackSelector);
+    trackSelector.setColour(juce::ComboBox::backgroundColourId, AppColours::surfaceAlt.withAlpha(0.55f));
+    trackSelector.setColour(juce::ComboBox::textColourId, AppColours::textPrimary.withAlpha(0.70f));
+    trackSelector.setColour(juce::ComboBox::outlineColourId, AppColours::border.withAlpha(0.45f));
+    trackSelector.setColour(juce::ComboBox::arrowColourId, AppColours::textSecondary.withAlpha(0.70f));
     trackSelector.onChange = [this] { 
         soloedTrack = trackSelector.getSelectedId() - 2; // ID 1 = All, ID 2 = Track 0...
         if (soloedTrack < -1) soloedTrack = -1;
+        if (soloedTrack >= 0)
+            lastAuditionTrackIndex = soloedTrack;
+        listeners.call(&PianoRollComponent::Listener::pianoRollSoloTrackChanged, soloedTrack);
         repaint(); 
     };
     
@@ -39,7 +49,7 @@ PianoRollComponent::PianoRollComponent(mmg::AudioEngine& engine)
 PianoRollComponent::~PianoRollComponent()
 {
     if (projectState)
-        projectState->getState().removeListener(this);
+        projectState->removeStateListener(this);
         
     audioEngine.removeListener(this);
     stopTimer();
@@ -49,13 +59,13 @@ PianoRollComponent::~PianoRollComponent()
 void PianoRollComponent::setProjectState(Project::ProjectState* state)
 {
     if (projectState)
-        projectState->getState().removeListener(this);
+        projectState->removeStateListener(this);
         
     projectState = state;
     
     if (projectState)
     {
-        projectState->getState().addListener(this);
+        projectState->addStateListener(this);
         syncNotesFromState();
     }
 }
@@ -353,6 +363,26 @@ bool PianoRollComponent::isTrackVisible(int trackIndex) const
 void PianoRollComponent::soloTrack(int trackIndex)
 {
     soloedTrack = trackIndex;
+    if (soloedTrack >= 0)
+        lastAuditionTrackIndex = soloedTrack;
+    repaint();
+}
+
+void PianoRollComponent::setAuditionTrackIndex(int trackIndex)
+{
+    if (trackIndex < 0)
+        return;
+
+    // Only affects key audition when we're not explicitly soloing a track.
+    lastAuditionTrackIndex = trackIndex;
+    repaint();
+}
+
+void PianoRollComponent::setDrumMode(bool enabled)
+{
+    if (drumMode == enabled)
+        return;
+    drumMode = enabled;
     repaint();
 }
 
@@ -501,31 +531,89 @@ void PianoRollComponent::drawTimeRuler(juce::Graphics& g)
     g.setColour(AppColours::border);
     g.drawHorizontalLine(rulerBounds.getBottom() - 1, (float)rulerBounds.getX(), (float)rulerBounds.getRight());
     
-    if (currentBPM <= 0) return;
-    
-    double secondsPerBeat = 60.0 / currentBPM;
-    double secondsPerBar = secondsPerBeat * 4.0;  // Assume 4/4 time
+    const double secondsPerBeat = getSecondsPerBeat();
+    if (secondsPerBeat <= 0.0)
+        return;
+
+    const int gridDiv = getGridDivisionsPerBeat();
+
+    // Grid label (e.g. 1/4, 1/8, 1/16) so users can see the current snap resolution.
+    const int denom = 4 * juce::jmax(1, gridDiv);
+    const juce::String gridLabel = "Grid: 1/" + juce::String(denom);
+    {
+        g.setColour(AppColours::textSecondary.withAlpha(0.85f));
+        g.setFont(11.0f);
+        auto labelBounds = rulerBounds.withTrimmedLeft(keyWidth + 6).withTrimmedRight(6);
+        g.drawText(gridLabel, labelBounds, juce::Justification::centredRight);
+    }
+
+    const float pixelsPerBeat = (float)(secondsPerBeat * (double)(100.0f * hZoom));
+    const bool showBeatNumbers = pixelsPerBeat >= 65.0f;
     
     // Calculate visible time range
     double startTime = juce::jmax(0.0, scrollX);
     double endTime = scrollX + getWidth() / (100.0f * hZoom);
     
-    // Draw bar and beat markers
+    // Draw bar/beat/subdivision markers (iterate by integer subdivision index to avoid float drift)
     g.setFont(10.0f);
-    
-    for (double time = 0.0; time <= totalDuration + secondsPerBar; time += secondsPerBeat)
+
+    const double startBeats = startTime / secondsPerBeat;
+    const double endBeats = endTime / secondsPerBeat;
+    const int startSub = juce::jmax(0, (int)std::floor(startBeats * (double)gridDiv) - gridDiv * 4);
+    const int endSub = (int)std::ceil(endBeats * (double)gridDiv) + gridDiv * 4;
+
+    const int barSubDiv = gridDiv * 4;
+    const float pixelsPerSubdivision = (gridDiv > 0) ? (pixelsPerBeat / (float)gridDiv) : pixelsPerBeat;
+    const bool showFractionLabels = (pixelsPerSubdivision >= 22.0f);
+
+    // Keep bar/beat/fraction labels from colliding.
+    const int labelBandH = juce::jmax(1, rulerHeight / 2);
+    const int fractionLabelY = rulerBounds.getY();
+    const int beatLabelY = rulerBounds.getY() + labelBandH;
+
+    const juce::Font barFont(13.0f, juce::Font::bold); // ~3px larger than beat numbers
+    const juce::Font beatFont(10.0f);
+    const juce::Font fracFont(9.0f);
+
+    // Avoid too-dense fraction labels when grid is 1/16+.
+    const int minSubLabelStep = (gridDiv >= 4) ? juce::jmax(1, gridDiv / 2) : 1; // cap at 1/8 in 4/4
+    const int computedLabelStep = (pixelsPerSubdivision > 0.0f)
+        ? juce::jmax(1, (int)std::ceil(20.0f / pixelsPerSubdivision))
+        : 1;
+    const int subLabelStep = juce::jmin(barSubDiv, juce::jmax(minSubLabelStep, computedLabelStep));
+
+    auto formatBarFraction = [barSubDiv](int posInBar) -> juce::String
     {
-        if (time < startTime - secondsPerBar || time > endTime + secondsPerBar)
-            continue;
-        
+        if (posInBar <= 0 || barSubDiv <= 0)
+            return {};
+
+        // Reduce to canonical fraction (e.g. 8/16 -> 1/2) so labels remain consistent.
+        const int gcd = juce::jmax(1, std::gcd(posInBar, barSubDiv));
+        const int num = posInBar / gcd;
+        const int den = barSubDiv / gcd;
+        return juce::String(num) + "/" + juce::String(den);
+    };
+
+    float lastFractionLabelX = -1.0e9f;
+    auto canDrawFractionLabelAt = [&lastFractionLabelX](float x) -> bool
+    {
+        // Simple spacing guard to prevent label overlaps at high zoom.
+        constexpr float minLabelSpacingPx = 26.0f;
+        if (x - lastFractionLabelX < minLabelSpacingPx)
+            return false;
+        lastFractionLabelX = x;
+        return true;
+    };
+
+    for (int subIndex = startSub; subIndex <= endSub; ++subIndex)
+    {
+        const double time = ((double)subIndex / (double)gridDiv) * secondsPerBeat;
         float x = timeToX(time);
         if (x < keyWidth || x > getWidth())
             continue;
-        
-        // Calculate bar and beat numbers
-        int bar, beat, tick;
-        timeToBarBeat(time, bar, beat, tick);
-        bool isBar = (beat == 0 && tick == 0);
+
+        const bool isBar = (subIndex % (gridDiv * 4)) == 0;
+        const bool isBeat = (subIndex % gridDiv) == 0;
         
         if (isBar)
         {
@@ -534,15 +622,63 @@ void PianoRollComponent::drawTimeRuler(juce::Graphics& g)
             g.drawVerticalLine((int)x, (float)rulerBounds.getY() + 10, (float)rulerBounds.getBottom());
             
             // Bar number
-            g.drawText(juce::String(bar), 
-                      (int)x + 3, rulerBounds.getY(), 30, rulerHeight,
-                      juce::Justification::centredLeft);
+            const int barNumber = subIndex / (gridDiv * 4);
+            g.setFont(barFont);
+            g.setColour(AppColours::textPrimary.withAlpha(0.95f));
+
+            g.drawText(juce::String(barNumber),
+                       (int)x + 3, fractionLabelY, 30, labelBandH,
+                       juce::Justification::centredLeft);
         }
-        else
+        else if (isBeat)
         {
             // Beat marker - short line
             g.setColour(AppColours::textSecondary.withAlpha(0.5f));
             g.drawVerticalLine((int)x, (float)rulerBounds.getBottom() - 6, (float)rulerBounds.getBottom());
+
+            if (showBeatNumbers)
+            {
+                const int beatIndex = (subIndex / gridDiv) % 4; // 0..3 in 4/4
+                const juce::String beatText = juce::String(beatIndex + 1);
+                g.setColour(AppColours::textSecondary.withAlpha(0.85f));
+                g.setFont(beatFont);
+                g.drawText(beatText, (int)x + 2, beatLabelY, 16, rulerHeight - labelBandH,
+                           juce::Justification::centredLeft);
+            }
+
+            // Optional fraction labels inside the bar for extra clarity (1/4, 1/2, 3/4...).
+            const int posInBar = (barSubDiv > 0) ? (subIndex % barSubDiv) : 0;
+            // When beat numbers are shown, fractions at beat boundaries are redundant and tend to overlap.
+            if (showFractionLabels && !showBeatNumbers && posInBar > 0 && (posInBar % subLabelStep) == 0)
+            {
+                const auto frac = formatBarFraction(posInBar);
+                if (frac.isNotEmpty() && canDrawFractionLabelAt(x))
+                {
+                    g.setColour(AppColours::textSecondary.withAlpha(0.60f));
+                    g.setFont(fracFont);
+                    g.drawText(frac, (int)x + 2, fractionLabelY, 34, labelBandH,
+                               juce::Justification::centredLeft);
+                }
+            }
+        }
+        else
+        {
+            // Subdivision tick (only visible when zoomed in enough)
+            g.setColour(AppColours::textSecondary.withAlpha(0.25f));
+            g.drawVerticalLine((int)x, (float)rulerBounds.getBottom() - 3, (float)rulerBounds.getBottom());
+
+            const int posInBar = (barSubDiv > 0) ? (subIndex % barSubDiv) : 0;
+            if (showFractionLabels && posInBar > 0 && (posInBar % subLabelStep) == 0)
+            {
+                const auto frac = formatBarFraction(posInBar);
+                if (frac.isNotEmpty() && canDrawFractionLabelAt(x))
+                {
+                    g.setColour(AppColours::textSecondary.withAlpha(0.50f));
+                    g.setFont(fracFont);
+                    g.drawText(frac, (int)x + 2, fractionLabelY, 34, labelBandH,
+                               juce::Justification::centredLeft);
+                }
+            }
         }
     }
     
@@ -552,7 +688,7 @@ void PianoRollComponent::drawTimeRuler(juce::Graphics& g)
         juce::String timeStr = formatBarBeat(playheadPosition);
         g.setColour(AppColours::accent);
         g.setFont(11.0f);
-        auto textBounds = rulerBounds.removeFromLeft(keyWidth);
+        auto textBounds = juce::Rectangle<int>(rulerBounds.getX(), rulerBounds.getY(), keyWidth, rulerHeight);
         g.fillRect(textBounds);
         g.setColour(AppColours::textPrimary);
         g.drawText(timeStr, textBounds.reduced(4, 0), juce::Justification::centred);
@@ -592,12 +728,52 @@ void PianoRollComponent::drawPianoKeys(juce::Graphics& g)
         }
         
         int noteName = noteNum % 12;
-        if (noteName == 0 || vZoom >= 1.5f)
+        if (drumMode || noteName == 0 || vZoom >= 1.5f)
         {
             g.setColour(isBlackKey ? juce::Colours::white : juce::Colours::black);
             g.setFont(juce::jmin(10.0f, noteHeight - 2));
-            
-            juce::String label = MidiNoteEvent::getNoteName(noteNum);
+
+            juce::String label;
+            if (drumMode)
+            {
+                // General MIDI drum map (common subset)
+                switch (noteNum)
+                {
+                    case 35: label = "Acoustic Bass Drum"; break;
+                    case 36: label = "Kick"; break;
+                    case 38: label = "Snare"; break;
+                    case 40: label = "Snare (Alt)"; break;
+                    case 41: label = "Low Tom"; break;
+                    case 43: label = "High Floor Tom"; break;
+                    case 45: label = "Low Tom (Alt)"; break;
+                    case 47: label = "Mid Tom"; break;
+                    case 48: label = "Hi Mid Tom"; break;
+                    case 50: label = "High Tom"; break;
+                    case 42: label = "Closed Hat"; break;
+                    case 44: label = "Pedal Hat"; break;
+                    case 46: label = "Open Hat"; break;
+                    case 49: label = "Crash"; break;
+                    case 51: label = "Ride"; break;
+                    case 52: label = "China"; break;
+                    case 55: label = "Splash"; break;
+                    case 57: label = "Crash 2"; break;
+                    case 59: label = "Ride 2"; break;
+                    case 37: label = "Rimshot"; break;
+                    case 39: label = "Clap"; break;
+                    case 54: label = "Tambourine"; break;
+                    case 56: label = "Cowbell"; break;
+                    case 60: label = "Hi Bongo"; break;
+                    case 61: label = "Low Bongo"; break;
+                    case 62: label = "Mute Conga"; break;
+                    case 63: label = "Open Conga"; break;
+                    case 64: label = "Low Conga"; break;
+                    default: label = MidiNoteEvent::getNoteName(noteNum); break;
+                }
+            }
+            else
+            {
+                label = MidiNoteEvent::getNoteName(noteNum);
+            }
             int labelX = isBlackKey ? blackKeyWidth + 2 : 2;
             g.drawText(label, labelX, (int)y, pianoKeyWidth - labelX - 2, (int)noteHeight,
                       juce::Justification::centredLeft);
@@ -616,37 +792,80 @@ void PianoRollComponent::drawGridLines(juce::Graphics& g)
     
     int keyWidth = getEffectiveKeyWidth();
     auto noteArea = getLocalBounds().withTrimmedLeft(keyWidth);
-    if (currentBPM <= 0) return;
-    
-    double secondsPerBeat = 60.0 / currentBPM;
-    double secondsPerBar = secondsPerBeat * 4.0;
+    const double secondsPerBeat = getSecondsPerBeat();
+    if (secondsPerBeat <= 0.0)
+        return;
+
     float pixelsPerSecond = 100.0f * hZoom;
+    const int gridDiv = getGridDivisionsPerBeat();
     
     double startTime = juce::jmax(0.0, scrollX);
     double endTime = scrollX + noteArea.getWidth() / pixelsPerSecond;
     
     g.setColour(AppColours::border.withAlpha(0.3f));
-    for (double time = 0.0; time <= totalDuration; time += secondsPerBeat)
+
+    const double startBeats = startTime / secondsPerBeat;
+    const double endBeats = endTime / secondsPerBeat;
+    const int startSub = juce::jmax(0, (int)std::floor(startBeats * (double)gridDiv) - gridDiv * 2);
+    const int endSub = (int)std::ceil(endBeats * (double)gridDiv) + gridDiv * 2;
+
+    for (int subIndex = startSub; subIndex <= endSub; ++subIndex)
     {
-        if (time < startTime - secondsPerBeat || time > endTime + secondsPerBeat)
-            continue;
-        
+        const double time = ((double)subIndex / (double)gridDiv) * secondsPerBeat;
         float x = timeToX(time);
         if (x >= keyWidth && x < getWidth())
         {
-            bool isBar = std::fmod(time, secondsPerBar) < 0.001;
+            const bool isBar = (subIndex % (gridDiv * 4)) == 0;
+            const bool isBeat = (subIndex % gridDiv) == 0;
             if (isBar)
             {
                 g.setColour(AppColours::border.withAlpha(0.6f));
                 g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
             }
+            else if (isBeat)
+            {
+                g.setColour(AppColours::border.withAlpha(0.25f));
+                g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
+            }
             else
             {
-                g.setColour(AppColours::border.withAlpha(0.2f));
+                g.setColour(AppColours::border.withAlpha(0.12f));
                 g.drawVerticalLine((int)x, 0.0f, (float)getHeight());
             }
         }
     }
+}
+
+//==============================================================================
+double PianoRollComponent::getSecondsPerBeat() const
+{
+    if (currentBPM <= 0)
+        return 0.0;
+    return 60.0 / (double)currentBPM;
+}
+
+int PianoRollComponent::getGridDivisionsPerBeat() const
+{
+    const double secondsPerBeat = getSecondsPerBeat();
+    if (secondsPerBeat <= 0.0)
+        return 1;
+
+    const float pixelsPerSecond = 100.0f * hZoom;
+    const float pixelsPerBeat = (float)(secondsPerBeat * (double)pixelsPerSecond);
+
+    // 1 = quarter notes, 2 = eighth notes, 4 = sixteenth notes
+    // Lower thresholds so 1/16 becomes reachable without extreme zoom.
+    if (pixelsPerBeat >= 90.0f) return 4;
+    if (pixelsPerBeat >= 50.0f)  return 2;
+    return 1;
+}
+
+double PianoRollComponent::snapBeatsToGrid(double beats) const
+{
+    const int gridDiv = getGridDivisionsPerBeat();
+    if (gridDiv <= 1)
+        return std::round(beats);
+    return std::round(beats * (double)gridDiv) / (double)gridDiv;
 }
 
 void PianoRollComponent::drawLoopRegion(juce::Graphics& g)
@@ -908,11 +1127,77 @@ MidiNoteEvent* PianoRollComponent::getNoteAt(juce::Point<float> position)
         float y = noteToY(note.noteNumber);
         
         juce::Rectangle<float> noteRect(x, y, endX - x, noteHeight);
-        // Expand hit area slightly for easier grabbing
-        if (noteRect.expanded(0, 1).contains(position))
+        // Expand hit area slightly (esp. horizontally) so edge resize is easier to grab.
+        if (noteRect.expanded(6.0f, 2.0f).contains(position))
             return &note;
     }
     return nullptr;
+}
+
+juce::ValueTree PianoRollComponent::resolveNoteStateNode(const MidiNoteEvent& note) const
+{
+    if (projectState == nullptr)
+        return {};
+
+    auto notesNode = projectState->getState().getChildWithName(Project::IDs::NOTES);
+    if (!notesNode.isValid())
+        return {};
+
+    const double secondsPerBeat = getSecondsPerBeat();
+    if (secondsPerBeat <= 0.0)
+        return {};
+
+    const double targetStartBeats = note.startTime / secondsPerBeat;
+    const double targetLengthBeats = note.getDuration() / secondsPerBeat;
+
+    // First try a tight match.
+    constexpr double tolBeats = 1.0e-3;
+    for (const auto& child : notesNode)
+    {
+        if (!child.hasType(Project::IDs::NOTE))
+            continue;
+
+        const int childNote = (int)child.getProperty(Project::IDs::noteNumber);
+        const int childTrack = (int)child.getProperty(Project::IDs::channel);
+        if (childNote != note.noteNumber || childTrack != note.trackIndex)
+            continue;
+
+        const double childStart = (double)child.getProperty(Project::IDs::start);
+        const double childLength = (double)child.getProperty(Project::IDs::length);
+
+        if (std::abs(childStart - targetStartBeats) <= tolBeats && std::abs(childLength - targetLengthBeats) <= tolBeats)
+            return child;
+    }
+
+    // Fallback: pick the closest matching note by start/length.
+    double bestScore = std::numeric_limits<double>::infinity();
+    juce::ValueTree best;
+    for (const auto& child : notesNode)
+    {
+        if (!child.hasType(Project::IDs::NOTE))
+            continue;
+
+        const int childNote = (int)child.getProperty(Project::IDs::noteNumber);
+        const int childTrack = (int)child.getProperty(Project::IDs::channel);
+        if (childNote != note.noteNumber || childTrack != note.trackIndex)
+            continue;
+
+        const double childStart = (double)child.getProperty(Project::IDs::start);
+        const double childLength = (double)child.getProperty(Project::IDs::length);
+
+        const double score = std::abs(childStart - targetStartBeats) + std::abs(childLength - targetLengthBeats);
+        if (score < bestScore)
+        {
+            bestScore = score;
+            best = child;
+        }
+    }
+
+    // Only accept the fallback if it's reasonably close.
+    if (best.isValid() && bestScore <= 0.05)
+        return best;
+
+    return {};
 }
 
 //==============================================================================
@@ -926,7 +1211,26 @@ void PianoRollComponent::setEmbeddedMode(bool embedded)
 void PianoRollComponent::resized() 
 {
     if (!embeddedMode)
-        trackSelector.setBounds(getWidth() - 150 - 10, 10, 150, 24);
+    {
+        const int selectorW = 160;
+        const int selectorH = 24;
+        const int margin = 8;
+
+        const int rulerHeight = getEffectiveRulerHeight();
+        const int keyWidth = getEffectiveKeyWidth();
+
+        const int baseX = keyWidth + margin;
+        const int minX = baseX;
+        const int maxX = juce::jmax(minX, getWidth() - selectorW - margin);
+
+        int x = baseX;
+        if (trackSelectorUserX >= 0)
+            x = baseX + trackSelectorUserX;
+        x = juce::jlimit(minX, maxX, x);
+
+        const int y = juce::jmax(margin, (rulerHeight - selectorH) / 2);
+        trackSelector.setBounds(x, y, selectorW, selectorH);
+    }
 }
 
 void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
@@ -934,42 +1238,81 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
     grabKeyboardFocus();
     lastMousePos = event.position;
     dragStartPos = event.position;
+
+    if (!embeddedMode && event.mods.isRightButtonDown())
+    {
+        const int rulerHeight = getEffectiveRulerHeight();
+        if (event.y <= rulerHeight && trackSelector.getBounds().contains(event.position.toInt()))
+        {
+            isDraggingTrackSelector = true;
+            trackSelectorDragStartX = event.x;
+            trackSelectorDragStartUserX = trackSelectorUserX;
+            if (trackSelectorDragStartUserX < 0)
+                trackSelectorDragStartUserX = 0;
+            return;
+        }
+    }
     
     if (event.mods.isLeftButtonDown())
     {
         clickStartTime = juce::Time::currentTimeMillis();
-        
-        if (event.x <= getEffectiveKeyWidth()) return; // Piano keys area (if visible)
+
+        // Piano keys area: audition the clicked note.
+        if (event.x <= getEffectiveKeyWidth())
+        {
+            const int noteNum = yToNote(event.position.y);
+            const int targetTrack = (soloedTrack >= 0) ? soloedTrack : lastAuditionTrackIndex;
+            audioEngine.playNote(targetTrack, noteNum, 0.85f);
+            return;
+        }
         
         auto* note = getNoteAt(event.position);
         
         if (note)
         {
+            // Ensure we have a valid state node for editing.
+            if (projectState != nullptr && !note->stateNode.isValid())
+            {
+                auto resolved = resolveNoteStateNode(*note);
+                if (resolved.isValid())
+                    note->stateNode = resolved;
+            }
+
             // Play the note for feedback
             audioEngine.playNote(note->trackIndex, note->noteNumber, note->velocity / 127.0f);
+            lastAuditionTrackIndex = note->trackIndex;
 
             // Clicked on a note
             if (event.mods.isShiftDown())
             {
                 // Toggle selection
-                if (selectedNotes.contains(note->stateNode))
-                    selectedNotes.removeFirstMatchingValue(note->stateNode);
-                else
-                    selectedNotes.add(note->stateNode);
+                if (note->stateNode.isValid())
+                {
+                    if (selectedNotes.contains(note->stateNode))
+                        selectedNotes.removeFirstMatchingValue(note->stateNode);
+                    else
+                        selectedNotes.add(note->stateNode);
+                }
             }
             else
             {
                 // Select only this note (unless already selected)
-                if (!selectedNotes.contains(note->stateNode))
+                if (note->stateNode.isValid())
                 {
-                    selectedNotes.clear();
-                    selectedNotes.add(note->stateNode);
+                    if (!selectedNotes.contains(note->stateNode))
+                    {
+                        selectedNotes.clear();
+                        selectedNotes.add(note->stateNode);
+                    }
                 }
             }
             
             // Check for resize (right edge)
-            float endX = timeToX(note->endTime);
-            if (std::abs(event.position.x - endX) < 5.0f)
+            const float startX = timeToX(note->startTime);
+            const float endX = timeToX(note->endTime);
+            const float widthPx = endX - startX;
+            const float edgeGrabPx = juce::jlimit(6.0f, 14.0f, widthPx * 0.25f);
+            if (event.position.x >= (endX - edgeGrabPx))
             {
                 isResizing = true;
                 isMoving = false;
@@ -983,8 +1326,26 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
             dragStartNoteStart = note->startTime;
             dragStartNoteNum = note->noteNumber;
             
-            if (projectState)
+            if (projectState && !selectedNotes.isEmpty())
+            {
                 projectState->getUndoManager().beginNewTransaction(isResizing ? "Resize Note" : "Move Note");
+
+                // Snapshot note state at drag start so snapped movement/resizing can accumulate
+                // (incremental deltas + snapping can otherwise get "stuck" and never cross a grid threshold).
+                dragNoteSnapshots.clear();
+                dragNoteSnapshots.ensureStorageAllocated(selectedNotes.size());
+                for (const auto& node : selectedNotes)
+                {
+                    if (!node.isValid())
+                        continue;
+                    DragNoteSnapshot snap;
+                    snap.node = node;
+                    snap.startBeats = (double)node.getProperty(Project::IDs::start);
+                    snap.lengthBeats = (double)node.getProperty(Project::IDs::length);
+                    snap.noteNumber = (int)node.getProperty(Project::IDs::noteNumber);
+                    dragNoteSnapshots.add(snap);
+                }
+            }
         }
         else
         {
@@ -1009,6 +1370,15 @@ void PianoRollComponent::mouseDown(const juce::MouseEvent& event)
 
 void PianoRollComponent::mouseDrag(const juce::MouseEvent& event)
 {
+    if (isDraggingTrackSelector)
+    {
+        const int deltaX = event.x - trackSelectorDragStartX;
+        trackSelectorUserX = juce::jmax(0, trackSelectorDragStartUserX + deltaX);
+        resized();
+        repaint();
+        return;
+    }
+
     if (isDragging) // Pan
     {
         float deltaX = event.position.x - lastMousePos.x;
@@ -1023,65 +1393,141 @@ void PianoRollComponent::mouseDrag(const juce::MouseEvent& event)
     
     if (!projectState) return;
     
-    double secondsPerBeat = 60.0 / currentBPM;
+    const double secondsPerBeat = getSecondsPerBeat();
+    if (secondsPerBeat <= 0.0)
+        return;
+
+    auto updateCachedNoteFromState = [this, secondsPerBeat](const juce::ValueTree& noteNode)
+    {
+        if (!noteNode.isValid())
+            return;
+
+        const int newNoteNumber = (int)noteNode.getProperty(Project::IDs::noteNumber);
+        const int newTrackIndex = (int)noteNode.getProperty(Project::IDs::channel);
+        const double startBeats = (double)noteNode.getProperty(Project::IDs::start);
+        const double lengthBeats = (double)noteNode.getProperty(Project::IDs::length);
+
+        for (auto& cached : notes)
+        {
+            if (cached.stateNode == noteNode)
+            {
+                cached.noteNumber = newNoteNumber;
+                cached.channel = newTrackIndex;
+                cached.trackIndex = newTrackIndex;
+                cached.startTime = startBeats * secondsPerBeat;
+                cached.endTime = (startBeats + lengthBeats) * secondsPerBeat;
+                break;
+            }
+        }
+    };
     
     if (isMoving)
     {
-        float deltaX = event.position.x - dragStartPos.x;
-        float deltaY = event.position.y - dragStartPos.y;
-        
-        double deltaTime = deltaX / (100.0 * hZoom);
-        int deltaNote = (int)(-deltaY / (whiteKeyHeight * vZoom));
-        
-        for (auto& noteNode : selectedNotes)
+        const float deltaX = event.position.x - dragStartPos.x;
+        const double deltaTimeSeconds = deltaX / (100.0 * hZoom);
+        const double deltaBeats = deltaTimeSeconds / secondsPerBeat;
+        const int deltaNote = yToNote(event.position.y) - yToNote(dragStartPos.y);
+
+        // Prefer snapshots if available (snap-friendly). Fallback to selectedNotes if not.
+        if (!dragNoteSnapshots.isEmpty())
         {
-            // Find original note data to apply delta
-            // This is tricky because we're modifying live.
-            // Better: Calculate new absolute position for the dragged note, and apply delta to others.
-            // For simplicity, let's just update the model directly.
-            // But we need to avoid drift.
-            
-            // Actually, we should update the ValueTree, which triggers sync, which updates UI.
-            // But that might be slow for dragging.
-            // Let's update ValueTree.
-            
-            // We need the original state.
-            // For now, let's just use the current state + delta, but reset dragStartPos to avoid accumulation error?
-            // No, standard way:
-            
-            double currentStart = noteNode.getProperty(Project::IDs::start);
-            int currentNote = noteNode.getProperty(Project::IDs::noteNumber);
-            
-            double newStart = currentStart + (deltaTime / secondsPerBeat);
-            int newNoteNum = currentNote + deltaNote;
-            
-            // Prevent notes from being dragged before beat 0
-            newStart = juce::jmax(0.0, newStart);
-            
-            // Clamp note number to valid MIDI range
-            newNoteNum = juce::jlimit(0, 127, newNoteNum);
-            
-            // Snap to grid?
-            // if (!event.mods.isAltDown()) ...
-            
-            projectState->moveNote(noteNode, newStart, newNoteNum);
+            for (const auto& snap : dragNoteSnapshots)
+            {
+                auto node = snap.node;
+                if (!node.isValid())
+                    continue;
+
+                double newStart = snap.startBeats + deltaBeats;
+                int newNoteNum = snap.noteNumber + deltaNote;
+
+                newStart = juce::jmax(0.0, newStart);
+                if (!event.mods.isAltDown())
+                    newStart = snapBeatsToGrid(newStart);
+
+                newNoteNum = juce::jlimit(0, 127, newNoteNum);
+
+                projectState->moveNote(node, newStart, newNoteNum);
+                updateCachedNoteFromState(node);
+            }
         }
-        
-        dragStartPos = event.position; // Reset for incremental updates
+        else
+        {
+            for (auto& node : selectedNotes)
+            {
+                if (!node.isValid())
+                    continue;
+                const double start = (double)node.getProperty(Project::IDs::start);
+                const int noteNum = (int)node.getProperty(Project::IDs::noteNumber);
+
+                double newStart = juce::jmax(0.0, start + deltaBeats);
+                if (!event.mods.isAltDown())
+                    newStart = snapBeatsToGrid(newStart);
+
+                const int newNoteNum = juce::jlimit(0, 127, noteNum + deltaNote);
+                projectState->moveNote(node, newStart, newNoteNum);
+                updateCachedNoteFromState(node);
+            }
+        }
+        repaint();
     }
     else if (isResizing)
     {
-        float deltaX = event.position.x - dragStartPos.x;
-        double deltaTime = deltaX / (100.0 * hZoom);
-        
-        for (auto& noteNode : selectedNotes)
+        const float deltaX = event.position.x - dragStartPos.x;
+        const double deltaTimeSeconds = deltaX / (100.0 * hZoom);
+        const double deltaBeats = deltaTimeSeconds / secondsPerBeat;
+
+        const int gridDiv = getGridDivisionsPerBeat();
+        const double minStepBeats = (gridDiv > 0) ? (1.0 / (double)gridDiv) : 0.1;
+
+        if (!dragNoteSnapshots.isEmpty())
         {
-            double currentLen = noteNode.getProperty(Project::IDs::length);
-            double newLen = juce::jmax(0.1, currentLen + (deltaTime / secondsPerBeat));
-            projectState->resizeNote(noteNode, newLen);
+            for (const auto& snap : dragNoteSnapshots)
+            {
+                auto node = snap.node;
+                if (!node.isValid())
+                    continue;
+
+                double newLen = snap.lengthBeats + deltaBeats;
+
+                if (!event.mods.isAltDown())
+                {
+                    newLen = snapBeatsToGrid(newLen);
+                    newLen = juce::jmax(minStepBeats, newLen);
+                }
+                else
+                {
+                    newLen = juce::jmax(0.1, newLen);
+                }
+
+                projectState->resizeNote(node, newLen);
+                updateCachedNoteFromState(node);
+            }
         }
-        
-        dragStartPos = event.position;
+        else
+        {
+            for (auto& node : selectedNotes)
+            {
+                if (!node.isValid())
+                    continue;
+
+                const double currentLen = (double)node.getProperty(Project::IDs::length);
+                double newLen = currentLen + deltaBeats;
+
+                if (!event.mods.isAltDown())
+                {
+                    newLen = snapBeatsToGrid(newLen);
+                    newLen = juce::jmax(minStepBeats, newLen);
+                }
+                else
+                {
+                    newLen = juce::jmax(0.1, newLen);
+                }
+
+                projectState->resizeNote(node, newLen);
+                updateCachedNoteFromState(node);
+            }
+        }
+        repaint();
     }
     else if (isSelecting)
     {
@@ -1117,6 +1563,12 @@ void PianoRollComponent::mouseDrag(const juce::MouseEvent& event)
 
 void PianoRollComponent::mouseUp(const juce::MouseEvent& event)
 {
+    if (isDraggingTrackSelector)
+    {
+        isDraggingTrackSelector = false;
+        return;
+    }
+
     if (isSelecting)
     {
         isSelecting = false;
@@ -1146,16 +1598,18 @@ void PianoRollComponent::mouseDoubleClick(const juce::MouseEvent& event)
     // Only allow adding notes if a specific track is selected (to know where to put it)
     // Or default to track 0 if "All" is selected?
     // Better: Default to track 0, or the last selected note's track.
-    int targetTrack = (soloedTrack >= 0) ? soloedTrack : 0;
+    int targetTrack = (soloedTrack >= 0) ? soloedTrack : lastAuditionTrackIndex;
     
     double time = xToTime(event.position.x);
     int noteNum = yToNote(event.position.y);
     
-    double secondsPerBeat = 60.0 / currentBPM;
+    const double secondsPerBeat = getSecondsPerBeat();
+    if (secondsPerBeat <= 0.0)
+        return;
     double beat = time / secondsPerBeat;
-    
-    // Snap to grid (quarter note)
-    beat = std::round(beat * 4.0) / 4.0;
+
+    // Snap to grid (adaptive, up to 1/16)
+    beat = snapBeatsToGrid(beat);
     
     projectState->getUndoManager().beginNewTransaction("Add Note");
     projectState->addNote(noteNum, beat, 1.0, 100, targetTrack);
@@ -1208,8 +1662,11 @@ void PianoRollComponent::mouseMove(const juce::MouseEvent& event)
     // Cursor updates
     if (note)
     {
-        float endX = timeToX(note->endTime);
-        if (std::abs(event.position.x - endX) < 5.0f)
+        const float startX = timeToX(note->startTime);
+        const float endX = timeToX(note->endTime);
+        const float widthPx = endX - startX;
+        const float edgeGrabPx = juce::jlimit(6.0f, 14.0f, widthPx * 0.25f);
+        if (event.position.x >= (endX - edgeGrabPx))
             setMouseCursor(juce::MouseCursor::LeftRightResizeCursor);
         else
             setMouseCursor(juce::MouseCursor::NormalCursor);

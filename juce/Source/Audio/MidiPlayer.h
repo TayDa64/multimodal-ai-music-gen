@@ -29,13 +29,13 @@ public:
     virtual ~MidiPlayerListener() = default;
     
     /** Called when a note-on event should trigger.
-        @param channel  MIDI channel (1-16), typically maps to track index
+        @param channel  0-based track index (derived from MIDI channel - 1)
         @param note     MIDI note number (0-127)
         @param velocity Note velocity (0.0-1.0) */
     virtual void midiNoteOn(int channel, int note, float velocity) = 0;
     
     /** Called when a note-off event should trigger.
-        @param channel  MIDI channel (1-16)
+        @param channel  0-based track index (derived from MIDI channel - 1)
         @param note     MIDI note number (0-127) */
     virtual void midiNoteOff(int channel, int note) = 0;
 };
@@ -158,6 +158,14 @@ public:
         This allows Track SamplerInstruments to receive MIDI notes.
         @param listener  The listener to notify of MIDI events (or nullptr to disable) */
     void setMidiListener(MidiPlayerListener* listener) { midiListener = listener; }
+
+    /** Enable/disable MidiPlayer's internal sine-wave synth rendering.
+        When disabled, MidiPlayer still advances time and routes MIDI note events
+        to the MidiPlayerListener, but outputs silence (AudioEngine tracks provide audio). */
+    void setRenderInternalSynth(bool shouldRender) { renderInternalSynth.store(shouldRender); }
+
+    /** Check whether internal synth rendering is enabled. */
+    bool getRenderInternalSynth() const { return renderInternalSynth.load(); }
     
     /** Check if external instrument routing is enabled */
     bool hasExternalInstruments() const { return midiListener != nullptr; }
@@ -203,6 +211,9 @@ private:
     // Debug tracking
     std::atomic<float> lastMaxSample { 0.0f };
     std::atomic<int> lastEventsInBlock { 0 };
+
+    // Whether to render internal fallback synth audio
+    std::atomic<bool> renderInternalSynth { true };
     
     // Voice count
     static constexpr int numVoices { 16 };

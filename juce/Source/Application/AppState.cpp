@@ -84,6 +84,8 @@ void AppState::newProject()
     currentProjectFile = juce::File();
     currentGeneration = GenerationState();
     unsavedChanges = false;
+
+    listeners.call(&Listener::onNewProjectCreated);
 }
 
 bool AppState::loadProject(const juce::File& file)
@@ -115,6 +117,8 @@ bool AppState::loadProject(const juce::File& file)
         currentProjectFile = file;
         unsavedChanges = false;
         addRecentFile(file);
+
+        listeners.call(&Listener::onProjectLoaded, file);
         return true;
     }
     

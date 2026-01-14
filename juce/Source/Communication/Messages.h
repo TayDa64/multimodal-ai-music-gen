@@ -604,5 +604,6 @@ namespace OSCAddresses
     // Expansion responses (Server → Client)
     static constexpr const char* expansionListResponse = "/expansion/list_response";
     static constexpr const char* expansionInstrumentsResponse = "/expansion/instruments_response";
+    static constexpr const char* expansionInstrumentsChunk = "/expansion/instruments_chunk";
     static constexpr const char* expansionResolveResponse = "/expansion/resolve_response";
 }

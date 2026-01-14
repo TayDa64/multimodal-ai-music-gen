@@ -328,19 +328,21 @@ void MidiPlayer::setPosition(double positionInSeconds)
 //==============================================================================
 void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 {
-    // Clear the buffer first (synth adds to buffer)
-    buffer.clear();
-    
     if (!playing || !midiLoaded)
     {
+        buffer.clear();
         return;
     }
+
+    const bool shouldRenderSynth = renderInternalSynth.load();
+    if (shouldRenderSynth)
+        buffer.clear();
     
     // Calculate time advance for this block
     double blockDurationSeconds = numSamples / sampleRate;
     double endPositionSeconds = currentPositionSeconds + (blockDurationSeconds * tempoMultiplier);
     
-    // Create MIDI buffer for events in this time range
+    // Create MIDI buffer for events in this time range (only needed if we're rendering the internal synth)
     juce::MidiBuffer midiBuffer;
     int eventsAdded = 0;
     
@@ -381,7 +383,8 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
             }
             
             // Also feed to internal synth (fallback sine waves for unmapped instruments)
-            midiBuffer.addEvent(msg, sampleOffset);
+            if (shouldRenderSynth)
+                midiBuffer.addEvent(msg, sampleOffset);
             eventsAdded++;
         }
         
@@ -389,8 +392,9 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
     }
     
     // Render internal synth with MIDI events (sine wave fallback)
-    // Note: If external instruments are loaded, they render in AudioEngine
-    synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
+    // If disabled, AudioEngine tracks provide all audio.
+    if (shouldRenderSynth)
+        synth.renderNextBlock(buffer, midiBuffer, 0, numSamples);
     
     // Track max output level for debug status
     float maxSample = 0.0f;

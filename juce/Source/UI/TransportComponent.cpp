@@ -467,7 +467,8 @@ void TransportComponent::transportStateChanged(mmg::AudioEngine::TransportState 
                 stopButton.setEnabled(false);
                 currentPosition = 0.0;
                 updateTimeDisplay();
-                // Sync test tone button state
+                // Sync test tone button state AND engine state
+                audioEngine.setTestToneEnabled(false);
                 testToneButton.setToggleState(false, juce::dontSendNotification);
                 break;
                 

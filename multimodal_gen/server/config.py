@@ -164,6 +164,7 @@ class OSCAddresses:
     # Expansion responses (Python → JUCE)
     EXPANSION_LIST_RESPONSE = "/expansion/list_response"
     EXPANSION_INSTRUMENTS_RESPONSE = "/expansion/instruments_response"
+    EXPANSION_INSTRUMENTS_CHUNK = "/expansion/instruments_chunk"
     EXPANSION_RESOLVE_RESPONSE = "/expansion/resolve_response"
 
 

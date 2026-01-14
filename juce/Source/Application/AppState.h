@@ -53,6 +53,8 @@ public:
     {
     public:
         virtual ~Listener() = default;
+        virtual void onNewProjectCreated() {}
+        virtual void onProjectLoaded(const juce::File& file) { juce::ignoreUnused(file); }
         virtual void onGenerationStarted() {}
         virtual void onGenerationFinished() {}
         virtual void onProgressChanged(const GenerationProgress& progress) { juce::ignoreUnused(progress); }

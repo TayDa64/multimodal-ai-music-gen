@@ -1,10 +1,9 @@
 /*
   ==============================================================================
 
-    PianoRollComponent.h
-    
-    Visual MIDI display with note rendering, piano keys, and playhead.
-    Phase 6: Piano Roll Visualization
+        PianoRollComponent.h
+
+        Visual MIDI display with note rendering, piano keys, and playhead.
 
   ==============================================================================
 */
@@ -114,9 +113,18 @@ public:
     void setTrackVisible(int trackIndex, bool visible);
     bool isTrackVisible(int trackIndex) const;
     void soloTrack(int trackIndex);  // -1 to show all
+    int getSoloedTrack() const { return soloedTrack; }
     int getTrackCount() const { return trackColors.size(); }
     void setTrackCount(int count);  // Set track count from arrangement view
     juce::Colour getTrackColour(int trackIndex) const;
+
+    /** In "All Tracks" mode, set which track should receive piano-key auditions. */
+    void setAuditionTrackIndex(int trackIndex);
+
+    //==============================================================================
+    // Drum mode (labels keys with drum names)
+    void setDrumMode(bool enabled);
+    bool isDrumMode() const { return drumMode; }
     
     //==============================================================================
     // Embedded mode (for use inside ArrangementView - hides track selector)
@@ -145,6 +153,8 @@ public:
         virtual void pianoRollNoteHovered(const MidiNoteEvent* note) {}
         virtual void pianoRollSeekRequested(double positionSeconds) {}
         virtual void pianoRollHorizontalZoomRequested(float newZoom) {}  // For embedded mode sync
+        /** Called when the Piano Roll's track selector changes. -1 means "All Tracks". */
+        virtual void pianoRollSoloTrackChanged(int soloedTrack) { juce::ignoreUnused(soloedTrack); }
     };
     
     void addListener(Listener* listener);
@@ -191,9 +201,19 @@ private:
     double xToTime(float x) const;
     float noteToY(int noteNumber) const;
     int yToNote(float y) const;
+
+    //==============================================================================
+    // Grid helpers (must match drawing + snapping)
+    double getSecondsPerBeat() const;
+    int getGridDivisionsPerBeat() const;
+    double snapBeatsToGrid(double beats) const;
     
     // Note hit testing
     MidiNoteEvent* getNoteAt(juce::Point<float> position);
+
+    // If a note was created via legacy visualization-only paths, it may not have a valid ValueTree.
+    // This tries to re-associate it with the ProjectState NOTES node so editing (move/resize/delete) works.
+    juce::ValueTree resolveNoteStateNode(const MidiNoteEvent& note) const;
     
     //==============================================================================
     mmg::AudioEngine& audioEngine;
@@ -205,6 +225,12 @@ private:
     double totalDuration = 60.0;
     double minimumDuration = 600.0;  // 10 minutes minimum for professional workflow
     int currentBPM = 120;
+
+    // Track selector placement (standalone mode only): user can right-drag it along the timeline ruler.
+    int trackSelectorUserX = -1;      // -1 = default anchored near key area
+    bool isDraggingTrackSelector = false;
+    int trackSelectorDragStartX = 0;
+    int trackSelectorDragStartUserX = -1;
     
     // View state
     float hZoom = 1.0f;          // Horizontal zoom (time)
@@ -233,6 +259,12 @@ private:
     juce::Array<juce::Colour> trackColors;
     juce::Array<bool> trackVisible;
     int soloedTrack = -1;  // -1 = none
+
+    // Audition routing in "All Tracks" mode
+    int lastAuditionTrackIndex = 0;
+
+    // Drum-mode labelling (for drum kits)
+    bool drumMode = false;
     
     // Track Selection UI
     juce::ComboBox trackSelector;
@@ -247,6 +279,16 @@ private:
     
     // Editing State
     juce::Array<juce::ValueTree> selectedNotes;
+
+    struct DragNoteSnapshot
+    {
+        juce::ValueTree node;
+        double startBeats = 0.0;
+        double lengthBeats = 0.0;
+        int noteNumber = 60;
+    };
+
+    juce::Array<DragNoteSnapshot> dragNoteSnapshots;
     bool isResizing = false;
     bool isMoving = false;
     bool isSelecting = false;

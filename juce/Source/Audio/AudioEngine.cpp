@@ -11,49 +11,62 @@
 
 #include "AudioEngine.h"
 
+#include <cmath>
+
 namespace mmg
 {
 
 //==============================================================================
-// Simple Sine Wave Synth for Preview
+// Default Synth ("Default (Sine)")
 //==============================================================================
-struct SineWaveSound : public juce::SynthesiserSound
+struct DefaultSynthSound : public juce::SynthesiserSound
 {
     bool appliesToNote (int) override { return true; }
     bool appliesToChannel (int) override { return true; }
 };
 
-struct SineWaveVoice : public juce::SynthesiserVoice
+struct DefaultSynthVoice : public juce::SynthesiserVoice
 {
+    explicit DefaultSynthVoice(mmg::AudioEngine::Track::DefaultSynthState& state)
+        : synthState(state)
+    {
+    }
+
     bool canPlaySound (juce::SynthesiserSound* sound) override
     {
-        return dynamic_cast<SineWaveSound*> (sound) != nullptr;
+        return dynamic_cast<DefaultSynthSound*> (sound) != nullptr;
     }
 
     void startNote (int midiNoteNumber, float velocity,
                     juce::SynthesiserSound*, int /*currentPitchWheelPosition*/) override
     {
-        currentAngle = 0.0;
-        level = velocity * 3.0; // Strong volume boost (+10dB) for audibility
-        tailOff = 1.0; // Auto-decay for preview (percussive envelope)
+        phase = 0.0;
+        lfoPhase = 0.0;
+        currentFreqHz = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+        level = juce::jlimit(0.0, 1.0, (double)velocity) * 0.8;
+        lpLast = 0.0f;
 
-        auto cyclesPerSecond = juce::MidiMessage::getMidiNoteInHertz (midiNoteNumber);
-        auto cyclesPerSample = cyclesPerSecond / getSampleRate();
+        juce::ADSR::Parameters envParams;
+        envParams.attack = juce::jlimit(0.0f, 10.0f, synthState.attackSeconds.load());
+        envParams.decay = 0.0f;
+        envParams.sustain = 1.0f;
+        envParams.release = juce::jlimit(0.001f, 30.0f, synthState.releaseSeconds.load());
 
-        angleDelta = cyclesPerSample * 2.0 * juce::MathConstants<double>::pi;
+        envelope.setSampleRate(getSampleRate());
+        envelope.setParameters(envParams);
+        envelope.noteOn();
     }
 
     void stopNote (float /*velocity*/, bool allowTailOff) override
     {
         if (allowTailOff)
         {
-            if (tailOff == 0.0)
-                tailOff = 1.0;
+            envelope.noteOff();
         }
         else
         {
+            envelope.reset();
             clearCurrentNote();
-            angleDelta = 0.0;
         }
     }
 
@@ -62,47 +75,98 @@ struct SineWaveVoice : public juce::SynthesiserVoice
 
     void renderNextBlock (juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override
     {
-        if (angleDelta != 0.0)
+        const double sampleRate = getSampleRate();
+        if (sampleRate <= 0.0)
+            return;
+
+        const int waveform = synthState.waveform.load();
+        const float cutoffHz = juce::jlimit(40.0f, 20000.0f, synthState.cutoffHz.load());
+        const float lfoRateHz = juce::jlimit(0.0f, 40.0f, synthState.lfoRateHz.load());
+        const float lfoDepth = juce::jlimit(0.0f, 1.0f, synthState.lfoDepth.load());
+
+        // One-pole lowpass coefficient
+        const float alpha = std::exp(-2.0f * (float)juce::MathConstants<double>::pi * cutoffHz / (float)sampleRate);
+
+        while (--numSamples >= 0)
         {
-            if (tailOff > 0.0) // Exponential decay for tail off
+            const float env = envelope.getNextSample();
+            if (!envelope.isActive())
             {
-                while (--numSamples >= 0)
+                clearCurrentNote();
+                break;
+            }
+
+            // Oscillator
+            float osc = 0.0f;
+            const float phaseNorm = (float)(phase / (2.0 * juce::MathConstants<double>::pi));
+            const float frac = phaseNorm - std::floor(phaseNorm);
+
+            switch (waveform)
+            {
+                case (int)mmg::AudioEngine::DefaultSynthWaveform::Triangle:
                 {
-                    auto currentSample = (float) (std::sin (currentAngle) * level * tailOff);
-
-                    for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-                        outputBuffer.addSample (i, startSample, currentSample);
-
-                    currentAngle += angleDelta;
-                    ++startSample;
-
-                    tailOff *= 0.99;
-
-                    if (tailOff <= 0.005)
-                    {
-                        clearCurrentNote();
-                        angleDelta = 0.0;
-                        break;
-                    }
+                    // Triangle in [-1,1]
+                    osc = 4.0f * std::fabs(frac - 0.5f) - 1.0f;
+                    break;
+                }
+                case (int)mmg::AudioEngine::DefaultSynthWaveform::Saw:
+                {
+                    osc = 2.0f * frac - 1.0f;
+                    break;
+                }
+                case (int)mmg::AudioEngine::DefaultSynthWaveform::Square:
+                {
+                    osc = (frac < 0.5f) ? 1.0f : -1.0f;
+                    break;
+                }
+                case (int)mmg::AudioEngine::DefaultSynthWaveform::Sine:
+                default:
+                {
+                    osc = std::sin((float)phase);
+                    break;
                 }
             }
-            else
+
+            // Simple amplitude LFO (tremolo)
+            float lfo = 1.0f;
+            if (lfoRateHz > 0.0f && lfoDepth > 0.0f)
             {
-                while (--numSamples >= 0)
-                {
-                    auto currentSample = (float) (std::sin (currentAngle) * level);
-
-                    for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-                        outputBuffer.addSample (i, startSample, currentSample);
-
-                    currentAngle += angleDelta;
-                    ++startSample;
-                }
+                const float lfoSin = std::sin((float)lfoPhase);
+                lfo = 1.0f - lfoDepth + lfoDepth * (0.5f * (lfoSin + 1.0f));
             }
+
+            float sample = osc * (float)level * env * lfo;
+
+            // One-pole lowpass
+            lpLast = (1.0f - alpha) * sample + alpha * lpLast;
+            sample = lpLast;
+
+            for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
+                outputBuffer.addSample(i, startSample, sample);
+
+            phase += (2.0 * juce::MathConstants<double>::pi * currentFreqHz) / sampleRate;
+            if (phase >= 2.0 * juce::MathConstants<double>::pi)
+                phase -= 2.0 * juce::MathConstants<double>::pi;
+
+            if (lfoRateHz > 0.0f)
+            {
+                lfoPhase += (2.0 * juce::MathConstants<double>::pi * (double)lfoRateHz) / sampleRate;
+                if (lfoPhase >= 2.0 * juce::MathConstants<double>::pi)
+                    lfoPhase -= 2.0 * juce::MathConstants<double>::pi;
+            }
+
+            ++startSample;
         }
     }
 
-    double currentAngle = 0.0, angleDelta = 0.0, level = 0.0, tailOff = 0.0;
+    mmg::AudioEngine::Track::DefaultSynthState& synthState;
+    juce::ADSR envelope;
+
+    double currentFreqHz = 440.0;
+    double phase = 0.0;
+    double lfoPhase = 0.0;
+    double level = 0.0;
+    float lpLast = 0.0f;
 };
 
 //==============================================================================
@@ -115,12 +179,41 @@ AudioEngine::Track::Track(int id, const juce::String& name, juce::AudioFormatMan
     // Setup simple sine synth as fallback
     simpleSynth.clearVoices();
     for (int i = 0; i < 8; ++i)
-        simpleSynth.addVoice(new SineWaveVoice());
+        simpleSynth.addVoice(new DefaultSynthVoice(defaultSynth));
         
     simpleSynth.clearSounds();
-    simpleSynth.addSound(new SineWaveSound());
+    simpleSynth.addSound(new DefaultSynthSound());
     
     activeInstrumentType = InstrumentType::SimpleSynth;
+}
+
+void AudioEngine::Track::setDefaultSynthWaveform(DefaultSynthWaveform waveform)
+{
+    defaultSynth.waveform.store((int)waveform);
+}
+
+void AudioEngine::Track::setDefaultSynthParam(DefaultSynthParam param, float value)
+{
+    switch (param)
+    {
+        case DefaultSynthParam::AttackSeconds:
+            defaultSynth.attackSeconds.store(value);
+            break;
+        case DefaultSynthParam::ReleaseSeconds:
+            defaultSynth.releaseSeconds.store(value);
+            break;
+        case DefaultSynthParam::CutoffHz:
+            defaultSynth.cutoffHz.store(value);
+            break;
+        case DefaultSynthParam::LfoRateHz:
+            defaultSynth.lfoRateHz.store(value);
+            break;
+        case DefaultSynthParam::LfoDepth:
+            defaultSynth.lfoDepth.store(value);
+            break;
+        default:
+            break;
+    }
 }
 
 AudioEngine::Track::~Track() {}
@@ -138,6 +231,14 @@ void AudioEngine::Track::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void AudioEngine::Track::releaseResources() 
 {
+    {
+        const juce::ScopedLock sl(trackLock);
+        // Ensure any sustaining voices are released immediately.
+        midiBuffer.clear();
+        simpleSynth.allNotesOff(0, true);
+        sampler.allNotesOff(0, true);
+    }
+
     sampler.releaseResources();
     if (sf2Instrument)
         sf2Instrument->allNotesOff();
@@ -380,6 +481,9 @@ AudioEngine::AudioEngine()
     
     // Register as MIDI listener to route notes to Track instruments
     midiPlayer.setMidiListener(this);
+    // We have per-track instruments (including a sine fallback), so keep MidiPlayer's
+    // internal synth muted to avoid masking/doubling.
+    midiPlayer.setRenderInternalSynth(false);
     
     // Initialize visualization listeners to nullptr
     for (auto& listener : visualizationListeners)
@@ -495,16 +599,22 @@ void AudioEngine::stop()
     if (currentState != TransportState::Stopped)
     {
         setTransportState(TransportState::Stopping);
+
+        // Stop any always-on sources (e.g., test tone)
+        setTestToneEnabled(false);
         
         // Stop MIDI playback
         midiPlayer.setPlaying(false);
         midiPlayer.setPosition(0.0);
         
         // Send all notes off to stop any sustaining sounds
-        for (auto& track : tracks)
         {
-            if (track)
-                track->releaseResources();
+            const juce::ScopedLock sl(tracksLock);
+            for (auto& track : tracks)
+            {
+                if (track)
+                    track->releaseResources();
+            }
         }
         
         // Reset test tone
@@ -1075,22 +1185,20 @@ int AudioEngine::getNumTracks() const
 void AudioEngine::playNote(int trackIndex, int noteNumber, float velocity, float durationSeconds)
 {
     if (auto* track = getTrack(trackIndex))
-    {
         track->noteOn(noteNumber, velocity);
-        
-        // Auto-off for preview (optional, but good for one-shots)
-        // For now, we rely on the user releasing the key or the note duration
-        // But since this is "playNote" (fire and forget), we should schedule a note off.
-        // However, handling timers here is complex. 
-        // The SineWaveVoice has auto-decay. SamplerVoice does not.
-        // We'll leave note-off management to the caller (PianoRoll) or implement a simple decay.
-        
-        // Actually, for SamplerVoice, we need a NoteOff to stop the sample if it loops, 
-        // but for one-shots it plays until end or release.
-        // Let's send a NoteOff after a short delay if it's a preview.
-        // But we can't easily do that without a timer.
-        // For now, just NoteOn.
-    }
+
+    // Fire-and-forget preview notes must be turned off, otherwise they can sustain indefinitely.
+    // If durationSeconds isn't provided, use a short default so clicks on keys/notes don't stick.
+    const float effectiveDurationSeconds = (durationSeconds > 0.0f ? durationSeconds : 0.25f);
+    const int delayMs = juce::jlimit(1, 60 * 1000, (int)std::round(effectiveDurationSeconds * 1000.0f));
+
+    juce::Timer::callAfterDelay(delayMs, [this, trackIndex, noteNumber]() {
+        if (!initialised.load())
+            return;
+
+        if (auto* track = getTrack(trackIndex))
+            track->noteOff(noteNumber);
+    });
 }
 
 void AudioEngine::loadInstrument(int trackIndex, const juce::File& sampleFile, const juce::String& instrumentName)
@@ -1120,6 +1228,18 @@ bool AudioEngine::loadTrackInstrument(int trackIndex, const juce::String& instru
         return track->loadInstrumentById(instrumentId, expansionLoader, formatManager);
     }
     return false;
+}
+
+void AudioEngine::setTrackDefaultSynthWaveform(int trackIndex, DefaultSynthWaveform waveform)
+{
+    if (auto* track = getTrack(trackIndex))
+        track->setDefaultSynthWaveform(waveform);
+}
+
+void AudioEngine::setTrackDefaultSynthParam(int trackIndex, DefaultSynthParam param, float value)
+{
+    if (auto* track = getTrack(trackIndex))
+        track->setDefaultSynthParam(param, value);
 }
 
 const InstrumentDefinition* AudioEngine::getInstrumentDefinition(const juce::String& instrumentId) const

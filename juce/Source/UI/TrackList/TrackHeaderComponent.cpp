@@ -315,6 +315,20 @@ void TrackHeaderComponent::updateFromBoundNode()
     
     muteButton.setToggleState(muted, juce::dontSendNotification);
     soloButton.setToggleState(soloed, juce::dontSendNotification);
+
+    // Update instrument selection
+    auto instIdVar = boundTrackNode.getProperty(Project::IDs::instrumentId);
+    juce::String instId = instIdVar.toString();
+    if (instId.isEmpty())
+        instId = "default_sine";
+    if (selectedInstrumentId != instId)
+    {
+        selectedInstrumentId = instId;
+        // If instruments list is already populated, reflect it in the combo.
+        // If not populated yet, rebuildInstrumentCombo() will later pick it up.
+        if (!instrumentItems.empty())
+            setSelectedInstrument(selectedInstrumentId);
+    }
     
     repaint();
 }
@@ -327,6 +341,8 @@ void TrackHeaderComponent::syncToProjectState()
     boundTrackNode.setProperty(Project::IDs::name, trackName, nullptr);
     boundTrackNode.setProperty(Project::IDs::mute, muted, nullptr);
     boundTrackNode.setProperty(Project::IDs::solo, soloed, nullptr);
+    if (!selectedInstrumentId.isEmpty())
+        boundTrackNode.setProperty(Project::IDs::instrumentId, selectedInstrumentId, nullptr);
 }
 
 void TrackHeaderComponent::onNameEdited()
@@ -428,6 +444,7 @@ void TrackHeaderComponent::onInstrumentSelected()
     {
         selectedInstrumentId = instrumentItems[selectedIndex].id;
         listeners.call(&Listener::trackInstrumentChanged, this, selectedInstrumentId);
+        syncToProjectState();
     }
 }
 

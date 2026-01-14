@@ -94,6 +94,7 @@ public:
     {
     public:
         virtual ~Listener() = default;
+        virtual void arrangementTrackSelected(int trackIndex) { juce::ignoreUnused(trackIndex); }
         virtual void arrangementTrackPianoRollRequested(int trackIndex) = 0;  // User wants to edit track in Piano Roll
         virtual void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) {}  // User wants to regenerate selection
         virtual void arrangementTrackInstrumentSelected(int trackIndex, const juce::String& instrumentId) {}  // User selected an instrument for a track

@@ -61,6 +61,17 @@ namespace Project
         static const juce::Identifier pan("pan");
         static const juce::Identifier mute("mute");
         static const juce::Identifier solo("solo");
+
+        // Instrument selection (UI-level id, e.g. "default_sine")
+        static const juce::Identifier instrumentId("instrumentId");
+
+        // Default Synth (per-track)
+        static const juce::Identifier defaultSynthWaveform("defaultSynthWaveform");
+        static const juce::Identifier defaultSynthAttack("defaultSynthAttack");
+        static const juce::Identifier defaultSynthRelease("defaultSynthRelease");
+        static const juce::Identifier defaultSynthCutoff("defaultSynthCutoff");
+        static const juce::Identifier defaultSynthLfoRate("defaultSynthLfoRate");
+        static const juce::Identifier defaultSynthLfoDepth("defaultSynthLfoDepth");
         
         static const juce::Identifier path("path");
         static const juce::Identifier id("id");
@@ -92,6 +103,13 @@ namespace Project
         //==============================================================================
         // Accessors
         juce::ValueTree& getState() { return projectTree; }
+
+        //==============================================================================
+        // Listener management
+        // Use these instead of getState().addListener/removeListener so listeners survive
+        // loadProject() swapping the underlying ValueTree.
+        void addStateListener(juce::ValueTree::Listener* listener);
+        void removeStateListener(juce::ValueTree::Listener* listener);
         
         // Generation Data
         void setGenerationData(const juce::String& prompt, int bpm, const juce::String& key, const juce::String& genre);
@@ -170,7 +188,10 @@ namespace Project
         juce::String lastImportStats;  // Debug: stores last import result
         bool isDirty = false;
 
+        juce::Array<juce::ValueTree::Listener*> externalStateListeners;
+
         void createDefaultProject();
+        void ensureTrackDefaults(juce::ValueTree& trackNode);
         
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProjectState)
     };

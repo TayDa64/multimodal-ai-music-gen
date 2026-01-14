@@ -355,6 +355,8 @@ void OSCBridge::oscMessageReceived(const juce::OSCMessage& message)
         handleExpansionList(message);
     else if (address == OSCAddresses::expansionInstrumentsResponse)
         handleExpansionInstruments(message);
+    else if (address == OSCAddresses::expansionInstrumentsChunk)
+        handleExpansionInstrumentsChunk(message);
     else if (address == OSCAddresses::expansionResolveResponse)
         handleExpansionResolve(message);
     // Take responses
@@ -590,6 +592,54 @@ void OSCBridge::handleExpansionInstruments(const juce::OSCMessage& message)
     listeners.call([&](Listener& l)
     {
         l.onExpansionInstrumentsReceived(jsonStr);
+    });
+}
+
+void OSCBridge::handleExpansionInstrumentsChunk(const juce::OSCMessage& message)
+{
+    // Expected args: expansionId (string), chunkIndex (int32), totalChunks (int32), chunkPayload (string)
+    if (message.size() < 4)
+        return;
+
+    const auto expansionId = message[0].getString();
+    const int chunkIndex = message[1].getInt32();
+    const int totalChunks = message[2].getInt32();
+    const auto chunkPayload = message[3].getString();
+
+    if (expansionId.isEmpty() || totalChunks <= 0 || chunkIndex < 0 || chunkIndex >= totalChunks)
+        return;
+
+    auto& assembly = expansionInstrumentsChunkAssembly[expansionId.toStdString()];
+    if (assembly.totalChunks != totalChunks)
+    {
+        assembly.totalChunks = totalChunks;
+        assembly.receivedChunks = 0;
+        assembly.chunks.clear();
+        assembly.chunks.ensureStorageAllocated(totalChunks);
+        for (int i = 0; i < totalChunks; ++i)
+            assembly.chunks.add({});
+    }
+
+    if (assembly.chunks[chunkIndex].isEmpty())
+        assembly.receivedChunks++;
+
+    assembly.chunks.set(chunkIndex, chunkPayload);
+
+    if (assembly.receivedChunks < assembly.totalChunks)
+        return;
+
+    juce::String fullJson;
+    for (const auto& part : assembly.chunks)
+        fullJson += part;
+
+    DBG("OSCBridge: Received expansion instruments response (chunked) - chunks=" << totalChunks);
+
+    // Clear before notifying listeners to avoid re-entrancy issues.
+    expansionInstrumentsChunkAssembly.erase(expansionId.toStdString());
+
+    listeners.call([&](Listener& l)
+    {
+        l.onExpansionInstrumentsReceived(fullJson);
     });
 }
 

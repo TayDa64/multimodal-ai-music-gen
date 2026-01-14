@@ -24,6 +24,59 @@ namespace Project
         projectTree.removeListener(this);
     }
 
+    void ProjectState::addStateListener(juce::ValueTree::Listener* listener)
+    {
+        if (listener == nullptr)
+            return;
+
+        externalStateListeners.addIfNotAlreadyThere(listener);
+        projectTree.addListener(listener);
+    }
+
+    void ProjectState::removeStateListener(juce::ValueTree::Listener* listener)
+    {
+        if (listener == nullptr)
+            return;
+
+        externalStateListeners.removeFirstMatchingValue(listener);
+        projectTree.removeListener(listener);
+    }
+
+    void ProjectState::ensureTrackDefaults(juce::ValueTree& trackNode)
+    {
+        if (!trackNode.isValid() || !trackNode.hasType(IDs::TRACK))
+            return;
+
+        if (!trackNode.hasProperty(IDs::name))
+            trackNode.setProperty(IDs::name, "Track " + juce::String((int)trackNode.getProperty(IDs::index, 0) + 1), nullptr);
+        if (!trackNode.hasProperty(IDs::volume))
+            trackNode.setProperty(IDs::volume, 1.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::pan))
+            trackNode.setProperty(IDs::pan, 0.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::mute))
+            trackNode.setProperty(IDs::mute, false, nullptr);
+        if (!trackNode.hasProperty(IDs::solo))
+            trackNode.setProperty(IDs::solo, false, nullptr);
+
+        // Default instrument
+        if (!trackNode.hasProperty(IDs::instrumentId))
+            trackNode.setProperty(IDs::instrumentId, "default_sine", nullptr);
+
+        // Default Synth parameter defaults
+        if (!trackNode.hasProperty(IDs::defaultSynthWaveform))
+            trackNode.setProperty(IDs::defaultSynthWaveform, 1, nullptr); // 1=Sine (matches UI combo ids)
+        if (!trackNode.hasProperty(IDs::defaultSynthAttack))
+            trackNode.setProperty(IDs::defaultSynthAttack, 0.001f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthRelease))
+            trackNode.setProperty(IDs::defaultSynthRelease, 0.2f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthCutoff))
+            trackNode.setProperty(IDs::defaultSynthCutoff, 16000.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthLfoRate))
+            trackNode.setProperty(IDs::defaultSynthLfoRate, 5.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthLfoDepth))
+            trackNode.setProperty(IDs::defaultSynthLfoDepth, 0.0f, nullptr);
+    }
+
     void ProjectState::createDefaultProject()
     {
         projectTree.removeAllChildren(&undoManager);
@@ -44,11 +97,7 @@ namespace Project
         {
             juce::ValueTree trackNode(IDs::TRACK);
             trackNode.setProperty(IDs::index, i, nullptr);
-            trackNode.setProperty(IDs::name, "Track " + juce::String(i + 1), nullptr);
-            trackNode.setProperty(IDs::volume, 1.0f, nullptr);
-            trackNode.setProperty(IDs::pan, 0.0f, nullptr);
-            trackNode.setProperty(IDs::mute, false, nullptr);
-            trackNode.setProperty(IDs::solo, false, nullptr);
+            ensureTrackDefaults(trackNode);
             mixerNode.addChild(trackNode, -1, &undoManager);
         }
         
@@ -83,9 +132,80 @@ namespace Project
             auto newTree = juce::ValueTree::fromXml(*xml);
             if (newTree.isValid())
             {
+                // Detach external listeners from old tree, then reattach to the new tree.
+                for (auto* l : externalStateListeners)
+                    projectTree.removeListener(l);
+
                 projectTree.removeListener(this);
                 projectTree = newTree;
                 projectTree.addListener(this);
+
+                for (auto* l : externalStateListeners)
+                    projectTree.addListener(l);
+
+                // Ensure any newly-added properties exist for older projects
+                auto mixerNode = projectTree.getChildWithName(IDs::MIXER);
+                if (mixerNode.isValid())
+                {
+                    for (auto child : mixerNode)
+                        if (child.hasType(IDs::TRACK))
+                            ensureTrackDefaults(child);
+                }
+
+                // One-time migration: some older sessions stored note "channel" as 1-based track number
+                // (Track 1 => 1) instead of our 0-based track index. Detect and fix safely.
+                static const juce::Identifier legacyFixedId("legacyTrackChannelsFixed");
+                if (! (bool) projectTree.getProperty(legacyFixedId, false))
+                {
+                    auto notesNode = projectTree.getChildWithName(IDs::NOTES);
+                    auto mixerNode = projectTree.getChildWithName(IDs::MIXER);
+
+                    int trackCount = 0;
+                    if (mixerNode.isValid())
+                    {
+                        for (const auto& child : mixerNode)
+                        {
+                            if (child.hasType(IDs::TRACK))
+                            {
+                                int idx = (int)child.getProperty(IDs::index);
+                                trackCount = juce::jmax(trackCount, idx + 1);
+                            }
+                        }
+                    }
+
+                    if (notesNode.isValid() && notesNode.getNumChildren() > 0 && trackCount > 0)
+                    {
+                        bool hasZero = false;
+                        int minCh = 999;
+                        int maxCh = -999;
+
+                        for (const auto& note : notesNode)
+                        {
+                            if (!note.hasType(IDs::NOTE))
+                                continue;
+                            int ch = (int)note.getProperty(IDs::channel);
+                            if (ch == 0) hasZero = true;
+                            minCh = juce::jmin(minCh, ch);
+                            maxCh = juce::jmax(maxCh, ch);
+                        }
+
+                        // Heuristic: if there are notes, none are on channel 0, and all channels are within 1..trackCount,
+                        // treat it as legacy 1-based and shift down.
+                        if (!hasZero && minCh >= 1 && maxCh <= trackCount)
+                        {
+                            for (int i = 0; i < notesNode.getNumChildren(); ++i)
+                            {
+                                auto note = notesNode.getChild(i);
+                                if (!note.hasType(IDs::NOTE))
+                                    continue;
+                                int ch = (int)note.getProperty(IDs::channel);
+                                note.setProperty(IDs::channel, juce::jmax(0, ch - 1), nullptr);
+                            }
+                            projectTree.setProperty(legacyFixedId, true, nullptr);
+                        }
+                    }
+                }
+
                 undoManager.clearUndoHistory();
                 currentFile = file;
                 isDirty = false;
@@ -156,6 +276,7 @@ namespace Project
         // Create if not exists
         juce::ValueTree trackNode(IDs::TRACK);
         trackNode.setProperty(IDs::index, index, nullptr);
+        ensureTrackDefaults(trackNode);
         mixerNode.addChild(trackNode, -1, &undoManager);
         return trackNode;
     }
@@ -569,7 +690,10 @@ namespace Project
                     double start = note.getProperty(IDs::start);
                     double length = note.getProperty(IDs::length);
                     int vel = note.getProperty(IDs::velocity);
-                    int ch = note.getProperty(IDs::channel);
+                    // IDs::channel is a 0-based track index in our model.
+                    // JUCE MIDI channels are 1..16, and MidiPlayer maps (channel - 1) back to track index.
+                    int trackIndex = (int) note.getProperty(IDs::channel);
+                    int ch = juce::jlimit(1, 16, trackIndex + 1);
                     
                     // Convert beats to ticks
                     // juce::MidiFile expects ticks if we don't use setTicksPerQuarterNote?

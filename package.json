@@ -9,6 +9,7 @@
     "configure": "cd juce/build && cmake ..",
     "start": "start \"\" \"juce\\build\\MultimodalMusicGen_artefacts\\Release\\AI Music Generator.exe\"",
     "start:server": "python -m multimodal_gen.server --verbose",
+    "start:all": "start \"MMG Server\" cmd /k \"python -m multimodal_gen.server --verbose\" && npm run start",
     "stop": "taskkill /IM \"AI Music Generator.exe\" /F & taskkill /IM python.exe /F",
     "test": "python -m pytest test_suite.py -v",
     "test:quick": "python -m pytest test_suite.py -v -x",

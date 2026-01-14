@@ -165,7 +165,7 @@ ArrangementView::~ArrangementView()
     trackList.getViewport().getVerticalScrollBar().removeListener(this);
     
     if (projectState)
-        projectState->getState().removeListener(this);
+        projectState->removeStateListener(this);
     
     trackList.removeListener(this);
 }
@@ -174,13 +174,13 @@ ArrangementView::~ArrangementView()
 void ArrangementView::setProjectState(Project::ProjectState* state)
 {
     if (projectState)
-        projectState->getState().removeListener(this);
+        projectState->removeStateListener(this);
     
     projectState = state;
     
     if (projectState)
     {
-        projectState->getState().addListener(this);
+        projectState->addStateListener(this);
         trackList.bindToProject(*projectState);
         
         // Update track lanes
@@ -482,6 +482,9 @@ void ArrangementView::setFocusedTrack(int trackIndex)
 void ArrangementView::trackSelectionChanged(int trackIndex)
 {
     DBG("Arrangement: Track " + juce::String(trackIndex + 1) + " selected");
+
+    // Keep downstream panels (e.g., Piano Roll) in sync with the user's active track.
+    listeners.call(&ArrangementView::Listener::arrangementTrackSelected, trackIndex);
     
     // Highlight corresponding lane
     for (int i = 0; i < trackLanes.size(); ++i)
@@ -609,12 +612,9 @@ void ArrangementView::syncTrackLanes()
     while (trackLanes.size() < trackCount)
     {
         int laneIndex = trackLanes.size();
-        // MIDI track 0 is typically metadata (tempo, time signature) with no notes.
-        // Track headers are 0-indexed but display as "Track 1", "Track 2", etc.
-        // So lane 0 should show MIDI track 1's notes, lane 1 shows track 2, etc.
-        int midiTrackIndex = laneIndex + 1;  // Offset by 1 to skip metadata track
-        
-        auto* lane = trackLanes.add(new TrackLaneContent(midiTrackIndex, audioEngine));
+        // IMPORTANT: In our ProjectState model, note "channel" is the 0-based track index.
+        // Track headers are also 0-based (Track 1 == index 0). So lanes must use laneIndex.
+        auto* lane = trackLanes.add(new TrackLaneContent(laneIndex, audioEngine));
         
         // Wire up zoom callback for synchronized zooming across all tracks
         lane->onZoomRequested = [this](float newZoom) {
@@ -737,6 +737,16 @@ void ArrangementView::paintOverChildren(juce::Graphics& g)
     double secondsPerBar = secondsPerBeat * 4.0;
     float pixelsPerSecond = 100.0f * hZoom;
     int viewportScrollX = lanesViewport.getViewPositionX();
+
+    auto chooseGridDivisionsPerBeat = [](float pixelsPerBeat) {
+        // 1 = quarter notes, 2 = eighth notes, 4 = sixteenth notes
+        if (pixelsPerBeat >= 140.0f) return 4;
+        if (pixelsPerBeat >= 80.0f)  return 2;
+        return 1;
+    };
+    const float pixelsPerBeat = (float)(secondsPerBeat * pixelsPerSecond);
+    const int gridDiv = chooseGridDivisionsPerBeat(pixelsPerBeat);
+    const double stepSeconds = secondsPerBeat / (double)gridDiv;
     
     // Grid area: from timeline ruler through track lanes
     auto gridArea = getLocalBounds();
@@ -744,17 +754,18 @@ void ArrangementView::paintOverChildren(juce::Graphics& g)
     int rulerTop = 0;
     int lanesBottom = gridArea.getBottom();
     
-    // Draw grid lines
-    for (double time = 0.0; time < 600.0; time += secondsPerBeat)
+    // Draw grid lines (adaptive subdivision up to 1/16)
+    for (double time = 0.0; time < 600.0; time += stepSeconds)
     {
         float x = gridArea.getX() + (float)(time * pixelsPerSecond) - viewportScrollX;
         
         if (x < gridArea.getX() - 2 || x > gridArea.getRight() + 2)
             continue;
         
-        int bar, beat, tick;
-        timeToBarBeat(time, bar, beat, tick);
-        bool isBar = (beat == 0 && tick == 0);
+        const double beats = time / secondsPerBeat;
+        const int subIndex = (int)std::llround(beats * (double)gridDiv);
+        const bool isBar = (subIndex % (gridDiv * 4)) == 0;
+        const bool isBeat = (subIndex % gridDiv) == 0;
         
         if (isBar)
         {
@@ -762,7 +773,7 @@ void ArrangementView::paintOverChildren(juce::Graphics& g)
             g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.8f));
             g.drawLine(x, (float)rulerTop + 14, x, (float)lanesBottom, 2.0f);  // 2px thick
         }
-        else
+        else if (isBeat)
         {
             // Beat line - thinner, extends only through track lanes
             g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.25f));
@@ -771,6 +782,12 @@ void ArrangementView::paintOverChildren(juce::Graphics& g)
             // Small tick mark in ruler area
             g.setColour(ThemeManager::getCurrentScheme().textSecondary.withAlpha(0.4f));
             g.drawVerticalLine((int)x, (float)rulerHeight - 6, (float)rulerHeight);
+        }
+        else
+        {
+            // Subdivision line - very light, only through lanes
+            g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.12f));
+            g.drawVerticalLine((int)x, (float)rulerHeight, (float)lanesBottom);
         }
     }
 }

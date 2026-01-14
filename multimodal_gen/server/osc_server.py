@@ -995,9 +995,21 @@ class MusicGenOSCServer:
             expansion_id = data.get("expansion_id", "")
             
             instruments = self._expansion_manager.list_instruments(expansion_id=expansion_id)
-            
-            self._send_message(OSCAddresses.EXPANSION_INSTRUMENTS_RESPONSE, json.dumps(instruments))
-            self._log(f"   Sent {len(instruments)} instruments for {expansion_id}")
+
+            payload = json.dumps(instruments)
+
+            # Large expansions can exceed UDP datagram limits (WinError 10040). If needed,
+            # send as a sequence of chunk messages that the client reassembles.
+            max_chunk_chars = 8000
+            if len(payload) <= max_chunk_chars:
+                self._send_message(OSCAddresses.EXPANSION_INSTRUMENTS_RESPONSE, payload)
+                self._log(f"   Sent {len(instruments)} instruments for {expansion_id}")
+            else:
+                total = (len(payload) + max_chunk_chars - 1) // max_chunk_chars
+                for idx in range(total):
+                    chunk = payload[idx * max_chunk_chars : (idx + 1) * max_chunk_chars]
+                    self._send_message(OSCAddresses.EXPANSION_INSTRUMENTS_CHUNK, expansion_id, idx, total, chunk)
+                self._log(f"   Sent {len(instruments)} instruments for {expansion_id} in {total} chunks")
             
         except json.JSONDecodeError as e:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")

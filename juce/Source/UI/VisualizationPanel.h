@@ -104,8 +104,10 @@ private:
     // PianoRollComponent::Listener
     void pianoRollNoteHovered(const MidiNoteEvent* note) override;
     void pianoRollSeekRequested(double positionSeconds) override;
+    void pianoRollSoloTrackChanged(int soloedTrack) override;
     
     // ArrangementView::Listener
+    void arrangementTrackSelected(int trackIndex) override;
     void arrangementTrackPianoRollRequested(int trackIndex) override;
     void arrangementRegenerateRequested(int startBar, int endBar, const juce::StringArray& tracks) override;
     void arrangementTrackInstrumentSelected(int trackIndex, const juce::String& instrumentId) override;
@@ -141,6 +143,34 @@ private:
     
     // Track info label (shows hovered note info or visualization mode)
     juce::Label infoLabel;
+
+    // Default Synth ("Default (Sine)") controls
+    juce::GroupComponent defaultSynthGroup;
+    juce::Label defaultSynthTitle;
+    juce::ComboBox defaultSynthWaveform;
+    juce::Label defaultSynthWaveformLabel;
+    juce::Slider defaultSynthAttack;
+    juce::Label defaultSynthAttackLabel;
+    juce::Slider defaultSynthRelease;
+    juce::Label defaultSynthReleaseLabel;
+    juce::Slider defaultSynthCutoff;
+    juce::Label defaultSynthCutoffLabel;
+    juce::Slider defaultSynthLfoRate;
+    juce::Label defaultSynthLfoRateLabel;
+    juce::Slider defaultSynthLfoDepth;
+    juce::Label defaultSynthLfoDepthLabel;
+
+    int selectedTrackIndex = 0;
+    juce::Array<juce::String> trackInstrumentIds;
+    void updateDefaultSynthControlsVisibility();
+    void syncDefaultSynthControlsFromProject(int trackIndex);
+    void persistDefaultSynthControlToProject(int trackIndex, const juce::Identifier& prop, const juce::var& value);
+    void applyDefaultSynthControlsToEngine(int trackIndex);
+
+    bool isUpdatingDefaultSynthControls = false;
+
+    // Track mode flags (e.g., drum kit vs chromatic)
+    juce::Array<bool> trackIsDrumKit;
     
     // Current tab
     int currentTab = 0;  // Start with Piano Roll
@@ -148,6 +178,8 @@ private:
     // Tab management
     void updateTabButtons();
     void updateTheme();
+
+    void updatePianoRollDrumModeForCurrentSoloTrack();
     
     static constexpr int tabHeight = 28;
     static constexpr int numTabs = 5;

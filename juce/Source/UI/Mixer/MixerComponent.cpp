@@ -13,7 +13,7 @@ namespace UI
     MixerComponent::~MixerComponent()
     {
         if (projectState)
-            projectState->getState().removeListener(this);
+            projectState->removeStateListener(this);
     }
 
     void MixerComponent::paint(juce::Graphics& g)
@@ -113,10 +113,10 @@ namespace UI
     void MixerComponent::bindToProject(Project::ProjectState& state)
     {
         if (projectState)
-            projectState->getState().removeListener(this);
+            projectState->removeStateListener(this);
             
         projectState = &state;
-        projectState->getState().addListener(this);
+        projectState->addStateListener(this);
         
         // Re-bind existing strips
         for (int i = 0; i < strips.size(); ++i)
