@@ -917,21 +917,6 @@ void PianoRollComponent::drawNotes(juce::Graphics& g)
     
     int keyWidth = getEffectiveKeyWidth();
     
-    // Debug: Draw note count info for embedded mode
-    if (embeddedMode)
-    {
-        int matchingNotes = 0;
-        for (const auto& note : notes)
-        {
-            if (soloedTrack < 0 || note.trackIndex == soloedTrack)
-                matchingNotes++;
-        }
-        
-        g.setColour(juce::Colours::white.withAlpha(0.7f));
-        g.drawText("Track " + juce::String(soloedTrack) + ": " + juce::String(matchingNotes) + "/" + juce::String(notes.size()) + " notes, vZoom=" + juce::String(vZoom, 2) + ", scrollY=" + juce::String(scrollY),
-                   getLocalBounds().reduced(4), juce::Justification::topLeft);
-    }
-    
     for (const auto& note : notes)
     {
         // Filter by track
