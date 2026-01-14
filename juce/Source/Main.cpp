@@ -174,21 +174,25 @@ public:
             #if JUCE_IOS || JUCE_ANDROID
                 setFullScreen(true);
             #else
+                // Always enable resizing. If we only do this on first launch,
+                // restored sessions can become non-resizable.
+                setResizable(true, true);
+
+                // Set minimum size using Layout constants for responsive design
+                setResizeLimits(Layout::minWindowWidth, Layout::minWindowHeight, 4096, 4096);
+
                 // Restore window bounds from saved state
                 auto savedBounds = appState.getWindowBounds();
                 if (savedBounds.isEmpty())
                 {
                     // Default size using Layout constants, centered
-                    setResizable(true, true);
                     centreWithSize(Layout::defaultWindowWidth, Layout::defaultWindowHeight);
                 }
                 else
                 {
-                    setBounds(savedBounds);
+                    // Clamp saved bounds to current resize limits.
+                    setBoundsConstrained(savedBounds);
                 }
-                
-                // Set minimum size using Layout constants for responsive design
-                setResizeLimits(Layout::minWindowWidth, Layout::minWindowHeight, 4096, 4096);
             #endif
 
             setVisible(true);
