@@ -2,7 +2,8 @@
 name: recursive-builder
 description: Builder agent. Implements decomposed plans from Supervisor with minimal diffs and local proofs; does not run full-suite verification.
 target: vscode
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']
+argument-hint: "Give me a concrete deliverable (file + sections). I will implement with minimal diffs and provide local proofs when relevant."
+tools: ['edit', 'codebase', 'search', 'fetch', 'problems', 'usages', 'changes', 'execute']
 handoffs:
   - label: Back to Supervisor
     agent: recursive-supervisor

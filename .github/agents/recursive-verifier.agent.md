@@ -2,7 +2,8 @@
 name: recursive-verifier
 description: Verifier agent. Runs phased verification on Builder changes and returns proofs plus a pass/fail verdict.
 target: vscode
-tools: ['vscode', 'execute', 'read', 'search', 'todo']
+argument-hint: "Paste the diff summary + what you want verified; I will run targeted checks and return proofs + a verdict."
+tools: ['codebase', 'search', 'problems', 'usages', 'changes', 'execute']
 handoffs:
   - label: Back to Supervisor
     agent: recursive-supervisor
