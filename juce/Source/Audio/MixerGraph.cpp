@@ -75,9 +75,11 @@ namespace Audio
         // Create processors for the track strip
         auto gain = std::make_unique<GainProcessor>();
         auto pan = std::make_unique<PanProcessor>();
+        auto ms = std::make_unique<MSProcessor>();
 
         auto gainNode = mainGraph->addNode(std::move(gain));
         auto panNode = mainGraph->addNode(std::move(pan));
+        auto msNode = mainGraph->addNode(std::move(ms));
 
         // Connect Gain -> Pan
         for (int channel = 0; channel < 2; ++channel)
@@ -85,10 +87,16 @@ namespace Audio
             mainGraph->addConnection({ { gainNode->nodeID, channel }, { panNode->nodeID, channel } });
         }
 
-        // Connect Pan -> Master
+        // Connect Pan -> MS
         for (int channel = 0; channel < 2; ++channel)
         {
-            mainGraph->addConnection({ { panNode->nodeID, channel }, { masterGainNodeID, channel } });
+            mainGraph->addConnection({ { panNode->nodeID, channel }, { msNode->nodeID, channel } });
+        }
+
+        // Connect MS -> Master
+        for (int channel = 0; channel < 2; ++channel)
+        {
+            mainGraph->addConnection({ { msNode->nodeID, channel }, { masterGainNodeID, channel } });
         }
 
         // Return the input node ID (Gain) so sources can connect to it
@@ -125,6 +133,8 @@ namespace Audio
             return std::make_unique<GainProcessor>();
         if (lowerType == "pan")
             return std::make_unique<PanProcessor>();
+        if (lowerType == "ms" || lowerType == "midside" || lowerType == "stereowidth" || lowerType == "width")
+            return std::make_unique<MSProcessor>();
             
         DBG("MixerGraph: Unknown processor type: " << type);
         return nullptr;
@@ -204,6 +214,12 @@ namespace Audio
                     else if (auto* gain = dynamic_cast<GainProcessor*>(processor.get()))
                     {
                         if (paramName == "gain") gain->setGainDecibels(value);
+                    }
+                    else if (auto* ms = dynamic_cast<MSProcessor*>(processor.get()))
+                    {
+                        if (paramName == "width") ms->setWidth(value);
+                        else if (paramName == "mid_gain") ms->setMidGain(value);
+                        else if (paramName == "side_gain") ms->setSideGain(value);
                     }
                 }
             }
@@ -337,6 +353,12 @@ namespace Audio
                     {
                         if (paramName == "threshold") lim->setThreshold(value);
                         else if (paramName == "release") lim->setRelease(value);
+                    }
+                    else if (auto* ms = dynamic_cast<MSProcessor*>(processor))
+                    {
+                        if (paramName == "width") ms->setWidth(value);
+                        else if (paramName == "mid_gain") ms->setMidGain(value);
+                        else if (paramName == "side_gain") ms->setSideGain(value);
                     }
                     
                     return;

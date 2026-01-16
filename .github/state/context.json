@@ -67,6 +67,27 @@
       "result": "NOT_IMPLEMENTED",
       "details": "No timbila found in enum, synthesis, docs, or genre profiles",
       "timestamp": "2026-01-16T00:35:00Z"
+    },
+    {
+      "type": "research",
+      "target": "Mid-Side (M/S) stereo processing capabilities",
+      "result": "PARTIAL",
+      "details": "M/S encode/decode EXISTS in reverb.py (lines 443-464) but only for width control. NOT exposed as general utility. Missing: M/S EQ, M/S compression, polarity inversion, standalone module",
+      "timestamp": "2026-01-16T01:15:00Z"
+    },
+    {
+      "type": "research",
+      "target": "Python M/S libraries assessment",
+      "result": "COMPLETE",
+      "details": "NumPy + SciPy (already installed) provide everything needed. No new dependencies required. Vectorized M/S processing is trivial: mid=(L+R)/2, side=(L-R)/2",
+      "timestamp": "2026-01-16T01:15:00Z"
+    },
+    {
+      "type": "research",
+      "target": "Integration points for M/S module",
+      "result": "IDENTIFIED",
+      "details": "Recommended: Create stereo_utils.py, integrate into MixChain, refactor reverb.py to use shared utils, add to master chain before limiter",
+      "timestamp": "2026-01-16T01:15:00Z"
     }
   ],
   "errors_encountered": [],

@@ -59,6 +59,7 @@ namespace Project
         static const juce::Identifier name("name");
         static const juce::Identifier volume("volume");
         static const juce::Identifier pan("pan");
+        static const juce::Identifier stereoWidth("stereoWidth");
         static const juce::Identifier mute("mute");
         static const juce::Identifier solo("solo");
 
@@ -120,6 +121,7 @@ namespace Project
         void setTrackPan(int trackIndex, float pan);
         void setTrackMute(int trackIndex, bool mute);
         void setTrackSolo(int trackIndex, bool solo);
+        void setTrackStereoWidth(int trackIndex, float width);
         
         // Instrument Data
         void setInstrument(int trackIndex, const juce::String& name, const juce::String& path);

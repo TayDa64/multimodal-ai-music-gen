@@ -19,6 +19,7 @@ namespace UI
         // Accessors for attachments
         juce::Slider& getVolumeSlider() { return volumeSlider; }
         juce::Slider& getPanSlider() { return panSlider; }
+        juce::Slider& getWidthSlider() { return widthSlider; }
         juce::ToggleButton& getMuteButton() { return muteButton; }
         juce::ToggleButton& getSoloButton() { return soloButton; }
         
@@ -35,6 +36,7 @@ namespace UI
         juce::Label nameLabel;
         juce::Slider volumeSlider;
         juce::Slider panSlider;
+        juce::Slider widthSlider;
         juce::ToggleButton muteButton;
         juce::ToggleButton soloButton;
         LevelMeter levelMeter;

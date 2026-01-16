@@ -31,6 +31,16 @@ namespace UI
         panSlider.setColour(juce::Slider::thumbColourId, AppColours::textPrimary);
         addAndMakeVisible(panSlider);
 
+        // Width (stereo width control)
+        widthSlider.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        widthSlider.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+        widthSlider.setRange(0.0, 2.0);  // 0=mono, 1=normal, 2=extra wide
+        widthSlider.setValue(1.0);       // Default: no change
+        widthSlider.setColour(juce::Slider::rotarySliderFillColourId, AppColours::primary);
+        widthSlider.setColour(juce::Slider::thumbColourId, AppColours::textPrimary);
+        widthSlider.setTooltip("Stereo Width: 0% (mono) to 200% (extra wide)");
+        addAndMakeVisible(widthSlider);
+
         // Mute/Solo
         muteButton.setButtonText("M");
         muteButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.05f));
@@ -76,8 +86,8 @@ namespace UI
         
         // Separator lines
         g.setColour(AppColours::border.withAlpha(0.6f));
-        // Line below pan
-        g.drawHorizontalLine(45, 5.0f, (float)getWidth() - 5.0f);
+        // Line below width
+        g.drawHorizontalLine(89, 5.0f, (float)getWidth() - 5.0f);
         // Line above name
         g.drawHorizontalLine(getHeight() - 25, 5.0f, (float)getWidth() - 5.0f);
     }
@@ -93,6 +103,12 @@ namespace UI
         // Pan at top
         auto panArea = area.removeFromTop(40);
         panSlider.setBounds(panArea.withSizeKeepingCentre(36, 36));
+        
+        area.removeFromTop(4); // Gap
+
+        // Width below pan
+        auto widthArea = area.removeFromTop(40);
+        widthSlider.setBounds(widthArea.withSizeKeepingCentre(36, 36));
         
         area.removeFromTop(4); // Gap
 

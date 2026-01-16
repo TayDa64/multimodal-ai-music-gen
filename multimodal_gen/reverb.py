@@ -10,6 +10,8 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 from scipy import signal
 
+from .stereo_utils import apply_stereo_width as stereo_width_util
+
 
 @dataclass
 class IRConfig:
@@ -445,22 +447,15 @@ class ConvolutionReverb:
         audio: np.ndarray,
         width: float
     ) -> np.ndarray:
-        """Adjust stereo width of reverb (0=mono, 1=full, 2=widened)."""
+        """Adjust stereo width of reverb (0=mono, 1=full, 2=widened).
+        
+        Delegates to shared stereo_utils module for M/S processing.
+        """
         if len(audio) == 0 or width == 1.0:
             return audio
         
-        # Mid-side processing
-        mid = (audio[:, 0] + audio[:, 1]) / 2
-        side = (audio[:, 0] - audio[:, 1]) / 2
-        
-        # Adjust side signal
-        side = side * width
-        
-        # Convert back to L/R
-        left = mid + side
-        right = mid - side
-        
-        return np.stack([left, right], axis=1)
+        # Use shared stereo_utils for M/S processing
+        return stereo_width_util(audio, width)
     
     def get_preset_ir(self, name: str) -> np.ndarray:
         """Get a cached preset IR by name."""

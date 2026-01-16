@@ -53,6 +53,8 @@ namespace Project
             trackNode.setProperty(IDs::volume, 1.0f, nullptr);
         if (!trackNode.hasProperty(IDs::pan))
             trackNode.setProperty(IDs::pan, 0.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::stereoWidth))
+            trackNode.setProperty(IDs::stereoWidth, 1.0f, nullptr);
         if (!trackNode.hasProperty(IDs::mute))
             trackNode.setProperty(IDs::mute, false, nullptr);
         if (!trackNode.hasProperty(IDs::solo))
@@ -339,6 +341,16 @@ namespace Project
         {
             undoManager.beginNewTransaction("Toggle Solo");
             track.setProperty(IDs::solo, solo, &undoManager);
+        }
+    }
+
+    void ProjectState::setTrackStereoWidth(int trackIndex, float width)
+    {
+        auto mixer = getMixerNode();
+        auto track = mixer.getChildWithProperty(IDs::index, trackIndex);
+        if (track.isValid())
+        {
+            track.setProperty(IDs::stereoWidth, juce::jlimit(0.0f, 2.0f, width), &undoManager);
         }
     }
     

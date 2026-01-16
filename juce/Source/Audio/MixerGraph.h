@@ -11,6 +11,7 @@
 #include "Processors/DelayProcessor.h"
 #include "Processors/SaturationProcessor.h"
 #include "Processors/LimiterProcessor.h"
+#include "Processors/MSProcessor.h"
 
 namespace Audio
 {

@@ -26,6 +26,7 @@ class EffectType(Enum):
     LIMITER = "limiter"
     GAIN = "gain"
     PAN = "pan"
+    STEREO_WIDTH = "stereo_width"
 
 @dataclass
 class EffectParams:
@@ -69,6 +70,14 @@ class SaturationParams(EffectParams):
     drive: float = 0.5  # 0.0 - 1.0
     type: str = "soft"  # "soft", "hard", "tube"
 
+@dataclass
+class StereoWidthParams(EffectParams):
+    """Mid-Side stereo width control parameters."""
+    width: float = 1.0      # 0.0 = mono, 1.0 = original, 2.0 = extra wide
+    mid_gain_db: float = 0.0   # Mid channel gain
+    side_gain_db: float = 0.0  # Side channel gain
+    mono_below_hz: float = 0.0 # Make frequencies below this mono (bass focus)
+
 # =============================================================================
 # DSP IMPLEMENTATIONS
 # =============================================================================
@@ -99,6 +108,65 @@ class DSP:
         right_gain = np.sin(pan_norm * np.pi / 2)
         
         return np.column_stack([left * left_gain, right * right_gain])
+
+    @staticmethod
+    def ms_encode(left: np.ndarray, right: np.ndarray) -> tuple:
+        """Encode L/R to Mid/Side."""
+        mid = (left + right) * 0.5
+        side = (left - right) * 0.5
+        return mid, side
+    
+    @staticmethod
+    def ms_decode(mid: np.ndarray, side: np.ndarray) -> tuple:
+        """Decode Mid/Side back to L/R."""
+        left = mid + side
+        right = mid - side
+        return left, right
+    
+    @staticmethod
+    def stereo_width(audio: np.ndarray, params: 'StereoWidthParams', sample_rate: int) -> np.ndarray:
+        """Apply M/S stereo width processing."""
+        # Ensure stereo
+        if len(audio.shape) == 1:
+            # Mono input - no width processing meaningful
+            return np.column_stack([audio, audio])
+        
+        left = audio[:, 0]
+        right = audio[:, 1]
+        
+        # Encode to M/S
+        mid, side = DSP.ms_encode(left, right)
+        
+        # Apply mid/side gains
+        mid_gain = 10 ** (params.mid_gain_db / 20)
+        side_gain = 10 ** (params.side_gain_db / 20)
+        
+        mid = mid * mid_gain
+        side = side * side_gain
+        
+        # Apply width (multiply side by width factor)
+        # width=0: mono, width=1: original, width=2: double side
+        side = side * params.width
+        
+        # Mono bass (optional low frequency mono)
+        if params.mono_below_hz > 0:
+            try:
+                from scipy.signal import butter, lfilter
+                # Design lowpass filter
+                nyquist = sample_rate / 2
+                cutoff_norm = min(params.mono_below_hz / nyquist, 0.99)
+                b, a = butter(2, cutoff_norm, btype='low')
+                
+                # Extract bass from side and remove it (make it mono)
+                bass_side = lfilter(b, a, side)
+                side = side - bass_side  # Remove bass from side = bass becomes mono
+            except ImportError:
+                pass  # Skip if scipy not available
+        
+        # Decode back to L/R
+        left_out, right_out = DSP.ms_decode(mid, side)
+        
+        return np.column_stack([left_out, right_out])
 
     @staticmethod
     def biquad_filter(audio: np.ndarray, b: List[float], a: List[float]) -> np.ndarray:
@@ -276,6 +344,8 @@ class MixChain:
                 processed = DSP.compressor(processed, params, sample_rate)
             elif effect_type == EffectType.REVERB:
                 processed = DSP.simple_reverb(processed, params, sample_rate)
+            elif effect_type == EffectType.STEREO_WIDTH:
+                processed = DSP.stereo_width(processed, params, sample_rate)
             # Add other effects...
             
         return processed
@@ -300,4 +370,10 @@ def create_lofi_chain() -> MixChain:
     chain = MixChain("Lo-Fi Chain")
     chain.add_effect(EffectType.SATURATION, SaturationParams(drive=0.4, type="soft"))
     # Would add Low Pass Filter here
+    return chain
+
+def create_wide_stereo_chain() -> MixChain:
+    """Chain with subtle stereo widening for masters."""
+    chain = MixChain("Wide Stereo")
+    chain.add_effect(EffectType.STEREO_WIDTH, StereoWidthParams(width=1.2, mono_below_hz=120))
     return chain
