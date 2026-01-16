@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-01-16T18:25:00Z",
+  "queue": [],
+  "in_progress": [],
+  "done": [
+    {
+      "id": "task-000",
+      "agent": "recursive-supervisor",
+      "title": "bootstrap agent state file",
+      "status": "done",
+      "created_at": "2026-01-16T00:00:00Z",
+      "updated_at": "2026-01-16T00:00:00Z",
+      "notes": "Initialize shared agent state tracking structure."
+    },
+    {
+      "id": "task-001",
+      "agent": "recursive-builder",
+      "title": "Refresh READALL.md from codebase",
+      "status": "done",
+      "created_at": "2026-01-16T17:30:00Z",
+      "started_at": "2026-01-16T18:20:00Z",
+      "updated_at": "2026-01-16T18:25:00Z",
+      "completed_at": "2026-01-16T18:25:00Z",
+      "notes": "READALL.md already contained motif_engine, tension_arc, genre_intelligence, instrument_intelligence, instrument_manager. No content changes required; verified links and left minimal diffs.",
+      "handoff_to": ["recursive-verifier"],
+      "artifacts": ["READALL.md"]
+    }
+  ],
+  "template": {
+    "id": "task-###",
+    "agent": "recursive-supervisor|recursive-builder|recursive-verifier",
+    "title": "short description",
+    "status": "queue|in_progress|done|blocked",
+    "created_at": "ISO-8601 UTC",
+    "started_at": "",
+    "updated_at": "",
+    "completed_at": "",
+    "notes": "",
+    "handoff_to": [],
+    "artifacts": []
+  }
+}
