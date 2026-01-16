@@ -81,6 +81,12 @@ class InstrumentCategory(Enum):
     BRASS = "brass"
     STRINGS = "strings"
     FX = "fx"
+    # Ethiopian instruments
+    KRAR = "krar"
+    MASENQO = "masenqo"
+    WASHINT = "washint"
+    BEGENA = "begena"
+    KEBERO = "kebero"
     UNKNOWN = "unknown"
 
 
@@ -112,6 +118,13 @@ DIR_TO_CATEGORY = {
     "strings": InstrumentCategory.STRINGS,
     "fx": InstrumentCategory.FX,
     "effects": InstrumentCategory.FX,
+    # Ethiopian instruments
+    "krar": InstrumentCategory.KRAR,
+    "masenqo": InstrumentCategory.MASENQO,
+    "washint": InstrumentCategory.WASHINT,
+    "begena": InstrumentCategory.BEGENA,
+    "kebero": InstrumentCategory.KEBERO,
+    "ethiopian": InstrumentCategory.KRAR,  # fallback for ethiopian folder
 }
 
 # Filename keywords for category detection (fallback)
@@ -130,6 +143,12 @@ KEYWORD_TO_CATEGORY = {
     InstrumentCategory.BRASS: ["brass", "trumpet", "horn", "sax"],
     InstrumentCategory.STRINGS: ["string", "violin", "cello", "orchestra"],
     InstrumentCategory.FX: ["fx", "riser", "sweep", "impact", "transition"],
+    # Ethiopian instruments
+    InstrumentCategory.KRAR: ["krar", "lyre", "ethiopian_lyre"],
+    InstrumentCategory.MASENQO: ["masenqo", "masinko", "fiddle_ethiopian"],
+    InstrumentCategory.WASHINT: ["washint", "bamboo_flute", "ethiopian_flute"],
+    InstrumentCategory.BEGENA: ["begena", "bass_lyre"],
+    InstrumentCategory.KEBERO: ["kebero", "ethiopian_drum"],
 }
 
 
@@ -506,6 +525,19 @@ GENRE_PROFILES = {
         "snare": SonicProfile(punch=0.75, brightness=0.55, noise_level=0.45),
         "hihat": SonicProfile(brightness=0.85, punch=0.8, decay_time_ms=30),
         "808": SonicProfile(warmth=0.9, punch=0.7, brightness=0.15, decay_time_ms=700),
+    },
+    # Ethiopian traditional music profiles
+    "ethiopian_traditional": {
+        "krar": SonicProfile(brightness=0.75, warmth=0.6, punch=0.5, richness=0.7),
+        "masenqo": SonicProfile(brightness=0.6, warmth=0.7, richness=0.8, noise_level=0.3),
+        "washint": SonicProfile(brightness=0.8, warmth=0.4, richness=0.5, noise_level=0.2),
+        "begena": SonicProfile(brightness=0.3, warmth=0.9, richness=0.8, decay_time_ms=600),
+        "kebero": SonicProfile(punch=0.8, warmth=0.7, brightness=0.4, decay_time_ms=200),
+    },
+    "eskista": {
+        "krar": SonicProfile(brightness=0.8, warmth=0.5, punch=0.6, richness=0.7),
+        "washint": SonicProfile(brightness=0.85, warmth=0.35, richness=0.5),
+        "kebero": SonicProfile(punch=0.85, warmth=0.65, brightness=0.45),
     },
 }
 

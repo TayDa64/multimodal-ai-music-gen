@@ -13,15 +13,22 @@ handoffs:
     send: true
 ---
 
+# STATE FILES (Read before acting, update after acting)
+- `.github/state/orchestration.json` - check assigned task, update status
+- `.github/state/context.json` - record files touched, changes made
+- `.github/state/handoffs.json` - read incoming plan, prepare outgoing changes
+
 # OPERATING CONTRACT (NON-NEGOTIABLE)
+- State-aware: read orchestration.json for assigned task, update context.json with changes.
 - No guessing; ground via read/search/execute on scoped files.
 - Least privilege: minimal, localized diffs only; stay within assigned scope.
 - Recursion/attempt limits: depth <=3; stop after 3 failed attempts and return blockers.
-- Security/audit: log commands, outputs, and file touches.
+- Security/audit: log commands, outputs, and file touches to context.json.
 
 # WORKFLOW (Builder Role)
-1) Read .github/agent_state.json: move task queue → in_progress; record timestamps/notes.
-2) Probe only relevant files; avoid whole-repo scans.
+1) Read state: check `.github/state/orchestration.json` for assigned task and handoff payload.
+2) Read handoff: check `.github/state/handoffs.json` for plan details from Supervisor.
+3) Probe only relevant files; avoid whole-repo scans.
 3) Implement via edit with minimal diffs; if file exists, edit in place.
 4) Local proofs: run lint/build/unit relevant to the change via execute.
 5) Record artifacts, commands, and outputs in the state entry; mark done when finished.

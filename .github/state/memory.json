@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "patterns": {
+    "successful": [
+      {
+        "pattern": "Ethiopian instruments follow: enum → DIR_TO_CATEGORY → KEYWORD_TO_CATEGORY → GENRE_PROFILES",
+        "context": "When adding any new instrument category to instrument_manager.py",
+        "timestamp": "2026-01-16T00:30:00Z"
+      },
+      {
+        "pattern": "Pre-verification prevents duplicate work",
+        "context": "Always spawn Verifier before Builder to check existing state",
+        "timestamp": "2026-01-16T00:30:00Z"
+      },
+      {
+        "pattern": "Subagents via runSubagent tool work reliably",
+        "context": "Use runSubagent for Builder and Verifier - they can read/edit files",
+        "timestamp": "2026-01-16T00:30:00Z"
+      }
+    ],
+    "failed": [
+      {
+        "pattern": "Skipping pre-verification leads to wasted effort",
+        "reason": "Attempted to implement washint without checking if it existed first",
+        "avoid_when": "Any implementation task - always verify existing state first",
+        "timestamp": "2026-01-16T00:20:00Z"
+      },
+      {
+        "pattern": "VS Code agent handoffs are UI-only, not autonomous",
+        "reason": "handoffs in .agent.md files just render buttons, don't spawn agents",
+        "avoid_when": "Expecting automatic agent-to-agent transitions",
+        "timestamp": "2026-01-15T00:00:00Z"
+      }
+    ]
+  },
+  "decisions": [
+    {
+      "decision": "Use copilot-instructions.md as source of truth, not individual agent files",
+      "rationale": "VS Code Copilot reads copilot-instructions.md; agent files are reference specs only",
+      "alternatives_considered": ["Rely solely on agent files", "Use custom MCP server"],
+      "timestamp": "2026-01-16T00:00:00Z"
+    },
+    {
+      "decision": "Implement 4-file state system: orchestration, memory, context, handoffs",
+      "rationale": "Separation of concerns - different update frequencies and purposes",
+      "alternatives_considered": ["Single state file", "Database", "In-memory only"],
+      "timestamp": "2026-01-16T00:00:00Z"
+    },
+    {
+      "decision": "Supervisor never edits code directly - always delegates to Builder",
+      "rationale": "Clean separation of concerns; Builder is specialized for minimal diffs",
+      "alternatives_considered": ["Supervisor does everything", "No role separation"],
+      "timestamp": "2026-01-16T00:00:00Z"
+    }
+  ],
+  "learnings": {
+    "codebase": {
+      "key_files": [
+        "multimodal_gen/instrument_manager.py - instrument categories and matching",
+        "multimodal_gen/assets_gen.py - synthesis functions for instruments",
+        "multimodal_gen/genres.json - genre-specific instrument configurations",
+        "multimodal_gen/prompt_parser.py - instrument name parsing and aliases",
+        "docs/ETHIOPIAN_INSTRUMENTS.md - Ethiopian instrument documentation"
+      ],
+      "patterns": [
+        "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
+        "MIDI programs 110-113 reserved for Ethiopian instruments",
+        "Genre profiles define ideal SonicProfile for instrument matching"
+      ],
+      "gotchas": [
+        "InstrumentCategory enum must match DIR_TO_CATEGORY and KEYWORD_TO_CATEGORY",
+        "assets_gen.py synthesis functions are separate from instrument_manager.py categorization",
+        "GENRE_PROFILES uses string keys matching InstrumentCategory.value"
+      ]
+    },
+    "user_preferences": {
+      "style": "Follow RLM paper patterns, use subagents, maintain state",
+      "communication": "Structured tables, clear verdicts, proofs required"
+    }
+  },
+  "last_updated": "2026-01-16T00:30:00Z"
+}

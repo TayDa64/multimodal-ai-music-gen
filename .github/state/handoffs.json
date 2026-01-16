@@ -1,0 +1,71 @@
+{
+  "version": "1.0",
+  "active_handoff": null,
+  "handoff_history": [
+    {
+      "id": "handoff-001",
+      "from_agent": "supervisor",
+      "to_agent": "builder",
+      "task_id": "task-001",
+      "payload": {
+        "plan": "Add Ethiopian instruments to instrument_manager.py: 1) enum values, 2) DIR_TO_CATEGORY, 3) KEYWORD_TO_CATEGORY, 4) GENRE_PROFILES"
+      },
+      "result": "completed",
+      "timestamp": "2026-01-16T00:22:00Z"
+    },
+    {
+      "id": "handoff-002",
+      "from_agent": "builder",
+      "to_agent": "verifier",
+      "task_id": "task-001",
+      "payload": {
+        "changes": "Added KRAR, MASENQO, WASHINT, BEGENA, KEBERO to enum and all related mappings",
+        "verification_scope": "Validate all 4 components present, check syntax"
+      },
+      "result": "PASS",
+      "timestamp": "2026-01-16T00:26:00Z"
+    },
+    {
+      "id": "handoff-003",
+      "from_agent": "verifier",
+      "to_agent": "supervisor",
+      "task_id": "task-001",
+      "payload": {
+        "verdict": "PASS",
+        "proofs": [
+          "InstrumentCategory enum has 5 Ethiopian instruments at lines 68-72",
+          "DIR_TO_CATEGORY has 6 mappings at lines 96-101",
+          "KEYWORD_TO_CATEGORY has 5 entries at lines 118-122",
+          "GENRE_PROFILES has ethiopian_traditional and eskista at lines 404-416",
+          "Pylance syntax check: No errors"
+        ]
+      },
+      "result": "aggregated",
+      "timestamp": "2026-01-16T00:28:00Z"
+    }
+  ],
+  "handoff_templates": {
+    "supervisor_to_builder": {
+      "required_fields": ["plan", "files_to_modify", "constraints"],
+      "example": {
+        "plan": "Description of what to implement",
+        "files_to_modify": ["list", "of", "files"],
+        "constraints": "Minimal diffs, preserve existing functionality"
+      }
+    },
+    "builder_to_verifier": {
+      "required_fields": ["changes", "verification_scope"],
+      "example": {
+        "changes": "Summary of what was changed",
+        "verification_scope": "What to verify: syntax, completeness, tests"
+      }
+    },
+    "verifier_to_supervisor": {
+      "required_fields": ["verdict", "proofs"],
+      "example": {
+        "verdict": "PASS or FAIL",
+        "proofs": ["List of evidence supporting verdict"]
+      }
+    }
+  }
+}
