@@ -3,7 +3,7 @@
 Agent Orchestrator - Python version for cross-platform support.
 
 Spawns Builder/Verifier subagents and tracks state in agent_state.json.
-Can use OpenAI API, Azure OpenAI, or GitHub Copilot CLI.
+Uses GitHub Copilot Pro+ subscription via GitHub Models API (no separate API key needed).
 
 Usage:
     python orchestrate.py --task "Update READALL.md" --agent builder --files "READALL.md"
@@ -236,26 +236,91 @@ def invoke_gh_copilot(prompt: str) -> Optional[str]:
     return None
 
 
+def invoke_github_models(prompt: str) -> Optional[str]:
+    """
+    Call GitHub Models API using your Copilot Pro+ subscription.
+    Uses GITHUB_TOKEN from `gh auth token` - no separate API key needed!
+    """
+    # Get token from gh CLI or environment
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        try:
+            result = subprocess.run(
+                ["gh", "auth", "token"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if result.returncode == 0:
+                token = result.stdout.strip()
+        except Exception:
+            pass
+    
+    if not token:
+        print("No GitHub token found. Run 'gh auth login' first.", file=sys.stderr)
+        return None
+    
+    try:
+        import requests
+        
+        # GitHub Models API endpoint (available with Copilot Pro+)
+        url = "https://models.inference.ai.azure.com/chat/completions"
+        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        
+        body = {
+            "model": "gpt-4o",  # Available models: gpt-4o, gpt-4o-mini, o1, o1-mini
+            "messages": [
+                {"role": "system", "content": "You are a code assistant executing agent tasks. Follow instructions precisely."},
+                {"role": "user", "content": prompt},
+            ],
+            "max_tokens": 4096,
+        }
+        
+        response = requests.post(url, headers=headers, json=body, timeout=120)
+        response.raise_for_status()
+        return response.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"GitHub Models API error: {e}", file=sys.stderr)
+        return None
+
+
 def invoke_agent(prompt: str, agent: str) -> str:
     """Try all available LLM backends."""
     print(f"\n=== Invoking {agent} agent ===")
     print(f"Prompt length: {len(prompt)} chars")
     
-    # Try backends in order
-    result = invoke_openai(prompt)
+    # Try GitHub Models first (uses Copilot Pro+ subscription, no extra API key)
+    print("Trying GitHub Models API (Copilot Pro+)...")
+    result = invoke_github_models(prompt)
     if result:
         return result
     
-    result = invoke_azure_openai(prompt)
-    if result:
-        return result
-    
+    # Fallback to gh copilot CLI
+    print("Trying gh copilot CLI...")
     result = invoke_gh_copilot(prompt)
     if result:
         return result
     
+    # Try OpenAI if configured
+    result = invoke_openai(prompt)
+    if result:
+        return result
+    
+    # Try Azure OpenAI if configured
+    result = invoke_azure_openai(prompt)
+    if result:
+        return result
+    
     # Fallback
-    print("\nNo LLM API available. Set OPENAI_API_KEY or AZURE_OPENAI_* environment variables.")
+    print("\nNo LLM API available.")
+    print("Options:")
+    print("  1. Run 'gh auth login' to use your Copilot Pro+ subscription")
+    print("  2. Set OPENAI_API_KEY for OpenAI")
+    print("  3. Set AZURE_OPENAI_* for Azure")
     print("\n=== PROMPT FOR MANUAL EXECUTION ===")
     print(prompt)
     print("=== END PROMPT ===")

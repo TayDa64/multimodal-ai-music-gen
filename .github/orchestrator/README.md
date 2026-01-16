@@ -1,34 +1,37 @@
 # Agent Orchestrator
 
-Shell-based orchestration for autonomous agent workflows. Enables true subagent spawning by calling LLM APIs directly.
+Shell-based orchestration for autonomous agent workflows. Enables true subagent spawning using your **GitHub Copilot Pro+ subscription** - no separate API key needed!
 
 ## Why This Exists
 
 VS Code's agent `handoffs` are **user-clickable buttons**, not autonomous execution. When Supervisor says "handoff to Builder," it's just outputting text. This orchestrator solves that by:
 
 1. Managing task state in `agent_state.json`
-2. Calling LLM APIs directly (OpenAI, Azure, or gh copilot CLI)
+2. Calling GitHub Models API directly (uses your Copilot Pro+ subscription)
 3. Loading agent instructions from `.github/agents/*.agent.md`
 4. Tracking progress and aggregating results
 
 ## Setup
 
-### Option 1: OpenAI API
+### Using GitHub Copilot Pro+ (Recommended - No API Key Needed!)
+```bash
+# Just make sure you're logged in to GitHub CLI
+gh auth login
+gh auth status  # Should show ✓ Logged in
+```
+
+That's it! The orchestrator will automatically use your Copilot subscription.
+
+### Alternative: OpenAI API
 ```bash
 export OPENAI_API_KEY="sk-..."
 ```
 
-### Option 2: Azure OpenAI
+### Alternative: Azure OpenAI
 ```bash
 export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com"
 export AZURE_OPENAI_KEY="your-key"
-export AZURE_OPENAI_DEPLOYMENT="gpt-4o"  # optional, defaults to gpt-4o
-```
-
-### Option 3: GitHub Copilot CLI
-```bash
-gh auth login
-gh extension install github/gh-copilot
+export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
 ```
 
 ## Usage
