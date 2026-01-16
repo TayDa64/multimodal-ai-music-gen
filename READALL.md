@@ -74,8 +74,9 @@ The system prioritizes **editability** and **authorship** over static renders:
 
 The "brain" of the system is a multi-layered decision engine that translates human intent into musical structures.
 
-### 1. Intent Transformation
+### 1. Intent & Genre Intelligence
 - **Prompt Analysis**: The [prompt_parser.py](multimodal_gen/prompt_parser.py) extracts BPM, Key, and "Sonic Adjectives" (e.g., "dark", "hype").
+- **Genre Intelligence**: The [genre_intelligence.py](multimodal_gen/genre_intelligence.py) provides deep genre understanding with structured templates, mandatory/forbidden elements, spectral profiles, and FX chains.
 - **Style Policy**: The [style_policy.py](multimodal_gen/style_policy.py) acts as the **"Producer Brain"**, consolidating genre rules and groove templates into a unified [PolicyContext](multimodal_gen/style_policy.py#L298).
 
 ### 2. The Session Graph (Source of Truth)
@@ -84,12 +85,17 @@ The [session_graph.py](multimodal_gen/session_graph.py) serves as the central co
 - **Tracks & Roles**: Semantic assignments (DRUMS, BASS, LEAD) using the [Role](multimodal_gen/session_graph.py#L58) system.
 - **Take Lanes**: Strategic variations managed by the [TakeGenerator](multimodal_gen/take_generator.py) and tracked in [Clip](multimodal_gen/session_graph.py#L182).
 
-### 3. Musical Intelligence
+### 3. Musical & Composition Intelligence
+- **Motif Engine**: The [motif_engine.py](multimodal_gen/motif_engine.py) generates short, memorable musical ideas (intervals, rhythms, accents) that can be developed throughout a composition.
+- **Tension Arc**: The [tension_arc.py](multimodal_gen/tension_arc.py) creates emotional narrative curves that modulate dynamics, note density, and harmonic complexity across arrangements.
+
+### 4. Musical Intelligence
 - **Rhythmic Humanization**: [drum_humanizer.py](multimodal_gen/drum_humanizer.py) and [microtiming.py](multimodal_gen/microtiming.py) apply "pocket" feel and velocity dynamics.
 - **Genre Logic**: [genre_rules.py](multimodal_gen/genre_rules.py) enforces mandatory elements (e.g., 808s in Trap) and forbids stylistic clashes.
 - **Micro-Variation**: The [take_generator.py](multimodal_gen/take_generator.py) produces "Takes" for each clip, allowing users to select the perfect performance.
 
-### 4. Synthesis & Mixing
+### 5. Synthesis & Mixing
+- **Instrument Intelligence**: The [instrument_intelligence.py](multimodal_gen/instrument_intelligence.py) provides semantic understanding of instruments and intelligent selection based on genre, mood, and song requirements.
 - **Hybrid Synthesis**: Real-time tones via [assets_gen.py](multimodal_gen/assets_gen.py) and high-fidelity sampling via [sample_loader.py](multimodal_gen/sample_loader.py).
 - **Mix Engine**: A Python-based [mix_engine.py](multimodal_gen/mix_engine.py) handles initial levels, while the JUCE [MixerGraph.cpp](juce/Source/Audio/MixerGraph.cpp) manages real-time DSP.
 

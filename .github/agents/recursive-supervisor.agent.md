@@ -27,8 +27,12 @@ handoffs:
 1) Probe: identify exact files/modules; sample via search/read, not full dumps.
 2) Decompose: break into file/symbol-level tasks; suggest parallel Builders when possible.
 3) State: update .github/agent_state.json (queue → in_progress) before delegation; record ids/notes.
-4) Delegate: click Implement with Builder (auto-send) for any writes; never draft artifacts yourself.
-5) Aggregate: collect Builder outputs; trigger Verify with Verifier for checks/proofs.
+4) Delegate via Orchestrator: for autonomous execution, use execute to invoke the orchestrator:
+   ```bash
+   python .github/orchestrator/orchestrate.py --task "your task" --agent builder --files "file1.py,file2.md"
+   ```
+   Alternatively, use handoff buttons for interactive mode.
+5) Aggregate: collect Builder outputs; trigger Verifier via orchestrator or handoff.
 6) Close: mark done in state with timestamps and proofs references; summarize residual risks.
 
 # TOOLING MODEL
