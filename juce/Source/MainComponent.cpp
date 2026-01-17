@@ -394,6 +394,28 @@ void MainComponent::showToolWindow(int toolId)
             }
             break;
         }
+        
+        case 7: // Mastering Suite - floating window
+        {
+            if (!masteringSuitePanel)
+            {
+                masteringSuitePanel = std::make_unique<MasteringSuitePanel>();
+                masteringSuitePanel->addListener(this);
+            }
+            
+            if (!masteringWindow)
+            {
+                masteringWindow = std::make_unique<FloatingToolWindow>(
+                    "Mastering Suite",
+                    AppColours::background,
+                    masteringSuitePanel.get());
+                masteringWindow->setResizable(true, false);
+                masteringWindow->centreWithSize(900, 700);
+            }
+            masteringWindow->setVisible(true);
+            masteringWindow->toFront(true);
+            break;
+        }
     }
 }
 
@@ -1170,6 +1192,57 @@ void MainComponent::updateControlsNextOverridesUi()
         const bool regen = nextRegenerateOverrides.isObject();
         panel->setNextOverridesIndicator(gen, regen);
     }
+}
+
+//==============================================================================
+// MasteringSuitePanel::Listener implementation
+void MainComponent::masteringSettingsChanged(MasteringSuitePanel* /*panel*/)
+{
+    // Handle mastering settings changes
+    currentStatus = "Mastering settings updated";
+    repaint();
+}
+
+void MainComponent::applyMasteringRequested(const juce::String& processorType, const juce::var& settings)
+{
+    if (!ensureBackendConnected("Apply mastering"))
+        return;
+    
+    DBG("Mastering process requested: " << processorType << " with settings: " << juce::JSON::toString(settings));
+    
+    // TODO: Send OSC message to backend for mastering processing
+    // oscBridge->sendMasteringProcess(processorType, settings);
+    
+    currentStatus = "Processing: " + processorType;
+    repaint();
+}
+
+void MainComponent::analyzeReferenceRequested(const juce::File& file)
+{
+    if (!ensureBackendConnected("Analyze reference"))
+        return;
+    
+    DBG("Reference analysis requested for: " << file.getFullPathName());
+    
+    // TODO: Send OSC message to backend for reference analysis
+    // oscBridge->sendAnalyzeReference(file.getFullPathName());
+    
+    currentStatus = "Analyzing reference: " + file.getFileName();
+    repaint();
+}
+
+void MainComponent::separateStemsRequested(const juce::File& file)
+{
+    if (!ensureBackendConnected("Separate stems"))
+        return;
+    
+    DBG("Stem separation requested for: " << file.getFullPathName());
+    
+    // TODO: Send OSC message to backend for stem separation
+    // oscBridge->sendSeparateStems(file.getFullPathName());
+    
+    currentStatus = "Separating stems: " + file.getFileName();
+    repaint();
 }
 
 void MainComponent::trackInstrumentSelected(int trackIndex, const juce::String& instrumentId)

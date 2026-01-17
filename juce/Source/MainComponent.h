@@ -33,6 +33,7 @@
 #include "UI/ControlsWindow.h"
 #include "UI/FloatingToolWindow.h"
 #include "UI/Theme/LayoutConstants.h"
+#include "UI/Mastering/MasteringSuitePanel.h"
 
 //==============================================================================
 /**
@@ -66,6 +67,7 @@ class MainComponent : public juce::Component,
                       public TransportComponent::Listener,
                       public Project::ProjectState::Listener,
                       public ControlsPanel::Listener,
+                      public MasteringSuitePanel::Listener,
                       public juce::Timer
 {
 public:
@@ -213,6 +215,8 @@ private:
     std::unique_ptr<FloatingToolWindow> instrumentsWindow;
     std::unique_ptr<FloatingToolWindow> expansionsWindow;
     std::unique_ptr<ControlsWindow> controlsWindow;
+    std::unique_ptr<FloatingToolWindow> masteringWindow;  // Mastering Suite floating window
+    std::unique_ptr<MasteringSuitePanel> masteringSuitePanel;
     
     // Bottom panel visibility state (for FX Chain and Mixer)
     bool bottomPanelVisible = false;
@@ -258,7 +262,7 @@ private:
     void stopPythonServer();
     void setupOSCConnection();
     void setupBottomPanel();
-    void showToolWindow(int toolId);  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer, 5=Takes, 6=Controls
+    void showToolWindow(int toolId);  // 1=Instruments, 2=FX, 3=Expansions, 4=Mixer, 5=Takes, 6=Controls, 7=Mastering
     void hideBottomPanel();
 
     // Returns true when OSC is connected. If Python is running but OSC isn't ready yet,
@@ -283,6 +287,13 @@ private:
     void controlsClearGlobalRequested(const juce::StringArray& keys) override;
     void controlsApplyNextRequestRequested(const juce::var& overrides, ControlsPanel::NextScope scope) override;
     void controlsClearNextRequestRequested() override;
+    
+    //==============================================================================
+    // MasteringSuitePanel::Listener
+    void masteringSettingsChanged(MasteringSuitePanel* panel) override;
+    void applyMasteringRequested(const juce::String& processorType, const juce::var& settings) override;
+    void analyzeReferenceRequested(const juce::File& file) override;
+    void separateStemsRequested(const juce::File& file) override;
 
     void updateControlsNextOverridesUi();
     

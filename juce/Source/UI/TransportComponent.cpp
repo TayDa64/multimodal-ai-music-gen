@@ -73,10 +73,12 @@ void TransportComponent::setupButtons()
         menu.addItem(4, "Mixer", true, false);
         menu.addItem(5, "Takes", true, false);
         menu.addItem(6, "Controls", true, false);
+        menu.addSeparator();
+        menu.addItem(7, "Mastering Suite", true, false);  // New 8-feature mastering suite
         
         menu.showMenuAsync(juce::PopupMenu::Options()
             .withTargetComponent(&toolsButton)
-            .withMinimumWidth(120),
+            .withMinimumWidth(140),
             [this](int result) {
                 if (result > 0)
                     listeners.call(&Listener::toolsMenuItemSelected, result);

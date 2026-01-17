@@ -141,6 +141,8 @@ target_sources(MultimodalMusicGen PRIVATE
     Source/Audio/Processors/GainProcessor.h
     Source/Audio/Processors/PanProcessor.cpp
     Source/Audio/Processors/PanProcessor.h
+    Source/Audio/Processors/MSProcessor.cpp
+    Source/Audio/Processors/MSProcessor.h
     Source/Audio/MixerGraph.cpp
     Source/Audio/MixerGraph.h
 
@@ -203,6 +205,10 @@ target_sources(MultimodalMusicGen PRIVATE
 
     Source/UI/FloatingToolWindow.cpp
     Source/UI/FloatingToolWindow.h
+    
+    # Mastering Suite (8 Masterclass Processors)
+    Source/UI/Mastering/MasteringSuitePanel.cpp
+    Source/UI/Mastering/MasteringSuitePanel.h
     
     # Visualization Components
     Source/UI/Visualization/PianoRollComponent.cpp
