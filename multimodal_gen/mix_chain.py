@@ -7,7 +7,7 @@ Provides a structured way to apply series of effects to audio buffers.
 
 import numpy as np
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Union, Callable
+from typing import List, Dict, Optional, Union, Callable, Tuple
 from enum import Enum
 import math
 
@@ -24,6 +24,8 @@ class EffectType(Enum):
     DELAY = "delay"
     SATURATION = "saturation"
     LIMITER = "limiter"
+    TRUE_PEAK_LIMITER = "true_peak_limiter"  # ISP-aware limiter per ITU-R BS.1770-4
+    TRANSIENT_SHAPER = "transient_shaper"  # Differential envelope transient shaping
     GAIN = "gain"
     PAN = "pan"
     STEREO_WIDTH = "stereo_width"
@@ -312,6 +314,56 @@ class DSP:
         except ImportError:
             return audio
 
+    @staticmethod
+    def true_peak_limit(audio: np.ndarray, params: 'TruePeakLimiterParams', sample_rate: int) -> np.ndarray:
+        """
+        Apply True Peak Limiting with ISP detection.
+        
+        Uses the TruePeakLimiter class for professional-grade limiting
+        following ITU-R BS.1770-4 standards.
+        
+        Args:
+            audio: Input audio (mono or stereo)
+            params: TruePeakLimiterParams configuration
+            sample_rate: Audio sample rate
+        
+        Returns:
+            Limited audio with true peak at or below ceiling
+        """
+        from .true_peak_limiter import TruePeakLimiter, TruePeakLimiterParams
+        
+        # If params is not the right type, create default
+        if not isinstance(params, TruePeakLimiterParams):
+            params = TruePeakLimiterParams()
+        
+        limiter = TruePeakLimiter(params, sample_rate)
+        return limiter.process(audio)
+
+    @staticmethod
+    def transient_shape(audio: np.ndarray, params: 'TransientShaperParams', sample_rate: int) -> np.ndarray:
+        """
+        Apply transient shaping using differential envelope detection.
+        
+        Uses the TransientShaper class based on SPL Transient Designer
+        principles for attack/sustain control.
+        
+        Args:
+            audio: Input audio (mono or stereo)
+            params: TransientShaperParams configuration
+            sample_rate: Audio sample rate
+        
+        Returns:
+            Audio with shaped transients
+        """
+        from .transient_shaper import TransientShaper, TransientShaperParams
+        
+        # If params is not the right type, create default
+        if not isinstance(params, TransientShaperParams):
+            params = TransientShaperParams()
+        
+        shaper = TransientShaper(params, sample_rate)
+        return shaper.process(audio)
+
 # =============================================================================
 # MIX CHAIN
 # =============================================================================
@@ -346,6 +398,10 @@ class MixChain:
                 processed = DSP.simple_reverb(processed, params, sample_rate)
             elif effect_type == EffectType.STEREO_WIDTH:
                 processed = DSP.stereo_width(processed, params, sample_rate)
+            elif effect_type == EffectType.TRUE_PEAK_LIMITER:
+                processed = DSP.true_peak_limit(processed, params, sample_rate)
+            elif effect_type == EffectType.TRANSIENT_SHAPER:
+                processed = DSP.transient_shape(processed, params, sample_rate)
             # Add other effects...
             
         return processed

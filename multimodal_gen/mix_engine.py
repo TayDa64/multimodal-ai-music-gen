@@ -45,6 +45,8 @@ class MasterConfig:
     compression_ratio: float = 2.0
     limiter_ceiling_db: float = -0.3   # True peak limit
     target_lufs: float = -14.0          # Streaming target
+    use_true_peak_limiter: bool = False  # Use ISP-aware limiter
+    true_peak_ceiling_dbtp: float = -1.0  # -1 dBTP for streaming compliance
 
 
 class MixBus:
@@ -451,10 +453,51 @@ class MixEngine:
         else:
             processed = left
         
-        # Apply limiter
-        processed = self.limit(processed, config.limiter_ceiling_db)
+        # Apply limiter - use True Peak Limiter if configured for streaming compliance
+        if config.use_true_peak_limiter:
+            processed = self.true_peak_limit(processed, config.true_peak_ceiling_dbtp)
+        else:
+            processed = self.limit(processed, config.limiter_ceiling_db)
         
         return processed
+    
+    def true_peak_limit(
+        self,
+        audio: np.ndarray,
+        ceiling_dbtp: float = -1.0
+    ) -> np.ndarray:
+        """
+        Apply True Peak Limiting with ISP detection.
+        
+        Uses the TruePeakLimiter class for professional-grade limiting
+        following ITU-R BS.1770-4 standards. Recommended for streaming
+        platform compliance (Spotify, Apple Music, YouTube).
+        
+        Args:
+            audio: Input audio (stereo or mono)
+            ceiling_dbtp: True peak ceiling in dBTP (default: -1.0)
+        
+        Returns:
+            Limited audio with true peak at or below ceiling
+        """
+        from multimodal_gen.true_peak_limiter import TruePeakLimiter, TruePeakLimiterParams
+        
+        params = TruePeakLimiterParams(ceiling_dbtp=ceiling_dbtp)
+        limiter = TruePeakLimiter(params, self.sample_rate)
+        return limiter.process(audio)
+    
+    def check_true_peak_compliance(self, audio: np.ndarray) -> dict:
+        """
+        Check if audio meets streaming platform true peak requirements.
+        
+        Args:
+            audio: Audio to check
+        
+        Returns:
+            Dict with compliance status for various platforms
+        """
+        from multimodal_gen.true_peak_limiter import check_true_peak_compliance
+        return check_true_peak_compliance(audio, ceiling_dbtp=-1.0)
     
     def limit(
         self,

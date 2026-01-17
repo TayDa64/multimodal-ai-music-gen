@@ -61,9 +61,9 @@
         "multimodal_gen/genres.json - genre-specific instrument configurations",
         "multimodal_gen/prompt_parser.py - instrument name parsing and aliases",
         "docs/ETHIOPIAN_INSTRUMENTS.md - Ethiopian instrument documentation",
-        "multimodal_gen/reverb.py - HAS M/S encode/decode at lines 443-464",
+        "multimodal_gen/stereo_utils.py - M/S encode/decode, width control, presets",
         "multimodal_gen/audio_renderer.py - master chain, mix engine integration",
-        "multimodal_gen/mix_chain.py - effect chain processing"
+        "multimodal_gen/mix_chain.py - effect chain processing, EffectType enum"
       ],
       "patterns": [
         "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
@@ -71,32 +71,64 @@
         "Genre profiles define ideal SonicProfile for instrument matching",
         "M/S encoding: mid=(L+R)/2, side=(L-R)/2",
         "M/S decoding: L=mid+side, R=mid-side",
-        "Audio pipeline: Tracks → MixBus → Effects → Master Sum → Master Chain → Limiter → Output"
+        "Audio pipeline: Tracks → MixBus → Effects → Master Sum → Master Chain → Limiter → Output",
+        "New effects follow: EffectType enum → Params dataclass → DSP.method() → MixChain.process()"
       ],
       "gotchas": [
         "InstrumentCategory enum must match DIR_TO_CATEGORY and KEYWORD_TO_CATEGORY",
         "assets_gen.py synthesis functions are separate from instrument_manager.py categorization",
         "GENRE_PROFILES uses string keys matching InstrumentCategory.value",
-        "M/S in reverb.py is PRIVATE - only for width control, not exposed as utility",
-        "stereo_width > 1.0 can cause clipping - need limiter or soft-clip after decode"
+        "stereo_width > 1.0 can cause clipping - need limiter or soft-clip after decode",
+        "Use scipy.signal.butter with SOS output for numerical stability",
+        "Use scipy.signal.resample_poly for efficient oversampling"
       ]
     },
     "audio_dsp": {
       "mid_side_processing": {
-        "status": "PARTIAL - exists but not exposed",
-        "location": "multimodal_gen/reverb.py:443-464",
-        "needed_for_masterclass": [
-          "stereo_utils.py module with reusable M/S functions",
-          "M/S EQ (different curves for mid vs side)",
-          "M/S compression (compress mid harder, side lighter)",
-          "Polarity/phase inversion utility",
-          "Integration into MixChain as StereoWidthEffect",
-          "Master chain M/S processing before limiter"
-        ],
+        "status": "IMPLEMENTED",
+        "location": "multimodal_gen/stereo_utils.py",
         "math": {
           "encode": "mid = (L + R) * 0.5, side = (L - R) * 0.5",
           "decode": "L = mid + side, R = mid - side",
           "width_control": "side = side * width_factor"
+        }
+      },
+      "masterclass_features": {
+        "multiband_dynamics": {
+          "algorithm": "LR4 Linkwitz-Riley crossovers",
+          "crossovers_hz": [80, 250, 2000, 8000],
+          "key": "Process bands in parallel, DC block after saturation"
+        },
+        "transient_shaper": {
+          "algorithm": "Differential envelope (fast - slow = transient)",
+          "key": "5ms lookahead, gain smoothing to prevent clicks"
+        },
+        "true_peak_limiter": {
+          "algorithm": "4x oversampling with polyphase filtering",
+          "standard": "ITU-R BS.1770-4",
+          "ceiling": "-1 dBTP for streaming",
+          "key": "1.5ms lookahead, Kaiser window FIR"
+        },
+        "auto_gain_staging": {
+          "algorithm": "K-weighting filter for LUFS measurement",
+          "key": "Genre-specific templates, preserve crest factor (>6dB)"
+        },
+        "spectral_processing": {
+          "dynamic_eq": "Threshold-triggered per-band gain",
+          "resonance_suppression": "scipy.signal.find_peaks for detection",
+          "exciter": "Chebyshev polynomials for isolated harmonics"
+        },
+        "spatial_audio": {
+          "binaural": "HRTF convolution with MIT KEMAR dataset",
+          "vbap": "Vector Base Amplitude Panning for 3D"
+        },
+        "reference_matching": {
+          "algorithm": "LTAS (Long-Term Average Spectrum) difference → parametric EQ",
+          "key": "50-70% match to preserve source character"
+        },
+        "stem_separation": {
+          "backend": "Demucs v4 (htdemucs) for 9.0 dB SDR",
+          "key": "Subprocess isolation, cache with MD5 hash"
         }
       }
     },
