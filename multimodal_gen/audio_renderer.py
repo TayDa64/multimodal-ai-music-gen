@@ -1604,9 +1604,9 @@ class AudioRenderer:
         # Calculate RMS for each track
         rms_values = [np.sqrt(np.mean(audio**2)) for audio in tracks_audio]
         
-        # Target RMS levels: drums lower, melodic higher
-        # Drums typically at -10dB relative to melodic
-        target_rms = 0.15  # Target RMS for melodic
+        # Target RMS levels for hot, modern mix
+        # Increased from 0.15 to 0.25 for more punch
+        target_rms = 0.25  # Target RMS for melodic tracks
         
         stereo_tracks = []
         for i, (audio, (name, is_drums)) in enumerate(zip(tracks_audio, track_infos)):
@@ -1619,8 +1619,8 @@ class AudioRenderer:
             
             if rms > 0.001:  # Avoid division by zero
                 if is_drums:
-                    # Drums at lower level (-6dB relative to melodic)
-                    target = target_rms * 0.5
+                    # Drums at -3dB relative to melodic (was -6dB, too quiet)
+                    target = target_rms * 0.7
                     gain = target / rms
                 else:
                     # Melodic at full level
@@ -1645,8 +1645,9 @@ class AudioRenderer:
         # Soft clip to prevent harsh distortion
         mix = soft_clip(mix, threshold=0.7)
         
-        # Normalize and limit with more headroom
-        mix = normalize_audio(mix, 0.85)
+        # Normalize to louder level - 0.95 peak for modern loudness expectations
+        # Previous 0.85 was too quiet for pleasant listening
+        mix = normalize_audio(mix, 0.95)
         mix = limit_audio(mix, TARGET_TRUE_PEAK)
         
         # Save with BWF format if enabled

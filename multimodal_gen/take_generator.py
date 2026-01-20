@@ -1642,14 +1642,15 @@ class CompGenerator:
 def comp_to_midi_track(
     comp_result: CompResult,
     bpm: float = 120.0,
-    channel: int = 0,
+    channel: int = None,
 ) -> "MidiTrack":
     """Convert a CompResult to a mido MidiTrack.
     
     Args:
         comp_result: CompResult with comp notes
         bpm: Tempo for the track
-        channel: MIDI channel
+        channel: MIDI channel override. If None, uses note.channel from each note
+                 (preserves drum channel 9 correctly)
     
     Returns:
         mido.MidiTrack ready to append to MidiFile
@@ -1664,12 +1665,15 @@ def comp_to_midi_track(
     track.append(MetaMessage('track_name', name=track_name, time=0))
     
     # Convert notes to MIDI messages
+    # CRITICAL: Use note.channel to preserve drum channel (9) vs melodic channels
     events = []
     for note in comp_result.comp_notes:
         if note.was_removed:
             continue
-        events.append(("on", note.start_tick, note.pitch, note.velocity, channel))
-        events.append(("off", note.start_tick + note.duration_ticks, note.pitch, 0, channel))
+        # Use per-note channel if no override, preserves drum track on channel 9
+        note_channel = channel if channel is not None else note.channel
+        events.append(("on", note.start_tick, note.pitch, note.velocity, note_channel))
+        events.append(("off", note.start_tick + note.duration_ticks, note.pitch, 0, note_channel))
     
     # Sort by time
     events.sort(key=lambda e: (e[1], e[0] == "off"))
@@ -1699,14 +1703,15 @@ def comp_to_midi_track(
 def take_to_midi_track(
     take: TakeLane,
     bpm: float = 120.0,
-    channel: int = 0,
+    channel: int = None,
 ) -> "MidiTrack":
     """Convert a TakeLane to a mido MidiTrack.
     
     Args:
         take: TakeLane with notes
         bpm: Tempo for the track
-        channel: MIDI channel
+        channel: MIDI channel override. If None, uses note.channel from each note
+                 (preserves drum channel 9 correctly)
     
     Returns:
         mido.MidiTrack ready to append to MidiFile
@@ -1720,12 +1725,15 @@ def take_to_midi_track(
     track.append(MetaMessage('track_name', name=take.midi_track_name, time=0))
     
     # Convert notes to MIDI messages
+    # CRITICAL: Use note.channel to preserve drum channel (9) vs melodic channels
     events = []
     for note in take.notes:
         if note.was_removed:
             continue
-        events.append(("on", note.start_tick, note.pitch, note.velocity, channel))
-        events.append(("off", note.start_tick + note.duration_ticks, note.pitch, 0, channel))
+        # Use per-note channel if no override, preserves drum track on channel 9
+        note_channel = channel if channel is not None else note.channel
+        events.append(("on", note.start_tick, note.pitch, note.velocity, note_channel))
+        events.append(("off", note.start_tick + note.duration_ticks, note.pitch, 0, note_channel))
     
     # Sort by time
     events.sort(key=lambda e: (e[1], e[0] == "off"))
