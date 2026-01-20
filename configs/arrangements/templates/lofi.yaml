@@ -1,0 +1,29 @@
+# Lo-Fi Arrangement Template
+# Relaxed, repetitive structure with subtle variations
+
+template_id: lofi
+display_name: "Lo-Fi"
+genre_ref: lofi
+version: "1.0.0"
+description: "Chilled lo-fi arrangement with mellow verses and subtle variations"
+tags:
+  - lofi
+  - chill
+  - study
+  - relaxed
+
+sections:
+  - type: intro
+    bars: 4
+  - type: verse
+    bars: 8
+  - type: verse
+    bars: 8
+  - type: breakdown
+    bars: 4
+  - type: verse
+    bars: 8
+  - type: variation
+    bars: 8
+  - type: outro
+    bars: 4

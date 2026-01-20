@@ -1,0 +1,25 @@
+# Ambient Arrangement Template
+# Long, evolving sections with minimal structure
+
+template_id: ambient
+display_name: "Ambient"
+genre_ref: ambient
+version: "1.0.0"
+description: "Atmospheric ambient arrangement with extended evolving sections"
+tags:
+  - ambient
+  - atmospheric
+  - chill
+  - minimal
+
+sections:
+  - type: intro
+    bars: 8
+  - type: verse
+    bars: 16
+  - type: breakdown
+    bars: 8
+  - type: verse
+    bars: 16
+  - type: outro
+    bars: 8

@@ -83,6 +83,7 @@ from .mix_chain import (
 # Import InstrumentLibrary for custom sample support
 if TYPE_CHECKING:
     from .instrument_manager import InstrumentLibrary, InstrumentMatcher
+    from .synthesizers import ISynthesizer
 
 
 # =============================================================================
@@ -1083,6 +1084,11 @@ class AudioRenderer:
     Now supports intelligent instrument selection via InstrumentLibrary,
     ExpansionManager for specialized instruments (Ethiopian, etc.),
     and BWF (Broadcast Wave Format) with AI provenance metadata.
+    
+    Synthesizer Architecture:
+    - Accepts optional ISynthesizer for pluggable synth backends
+    - Falls back to auto-detection via SynthesizerFactory
+    - Maintains backward compatibility with existing code
     """
     
     def __init__(
@@ -1097,8 +1103,26 @@ class AudioRenderer:
         mood: str = None,
         use_bwf: bool = True,
         ai_metadata: Optional[Dict] = None,
-        tail_seconds: float = 2.0
+        tail_seconds: float = 2.0,
+        synthesizer: Optional['ISynthesizer'] = None
     ):
+        """
+        Initialize AudioRenderer.
+        
+        Args:
+            sample_rate: Output sample rate
+            use_fluidsynth: Whether to prefer FluidSynth when available
+            soundfont_path: Path to SoundFont file for FluidSynth
+            require_soundfont: Fail if no SoundFont available
+            instrument_library: Optional InstrumentLibrary for intelligent selection
+            expansion_manager: Optional ExpansionManager for specialized instruments
+            genre: Target genre for instrument selection
+            mood: Mood modifier for instrument selection
+            use_bwf: Write BWF format with AI provenance metadata
+            ai_metadata: Additional AI metadata for BWF
+            tail_seconds: Extra seconds to add for reverb tail
+            synthesizer: Optional ISynthesizer instance (overrides auto-detection)
+        """
         self.sample_rate = sample_rate
         self.fluidsynth_available = check_fluidsynth_available()
         self.fluidsynth_version = get_fluidsynth_version() if self.fluidsynth_available else None
@@ -1122,7 +1146,25 @@ class AudioRenderer:
             'lofi': create_lofi_chain()
         }
         
+        # Synthesizer abstraction layer
+        # Use provided synthesizer or auto-detect via factory
+        if synthesizer is not None:
+            self.synthesizer = synthesizer
+        else:
+            # Auto-detect best available synthesizer
+            from .synthesizers import SynthesizerFactory
+            self.synthesizer = SynthesizerFactory.get_best_available(
+                prefer_soundfont=use_fluidsynth,
+                sample_rate=sample_rate,
+                soundfont_path=soundfont_path,
+                instrument_library=instrument_library,
+                expansion_manager=expansion_manager,
+                genre=genre,
+                mood=mood
+            )
+        
         # Procedural fallback with optional instrument library and expansion manager
+        # Kept for backward compatibility and direct track rendering
         self.procedural = ProceduralRenderer(
             sample_rate,
             instrument_library=instrument_library,
@@ -1156,6 +1198,38 @@ class AudioRenderer:
             genre=self.genre,
             mood=self.mood
         )
+        
+        # Update synthesizer if it supports configuration
+        if self.synthesizer is not None:
+            self.synthesizer.configure(
+                instrument_library=library,
+                genre=self.genre,
+                mood=self.mood
+            )
+    
+    def get_synthesizer_info(self) -> Dict:
+        """
+        Get information about the current synthesizer.
+        
+        Returns:
+            Dict with synthesizer details and capabilities
+        """
+        if self.synthesizer is None:
+            return {
+                'name': 'None',
+                'available': False,
+                'capabilities': {},
+            }
+        return self.synthesizer.get_info()
+    
+    def set_synthesizer(self, synthesizer: 'ISynthesizer') -> None:
+        """
+        Set a custom synthesizer backend.
+        
+        Args:
+            synthesizer: ISynthesizer instance to use
+        """
+        self.synthesizer = synthesizer
     
     def render_midi_file(
         self,

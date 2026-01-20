@@ -1,0 +1,31 @@
+# R&B Arrangement Template
+# Continuous, flowing sections without big gaps
+
+template_id: rnb
+display_name: "R&B"
+genre_ref: rnb
+version: "1.0.0"
+description: "Classic R&B arrangement with verses, choruses, and a bridge"
+tags:
+  - rnb
+  - soul
+  - smooth
+  - melodic
+
+sections:
+  - type: intro
+    bars: 4
+  - type: verse
+    bars: 8
+  - type: chorus
+    bars: 8
+  - type: verse
+    bars: 8
+  - type: chorus
+    bars: 8
+  - type: bridge
+    bars: 4
+  - type: chorus
+    bars: 8
+  - type: outro
+    bars: 4

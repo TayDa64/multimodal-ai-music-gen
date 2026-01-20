@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://multimodal-ai-music-gen/schemas/arrangement_template.schema.json",
+  "title": "Arrangement Template Schema",
+  "description": "Schema for validating arrangement template YAML files",
+  "type": "object",
+  "required": ["template_id", "display_name", "genre_ref", "version", "sections"],
+  "properties": {
+    "template_id": {
+      "type": "string",
+      "description": "Unique identifier for the template (snake_case)",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name for the template"
+    },
+    "genre_ref": {
+      "type": "string",
+      "description": "Reference to genre identifier"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the template",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description of the arrangement style"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional tags for categorization"
+    },
+    "sections": {
+      "type": "array",
+      "description": "Ordered list of sections in the arrangement",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/section"
+      }
+    }
+  },
+  "definitions": {
+    "section": {
+      "type": "object",
+      "required": ["type", "bars"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "intro",
+            "verse",
+            "pre_chorus",
+            "chorus",
+            "drop",
+            "breakdown",
+            "buildup",
+            "bridge",
+            "outro",
+            "variation"
+          ],
+          "description": "Type of section"
+        },
+        "bars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "description": "Number of bars for this section"
+        },
+        "label": {
+          "type": "string",
+          "description": "Optional custom label for the section"
+        }
+      }
+    },
+    "section_config": {
+      "type": "object",
+      "description": "Configuration for a section type",
+      "properties": {
+        "typical_bars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 8
+        },
+        "energy_level": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5
+        },
+        "drum_density": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5
+        },
+        "instrument_density": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5
+        },
+        "texture_amount": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5
+        },
+        "filter_cutoff": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 1.0
+        },
+        "enable_kick": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_snare": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_hihat": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_bass": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_chords": {
+          "type": "boolean",
+          "default": true
+        },
+        "enable_melody": {
+          "type": "boolean",
+          "default": false
+        },
+        "enable_textures": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "motif_assignment": {
+      "type": "object",
+      "description": "Motif assignment for a section",
+      "required": ["motif_index", "transformation"],
+      "properties": {
+        "motif_index": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Index of the motif to use"
+        },
+        "transformation": {
+          "type": "string",
+          "enum": [
+            "original",
+            "invert",
+            "retrograde",
+            "augment",
+            "diminish",
+            "sequence"
+          ],
+          "description": "Transformation to apply to the motif"
+        },
+        "transform_params": {
+          "type": "object",
+          "description": "Parameters for the transformation",
+          "properties": {
+            "pivot": {
+              "type": "integer",
+              "description": "Pivot point for inversion"
+            },
+            "factor": {
+              "type": "number",
+              "description": "Factor for augment/diminish"
+            },
+            "steps": {
+              "type": "integer",
+              "description": "Steps for sequence transformation"
+            }
+          }
+        }
+      }
+    }
+  }
+}

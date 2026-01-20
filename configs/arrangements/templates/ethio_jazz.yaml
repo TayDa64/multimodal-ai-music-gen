@@ -1,0 +1,33 @@
+# Ethio-Jazz Arrangement Template
+# Fusion of Ethiopian music with jazz elements
+
+template_id: ethio_jazz
+display_name: "Ethio-Jazz"
+genre_ref: ethio_jazz
+version: "1.0.0"
+description: "Ethio-jazz arrangement with solo/improvisation sections"
+tags:
+  - ethio_jazz
+  - ethiopian
+  - jazz
+  - fusion
+
+sections:
+  - type: intro
+    bars: 8
+  - type: verse
+    bars: 8
+  - type: variation
+    bars: 8
+    label: "Solo/Improvisation"
+  - type: chorus
+    bars: 8
+  - type: breakdown
+    bars: 8
+  - type: variation
+    bars: 8
+    label: "Solo/Improvisation"
+  - type: chorus
+    bars: 8
+  - type: outro
+    bars: 8

@@ -1,0 +1,237 @@
+# Genre-Specific Motif Mappings
+# Defines how motifs should be transformed for each section type per genre
+# Each mapping specifies: motif_index, transformation, and optional transform_params
+
+pop:
+  intro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  verse:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  pre_chorus:
+    motif_index: 0
+    transformation: sequence
+    transform_params:
+      steps: 2
+  chorus:
+    motif_index: 1
+    transformation: original
+    transform_params: {}
+  bridge:
+    motif_index: 0
+    transformation: invert
+    transform_params: {}
+  outro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+
+hip_hop:
+  intro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  verse:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  hook:
+    motif_index: 1
+    transformation: original
+    transform_params: {}
+  bridge:
+    motif_index: 0
+    transformation: sequence
+    transform_params:
+      steps: -2
+  outro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+
+trap:
+  intro:
+    motif_index: 0
+    transformation: diminish
+    transform_params:
+      factor: 2.0
+  drop:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  breakdown:
+    motif_index: 0
+    transformation: retrograde
+    transform_params: {}
+  buildup:
+    motif_index: 0
+    transformation: sequence
+    transform_params:
+      steps: 2
+  outro:
+    motif_index: 0
+    transformation: augment
+    transform_params:
+      factor: 2.0
+
+trap_soul:
+  intro:
+    motif_index: 0
+    transformation: diminish
+    transform_params:
+      factor: 2.0
+  verse:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  chorus:
+    motif_index: 1
+    transformation: original
+    transform_params: {}
+  breakdown:
+    motif_index: 0
+    transformation: invert
+    transform_params: {}
+  outro:
+    motif_index: 0
+    transformation: retrograde
+    transform_params: {}
+
+jazz:
+  intro:
+    motif_index: 0
+    transformation: diminish
+    transform_params:
+      factor: 0.5
+  head:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  solo:
+    motif_index: 0
+    transformation: invert
+    transform_params: {}
+  bridge:
+    motif_index: 1
+    transformation: retrograde
+    transform_params: {}
+  outro:
+    motif_index: 0
+    transformation: augment
+    transform_params:
+      factor: 2.0
+
+classical:
+  exposition:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  development:
+    motif_index: 0
+    transformation: invert
+    transform_params: {}
+  recapitulation:
+    motif_index: 0
+    transformation: retrograde
+    transform_params: {}
+  coda:
+    motif_index: 0
+    transformation: augment
+    transform_params:
+      factor: 2.0
+
+lofi:
+  intro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  verse:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  breakdown:
+    motif_index: 0
+    transformation: diminish
+    transform_params:
+      factor: 2.0
+  variation:
+    motif_index: 0
+    transformation: sequence
+    transform_params:
+      steps: 2
+  outro:
+    motif_index: 0
+    transformation: retrograde
+    transform_params: {}
+
+boom_bap:
+  intro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  verse:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  chorus:
+    motif_index: 1
+    transformation: original
+    transform_params: {}
+  bridge:
+    motif_index: 0
+    transformation: invert
+    transform_params: {}
+  outro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+
+house:
+  intro:
+    motif_index: 0
+    transformation: diminish
+    transform_params:
+      factor: 2.0
+  buildup:
+    motif_index: 0
+    transformation: sequence
+    transform_params:
+      steps: 2
+  drop:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  breakdown:
+    motif_index: 1
+    transformation: original
+    transform_params: {}
+  outro:
+    motif_index: 0
+    transformation: augment
+    transform_params:
+      factor: 2.0
+
+rnb:
+  intro:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  verse:
+    motif_index: 0
+    transformation: original
+    transform_params: {}
+  chorus:
+    motif_index: 1
+    transformation: original
+    transform_params: {}
+  bridge:
+    motif_index: 0
+    transformation: invert
+    transform_params: {}
+  outro:
+    motif_index: 0
+    transformation: retrograde
+    transform_params: {}

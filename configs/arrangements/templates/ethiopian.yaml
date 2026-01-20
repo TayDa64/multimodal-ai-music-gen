@@ -1,0 +1,31 @@
+# Ethiopian Arrangement Template
+# Features call-and-response patterns with choruses
+
+template_id: ethiopian
+display_name: "Ethiopian"
+genre_ref: ethiopian
+version: "1.0.0"
+description: "Ethiopian arrangement with call-and-response patterns and variations"
+tags:
+  - ethiopian
+  - african
+  - world
+  - traditional
+
+sections:
+  - type: intro
+    bars: 4
+  - type: verse
+    bars: 8
+  - type: chorus
+    bars: 8
+  - type: verse
+    bars: 8
+  - type: breakdown
+    bars: 4
+  - type: chorus
+    bars: 8
+  - type: variation
+    bars: 8
+  - type: outro
+    bars: 4

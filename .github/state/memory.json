@@ -63,7 +63,9 @@
         "docs/ETHIOPIAN_INSTRUMENTS.md - Ethiopian instrument documentation",
         "multimodal_gen/stereo_utils.py - M/S encode/decode, width control, presets",
         "multimodal_gen/audio_renderer.py - master chain, mix engine integration",
-        "multimodal_gen/mix_chain.py - effect chain processing, EffectType enum"
+        "multimodal_gen/mix_chain.py - effect chain processing, EffectType enum",
+        "multimodal_gen/parametric_eq.py - RBJ biquads, dynamic EQ, exciter, resonance suppression",
+        "docs/DYNAMIC_EQ_RESEARCH.md - spectral processing research and implementation guide"
       ],
       "patterns": [
         "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
@@ -72,7 +74,10 @@
         "M/S encoding: mid=(L+R)/2, side=(L-R)/2",
         "M/S decoding: L=mid+side, R=mid-side",
         "Audio pipeline: Tracks → MixBus → Effects → Master Sum → Master Chain → Limiter → Output",
-        "New effects follow: EffectType enum → Params dataclass → DSP.method() → MixChain.process()"
+        "New effects follow: EffectType enum → Params dataclass → DSP.method() → MixChain.process()",
+        "RBJ biquad coefficients depend on filter type, frequency, Q, gain",
+        "Transposed Direct Form II: y[n] = b0*x[n] + w1; w1 = b1*x[n] - a1*y[n] + w2; w2 = b2*x[n] - a2*y[n]",
+        "Chebyshev polynomials: T_2=2x²-1, T_3=4x³-3x, T_4=8x⁴-8x²+1, T_5=16x⁵-20x³+5x"
       ],
       "gotchas": [
         "InstrumentCategory enum must match DIR_TO_CATEGORY and KEYWORD_TO_CATEGORY",
@@ -114,9 +119,35 @@
           "key": "Genre-specific templates, preserve crest factor (>6dB)"
         },
         "spectral_processing": {
-          "dynamic_eq": "Threshold-triggered per-band gain",
-          "resonance_suppression": "scipy.signal.find_peaks for detection",
-          "exciter": "Chebyshev polynomials for isolated harmonics"
+          "status": "IMPLEMENTED",
+          "location": "multimodal_gen/parametric_eq.py",
+          "dynamic_eq": {
+            "algorithm": "Per-band compression with threshold-triggered gain",
+            "envelope": "Attack/release follower: coeff = 1 - exp(-2.2 / (time_ms * sr / 1000))",
+            "classes": ["DynamicEQBand", "EnvelopeFollower"]
+          },
+          "parametric_eq": {
+            "algorithm": "RBJ Audio EQ Cookbook biquads (W3C standard)",
+            "implementation": "Transposed Direct Form II for numerical stability",
+            "filter_types": ["lowpass", "highpass", "bandpass", "notch", "peak", "low_shelf", "high_shelf", "allpass"],
+            "classes": ["BiquadFilter", "ParametricEQ"],
+            "key": "Use scipy.signal.lfilter for vectorized processing"
+          },
+          "resonance_suppression": {
+            "algorithm": "FFT peak detection + adaptive notch filters",
+            "detection": "scipy.signal.find_peaks(prominence=10dB, width<200Hz)",
+            "classes": ["ResonanceSuppressor"]
+          },
+          "harmonic_exciter": {
+            "algorithm": "Chebyshev polynomials + multiband saturation",
+            "harmonics": "T_n(x) generates nth harmonic in isolation",
+            "saturation": "tube_saturate (asymmetric), soft_saturate (tanh)",
+            "classes": ["HarmonicExciter", "chebyshev_harmonic", "tube_saturate", "soft_saturate"]
+          },
+          "mix_chain_integration": {
+            "effect_types": ["PARAMETRIC_EQ", "DYNAMIC_EQ", "HARMONIC_EXCITER", "RESONANCE_SUPPRESSION"],
+            "chain_presets": ["create_vocal_chain", "create_mastering_chain", "create_bass_chain", "create_clean_eq_chain"]
+          }
         },
         "spatial_audio": {
           "binaural": "HRTF convolution with MIT KEMAR dataset",
@@ -137,5 +168,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-01-16T01:20:00Z"
+  "last_updated": "2026-01-20T13:10:00Z"
 }

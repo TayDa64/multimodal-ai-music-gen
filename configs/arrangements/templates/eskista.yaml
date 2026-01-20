@@ -1,0 +1,33 @@
+# Eskista Arrangement Template
+# Energetic shoulder dance rhythm with build-ups
+
+template_id: eskista
+display_name: "Eskista"
+genre_ref: eskista
+version: "1.0.0"
+description: "Energetic eskista (shoulder dance) arrangement with dynamic drops"
+tags:
+  - eskista
+  - ethiopian
+  - dance
+  - energetic
+
+sections:
+  - type: intro
+    bars: 4
+  - type: buildup
+    bars: 4
+  - type: drop
+    bars: 8
+    label: "Main Dance"
+  - type: variation
+    bars: 8
+  - type: breakdown
+    bars: 4
+  - type: buildup
+    bars: 4
+  - type: drop
+    bars: 8
+    label: "Main Dance"
+  - type: outro
+    bars: 4

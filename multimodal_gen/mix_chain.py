@@ -19,13 +19,17 @@ from .utils import SAMPLE_RATE
 
 class EffectType(Enum):
     EQ_3BAND = "eq_3band"
+    PARAMETRIC_EQ = "parametric_eq"  # Multi-band parametric EQ (RBJ cookbook)
+    DYNAMIC_EQ = "dynamic_eq"  # Per-band compression/expansion
     COMPRESSOR = "compressor"
     REVERB = "reverb"
     DELAY = "delay"
     SATURATION = "saturation"
+    HARMONIC_EXCITER = "harmonic_exciter"  # Multiband harmonic generation
     LIMITER = "limiter"
     TRUE_PEAK_LIMITER = "true_peak_limiter"  # ISP-aware limiter per ITU-R BS.1770-4
     TRANSIENT_SHAPER = "transient_shaper"  # Differential envelope transient shaping
+    RESONANCE_SUPPRESSION = "resonance_suppression"  # Auto resonance detection/removal
     GAIN = "gain"
     PAN = "pan"
     STEREO_WIDTH = "stereo_width"
@@ -44,6 +48,70 @@ class EQ3BandParams(EffectParams):
     low_freq: float = 200.0
     mid_freq: float = 1000.0
     high_freq: float = 5000.0
+
+
+@dataclass
+class ParametricEQBand:
+    """Single band for parametric EQ."""
+    filter_type: str = "peak"  # peak, low_shelf, high_shelf, lowpass, highpass, notch
+    frequency: float = 1000.0
+    gain_db: float = 0.0
+    q: float = 1.0
+    enabled: bool = True
+
+
+@dataclass
+class ParametricEQParams(EffectParams):
+    """Multi-band parametric EQ using RBJ cookbook biquads."""
+    bands: list = None  # List of ParametricEQBand or dicts
+    output_gain_db: float = 0.0
+    
+    def __post_init__(self):
+        if self.bands is None:
+            # Default 4-band semi-parametric
+            self.bands = [
+                {'type': 'low_shelf', 'frequency': 100, 'gain_db': 0, 'q': 0.7},
+                {'type': 'peak', 'frequency': 500, 'gain_db': 0, 'q': 1.0},
+                {'type': 'peak', 'frequency': 2000, 'gain_db': 0, 'q': 1.0},
+                {'type': 'high_shelf', 'frequency': 8000, 'gain_db': 0, 'q': 0.7},
+            ]
+
+
+@dataclass
+class DynamicEQParams(EffectParams):
+    """Dynamic EQ band - frequency-selective compression/expansion."""
+    frequency: float = 3000.0      # Center frequency (Hz)
+    q: float = 2.0                  # Bandwidth
+    threshold_db: float = -20.0     # Activation threshold
+    ratio: float = 4.0              # Compression ratio
+    attack_ms: float = 10.0
+    release_ms: float = 100.0
+    max_gain_db: float = -12.0      # Max cut (negative) or boost (positive)
+    mode: str = "compress"          # "compress" or "expand"
+
+
+@dataclass
+class HarmonicExciterParams(EffectParams):
+    """Multiband harmonic exciter for warmth and presence."""
+    even_harmonics: float = 0.3    # 0-1, amount of 2nd/4th harmonics
+    odd_harmonics: float = 0.2     # 0-1, amount of 3rd/5th harmonics
+    low_drive: float = 0.0         # Drive for <200 Hz
+    mid_drive: float = 0.2         # Drive for 200-2000 Hz
+    high_drive: float = 0.3        # Drive for 2-8 kHz
+    air_drive: float = 0.4         # Drive for >8 kHz
+    air_freq: float = 8000.0       # Air band cutoff
+
+
+@dataclass
+class ResonanceSuppressionParams(EffectParams):
+    """Automatic resonance detection and suppression."""
+    sensitivity: float = 0.5       # 0-1, detection sensitivity
+    frequency_range_low: float = 100.0
+    frequency_range_high: float = 10000.0
+    max_reduction_db: float = -12.0
+    attack_ms: float = 5.0
+    release_ms: float = 50.0
+    max_bands: int = 8
 
 @dataclass
 class CompressorParams(EffectParams):
@@ -195,12 +263,126 @@ class DSP:
 
     @staticmethod
     def eq_3band(audio: np.ndarray, params: EQ3BandParams, sample_rate: int) -> np.ndarray:
-        """Apply 3-band EQ."""
-        # This would ideally use biquad filters for low shelf, peaking, high shelf
-        # For this prototype, we'll use a simplified FFT approach or skip if complex
-        # Let's implement a simple gain scaling for now as placeholder
-        # Real implementation requires filter design
-        return audio # Placeholder
+        """Apply 3-band EQ using biquad filters (RBJ cookbook)."""
+        from .parametric_eq import apply_3band_eq
+        
+        return apply_3band_eq(
+            audio,
+            low_gain_db=params.low_gain_db,
+            mid_gain_db=params.mid_gain_db,
+            high_gain_db=params.high_gain_db,
+            low_freq=params.low_freq,
+            high_freq=params.high_freq,
+            sample_rate=sample_rate
+        )
+
+    @staticmethod
+    def parametric_eq(audio: np.ndarray, params: 'ParametricEQParams', sample_rate: int) -> np.ndarray:
+        """
+        Apply multi-band parametric EQ.
+        
+        Uses RBJ Audio EQ Cookbook biquad coefficients for professional-grade
+        parametric equalization.
+        """
+        from .parametric_eq import apply_parametric_eq
+        
+        output = apply_parametric_eq(audio, params.bands, sample_rate)
+        
+        # Apply output gain
+        if params.output_gain_db != 0.0:
+            gain = 10 ** (params.output_gain_db / 20)
+            output = output * gain
+        
+        # Mix control
+        if params.mix < 1.0:
+            output = audio * (1 - params.mix) + output * params.mix
+        
+        return output
+
+    @staticmethod
+    def dynamic_eq(audio: np.ndarray, params: 'DynamicEQParams', sample_rate: int) -> np.ndarray:
+        """
+        Apply dynamic EQ - frequency-selective compression.
+        
+        Combines parametric EQ with dynamics processing for surgical
+        control of problem frequencies.
+        """
+        from .parametric_eq import DynamicEQBand, DynamicEQBandParams, DynamicMode
+        
+        dynamic_params = DynamicEQBandParams(
+            enabled=params.enabled,
+            frequency=params.frequency,
+            q=params.q,
+            threshold_db=params.threshold_db,
+            ratio=params.ratio,
+            attack_ms=params.attack_ms,
+            release_ms=params.release_ms,
+            max_gain_db=params.max_gain_db,
+            mode=DynamicMode[params.mode.upper()]
+        )
+        
+        band = DynamicEQBand(dynamic_params, sample_rate)
+        output = band.process(audio)
+        
+        # Mix control
+        if params.mix < 1.0:
+            output = audio * (1 - params.mix) + output * params.mix
+        
+        return output
+
+    @staticmethod
+    def harmonic_exciter(audio: np.ndarray, params: 'HarmonicExciterParams', sample_rate: int) -> np.ndarray:
+        """
+        Apply harmonic exciter for warmth and presence.
+        
+        Generates harmonics using Chebyshev polynomials and multiband
+        saturation for tube-like warmth and air enhancement.
+        """
+        from .parametric_eq import HarmonicExciter, ExciterParams as PEQExciterParams
+        
+        exciter_params = PEQExciterParams(
+            enabled=params.enabled,
+            mix=params.mix,
+            even_harmonics=params.even_harmonics,
+            odd_harmonics=params.odd_harmonics,
+            low_drive=params.low_drive,
+            mid_drive=params.mid_drive,
+            high_drive=params.high_drive,
+            air_drive=params.air_drive,
+            air_freq=params.air_freq
+        )
+        
+        exciter = HarmonicExciter(exciter_params, sample_rate)
+        return exciter.process(audio)
+
+    @staticmethod
+    def resonance_suppression(audio: np.ndarray, params: 'ResonanceSuppressionParams', sample_rate: int) -> np.ndarray:
+        """
+        Apply automatic resonance detection and suppression.
+        
+        Analyzes spectrum for narrow peaks (resonances) and applies
+        adaptive notch filters. Similar to Soothe2 style processing.
+        """
+        from .parametric_eq import ResonanceSuppressor, ResonanceSuppressionParams as PEQResParams
+        
+        res_params = PEQResParams(
+            enabled=params.enabled,
+            sensitivity=params.sensitivity,
+            frequency_range=(params.frequency_range_low, params.frequency_range_high),
+            max_reduction_db=params.max_reduction_db,
+            attack_ms=params.attack_ms,
+            release_ms=params.release_ms,
+            max_bands=params.max_bands
+        )
+        
+        suppressor = ResonanceSuppressor(res_params, sample_rate)
+        output = suppressor.process(audio)
+        
+        # Mix control
+        if params.mix < 1.0:
+            output = audio * (1 - params.mix) + output * params.mix
+        
+        return output
 
     @staticmethod
     def compressor(audio: np.ndarray, params: CompressorParams, sample_rate: int) -> np.ndarray:
@@ -402,6 +584,16 @@ class MixChain:
                 processed = DSP.true_peak_limit(processed, params, sample_rate)
             elif effect_type == EffectType.TRANSIENT_SHAPER:
                 processed = DSP.transient_shape(processed, params, sample_rate)
+            elif effect_type == EffectType.EQ_3BAND:
+                processed = DSP.eq_3band(processed, params, sample_rate)
+            elif effect_type == EffectType.PARAMETRIC_EQ:
+                processed = DSP.parametric_eq(processed, params, sample_rate)
+            elif effect_type == EffectType.DYNAMIC_EQ:
+                processed = DSP.dynamic_eq(processed, params, sample_rate)
+            elif effect_type == EffectType.HARMONIC_EXCITER:
+                processed = DSP.harmonic_exciter(processed, params, sample_rate)
+            elif effect_type == EffectType.RESONANCE_SUPPRESSION:
+                processed = DSP.resonance_suppression(processed, params, sample_rate)
             # Add other effects...
             
         return processed
@@ -432,4 +624,149 @@ def create_wide_stereo_chain() -> MixChain:
     """Chain with subtle stereo widening for masters."""
     chain = MixChain("Wide Stereo")
     chain.add_effect(EffectType.STEREO_WIDTH, StereoWidthParams(width=1.2, mono_below_hz=120))
+    return chain
+
+
+def create_vocal_chain() -> MixChain:
+    """Chain optimized for vocals with de-essing and presence."""
+    chain = MixChain("Vocal Chain")
+    
+    # High-pass to remove rumble
+    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
+        bands=[
+            {'type': 'highpass', 'frequency': 80, 'gain_db': 0, 'q': 0.7},
+            {'type': 'peak', 'frequency': 200, 'gain_db': -2, 'q': 1.5},  # Reduce mud
+            {'type': 'peak', 'frequency': 3000, 'gain_db': 2, 'q': 1.0},  # Presence
+        ]
+    ))
+    
+    # De-ess harsh frequencies dynamically
+    chain.add_effect(EffectType.DYNAMIC_EQ, DynamicEQParams(
+        frequency=5000,
+        q=3.0,
+        threshold_db=-18,
+        ratio=6.0,
+        attack_ms=2,
+        release_ms=50,
+        max_gain_db=-8,
+        mode="compress"
+    ))
+    
+    # Gentle compression
+    chain.add_effect(EffectType.COMPRESSOR, CompressorParams(
+        threshold_db=-15,
+        ratio=3.0,
+        attack_ms=15,
+        release_ms=100
+    ))
+    
+    # Add air/presence
+    chain.add_effect(EffectType.HARMONIC_EXCITER, HarmonicExciterParams(
+        even_harmonics=0.2,
+        odd_harmonics=0.1,
+        high_drive=0.2,
+        air_drive=0.3,
+        mix=0.3
+    ))
+    
+    return chain
+
+
+def create_mastering_chain() -> MixChain:
+    """Full mastering chain with EQ, dynamics, and enhancement."""
+    chain = MixChain("Mastering Chain")
+    
+    # Surgical EQ
+    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
+        bands=[
+            {'type': 'highpass', 'frequency': 30, 'gain_db': 0, 'q': 0.7},
+            {'type': 'low_shelf', 'frequency': 80, 'gain_db': 1.5, 'q': 0.7},
+            {'type': 'peak', 'frequency': 200, 'gain_db': -1.5, 'q': 1.5},  # Reduce mud
+            {'type': 'peak', 'frequency': 3000, 'gain_db': 0.5, 'q': 2.0},  # Presence
+            {'type': 'high_shelf', 'frequency': 10000, 'gain_db': 1.0, 'q': 0.7},  # Air
+        ]
+    ))
+    
+    # Tame harsh midrange dynamically
+    chain.add_effect(EffectType.DYNAMIC_EQ, DynamicEQParams(
+        frequency=2500,
+        q=2.5,
+        threshold_db=-15,
+        ratio=3.0,
+        attack_ms=5,
+        release_ms=75,
+        max_gain_db=-6,
+        mode="compress"
+    ))
+    
+    # Gentle bus compression
+    chain.add_effect(EffectType.COMPRESSOR, CompressorParams(
+        threshold_db=-6,
+        ratio=2.0,
+        attack_ms=30,
+        release_ms=150,
+        knee_width_db=6.0
+    ))
+    
+    # Add warmth and air
+    chain.add_effect(EffectType.HARMONIC_EXCITER, HarmonicExciterParams(
+        even_harmonics=0.15,
+        odd_harmonics=0.05,
+        mid_drive=0.1,
+        air_drive=0.2,
+        mix=0.25
+    ))
+    
+    # Stereo width enhancement
+    chain.add_effect(EffectType.STEREO_WIDTH, StereoWidthParams(
+        width=1.1,
+        mono_below_hz=100
+    ))
+    
+    # Subtle saturation for glue
+    chain.add_effect(EffectType.SATURATION, SaturationParams(drive=0.1, type="tube", mix=0.3))
+    
+    return chain
+
+
+def create_bass_chain() -> MixChain:
+    """Chain optimized for bass instruments."""
+    chain = MixChain("Bass Chain")
+    
+    # Shape the low end
+    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
+        bands=[
+            {'type': 'highpass', 'frequency': 30, 'gain_db': 0, 'q': 0.7},
+            {'type': 'peak', 'frequency': 60, 'gain_db': 2, 'q': 1.5},  # Sub weight
+            {'type': 'peak', 'frequency': 150, 'gain_db': -2, 'q': 2.0},  # Reduce boom
+            {'type': 'peak', 'frequency': 800, 'gain_db': 1, 'q': 1.5},  # Growl
+        ]
+    ))
+    
+    # Heavy compression for punch
+    chain.add_effect(EffectType.COMPRESSOR, CompressorParams(
+        threshold_db=-12,
+        ratio=6.0,
+        attack_ms=15,
+        release_ms=80
+    ))
+    
+    # Subtle saturation for warmth
+    chain.add_effect(EffectType.SATURATION, SaturationParams(drive=0.25, type="tube", mix=0.4))
+    
+    return chain
+
+
+def create_clean_eq_chain() -> MixChain:
+    """Simple parametric EQ chain for transparent correction."""
+    chain = MixChain("Clean EQ")
+    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
+        bands=[
+            {'type': 'low_shelf', 'frequency': 100, 'gain_db': 0, 'q': 0.7},
+            {'type': 'peak', 'frequency': 400, 'gain_db': 0, 'q': 1.0},
+            {'type': 'peak', 'frequency': 1500, 'gain_db': 0, 'q': 1.0},
+            {'type': 'peak', 'frequency': 4000, 'gain_db': 0, 'q': 1.0},
+            {'type': 'high_shelf', 'frequency': 8000, 'gain_db': 0, 'q': 0.7},
+        ]
+    ))
     return chain

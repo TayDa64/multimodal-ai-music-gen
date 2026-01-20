@@ -1,0 +1,29 @@
+# Trap Soul Arrangement Template
+# Soulful trap with emotional, melodic elements
+
+template_id: trap_soul
+display_name: "Trap Soul"
+genre_ref: trap_soul
+version: "1.0.0"
+description: "Soulful trap arrangement with drops, breakdowns, and emotional builds"
+tags:
+  - trap
+  - soul
+  - rnb
+  - melodic
+
+sections:
+  - type: intro
+    bars: 4
+  - type: drop
+    bars: 8
+  - type: variation
+    bars: 8
+  - type: breakdown
+    bars: 8
+  - type: buildup
+    bars: 4
+  - type: drop
+    bars: 8
+  - type: outro
+    bars: 4

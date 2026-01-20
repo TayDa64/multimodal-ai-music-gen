@@ -35,6 +35,15 @@ from .utils import (
     midi_note_to_name,
 )
 
+# Optional validation (graceful degradation if pydantic not installed)
+try:
+    from .schemas import validate_project, validate_drum_program
+    HAS_VALIDATION = True
+except ImportError:
+    HAS_VALIDATION = False
+    validate_project = None
+    validate_drum_program = None
+
 
 # MPC-specific constants
 MPC_PPQ = 480  # MPC uses 480 ticks per quarter note
@@ -578,6 +587,7 @@ class MpcExporter:
         programs: List[DrumProgram],
         sample_paths: Optional[List[str]] = None,
         bpm: float = 120.0,
+        validate: bool = True,
     ) -> str:
         """Export a complete MPC project.
         
@@ -587,9 +597,13 @@ class MpcExporter:
             programs: List of drum programs
             sample_paths: Optional list of sample file paths
             bpm: Tempo in BPM
+            validate: If True, validate data before export (requires pydantic)
             
         Returns:
             Path to the exported .xpj file
+            
+        Raises:
+            pydantic.ValidationError: If validate=True and validation fails
         """
         self._ensure_directories()
         
@@ -605,6 +619,15 @@ class MpcExporter:
             programs=programs,
             audio_files=sample_paths or [],
         )
+        
+        # Validate if enabled and pydantic is available
+        if validate and HAS_VALIDATION and validate_project is not None:
+            try:
+                validate_project(project)
+            except Exception as e:
+                print(f"Warning: MPC project validation failed: {e}")
+                # Re-raise to let caller handle validation errors
+                raise
         
         # Generate and write .xpj file
         xpj_content = generate_xpj(project)

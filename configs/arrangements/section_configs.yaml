@@ -1,0 +1,153 @@
+# Section Type Configurations
+# Defines default characteristics for each section type
+# Used by the arranger to determine section behavior
+
+intro:
+  typical_bars: 8
+  energy_level: 0.4
+  drum_density: 0.4
+  instrument_density: 0.4
+  texture_amount: 0.8
+  filter_cutoff: 0.5
+  enable_kick: true
+  enable_snare: false
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: false
+  enable_textures: true
+
+verse:
+  typical_bars: 8
+  energy_level: 0.5
+  drum_density: 0.6
+  instrument_density: 0.5
+  texture_amount: 0.3
+  filter_cutoff: 0.8
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: false
+  enable_textures: false
+
+pre_chorus:
+  typical_bars: 4
+  energy_level: 0.7
+  drum_density: 0.7
+  instrument_density: 0.6
+  texture_amount: 0.4
+  filter_cutoff: 0.9
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: true
+  enable_textures: false
+
+chorus:
+  typical_bars: 8
+  energy_level: 0.9
+  drum_density: 0.9
+  instrument_density: 0.9
+  texture_amount: 0.2
+  filter_cutoff: 1.0
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: true
+  enable_textures: false
+
+drop:
+  typical_bars: 8
+  energy_level: 1.0
+  drum_density: 1.0
+  instrument_density: 1.0
+  texture_amount: 0.1
+  filter_cutoff: 1.0
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: true
+  enable_textures: false
+
+breakdown:
+  typical_bars: 8
+  energy_level: 0.3
+  drum_density: 0.3
+  instrument_density: 0.5
+  texture_amount: 0.9
+  filter_cutoff: 0.6
+  enable_kick: true
+  enable_snare: false
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: false
+  enable_textures: true
+
+buildup:
+  typical_bars: 4
+  energy_level: 0.6
+  drum_density: 0.6
+  instrument_density: 0.5
+  texture_amount: 0.5
+  filter_cutoff: 0.7
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: false
+  enable_textures: false
+
+bridge:
+  typical_bars: 8
+  energy_level: 0.5
+  drum_density: 0.5
+  instrument_density: 0.6
+  texture_amount: 0.4
+  filter_cutoff: 0.85
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: false
+  enable_textures: false
+
+outro:
+  typical_bars: 8
+  energy_level: 0.4
+  drum_density: 0.4
+  instrument_density: 0.4
+  texture_amount: 0.7
+  filter_cutoff: 0.5
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: false
+  enable_textures: true
+
+variation:
+  typical_bars: 8
+  energy_level: 0.85
+  drum_density: 0.85
+  instrument_density: 0.9
+  texture_amount: 0.2
+  filter_cutoff: 1.0
+  enable_kick: true
+  enable_snare: true
+  enable_hihat: true
+  enable_bass: true
+  enable_chords: true
+  enable_melody: true
+  enable_textures: false

@@ -14,11 +14,23 @@ Professional arrangement techniques:
 """
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from enum import Enum
 import random
+import os
+import logging
 
 from .prompt_parser import ParsedPrompt
+
+# Conditional import for type checking
+if TYPE_CHECKING:
+    from .config_loader import ConfigLoader
+
+# Feature flag for config-driven templates
+# Set USE_CONFIG_DRIVEN=false to disable YAML loading and use hardcoded fallbacks
+USE_CONFIG_DRIVEN = os.environ.get("USE_CONFIG_DRIVEN", "true").lower() == "true"
+
+logger = logging.getLogger(__name__)
 from .motif_engine import Motif, MotifGenerator, MotifLibrary
 from .tension_arc import TensionArc, TensionArcGenerator, ArcShape, TensionConfig
 from .utils import (
@@ -482,6 +494,10 @@ class Arranger:
     
     Creates a timeline of sections with appropriate configurations
     for each section type, respecting genre conventions.
+    
+    Supports config-driven templates via ConfigLoader for flexible,
+    externally-defined arrangement patterns. Falls back to hardcoded
+    templates when config files are unavailable.
     """
     
     # Default duration: 3 minutes (~180 seconds) for a complete song feel
@@ -492,6 +508,7 @@ class Arranger:
         target_duration_seconds: Optional[float] = None,
         min_bars: int = 48,   # ~2 minutes at 90 BPM
         max_bars: int = 128,  # ~4.5 minutes at 90 BPM
+        config_loader: Optional["ConfigLoader"] = None,
     ):
         """
         Initialize the arranger.
@@ -500,11 +517,29 @@ class Arranger:
             target_duration_seconds: Target song length (None = use DEFAULT_DURATION_SECONDS)
             min_bars: Minimum arrangement length in bars
             max_bars: Maximum arrangement length in bars
+            config_loader: Optional ConfigLoader for loading YAML templates.
+                          If None and USE_CONFIG_DRIVEN is True, a default
+                          loader will be created.
         """
         # Use default duration if not specified
         self.target_duration = target_duration_seconds if target_duration_seconds is not None else self.DEFAULT_DURATION_SECONDS
         self.min_bars = min_bars
         self.max_bars = max_bars
+        
+        # Initialize config loader for template-driven arrangements
+        self.config_loader: Optional["ConfigLoader"] = None
+        if USE_CONFIG_DRIVEN:
+            if config_loader is not None:
+                self.config_loader = config_loader
+            else:
+                # Lazy import to avoid circular dependencies
+                try:
+                    from .config_loader import get_config_loader
+                    loader = get_config_loader()
+                    if loader.is_available():
+                        self.config_loader = loader
+                except ImportError:
+                    logger.debug("ConfigLoader not available, using hardcoded templates")
     
     def create_arrangement(self, parsed: ParsedPrompt) -> Arrangement:
         """
@@ -627,12 +662,44 @@ class Arranger:
         genre: str,
         section_hints: List[str]
     ) -> List[Tuple[SectionType, int]]:
-        """Get arrangement template for genre, with hint modifications."""
-        # Start with genre template
-        template = ARRANGEMENT_TEMPLATES.get(
-            genre,
-            ARRANGEMENT_TEMPLATES['trap_soul']
-        ).copy()
+        """
+        Get arrangement template for genre, with hint modifications.
+        
+        Uses ConfigLoader to load templates from YAML files when available.
+        Falls back to hardcoded ARRANGEMENT_TEMPLATES if config loading fails
+        or if USE_CONFIG_DRIVEN is False.
+        
+        Args:
+            genre: Genre name for template lookup
+            section_hints: List of hints to modify the template
+            
+        Returns:
+            List of (SectionType, bars) tuples defining the arrangement
+        """
+        template: List[Tuple[SectionType, int]] = []
+        
+        # Try config-driven loading first
+        if USE_CONFIG_DRIVEN and self.config_loader is not None:
+            try:
+                template_data = self.config_loader.load_arrangement_template(genre)
+                template = [
+                    (SectionType[s["type"].upper()], s["bars"])
+                    for s in template_data
+                ]
+                logger.debug(f"Loaded template for '{genre}' from config")
+            except Exception as e:
+                # Fallback to hardcoded on any error
+                logger.debug(f"Config loading failed for '{genre}': {e}, using hardcoded")
+                template = ARRANGEMENT_TEMPLATES.get(
+                    genre,
+                    ARRANGEMENT_TEMPLATES['trap_soul']
+                ).copy()
+        else:
+            # Use hardcoded templates
+            template = ARRANGEMENT_TEMPLATES.get(
+                genre,
+                ARRANGEMENT_TEMPLATES['trap_soul']
+            ).copy()
         
         # Apply section hints
         if 'switch' in section_hints or 'switch-up' in ''.join(section_hints):

@@ -53,13 +53,26 @@
     {
       "id": "mc-005",
       "description": "Implement Spectral Processing Suite",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "MEDIUM",
-      "files_to_create": ["multimodal_gen/spectral_processor.py"],
-      "files_to_modify": ["multimodal_gen/mix_chain.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "files_created": ["multimodal_gen/parametric_eq.py", "docs/DYNAMIC_EQ_RESEARCH.md"],
+      "files_modified": ["multimodal_gen/mix_chain.py"],
+      "result": {
+        "output": {
+          "parametric_eq": "RBJ biquad cookbook implementation with Transposed Direct Form II",
+          "dynamic_eq": "Per-band compression with attack/release envelope follower",
+          "harmonic_exciter": "Chebyshev polynomials + multiband tube/soft saturation",
+          "resonance_suppression": "FFT peak detection + adaptive notch filters",
+          "sidechain_eq": "External audio triggers per-band ducking"
+        },
+        "effect_types_added": ["PARAMETRIC_EQ", "DYNAMIC_EQ", "HARMONIC_EXCITER", "RESONANCE_SUPPRESSION"],
+        "chain_presets_added": ["create_vocal_chain", "create_mastering_chain", "create_bass_chain", "create_clean_eq_chain"],
+        "verification": "PASS - no errors in Pylance/pyright"
+      },
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-01-20T13:00:00Z"
     },
     {
       "id": "mc-006",
@@ -155,12 +168,46 @@
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "aggregate",
+  "current_phase": "implement",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-01-16T00:30:00Z",
-    "total_tasks_completed": 1,
+    "last_updated": "2026-01-21T00:00:00Z",
+    "total_tasks_completed": 6,
     "total_tasks_failed": 0
+  },
+  "architecture_refactoring": {
+    "builder_1_template_driven_arranger": {
+      "status": "completed",
+      "files_created": [
+        "configs/schemas/arrangement_template.schema.json",
+        "configs/arrangements/section_configs.yaml",
+        "configs/arrangements/motif_mappings.yaml",
+        "configs/arrangements/templates/trap_soul.yaml",
+        "configs/arrangements/templates/rnb.yaml",
+        "configs/arrangements/templates/trap.yaml",
+        "configs/arrangements/templates/lofi.yaml",
+        "configs/arrangements/templates/boom_bap.yaml",
+        "configs/arrangements/templates/house.yaml",
+        "configs/arrangements/templates/ambient.yaml",
+        "configs/arrangements/templates/ethiopian.yaml",
+        "configs/arrangements/templates/ethio_jazz.yaml",
+        "configs/arrangements/templates/ethiopian_traditional.yaml",
+        "configs/arrangements/templates/eskista.yaml",
+        "multimodal_gen/config_loader.py"
+      ],
+      "files_modified": ["multimodal_gen/arranger.py"],
+      "features": [
+        "YAML-driven arrangement templates",
+        "ConfigLoader with caching and hot-reload",
+        "USE_CONFIG_DRIVEN feature flag",
+        "100% backward compatible fallback"
+      ]
+    },
+    "builder_2_genre_strategy_pattern": {"status": "pending"},
+    "builder_3_synthesizer_interface": {"status": "pending"},
+    "builder_4_instrument_plugin_system": {"status": "pending"},
+    "builder_5_mpc_schema_validation": {"status": "pending"},
+    "builder_6_test_suite_expansion": {"status": "pending"}
   }
 }

@@ -1,0 +1,33 @@
+# Ethiopian Traditional Arrangement Template
+# Call-and-response structure with short response sections
+
+template_id: ethiopian_traditional
+display_name: "Ethiopian Traditional"
+genre_ref: ethiopian_traditional
+version: "1.0.0"
+description: "Traditional Ethiopian arrangement with call-and-response patterns"
+tags:
+  - ethiopian
+  - traditional
+  - african
+  - world
+
+sections:
+  - type: intro
+    bars: 4
+  - type: verse
+    bars: 8
+    label: "Call"
+  - type: chorus
+    bars: 4
+    label: "Response"
+  - type: verse
+    bars: 8
+    label: "Call"
+  - type: chorus
+    bars: 4
+    label: "Response"
+  - type: variation
+    bars: 8
+  - type: outro
+    bars: 4

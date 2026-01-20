@@ -1,0 +1,27 @@
+# Boom Bap Arrangement Template
+# Classic hip-hop structure with extended verses
+
+template_id: boom_bap
+display_name: "Boom Bap"
+genre_ref: boom_bap
+version: "1.0.0"
+description: "Classic boom bap arrangement with 16-bar verses and 8-bar hooks"
+tags:
+  - boom_bap
+  - hip_hop
+  - classic
+  - 90s
+
+sections:
+  - type: intro
+    bars: 4
+  - type: verse
+    bars: 16
+  - type: chorus
+    bars: 8
+  - type: verse
+    bars: 16
+  - type: chorus
+    bars: 8
+  - type: outro
+    bars: 4

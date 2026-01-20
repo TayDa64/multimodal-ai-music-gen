@@ -1,0 +1,29 @@
+# House Arrangement Template
+# Extended sections with buildups and drops
+
+template_id: house
+display_name: "House"
+genre_ref: house
+version: "1.0.0"
+description: "Classic house arrangement with extended drops and atmospheric breakdowns"
+tags:
+  - house
+  - electronic
+  - dance
+  - club
+
+sections:
+  - type: intro
+    bars: 8
+  - type: buildup
+    bars: 8
+  - type: drop
+    bars: 16
+  - type: breakdown
+    bars: 8
+  - type: buildup
+    bars: 8
+  - type: drop
+    bars: 16
+  - type: outro
+    bars: 8
