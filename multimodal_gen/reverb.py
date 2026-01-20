@@ -326,17 +326,18 @@ class ConvolutionReverb:
         # Perform convolution
         wet = self.fft_convolve(audio_stereo, ir)
         
+        # CRITICAL: Trim wet signal to original length FIRST before any other processing
+        # fft_convolve returns (audio_len + ir_len - 1, 2) which can be massive
+        if len(wet) > original_length:
+            wet = wet[:original_length]
+        elif len(wet) < original_length:
+            wet = np.pad(wet, ((0, original_length - len(wet)), (0, 0)), mode='constant')
+        
         # Apply EQ to wet signal
         wet = self.apply_pre_eq(wet, config.low_cut_hz, config.high_cut_hz)
         
         # Apply stereo width
         wet = self.apply_stereo_width(wet, config.stereo_width)
-        
-        # Trim or pad wet signal to match original audio length
-        if len(wet) > original_length:
-            wet = wet[:original_length]
-        elif len(wet) < original_length:
-            wet = np.pad(wet, ((0, original_length - len(wet)), (0, 0)), mode='constant')
         
         # Apply pre-delay to wet signal by shifting it
         if config.pre_delay_ms > 0:
@@ -450,12 +451,15 @@ class ConvolutionReverb:
         """Adjust stereo width of reverb (0=mono, 1=full, 2=widened).
         
         Delegates to shared stereo_utils module for M/S processing.
+        Audio is expected in (samples, 2) format.
         """
         if len(audio) == 0 or width == 1.0:
             return audio
         
-        # Use shared stereo_utils for M/S processing
-        return stereo_width_util(audio, width)
+        # stereo_utils expects (2, samples) format, so transpose
+        audio_transposed = audio.T  # (2, samples)
+        result = stereo_width_util(audio_transposed, width)
+        return result.T  # Back to (samples, 2)
     
     def get_preset_ir(self, name: str) -> np.ndarray:
         """Get a cached preset IR by name."""

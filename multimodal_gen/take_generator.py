@@ -300,30 +300,34 @@ def _vary_rhythm(notes: List[NoteVariation], rng: random.Random,
     - Bass: Change rhythmic patterns, anticipate/delay
     - Lead: Syncopation, phrase boundary shifts
     - Chords: Strum timing, rhythmic hits
+    
+    UPDATED: Higher variation values for AUDIBLY PERCEPTIBLE differences.
+    Human timing perception: ~20-50ms minimum for noticeable change.
+    At 120 BPM, 480 ticks/beat = 1 tick ≈ 1ms, so we need shifts of 20-60 ticks.
     """
     result = []
     
-    # Role-specific parameters
+    # Role-specific parameters - INCREASED for audible variation
     if role in ["drums", "percussion"]:
-        # Drums: subtle shifts, ghost note probability
-        shift_range = int(TICKS_PER_16TH * 0.5 * intensity)
-        add_ghost_prob = 0.15 * intensity
-        remove_prob = 0.05 * intensity
+        # Drums: shifts and ghost notes for groove variation
+        shift_range = int(TICKS_PER_16TH * 0.4 * intensity)  # Up to 48 ticks at full intensity
+        add_ghost_prob = 0.25 * intensity  # Up to 25% ghost note probability
+        remove_prob = 0.12 * intensity     # Up to 12% note removal
     elif role == "bass":
-        # Bass: anticipation/push
-        shift_range = int(TICKS_PER_16TH * intensity)
-        add_ghost_prob = 0.0
-        remove_prob = 0.08 * intensity
+        # Bass: anticipation/push feel
+        shift_range = int(TICKS_PER_16TH * 0.5 * intensity)  # Up to 60 ticks
+        add_ghost_prob = 0.08 * intensity  # Occasional approach notes
+        remove_prob = 0.15 * intensity     # More note variation
     elif role == "lead":
-        # Lead: more freedom
-        shift_range = int(TICKS_PER_8TH * 0.5 * intensity)
-        add_ghost_prob = 0.1 * intensity
-        remove_prob = 0.1 * intensity
+        # Lead: more freedom for phrasing
+        shift_range = int(TICKS_PER_8TH * 0.4 * intensity)   # Up to 96 ticks
+        add_ghost_prob = 0.20 * intensity  # Grace notes, pickup notes
+        remove_prob = 0.18 * intensity     # Phrase simplification
     else:
-        # Chords/pads: minimal rhythm change
-        shift_range = int(TICKS_PER_16TH * 0.3 * intensity)
-        add_ghost_prob = 0.0
-        remove_prob = 0.05 * intensity
+        # Chords/pads: moderate rhythm change
+        shift_range = int(TICKS_PER_16TH * 0.35 * intensity)  # Up to 42 ticks
+        add_ghost_prob = 0.05 * intensity
+        remove_prob = 0.10 * intensity
     
     for note in notes:
         # Remove note with probability
@@ -372,6 +376,8 @@ def _vary_pitch(notes: List[NoteVariation], rng: random.Random,
     - Chords: Voice leading, inversion changes
     - Bass: Octave variations, approach notes
     - Drums: Don't vary pitch (except cymbal choices)
+    
+    UPDATED: Increased probabilities for AUDIBLY DIFFERENT variations.
     """
     result = []
     
@@ -383,19 +389,19 @@ def _vary_pitch(notes: List[NoteVariation], rng: random.Random,
     if scale_notes is None:
         scale_notes = list(range(0, 128))
     
-    # Role-specific parameters
+    # Role-specific parameters - INCREASED for noticeable pitch variation
     if role == "bass":
-        octave_shift_prob = 0.15 * intensity
-        neighbor_prob = 0.1 * intensity
+        octave_shift_prob = 0.25 * intensity   # Up to 25% octave shift
+        neighbor_prob = 0.18 * intensity       # Up to 18% neighbor tone
         max_shift = 12  # One octave
     elif role == "lead":
-        octave_shift_prob = 0.1 * intensity
-        neighbor_prob = 0.2 * intensity
-        max_shift = 2  # Steps
+        octave_shift_prob = 0.15 * intensity   # Up to 15% octave jump
+        neighbor_prob = 0.30 * intensity       # Up to 30% neighbor tone
+        max_shift = 3  # Up to 3 semitones
     else:  # chords, pad
-        octave_shift_prob = 0.05 * intensity
-        neighbor_prob = 0.1 * intensity
-        max_shift = 2
+        octave_shift_prob = 0.12 * intensity   # Up to 12% octave shift
+        neighbor_prob = 0.20 * intensity       # Up to 20% voicing change
+        max_shift = 4  # Up to 4 semitones for voicing
     
     for note in notes:
         varied = deepcopy(note)
@@ -432,6 +438,10 @@ def _vary_timing(notes: List[NoteVariation], rng: random.Random,
     - Pushing feel (slightly ahead)
     - Loose feel (random variance)
     - Tight feel (minimal variance, close to grid)
+    
+    UPDATED: Increased variance for AUDIBLY PERCEPTIBLE timing differences.
+    Human timing perception threshold: ~20-50ms minimum.
+    At 120 BPM: 1 tick ≈ 1ms, so we need variance of 20-60 ticks.
     """
     result = []
     
@@ -439,13 +449,13 @@ def _vary_timing(notes: List[NoteVariation], rng: random.Random,
     feel_types = ["laid_back", "pushing", "loose", "tight"]
     feel = rng.choice(feel_types)
     
-    # Role-specific timing variance
+    # Role-specific timing variance - INCREASED for audible differences
     if role in ["drums", "percussion"]:
-        max_variance = int(TICKS_PER_16TH * 0.15 * intensity)
+        max_variance = int(TICKS_PER_16TH * 0.35 * intensity)  # Up to 42 ticks (42ms)
     elif role == "bass":
-        max_variance = int(TICKS_PER_16TH * 0.2 * intensity)
+        max_variance = int(TICKS_PER_16TH * 0.45 * intensity)  # Up to 54 ticks (54ms)
     else:
-        max_variance = int(TICKS_PER_16TH * 0.25 * intensity)
+        max_variance = int(TICKS_PER_16TH * 0.50 * intensity)  # Up to 60 ticks (60ms)
     
     for note in notes:
         varied = deepcopy(note)
@@ -484,21 +494,23 @@ def _vary_ornament(notes: List[NoteVariation], rng: random.Random,
     - Drums: Flams, rolls, drags
     - Bass: Slides, hammer-ons (represented as quick grace notes)
     - Chords: Arpeggiated vs block
+    
+    UPDATED: Higher ornament probabilities for AUDIBLY DIFFERENT takes.
     """
     result = []
     
-    # Role-specific ornament probability
+    # Role-specific ornament probability - INCREASED for noticeable variation
     if role == "lead":
-        grace_prob = 0.15 * intensity
-        trill_prob = 0.05 * intensity
+        grace_prob = 0.28 * intensity   # Up to 28% grace notes
+        trill_prob = 0.10 * intensity   # Up to 10% trills
     elif role in ["drums", "percussion"]:
-        grace_prob = 0.1 * intensity  # Flams
-        trill_prob = 0.03 * intensity  # Rolls
+        grace_prob = 0.22 * intensity   # Up to 22% flams
+        trill_prob = 0.08 * intensity   # Up to 8% rolls
     elif role == "bass":
-        grace_prob = 0.08 * intensity
+        grace_prob = 0.15 * intensity   # Up to 15% slides/hammer-ons
         trill_prob = 0.0
     else:
-        grace_prob = 0.0
+        grace_prob = 0.08 * intensity   # Low for chords/pads
         trill_prob = 0.0
     
     # Increase ornamentation at section boundaries
@@ -554,6 +566,9 @@ def _vary_intensity(notes: List[NoteVariation], rng: random.Random,
     - Accented downbeats
     - Building intensity
     - Fading intensity
+    
+    UPDATED: Higher velocity ranges for AUDIBLY DIFFERENT dynamics.
+    Typical velocity changes need to be 15-40 for noticeable difference.
     """
     result = []
     
@@ -561,13 +576,13 @@ def _vary_intensity(notes: List[NoteVariation], rng: random.Random,
     profiles = ["even", "accented", "building", "fading"]
     profile = rng.choice(profiles)
     
-    # Role-specific velocity range
+    # Role-specific velocity range - INCREASED for audible dynamics
     if role in ["drums", "percussion"]:
-        vel_range = int(25 * intensity)
+        vel_range = int(45 * intensity)  # Up to 45 velocity units
     elif role == "bass":
-        vel_range = int(20 * intensity)
+        vel_range = int(35 * intensity)  # Up to 35 velocity units
     else:
-        vel_range = int(30 * intensity)
+        vel_range = int(50 * intensity)  # Up to 50 velocity units
     
     note_count = len(notes)
     
@@ -575,13 +590,13 @@ def _vary_intensity(notes: List[NoteVariation], rng: random.Random,
         varied = deepcopy(note)
         
         if profile == "even":
-            # Minimal change
-            change = rng.randint(-vel_range // 3, vel_range // 3)
+            # Some variation even in "even" mode
+            change = rng.randint(-vel_range // 2, vel_range // 2)
         elif profile == "accented":
             # Accent notes on downbeats (assuming 4/4)
             is_downbeat = (note.start_tick % TICKS_PER_BEAT) < TICKS_PER_16TH
             if is_downbeat:
-                change = rng.randint(0, vel_range)
+                change = rng.randint(vel_range // 4, vel_range)
             else:
                 change = rng.randint(-vel_range // 2, 0)
         elif profile == "building":
@@ -912,18 +927,24 @@ class TakeGenerator:
         strategy = self.ROLE_STRATEGIES.get(role, RoleVariationStrategy.LEAD_PHRASE)
         
         # Configure based on strategy
-        # Industry-standard overdub intensity: subtle variations, not complete rewrites
-        # Aim for 60-80% of original notes preserved with minor timing/feel variations
+        # CRITICAL: Variation must be AUDIBLY PERCEPTIBLE
+        # Human timing perception threshold: ~20-50ms = ~20-50 ticks at 120 BPM
+        # Previous values were WAY too low (3-4 ticks = 3-4ms = imperceptible)
+        # 
+        # New approach: Higher base intensity, higher weights, to produce:
+        # - Timing shifts of 30-60 ticks (30-60ms) = clearly audible
+        # - 5-15% note addition/removal probability = noticeable structural changes
+        # - Velocity changes of 15-30 = audible dynamics
         if strategy == RoleVariationStrategy.DRUMS_FEEL:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.45,  # Increased for noticeable variation
-                rhythm_weight=0.15,
-                pitch_weight=0.0,  # Drums don't vary pitch
-                timing_weight=0.4,  # Main variation is timing feel
-                ornament_weight=0.2,
-                intensity_weight=0.25,
+                variation_intensity=0.85,  # HIGH: drums need groove feel variation
+                rhythm_weight=0.6,         # HIGH: add/remove ghost notes, shuffle hits
+                pitch_weight=0.0,          # Drums don't vary pitch
+                timing_weight=0.8,         # HIGH: timing feel is key differentiator
+                ornament_weight=0.5,       # MEDIUM: flams, drags, rolls
+                intensity_weight=0.7,      # HIGH: velocity grooves matter
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -933,12 +954,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.40,  # Increased for noticeable variation
-                rhythm_weight=0.15,
-                pitch_weight=0.1,  # Occasional octave shifts
-                timing_weight=0.35,
-                ornament_weight=0.05,
-                intensity_weight=0.15,
+                variation_intensity=0.75,  # HIGH: bass groove drives the feel
+                rhythm_weight=0.5,         # MEDIUM: syncopation changes
+                pitch_weight=0.4,          # MEDIUM: octave jumps, approach notes
+                timing_weight=0.7,         # HIGH: push/pull feel
+                ornament_weight=0.3,       # LOW: slides, hammer-ons
+                intensity_weight=0.5,      # MEDIUM: dynamics
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -948,12 +969,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.55,  # Increased for noticeable variation
-                rhythm_weight=0.2,
-                pitch_weight=0.2,
-                timing_weight=0.25,
-                ornament_weight=0.3,
-                intensity_weight=0.2,
+                variation_intensity=0.80,  # HIGH: lead should have clear variations
+                rhythm_weight=0.6,         # HIGH: phrasing changes
+                pitch_weight=0.5,          # MEDIUM: melodic variations
+                timing_weight=0.6,         # HIGH: expressive timing
+                ornament_weight=0.7,       # HIGH: grace notes, turns, fills
+                intensity_weight=0.5,      # MEDIUM: dynamics
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -963,12 +984,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.40,  # Increased for noticeable variation
-                rhythm_weight=0.1,
-                pitch_weight=0.2,  # Voicing changes
-                timing_weight=0.2,
-                ornament_weight=0.0,
-                intensity_weight=0.15,
+                variation_intensity=0.65,  # MEDIUM: chords less extreme
+                rhythm_weight=0.4,         # MEDIUM: strum patterns
+                pitch_weight=0.6,          # HIGH: voicing changes are key
+                timing_weight=0.5,         # MEDIUM: strum timing
+                ornament_weight=0.2,       # LOW: arpeggiation
+                intensity_weight=0.4,      # MEDIUM: dynamics
                 role=role,
                 genre=genre,
                 section_type=section_type,
@@ -978,12 +999,12 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.30,  # Increased for noticeable variation
-                rhythm_weight=0.05,
-                pitch_weight=0.05,
-                timing_weight=0.2,
-                ornament_weight=0.0,
-                intensity_weight=0.3,
+                variation_intensity=0.50,  # MEDIUM: pads are subtle
+                rhythm_weight=0.2,         # LOW: minimal rhythm change
+                pitch_weight=0.3,          # MEDIUM: voicing changes
+                timing_weight=0.4,         # MEDIUM: swells, timing
+                ornament_weight=0.1,       # LOW: arpeggiation rare
+                intensity_weight=0.6,      # HIGH: dynamics are key for pads
                 role=role,
                 genre=genre,
                 section_type=section_type,

@@ -666,14 +666,48 @@ def run_generation(
     except Exception as e:
         print_warning(f"Session graph build failed: {e}")
 
+    # Step 2.6: Load expansion packs EARLY so MidiGenerator can use them
+    # This MUST happen before MIDI generation for expansion instruments to be assigned
+    # proper MIDI programs (e.g., Ethiopian instruments like Krar, Masenqo)
+    expansion_manager = None
+    instrument_service = None
+    expansions_dir = Path(__file__).parent.parent / "expansions"
+    if expansions_dir.exists():
+        try:
+            from multimodal_gen import ExpansionManager
+            expansion_manager = ExpansionManager()
+            exp_count = expansion_manager.scan_expansions(str(expansions_dir))
+            if exp_count > 0 and verbose:
+                print_info(f"Loaded {exp_count} expansion pack(s) for specialized instruments")
+        except Exception as e:
+            if verbose:
+                print_warning(f"Expansion loading: {e}")
+    
+    # Step 2.6.1: Create InstrumentResolutionService to bridge expansions to MIDI generation
+    # CRITICAL: This must happen BEFORE MidiGenerator is created so expansion instruments
+    # (Ethiopian, Funk o Rama, etc.) get proper MIDI program assignments
+    try:
+        from multimodal_gen.instrument_resolution import InstrumentResolutionService
+        instrument_service = InstrumentResolutionService(
+            expansion_manager=expansion_manager,
+            auto_register_expansions=True
+        )
+        # Set the module-level service for prompt_parser to use
+        set_instrument_service(instrument_service)
+        if verbose and expansion_manager:
+            stats = instrument_service.get_registry_stats()
+            print_info(f"InstrumentResolutionService: {stats['total_instruments']} instruments, "
+                      f"{stats['expansion_programs_allocated']} expansion programs allocated")
+    except Exception as e:
+        if verbose:
+            print_warning(f"InstrumentResolutionService setup: {e}")
+        instrument_service = None
+
     # Step 3: Generate MIDI
     print_step("3/6", "Generating MIDI with humanization...")
     report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
-    # Note: instrument_service may be None here on first pass, MidiGenerator handles gracefully
-    # The service is created later (Step 4.7.1) after expansions are loaded
-    # For proper sequencing, MidiGenerator is created without service; expansion instruments
-    # are resolved at audio render time via AudioRenderer's instrument_service parameter
-    midi_gen = MidiGenerator()
+    # Now instrument_service is available for MidiGenerator to use expansion instruments
+    midi_gen = MidiGenerator(instrument_service=instrument_service)
     
     # Compile style policy for coherent producer decisions
     policy_context = None
@@ -1222,39 +1256,9 @@ def run_generation(
             print_warning(f"Instrument discovery failed: {e}")
             instrument_library = None
     
-    # Step 4.7: Load expansion packs for specialized instruments (Ethiopian, etc.)
-    expansion_manager = None
-    instrument_service = None
-    expansions_dir = Path(__file__).parent.parent / "expansions"
-    if expansions_dir.exists():
-        try:
-            from multimodal_gen import ExpansionManager
-            expansion_manager = ExpansionManager()
-            exp_count = expansion_manager.scan_expansions(str(expansions_dir))
-            if exp_count > 0 and verbose:
-                print_info(f"Loaded {exp_count} expansion pack(s) for specialized instruments")
-        except Exception as e:
-            if verbose:
-                print_warning(f"Expansion loading: {e}")
-    
-    # Step 4.7.1: Create InstrumentResolutionService to bridge expansions to generation pipeline
-    # This wires up expansion instruments so MidiGenerator and AudioRenderer can use them
-    try:
-        from multimodal_gen.instrument_resolution import InstrumentResolutionService
-        instrument_service = InstrumentResolutionService(
-            expansion_manager=expansion_manager,
-            auto_register_expansions=True
-        )
-        # Set the module-level service for prompt_parser to use
-        set_instrument_service(instrument_service)
-        if verbose and expansion_manager:
-            stats = instrument_service.get_registry_stats()
-            print_info(f"InstrumentResolutionService: {stats['total_instruments']} instruments, "
-                      f"{stats['expansion_programs_allocated']} expansion programs allocated")
-    except Exception as e:
-        if verbose:
-            print_warning(f"InstrumentResolutionService setup: {e}")
-        instrument_service = None
+    # Step 4.7: Expansion packs already loaded in Step 2.6 (before MIDI generation)
+    # This step is now a no-op but kept for documentation and backward compatibility
+    # expansion_manager and instrument_service are already set from earlier initialization
     
     # Step 4.8: Intelligent Instrument Selection (using sonic adjectives)
     # If the prompt contains sonic descriptors (warm, vintage, analog, etc.),

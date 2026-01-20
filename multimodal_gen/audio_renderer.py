@@ -886,8 +886,10 @@ class ProceduralRenderer:
             **{p: 'keys' for p in range(24, 32)},
             # Bass (32-39)
             **{p: 'bass' for p in range(32, 40)},
-            # Strings (40-47)
-            **{p: 'strings' for p in range(40, 48)},
+            # Strings (40-51): GM Strings (40-47) + String Ensembles & Synth Strings (48-51)
+            **{p: 'strings' for p in range(40, 52)},
+            # Choir/Voice (52-55)
+            **{p: 'pad' for p in range(52, 56)},
             # Brass (56-63)
             **{p: 'brass' for p in range(56, 64)},
             # Flute/Wind (72-79)
@@ -934,7 +936,7 @@ class ProceduralRenderer:
             return generate_organ_tone(freq, duration, velocity)
         elif note.program >= 56 and note.program <= 63:  # Brass
             return generate_brass_tone(freq, duration, velocity)
-        elif note.program >= 40 and note.program <= 47:  # Strings
+        elif note.program >= 40 and note.program <= 51:  # Strings (40-47) + String Ensembles (48-51)
             # Use masenqo for strings (bowed sound)
             return generate_masenqo_tone(freq, duration, velocity)
         elif note.program >= 72 and note.program <= 79:  # Flute/Wind
