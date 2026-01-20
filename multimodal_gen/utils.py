@@ -195,6 +195,56 @@ def normalize_genre(genre: str) -> str:
 # TIMING / CONVERSION FUNCTIONS
 # =============================================================================
 
+def get_ticks_per_bar(time_signature: Tuple[int, int], ticks_per_beat: int = TICKS_PER_BEAT) -> int:
+    """
+    Calculate ticks per bar for any time signature including compound meters.
+    
+    This is essential for non-4/4 time signatures like Ethiopian 6/8 and 12/8.
+    
+    Compound meters (6/8, 9/8, 12/8):
+    - The beat unit is a dotted quarter (3 eighth notes grouped together)
+    - In 6/8: 2 groups of 3 = 2 dotted quarter beats per bar
+    - In 12/8: 4 groups of 3 = 4 dotted quarter beats per bar
+    
+    Simple meters (4/4, 3/4, 2/4):
+    - Each beat is a quarter note
+    - Standard calculation: ticks_per_beat * numerator
+    
+    Args:
+        time_signature: Tuple of (numerator, denominator) e.g., (6, 8), (4, 4)
+        ticks_per_beat: Ticks per quarter note (default: 480 PPQ)
+    
+    Returns:
+        Number of ticks per bar
+    
+    Examples:
+        get_ticks_per_bar((4, 4)) -> 1920 (480 * 4)
+        get_ticks_per_bar((6, 8)) -> 1440 (480 * 6 // 2, compound duple)
+        get_ticks_per_bar((12, 8)) -> 2880 (480 * 12 // 2, compound quadruple)
+        get_ticks_per_bar((3, 4)) -> 1440 (480 * 3)
+    """
+    numerator, denominator = time_signature
+    
+    if denominator == 8:
+        # Compound meter: beat unit is dotted quarter (3 eighth notes)
+        # For 6/8: 6 eighth notes = 2 dotted quarters = 2 beats in compound
+        # Each eighth = half a quarter = ticks_per_beat / 2
+        # So: numerator * (ticks_per_beat / 2)
+        return ticks_per_beat * numerator // 2
+    elif denominator == 4:
+        # Simple meter: beat unit is quarter note
+        return ticks_per_beat * numerator
+    elif denominator == 2:
+        # Half note denominator
+        return ticks_per_beat * numerator * 2
+    elif denominator == 16:
+        # Sixteenth note denominator
+        return ticks_per_beat * numerator // 4
+    else:
+        # General formula: ticks_per_beat * numerator * (4 / denominator)
+        return int(ticks_per_beat * numerator * 4 / denominator)
+
+
 def bpm_to_microseconds_per_beat(bpm: float) -> int:
     """Convert BPM to microseconds per beat (for MIDI tempo meta events)."""
     return int(60_000_000 / bpm)
@@ -666,6 +716,7 @@ GENRE_DEFAULTS = {
         'default_bpm': 105,
         'scale': ScaleType.ETHIO_JAZZ,
         'swing': 0.12,
+        'time_signature': (6, 8),  # Compound meter for Ethiopian feel
         'emphasis': 'brass',
         'syncopation': True,
         'funk_elements': True,

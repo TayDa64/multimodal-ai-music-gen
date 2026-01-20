@@ -16,6 +16,16 @@
         "pattern": "Subagents via runSubagent tool work reliably",
         "context": "Use runSubagent for Builder and Verifier - they can read/edit files",
         "timestamp": "2026-01-16T00:30:00Z"
+      },
+      {
+        "pattern": "Time signature flow: GENRE_DEFAULTS → prompt_parser → ParsedPrompt → strategy → generator",
+        "context": "When implementing time signatures for any genre, ensure all layers pass the parameter",
+        "timestamp": "2026-01-21T12:30:00Z"
+      },
+      {
+        "pattern": "Compound meter calculation: ticks_per_beat * numerator // 2 for /8 denominators",
+        "context": "6/8 and 12/8 feel like 2 or 4 strong beats with subdivisions of 3",
+        "timestamp": "2026-01-21T12:30:00Z"
       }
     ],
     "failed": [
@@ -77,7 +87,10 @@
         "New effects follow: EffectType enum → Params dataclass → DSP.method() → MixChain.process()",
         "RBJ biquad coefficients depend on filter type, frequency, Q, gain",
         "Transposed Direct Form II: y[n] = b0*x[n] + w1; w1 = b1*x[n] - a1*y[n] + w2; w2 = b2*x[n] - a2*y[n]",
-        "Chebyshev polynomials: T_2=2x²-1, T_3=4x³-3x, T_4=8x⁴-8x²+1, T_5=16x⁵-20x³+5x"
+        "Chebyshev polynomials: T_2=2x²-1, T_3=4x³-3x, T_4=8x⁴-8x²+1, T_5=16x⁵-20x³+5x",
+        "Ethiopian time signatures: ethiopian/eskista/ethio_jazz use (6, 8), ethiopian_traditional uses (12, 8)",
+        "Compound meter ticks: TICKS_PER_BEAT * numerator // 2 for /8 denominators (6/8 → 1440 ticks, 12/8 → 2880 ticks)",
+        "Time signature parameter flow: GENRE_DEFAULTS → prompt_parser.py → ParsedPrompt → strategy → midi_generator"
       ],
       "gotchas": [
         "InstrumentCategory enum must match DIR_TO_CATEGORY and KEYWORD_TO_CATEGORY",
@@ -168,5 +181,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-01-20T13:10:00Z"
+  "last_updated": "2026-01-21T12:30:00Z"
 }

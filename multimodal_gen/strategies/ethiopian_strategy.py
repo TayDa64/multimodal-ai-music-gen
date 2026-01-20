@@ -1,11 +1,11 @@
-"""Ethiopian genre strategies - kebero patterns, 12/8 feel."""
-from typing import List
+"""Ethiopian genre strategies - kebero patterns, 6/8 and 12/8 feel."""
+from typing import List, Tuple
 
 from .base import GenreStrategy, DrumConfig
 from ..arranger import SongSection, SectionType
 from ..prompt_parser import ParsedPrompt
 from ..midi_generator import NoteEvent, generate_ethiopian_drum_pattern
-from ..utils import GM_DRUM_NOTES, GM_DRUM_CHANNEL
+from ..utils import GM_DRUM_NOTES, GM_DRUM_CHANNEL, GENRE_DEFAULTS
 
 
 class EthiopianStrategy(GenreStrategy):
@@ -47,10 +47,14 @@ class EthiopianStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Get time signature from parsed prompt (defaults to (6, 8) from GENRE_DEFAULTS)
+        time_sig = getattr(parsed, 'time_signature', GENRE_DEFAULTS.get('ethiopian', {}).get('time_signature', (6, 8)))
+        
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='ethiopian',
-            base_velocity=int(95 * config.drum_density * vel_mult)
+            base_velocity=int(95 * config.drum_density * vel_mult),
+            time_signature=time_sig
         )
         
         # Map Ethiopian drum types to GM percussion notes
@@ -119,10 +123,14 @@ class EthioJazzStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Ethio-jazz uses 12/8 feel (4 groups of 3) - no specific time sig in GENRE_DEFAULTS, default to 12/8
+        time_sig = getattr(parsed, 'time_signature', (12, 8))
+        
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='ethio_jazz',
-            base_velocity=int(90 * config.drum_density * vel_mult)
+            base_velocity=int(90 * config.drum_density * vel_mult),
+            time_signature=time_sig
         )
         
         ethiopian_drum_mapping = {
@@ -189,10 +197,14 @@ class EthiopianTraditionalStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Traditional Ethiopian uses 12/8 (from GENRE_DEFAULTS)
+        time_sig = getattr(parsed, 'time_signature', GENRE_DEFAULTS.get('ethiopian_traditional', {}).get('time_signature', (12, 8)))
+        
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='ethiopian_traditional',
-            base_velocity=int(95 * config.drum_density * vel_mult)
+            base_velocity=int(95 * config.drum_density * vel_mult),
+            time_signature=time_sig
         )
         
         ethiopian_drum_mapping = {
@@ -259,10 +271,14 @@ class EskistaStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Eskista uses 6/8 (from GENRE_DEFAULTS)
+        time_sig = getattr(parsed, 'time_signature', GENRE_DEFAULTS.get('eskista', {}).get('time_signature', (6, 8)))
+        
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='eskista',
-            base_velocity=int(100 * config.drum_density * vel_mult)
+            base_velocity=int(100 * config.drum_density * vel_mult),
+            time_signature=time_sig
         )
         
         ethiopian_drum_mapping = {

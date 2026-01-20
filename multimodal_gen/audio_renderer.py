@@ -84,6 +84,16 @@ from .mix_chain import (
 if TYPE_CHECKING:
     from .instrument_manager import InstrumentLibrary, InstrumentMatcher
     from .synthesizers import ISynthesizer
+    from .expansion_manager import ExpansionManager
+    from .instrument_resolution import InstrumentResolutionService
+
+# Optional instrument resolution service for expansion instrument support
+try:
+    from .instrument_resolution import InstrumentResolutionService as _IRS
+    HAS_INSTRUMENT_SERVICE = True
+except ImportError:
+    HAS_INSTRUMENT_SERVICE = False
+    _IRS = None  # type: ignore
 
 
 # =============================================================================
@@ -486,6 +496,9 @@ class ProceduralRenderer:
     Fallback when FluidSynth is not available.
     Supports custom samples via InstrumentLibrary for intelligent selection.
     Also supports ExpansionManager for Ethiopian and other specialized instruments.
+    
+    Now supports optional InstrumentResolutionService for dynamic program-to-instrument
+    mapping from expansion packs.
     """
     
     def __init__(
@@ -493,12 +506,14 @@ class ProceduralRenderer:
         sample_rate: int = SAMPLE_RATE,
         instrument_library: 'InstrumentLibrary' = None,
         expansion_manager: 'ExpansionManager' = None,
+        instrument_service: 'InstrumentResolutionService' = None,
         genre: str = None,
         mood: str = None
     ):
         self.sample_rate = sample_rate
         self.instrument_library = instrument_library
         self.expansion_manager = expansion_manager
+        self._instrument_service = instrument_service
         self.genre = genre or "trap"
         self.mood = mood
         
@@ -703,19 +718,23 @@ class ProceduralRenderer:
             return
         
         try:
-            # Define instruments to pre-load based on genre
-            genre_instruments = {
-                'eskista': ['krar', 'masenqo', 'washint', 'kebero'],
-                'tizita': ['krar', 'masenqo', 'washint', 'begena'],
-                'ethiopian': ['krar', 'masenqo', 'washint', 'kebero'],
-                'ethio_jazz': ['krar', 'masenqo', 'washint', 'piano', 'bass'],
-                'g_funk': ['synth', 'bass', 'piano'],
-                'trap': ['808', 'piano', 'synth'],
-                'rnb': ['piano', 'guitar', 'bass', 'synth'],
-            }
-            
-            # Get instruments for current genre
-            instruments_to_load = genre_instruments.get(self.genre, [])
+            # Use InstrumentResolutionService if available for genre instruments
+            if self._instrument_service:
+                instruments_to_load = self._instrument_service.get_instruments_for_genre(self.genre)
+            else:
+                # Fallback: Define instruments to pre-load based on genre
+                genre_instruments = {
+                    'eskista': ['krar', 'masenqo', 'washint', 'kebero'],
+                    'tizita': ['krar', 'masenqo', 'washint', 'begena'],
+                    'ethiopian': ['krar', 'masenqo', 'washint', 'kebero'],
+                    'ethio_jazz': ['krar', 'masenqo', 'washint', 'piano', 'bass'],
+                    'g_funk': ['synth', 'bass', 'piano'],
+                    'trap': ['808', 'piano', 'synth'],
+                    'rnb': ['piano', 'guitar', 'bass', 'synth'],
+                }
+                
+                # Get instruments for current genre
+                instruments_to_load = genre_instruments.get(self.genre, [])
             
             for inst_name in instruments_to_load:
                 result = self.expansion_manager.resolve_instrument(inst_name, genre=self.genre)
@@ -1023,28 +1042,35 @@ class ProceduralRenderer:
         Check if we have an expansion sample for this program number.
         
         Maps MIDI program numbers to instrument names and looks up in expansion cache.
+        Uses InstrumentResolutionService if available, falls back to hardcoded mapping.
         Performs pitch-shifting if needed to match the requested frequency.
         """
         if not self._expansion_sample_cache:
             return None
         
-        # Map program numbers to instrument names
-        program_to_instrument = {
-            110: 'krar',
-            111: 'masenqo',
-            112: 'washint',
-            113: 'begena',
-            0: 'piano',
-            4: 'piano',  # Electric piano
-            25: 'guitar',
-            38: 'bass',
-            39: 'bass',
-            80: 'synth', # Lead 1 (square)
-            81: 'synth', # Lead 2 (sawtooth)
-            87: 'synth', # Lead 8 (bass+lead)
-        }
+        # Try InstrumentResolutionService first for dynamic mapping
+        inst_name = None
+        if self._instrument_service:
+            inst_name = self._instrument_service.get_instrument_for_program(program)
         
-        inst_name = program_to_instrument.get(program)
+        # Fallback to hardcoded mapping
+        if not inst_name:
+            program_to_instrument = {
+                110: 'krar',
+                111: 'masenqo',
+                112: 'washint',
+                113: 'begena',
+                0: 'piano',
+                4: 'piano',  # Electric piano
+                25: 'guitar',
+                38: 'bass',
+                39: 'bass',
+                80: 'synth', # Lead 1 (square)
+                81: 'synth', # Lead 2 (sawtooth)
+                87: 'synth', # Lead 8 (bass+lead)
+            }
+            inst_name = program_to_instrument.get(program)
+        
         if not inst_name or inst_name not in self._expansion_sample_cache:
             return None
         
@@ -1089,6 +1115,11 @@ class AudioRenderer:
     - Accepts optional ISynthesizer for pluggable synth backends
     - Falls back to auto-detection via SynthesizerFactory
     - Maintains backward compatibility with existing code
+    
+    InstrumentResolutionService support:
+    - Accepts optional InstrumentResolutionService for dynamic program-to-instrument mapping
+    - Service bridges expansion instruments to the generation pipeline
+    - Falls back to hardcoded mappings when service not available
     """
     
     def __init__(
@@ -1099,6 +1130,7 @@ class AudioRenderer:
         require_soundfont: bool = False,
         instrument_library: 'InstrumentLibrary' = None,
         expansion_manager: 'ExpansionManager' = None,
+        instrument_service: 'InstrumentResolutionService' = None,
         genre: str = None,
         mood: str = None,
         use_bwf: bool = True,
@@ -1116,6 +1148,7 @@ class AudioRenderer:
             require_soundfont: Fail if no SoundFont available
             instrument_library: Optional InstrumentLibrary for intelligent selection
             expansion_manager: Optional ExpansionManager for specialized instruments
+            instrument_service: Optional InstrumentResolutionService for dynamic mapping
             genre: Target genre for instrument selection
             mood: Mood modifier for instrument selection
             use_bwf: Write BWF format with AI provenance metadata
@@ -1131,6 +1164,7 @@ class AudioRenderer:
         self.require_soundfont = require_soundfont
         self.instrument_library = instrument_library
         self.expansion_manager = expansion_manager
+        self._instrument_service = instrument_service
         self.genre = genre
         self.mood = mood
         self.use_bwf = use_bwf
@@ -1169,6 +1203,7 @@ class AudioRenderer:
             sample_rate,
             instrument_library=instrument_library,
             expansion_manager=expansion_manager,
+            instrument_service=instrument_service,
             genre=genre,
             mood=mood
         )
@@ -1195,6 +1230,8 @@ class AudioRenderer:
         self.procedural = ProceduralRenderer(
             self.sample_rate,
             instrument_library=library,
+            expansion_manager=self.expansion_manager,
+            instrument_service=self._instrument_service,
             genre=self.genre,
             mood=self.mood
         )

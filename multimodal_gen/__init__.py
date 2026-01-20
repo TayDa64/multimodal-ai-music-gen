@@ -70,6 +70,15 @@ from .expansion_manager import (
     create_expansion_manager,
     resolve_genre_instruments,
 )
+from .instrument_resolution import (
+    InstrumentResolutionService,
+    ResolvedInstrument as ServiceResolvedInstrument,
+    MatchType as ServiceMatchType,
+    DEFAULT_GENRE_INSTRUMENTS,
+    DEFAULT_INSTRUMENT_TO_PROGRAM,
+    DEFAULT_PROGRAM_TO_INSTRUMENT,
+    create_instrument_service,
+)
 from .utils import (
     TICKS_PER_BEAT,
     generate_uuid,
@@ -163,6 +172,14 @@ __all__ = [
     "SonicFingerprint",
     "create_expansion_manager",
     "resolve_genre_instruments",
+    # Instrument Resolution Service (bridges expansions to generation pipeline)
+    "InstrumentResolutionService",
+    "ServiceResolvedInstrument",
+    "ServiceMatchType",
+    "DEFAULT_GENRE_INSTRUMENTS",
+    "DEFAULT_INSTRUMENT_TO_PROGRAM",
+    "DEFAULT_PROGRAM_TO_INSTRUMENT",
+    "create_instrument_service",
     # Utils
     "TICKS_PER_BEAT",
     "generate_uuid",

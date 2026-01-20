@@ -921,6 +921,50 @@ void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
     // Store last analysis result for potential apply action
     lastAnalyzeResult = result;
 
+    // Store the pending reference in AppState for use in generation
+    // The source_url is inside the 'analysis' object in the response
+    juce::String sourceUrl;
+    auto json = juce::JSON::parse(result.rawJson);
+    if (auto* obj = json.getDynamicObject())
+    {
+        // The source_url is inside the 'analysis' object
+        if (auto analysisVar = obj->getProperty("analysis"); analysisVar.isObject())
+        {
+            if (auto* analysisObj = analysisVar.getDynamicObject())
+            {
+                sourceUrl = analysisObj->getProperty("source_url").toString();
+            }
+        }
+        
+        // Fallback: check top-level properties (for backward compatibility)
+        if (sourceUrl.isEmpty())
+            sourceUrl = obj->getProperty("source_path").toString();
+        if (sourceUrl.isEmpty())
+            sourceUrl = obj->getProperty("source_url").toString();
+        if (sourceUrl.isEmpty())
+            sourceUrl = obj->getProperty("path").toString();
+        if (sourceUrl.isEmpty())
+            sourceUrl = obj->getProperty("url").toString();
+    }
+    
+    // Store the analysis result in AppState for inclusion in generation request
+    if (result.success && sourceUrl.isNotEmpty())
+    {
+        juce::String fullKey = result.key;
+        if (result.mode == "minor")
+            fullKey += "m";
+        
+        appState.setPendingReference(
+            sourceUrl,
+            static_cast<int>(result.bpm + 0.5f),
+            fullKey,
+            result.estimatedGenre
+        );
+        
+        DBG("MainComponent: Stored pending reference: " << sourceUrl 
+            << " (" << result.bpm << " BPM, " << fullKey << ", " << result.estimatedGenre << ")");
+    }
+
     juce::MessageManager::callAsync([this, result]()
     {
         juce::String msg;
@@ -1015,6 +1059,13 @@ void MainComponent::generateRequested(const juce::String& prompt)
         request.bars = appState.getDurationBars();
         request.numTakes = appState.getNumTakes();
         request.renderAudio = true;
+        
+        // Include reference URL if an analysis was performed
+        if (appState.hasAnalyzedReference())
+        {
+            request.referenceUrl = appState.getPendingReferenceUrl();
+            DBG("MainComponent: Including reference URL in generation: " << request.referenceUrl);
+        }
 
         // Apply-once per-request overrides (sent via options)
         if (nextGenerateOverrides.isObject())

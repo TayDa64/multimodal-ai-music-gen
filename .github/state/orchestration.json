@@ -110,6 +110,30 @@
   ],
   "completed_tasks": [
     {
+      "id": "eth-time-sig-001",
+      "description": "Fix Ethiopian 6/8 time signature to flow through entire generation pipeline",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "multimodal_gen/utils.py",
+          "multimodal_gen/prompt_parser.py",
+          "multimodal_gen/midi_generator.py",
+          "multimodal_gen/strategies/ethiopian_strategy.py"
+        ],
+        "changes": {
+          "utils.py": "Added get_ticks_per_bar() helper, added time_signature to ethio_jazz GENRE_DEFAULTS",
+          "prompt_parser.py": "Extract time_signature from GENRE_DEFAULTS and pass to ParsedPrompt",
+          "midi_generator.py": "Updated generate_ethiopian_drum_pattern() to accept time_signature parameter, calculate dynamic ticks_per_bar",
+          "ethiopian_strategy.py": "All 4 strategy classes now pass time_signature to generate_ethiopian_drum_pattern()"
+        },
+        "verification": "PASS - all tests pass: get_ticks_per_bar returns correct values (4/4→1920, 6/8→1440, 12/8→2880), Ethiopian genres have correct time signatures, drum patterns generate correctly"
+      },
+      "created": "2026-01-21T12:00:00Z",
+      "updated": "2026-01-21T12:30:00Z"
+    },
+    {
       "id": "mc-research",
       "description": "Research all 8 masterclass features via parallel subagents",
       "status": "completed",
@@ -172,8 +196,8 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-01-21T00:00:00Z",
-    "total_tasks_completed": 6,
+    "last_updated": "2026-01-21T12:30:00Z",
+    "total_tasks_completed": 7,
     "total_tasks_failed": 0
   },
   "architecture_refactoring": {

@@ -146,6 +146,16 @@ public:
     // Project State Access
     Project::ProjectState& getProjectState() { return projectState; }
     
+    //==============================================================================
+    // Pending Reference Management (from analysis)
+    void setPendingReference(const juce::String& url, int bpm, const juce::String& key, const juce::String& genre);
+    void clearPendingReference();
+    juce::String getPendingReferenceUrl() const { return pendingReferenceUrl; }
+    int getLastAnalysisBpm() const { return lastAnalysisBpm; }
+    juce::String getLastAnalysisKey() const { return lastAnalysisKey; }
+    juce::String getLastAnalysisGenre() const { return lastAnalysisGenre; }
+    bool hasAnalyzedReference() const { return pendingReferenceUrl.isNotEmpty(); }
+    
 private:
     //==============================================================================
     juce::ListenerList<Listener> listeners;
@@ -162,6 +172,12 @@ private:
     int numTakes = 1;
     bool generating = false;
     GenerationProgress currentProgress;
+    
+    // Pending reference from analysis
+    juce::String pendingReferenceUrl;
+    juce::String lastAnalysisKey;
+    int lastAnalysisBpm = 0;
+    juce::String lastAnalysisGenre;
     
     //==============================================================================
     juce::File getSettingsFile() const;

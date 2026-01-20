@@ -42,6 +42,45 @@ except ImportError:
     GenreIntelligence = None
     GenreTemplate = None
 
+# Optional instrument resolution service for expansion instrument support
+try:
+    from .instrument_resolution import InstrumentResolutionService, DEFAULT_GENRE_INSTRUMENTS
+    HAS_INSTRUMENT_SERVICE = True
+except ImportError:
+    HAS_INSTRUMENT_SERVICE = False
+    InstrumentResolutionService = None  # type: ignore
+    DEFAULT_GENRE_INSTRUMENTS = {}  # type: ignore
+
+# Module-level instrument service (can be set by orchestrator)
+_instrument_service: 'InstrumentResolutionService' = None  # type: ignore
+
+
+def set_instrument_service(service: 'InstrumentResolutionService') -> None:
+    """
+    Set the module-level InstrumentResolutionService.
+    
+    Called by the orchestrator to inject the service for use in
+    prompt parsing and default instrument resolution.
+    """
+    global _instrument_service
+    _instrument_service = service
+
+
+def get_genre_instruments_via_service(genre: str) -> list:
+    """
+    Get instruments for a genre using InstrumentResolutionService if available.
+    
+    Falls back to DEFAULT_GENRE_INSTRUMENTS from instrument_resolution module,
+    or a hardcoded minimal default.
+    """
+    if _instrument_service is not None:
+        return _instrument_service.get_instruments_for_genre(genre)
+    elif HAS_INSTRUMENT_SERVICE:
+        return DEFAULT_GENRE_INSTRUMENTS.get(genre.lower(), ['piano', 'bass'])
+    else:
+        # Minimal hardcoded fallback
+        return ['piano', 'bass']
+
 
 # =============================================================================
 # DATA CLASSES
@@ -156,7 +195,17 @@ class ParsedPrompt:
         self._apply_genre_intelligence()
     
     def _get_genre_instruments(self) -> List[str]:
-        """Get default instruments for detected genre."""
+        """
+        Get default instruments for detected genre.
+        
+        Uses InstrumentResolutionService if available (set via set_instrument_service),
+        otherwise falls back to hardcoded genre mappings.
+        """
+        # Try using the service first (allows expansion instruments)
+        if _instrument_service is not None:
+            return _instrument_service.get_instruments_for_genre(self.genre)
+        
+        # Fallback to hardcoded mappings
         genre_instruments = {
             'trap': ['808', 'synth_lead'],
             'trap_soul': ['808', 'piano', 'rhodes', 'strings'],
@@ -681,6 +730,10 @@ class PromptParser:
             genre_config = GENRE_DEFAULTS.get(genre, {})
             bpm = genre_config.get('default_bpm', DEFAULT_CONFIG.default_bpm)
         
+        # Extract time_signature from genre defaults (critical for Ethiopian 6/8, 12/8)
+        genre_config = GENRE_DEFAULTS.get(genre, {})
+        time_sig = genre_config.get('time_signature', (4, 4))
+        
         # Check for sidechain keywords
         use_sidechain = any(
             kw in prompt_lower 
@@ -699,6 +752,7 @@ class PromptParser:
         
         return ParsedPrompt(
             bpm=bpm,
+            time_signature=time_sig,
             key=key,
             scale_type=scale_type,
             genre=genre,

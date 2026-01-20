@@ -790,12 +790,20 @@ def run_generation(
                 tracks_to_remove.append(i)
                     
                 # Generate takes (these REPLACE the original)
+                # Use timestamp-based seed if no seed provided to ensure uniqueness per request
+                import time
+                if seed is not None:
+                    take_seed = seed + i  # User-provided seed: deterministic per track
+                else:
+                    # No seed: use timestamp for uniqueness between requests
+                    take_seed = int(time.time() * 1000) % (2**31) + i
+                
                 take_set = take_gen.generate_takes_for_role(
                     notes=track_notes,
                     role=role,
                     num_takes=takes,
                     genre=parsed.genre,
-                    base_seed=(seed or 0) + i # Deterministic seed per track
+                    base_seed=take_seed
                 )
                 
                 # Convert original notes for validation

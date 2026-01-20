@@ -376,6 +376,10 @@ class MusicGenOSCServer:
             if self._control_overrides:
                 options = {**self._control_overrides, **options}
 
+            # Ensure unique seed if not provided - critical for take variation between requests
+            if "seed" not in options or options.get("seed") is None:
+                options["seed"] = int(time.time() * 1000) % (2**31)
+
             # duration_bars can be either top-level or inside options.
             # Backward-compat: JUCE currently sends "bars".
             duration_bars = data.get(

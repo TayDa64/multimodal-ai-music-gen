@@ -374,3 +374,21 @@ void AppState::removeListener(Listener* listener)
 {
     listeners.remove(listener);
 }
+
+//==============================================================================
+// Pending Reference Management
+void AppState::setPendingReference(const juce::String& url, int bpm, const juce::String& key, const juce::String& genre)
+{
+    pendingReferenceUrl = url;
+    lastAnalysisBpm = bpm;
+    lastAnalysisKey = key;
+    lastAnalysisGenre = genre;
+}
+
+void AppState::clearPendingReference()
+{
+    pendingReferenceUrl = "";
+    lastAnalysisBpm = 0;
+    lastAnalysisKey = "";
+    lastAnalysisGenre = "";
+}

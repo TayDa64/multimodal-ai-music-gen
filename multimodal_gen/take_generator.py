@@ -214,6 +214,9 @@ class TakeLane:
 @dataclass
 class TakeConfig:
     """Configuration for take generation."""
+    # Class variable for request uniqueness across instances
+    _request_counter: int = 0
+    
     num_takes: int = 3
     variation_axis: str = "combined"  # VariationAxis value
     
@@ -239,9 +242,16 @@ class TakeConfig:
     is_fill_opportunity: bool = False
     
     def get_take_seed(self, take_index: int) -> int:
-        """Generate deterministic seed for a specific take."""
+        """Generate deterministic seed for a specific take.
+        
+        Uses timestamp-based seed when base_seed is None to ensure
+        different requests produce different takes.
+        """
         if self.base_seed is None:
-            self.base_seed = random.randint(0, 2**31)
+            # Use timestamp-based seed for true uniqueness between requests
+            import time
+            TakeConfig._request_counter += 1
+            self.base_seed = int(time.time() * 1000000 + TakeConfig._request_counter) % (2**31)
         
         # Combine base seed with take index deterministically
         content = f"{self.base_seed}_{take_index}_{self.variation_axis}"
@@ -908,7 +918,7 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.25,  # Subtle feel variations
+                variation_intensity=0.45,  # Increased for noticeable variation
                 rhythm_weight=0.15,
                 pitch_weight=0.0,  # Drums don't vary pitch
                 timing_weight=0.4,  # Main variation is timing feel
@@ -923,7 +933,7 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.2,  # Bass needs to stay locked in
+                variation_intensity=0.40,  # Increased for noticeable variation
                 rhythm_weight=0.15,
                 pitch_weight=0.1,  # Occasional octave shifts
                 timing_weight=0.35,
@@ -938,7 +948,7 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.35,  # Lead can have more freedom
+                variation_intensity=0.55,  # Increased for noticeable variation
                 rhythm_weight=0.2,
                 pitch_weight=0.2,
                 timing_weight=0.25,
@@ -953,7 +963,7 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.2,  # Chords need stability
+                variation_intensity=0.40,  # Increased for noticeable variation
                 rhythm_weight=0.1,
                 pitch_weight=0.2,  # Voicing changes
                 timing_weight=0.2,
@@ -968,7 +978,7 @@ class TakeGenerator:
             config = TakeConfig(
                 num_takes=num_takes,
                 variation_axis=VariationAxis.COMBINED.value,
-                variation_intensity=0.15,  # Pads are background, minimal variation
+                variation_intensity=0.30,  # Increased for noticeable variation
                 rhythm_weight=0.05,
                 pitch_weight=0.05,
                 timing_weight=0.2,

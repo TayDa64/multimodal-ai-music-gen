@@ -196,6 +196,11 @@ def build_run_generation_kwargs(
             return None
 
     seed_opt = _as_int(_opt("seed"))
+    # Ensure unique seed if not provided - critical for take variation between requests
+    if seed_opt is None:
+        import time
+        seed_opt = int(time.time() * 1000) % (2**31)
+    
     preset_opt = _as_str(_opt("preset"))
     style_preset_opt = _as_str(_opt("style_preset"))
     production_preset_opt = _as_str(_opt("production_preset"))

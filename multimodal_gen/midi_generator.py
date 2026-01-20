@@ -54,6 +54,7 @@ from .utils import (
     get_chord_notes,
     note_name_to_midi,
     midi_to_note_name,
+    get_ticks_per_bar,
 )
 
 from .ethio_melody import embellish_melody_qenet
@@ -61,6 +62,14 @@ from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SongSection, SectionType, get_section_motif
 from .groove_templates import GrooveTemplate, GrooveApplicator, get_groove_for_genre
 from .strategies.registry import StrategyRegistry
+
+# Optional instrument resolution service for expansion instrument support
+try:
+    from .instrument_resolution import InstrumentResolutionService
+    HAS_INSTRUMENT_SERVICE = True
+except ImportError:
+    HAS_INSTRUMENT_SERVICE = False
+    InstrumentResolutionService = None  # type: ignore
 
 
 def _nearest_note_in_scale(pitch: int, scale_notes: List[int]) -> int:
@@ -697,7 +706,8 @@ def generate_house_drum_pattern(
 def generate_ethiopian_drum_pattern(
     bars: int,
     style: str = 'ethiopian',
-    base_velocity: int = 95
+    base_velocity: int = 95,
+    time_signature: Tuple[int, int] = (6, 8)
 ) -> Dict[str, List[Tuple[int, int, int]]]:
     """
     Generate authentic Ethiopian-style drum patterns.
@@ -710,18 +720,43 @@ def generate_ethiopian_drum_pattern(
     
     Styles:
     - 'eskista': Fast shoulder dance rhythm - energetic 6/8 with strong accents
-    - 'ethiopian_traditional': Traditional kebero patterns
+    - 'ethiopian_traditional': Traditional kebero patterns (12/8)
     - 'ethio_jazz': Fusion with jazz kit while keeping Ethiopian feel
     - 'ethiopian': Modern Ethiopian pop
     
     Key rhythmic concept: Ethiopian 6/8 divides each bar into TWO groups of THREE
     (1-2-3, 4-5-6) rather than THREE groups of TWO like Western 6/8.
-    """
-    ticks_per_bar = TICKS_PER_BAR_4_4
     
-    # For authentic Ethiopian feel, think in 12/8 (12 subdivisions per bar)
-    # Each "pulse" = ticks_per_bar / 12
-    pulse = ticks_per_bar // 12
+    In 12/8: FOUR groups of THREE (1-2-3, 4-5-6, 7-8-9, 10-11-12)
+    with primary pulse on 1, 4, 7, 10.
+    
+    Args:
+        bars: Number of bars to generate
+        style: Ethiopian substyle ('ethiopian', 'eskista', 'ethiopian_traditional', 'ethio_jazz')
+        base_velocity: Base velocity for drum hits
+        time_signature: Time signature tuple (numerator, denominator)
+                       Default (6, 8) for most Ethiopian styles
+    
+    Returns:
+        Dict mapping drum element names to lists of (tick, duration, velocity) tuples
+    """
+    from .utils import get_ticks_per_bar
+    
+    # Calculate ticks per bar based on actual time signature
+    # This is crucial for authentic 6/8 and 12/8 feel
+    ticks_per_bar = get_ticks_per_bar(time_signature)
+    
+    # Determine pulse count based on time signature
+    # 6/8 = 6 eighth-note pulses, 12/8 = 12 eighth-note pulses
+    numerator, denominator = time_signature
+    if denominator == 8:
+        num_pulses = numerator  # 6 for 6/8, 12 for 12/8
+    else:
+        # Fallback to 12 pulses for 4/4 (treated as 12/8 subdivision)
+        num_pulses = 12
+    
+    # Each "pulse" is one eighth note in compound meter
+    pulse = ticks_per_bar // num_pulses
     
     kebero_bass = []      # Deep "doom" sounds
     kebero_slap = []      # Higher "tek" sounds  
@@ -737,12 +772,14 @@ def generate_ethiopian_drum_pattern(
             # with syncopated slaps creating the "bounce" for shoulder movement
             
             # Kebero bass - the foundation groove
-            # Hits on pulses 0, 3, 6, 9 (every 3rd pulse = strong beats)
-            for pulse_num in [0, 3, 6, 9]:
+            # For 6/8: pulses 0, 3 (beat 1 and beat 2 in compound duple)
+            # For 12/8: pulses 0, 3, 6, 9 (every 3rd pulse = strong beats)
+            bass_pulses = [0, 3] if num_pulses == 6 else [0, 3, 6, 9]
+            for pulse_num in bass_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.03, timing_variation=0.015)
-                # Accent first and seventh beats more
-                if pulse_num in [0, 6]:
+                # Accent first beat (and seventh in 12/8) more
+                if pulse_num == 0 or (num_pulses == 12 and pulse_num == 6):
                     vel = humanize_velocity(base_velocity, variation=0.08)
                 else:
                     vel = humanize_velocity(base_velocity - 12, variation=0.1)
@@ -750,11 +787,16 @@ def generate_ethiopian_drum_pattern(
             
             # Kebero slap - creates the characteristic bounce
             # Syncopated pattern between bass hits
-            for pulse_num in [1, 2, 4, 5, 7, 8, 10, 11]:
+            # For 6/8: pulses 1, 2, 4, 5
+            # For 12/8: pulses 1, 2, 4, 5, 7, 8, 10, 11
+            slap_pulses = [1, 2, 4, 5] if num_pulses == 6 else [1, 2, 4, 5, 7, 8, 10, 11]
+            for pulse_num in slap_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.05, timing_variation=0.025)
                 # Alternate accent pattern for movement feel
-                if pulse_num in [2, 5, 8, 11]:  # Off-pulse accents
+                # Off-pulse accents: 2, 5 in 6/8; 2, 5, 8, 11 in 12/8
+                off_pulse_accents = [2, 5] if num_pulses == 6 else [2, 5, 8, 11]
+                if pulse_num in off_pulse_accents:
                     vel = humanize_velocity(base_velocity - 8, variation=0.1)
                 else:
                     vel = humanize_velocity(base_velocity - 20, variation=0.12)
@@ -763,16 +805,18 @@ def generate_ethiopian_drum_pattern(
             # Atamo - fills and accents
             # Fast triplet fills on every other bar for variation
             if bar % 2 == 1:
-                for pulse_num in [9, 10, 11]:  # Fill at end of bar
+                # Fill at end of bar: last 3 pulses
+                fill_pulses = list(range(num_pulses - 3, num_pulses))
+                for pulse_num in fill_pulses:
                     tick = bar_offset + (pulse_num * pulse)
                     vel = humanize_velocity(base_velocity - 15, variation=0.15)
                     atamo.append((tick, pulse // 2, vel))
             
-            # Shaker - continuous 12/8 texture
-            for pulse_num in range(12):
+            # Shaker - continuous compound meter texture
+            for pulse_num in range(num_pulses):
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.02, timing_variation=0.02)
-                # Accent main beats
+                # Accent main beats (every 3rd pulse in compound meter)
                 if pulse_num % 3 == 0:
                     vel = humanize_velocity(base_velocity - 25, variation=0.1)
                 else:
@@ -783,8 +827,11 @@ def generate_ethiopian_drum_pattern(
             # Traditional slower kebero pattern
             # More call-and-response, less continuous
             
-            # Bass on 1 and 4 (in 6/8 feel = pulses 0 and 6)
-            for pulse_num in [0, 6]:
+            # Bass on main beats: pulse 0 and midpoint
+            # In 6/8: pulses 0, 3 (beat 1 and beat 2)
+            # In 12/8: pulses 0, 6 (beat 1 and beat 3)
+            trad_bass_pulses = [0, 3] if num_pulses == 6 else [0, 6]
+            for pulse_num in trad_bass_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0, timing_variation=0.02)
                 vel = humanize_velocity(base_velocity, variation=0.1)
@@ -792,7 +839,10 @@ def generate_ethiopian_drum_pattern(
             
             # Slaps creating the "response" 
             # Traditional pattern: bass-slap-slap, bass-slap-slap
-            for pulse_num in [2, 4, 8, 10]:
+            # In 6/8: pulses 2, 4 (responses after each bass)
+            # In 12/8: pulses 2, 4, 8, 10
+            trad_slap_pulses = [2, 4] if num_pulses == 6 else [2, 4, 8, 10]
+            for pulse_num in trad_slap_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.04, timing_variation=0.03)
                 vel = humanize_velocity(base_velocity - 15, variation=0.12)
@@ -800,13 +850,16 @@ def generate_ethiopian_drum_pattern(
             
             # Occasional atamo accent
             if random.random() < 0.5:
-                pulse_num = random.choice([3, 9])
+                # Accent on off-beat positions
+                atamo_choices = [2, 5] if num_pulses == 6 else [3, 9]
+                pulse_num = random.choice(atamo_choices)
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity - 20, variation=0.15)
                 atamo.append((tick, pulse, vel))
             
-            # Light shaker on main pulses only
-            for pulse_num in [0, 3, 6, 9]:
+            # Light shaker on main pulses only (every 3rd pulse)
+            main_pulses = list(range(0, num_pulses, 3))
+            for pulse_num in main_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity - 35, variation=0.12)
                 shaker.append((tick, pulse * 2, vel))
@@ -815,27 +868,36 @@ def generate_ethiopian_drum_pattern(
             # Ethio-jazz: jazz kit with Ethiopian rhythmic influence
             # Think Mulatu Astatke - ride cymbal with 12/8 feel
             
-            # Kick with Ethiopian accent pattern
-            for pulse_num in [0, 5, 9]:  # Syncopated
+            # Kick with Ethiopian accent pattern (syncopated)
+            # In 6/8: pulses 0, 4 (beat 1 and syncopated before beat 2)
+            # In 12/8: pulses 0, 5, 9
+            jazz_kick_pulses = [0, 4] if num_pulses == 6 else [0, 5, 9]
+            for pulse_num in jazz_kick_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity, variation=0.08)
                 kebero_bass.append((tick, pulse * 2, vel))
             
             # Snare backbeat with ghost notes
-            for pulse_num in [3, 9]:  # On "2" and "4" in 4/4 terms
+            # In 6/8: pulse 3 (beat 2)
+            # In 12/8: pulses 3, 9 ("2" and "4" feel)
+            snare_pulses = [3] if num_pulses == 6 else [3, 9]
+            for pulse_num in snare_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity - 5, variation=0.1)
                 kebero_slap.append((tick, pulse, vel))
             
             # Ghost notes for jazz feel
-            for pulse_num in [1, 4, 7, 10]:
+            # In 6/8: pulses 1, 4
+            # In 12/8: pulses 1, 4, 7, 10
+            ghost_pulses = [1, 4] if num_pulses == 6 else [1, 4, 7, 10]
+            for pulse_num in ghost_pulses:
                 if random.random() < 0.6:
                     tick = bar_offset + (pulse_num * pulse)
                     vel = humanize_velocity(40, variation=0.2)
                     atamo.append((tick, pulse // 2, vel))
             
-            # Ride cymbal in 12/8
-            for pulse_num in range(12):
+            # Ride cymbal in compound meter
+            for pulse_num in range(num_pulses):
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.06, timing_variation=0.015)
                 if pulse_num % 3 == 0:
@@ -848,30 +910,38 @@ def generate_ethiopian_drum_pattern(
             # Modern Ethiopian pop - blend of styles
             
             # Kick with compound feel
-            for pulse_num in [0, 5, 8]:
+            # In 6/8: pulses 0, 4 (beat 1 and syncopated)
+            # In 12/8: pulses 0, 5, 8
+            modern_kick_pulses = [0, 4] if num_pulses == 6 else [0, 5, 8]
+            for pulse_num in modern_kick_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity, variation=0.08)
                 kebero_bass.append((tick, pulse * 2, vel))
             
-            # Snare/clap on 2 and 4 (pulses 3 and 9)
-            for pulse_num in [3, 9]:
+            # Snare/clap on backbeats
+            # In 6/8: pulse 3 (beat 2)
+            # In 12/8: pulses 3 and 9
+            modern_snare_pulses = [3] if num_pulses == 6 else [3, 9]
+            for pulse_num in modern_snare_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity - 10, variation=0.1)
                 kebero_slap.append((tick, pulse, vel))
             
-            # Hihat in 16ths with swing
-            for sixteenth in range(16):
-                tick = bar_offset + (sixteenth * (ticks_per_bar // 16))
-                is_offbeat = sixteenth % 2 == 1
+            # Hihat in compound meter with swing
+            # Use the pulse grid for proper 6/8 or 12/8 feel
+            for pulse_num in range(num_pulses):
+                tick = bar_offset + (pulse_num * pulse)
+                is_offbeat = pulse_num % 3 != 0  # Off-beat in compound meter
                 tick = humanize_timing(tick, swing=0.08, timing_variation=0.02, is_offbeat=is_offbeat)
-                if sixteenth % 4 == 0:
+                # Accent main beats (every 3rd pulse)
+                if pulse_num % 3 == 0:
                     vel = humanize_velocity(base_velocity - 15, variation=0.08)
                 else:
                     vel = humanize_velocity(base_velocity - 30, variation=0.12)
-                shaker.append((tick, ticks_per_bar // 32, vel))
+                shaker.append((tick, pulse // 2, vel))
             
             # Percussion texture
-            for pulse_num in range(12):
+            for pulse_num in range(num_pulses):
                 if random.random() < 0.5:
                     tick = bar_offset + (pulse_num * pulse)
                     vel = humanize_velocity(base_velocity - 35, variation=0.15)
@@ -1368,6 +1438,9 @@ class MidiGenerator:
     
     Orchestrates drum, bass, chord, and melody generation with
     professional-level humanization including physics-aware drum modeling.
+    
+    Supports optional InstrumentResolutionService for dynamic instrument
+    resolution from expansion packs.
     """
     
     def __init__(
@@ -1375,7 +1448,8 @@ class MidiGenerator:
         velocity_variation: float = 0.12,
         timing_variation: float = 0.03,
         swing: float = 0.0,
-        use_physics_humanization: bool = True
+        use_physics_humanization: bool = True,
+        instrument_service: Optional['InstrumentResolutionService'] = None
     ):
         """
         Initialize the MIDI generator.
@@ -1386,6 +1460,8 @@ class MidiGenerator:
             swing: Swing amount for offbeats (0-1)
             use_physics_humanization: Enable physics-aware humanization
                                      (fatigue, limb conflicts, ghost notes)
+            instrument_service: Optional InstrumentResolutionService for
+                               dynamic instrument resolution from expansions
         """
         self.velocity_variation = velocity_variation
         self.timing_variation = timing_variation
@@ -1393,10 +1469,16 @@ class MidiGenerator:
         self.use_physics_humanization = use_physics_humanization and HAS_PHYSICS_HUMANIZER
         self.groove_applicator = GrooveApplicator()
         
+        # Store instrument resolution service
+        self._instrument_service = instrument_service
+        
         if self.use_physics_humanization:
             print("  [*] Physics humanization enabled")
         elif use_physics_humanization and not HAS_PHYSICS_HUMANIZER:
             print("  [!] Physics humanization requested but module not available")
+        
+        if instrument_service:
+            print("  [*] Instrument resolution service enabled")
     
     def generate(
         self,
@@ -1533,6 +1615,35 @@ class MidiGenerator:
         # Convert tension (0-1) into a signed modulation around base.
         mod = (tension - 0.5) * 0.90 * influence
         return max(0.0, min(1.0, base + mod))
+    
+    def _resolve_instrument_program(
+        self,
+        instrument_name: str,
+        genre: str = "",
+        default_program: int = 0
+    ) -> int:
+        """
+        Resolve an instrument name to a MIDI program number.
+        
+        Uses InstrumentResolutionService if available, otherwise falls back
+        to hardcoded defaults.
+        
+        Args:
+            instrument_name: The instrument to resolve
+            genre: The genre context for resolution
+            default_program: Fallback program if resolution fails
+            
+        Returns:
+            MIDI program number (0-127)
+        """
+        if self._instrument_service:
+            resolved = self._instrument_service.resolve_instrument(
+                instrument_name, 
+                genre=genre
+            )
+            return resolved.program
+        
+        return default_program
     
     def _create_meta_track(
         self,
@@ -1721,34 +1832,75 @@ class MidiGenerator:
         # Priority: Ethiopian genres should prefer Ethiopian instruments
         is_ethiopian = parsed.genre in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
         
-        # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
-        if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
-            program = 110  # Custom: Krar (Ethiopian lyre)
-        elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
-            program = 111  # Custom: Masenqo (Ethiopian fiddle)
-        elif 'begena' in parsed.instruments:
-            program = 113  # Custom: Begena (Ethiopian harp)
-        elif 'washint' in parsed.instruments:
-            program = 112  # Custom: Washint (Ethiopian flute)
-        # Standard GM instruments
-        elif 'rhodes' in parsed.instruments:
-            program = 4  # Electric Piano 1
-        elif 'piano' in parsed.instruments:
-            program = 0  # Acoustic Grand
-        elif 'pad' in parsed.instruments:
-            program = 89  # Pad 2 (warm)
-        elif 'strings' in parsed.instruments:
-            program = 48  # String Ensemble
-        elif 'organ' in parsed.instruments:
-            program = 16  # Drawbar Organ
-        elif 'brass' in parsed.instruments:
-            program = 61  # Brass Section
-        else:
-            # Default based on genre
-            if is_ethiopian:
-                program = 110  # Krar for Ethiopian
+        # Try to resolve instrument via service first (if available)
+        program = None
+        resolved_instrument = None
+        
+        if self._instrument_service:
+            # Determine which instrument to resolve based on parsed instruments
+            instrument_to_resolve = None
+            
+            # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
+            if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
+                instrument_to_resolve = 'krar'
+            elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
+                instrument_to_resolve = 'masenqo'
+            elif 'begena' in parsed.instruments:
+                instrument_to_resolve = 'begena'
+            elif 'washint' in parsed.instruments:
+                instrument_to_resolve = 'washint'
+            elif 'rhodes' in parsed.instruments:
+                instrument_to_resolve = 'rhodes'
+            elif 'piano' in parsed.instruments:
+                instrument_to_resolve = 'piano'
+            elif 'pad' in parsed.instruments:
+                instrument_to_resolve = 'pad'
+            elif 'strings' in parsed.instruments:
+                instrument_to_resolve = 'strings'
+            elif 'organ' in parsed.instruments:
+                instrument_to_resolve = 'organ'
+            elif 'brass' in parsed.instruments:
+                instrument_to_resolve = 'brass'
             else:
-                program = 4  # Rhodes for others
+                instrument_to_resolve = 'krar' if is_ethiopian else 'rhodes'
+            
+            resolved = self._instrument_service.resolve_instrument(
+                instrument_to_resolve,
+                genre=parsed.genre or ""
+            )
+            program = resolved.program
+            resolved_instrument = resolved.name
+        
+        # Fallback to hardcoded mappings if no service or resolution failed
+        if program is None:
+            # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
+            if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
+                program = 110  # Custom: Krar (Ethiopian lyre)
+            elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
+                program = 111  # Custom: Masenqo (Ethiopian fiddle)
+            elif 'begena' in parsed.instruments:
+                program = 113  # Custom: Begena (Ethiopian harp)
+            elif 'washint' in parsed.instruments:
+                program = 112  # Custom: Washint (Ethiopian flute)
+            # Standard GM instruments
+            elif 'rhodes' in parsed.instruments:
+                program = 4  # Electric Piano 1
+            elif 'piano' in parsed.instruments:
+                program = 0  # Acoustic Grand
+            elif 'pad' in parsed.instruments:
+                program = 89  # Pad 2 (warm)
+            elif 'strings' in parsed.instruments:
+                program = 48  # String Ensemble
+            elif 'organ' in parsed.instruments:
+                program = 16  # Drawbar Organ
+            elif 'brass' in parsed.instruments:
+                program = 61  # Brass Section
+            else:
+                # Default based on genre
+                if is_ethiopian:
+                    program = 110  # Krar for Ethiopian
+                else:
+                    program = 4  # Rhodes for others
         
         track.append(Message('program_change', program=program, channel=2, time=0))
         
@@ -1855,21 +2007,50 @@ class MidiGenerator:
         track = MidiTrack()
         track.append(MetaMessage('track_name', name='Melody', time=0))
         
-        # Choose program based on instruments
-        if 'washint' in parsed.instruments:
-            program = 112  # Custom: Washint (Ethiopian flute) - great for melodies
-        elif 'masenqo' in parsed.instruments:
-            program = 111  # Custom: Masenqo (Ethiopian fiddle)
-        elif 'krar' in parsed.instruments:
-            program = 110  # Custom: Krar
-        elif 'flute' in parsed.instruments:
-            program = 73  # Flute
-        elif 'brass' in parsed.instruments:
-            program = 56  # Trumpet
-        elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
-            program = 80  # Lead 1 (square)
-        else:
-            program = 80  # Lead 1 (square) - default
+        # Try to resolve instrument via service first (if available)
+        program = None
+        
+        if self._instrument_service:
+            # Determine which instrument to resolve based on parsed instruments
+            instrument_to_resolve = None
+            
+            if 'washint' in parsed.instruments:
+                instrument_to_resolve = 'washint'
+            elif 'masenqo' in parsed.instruments:
+                instrument_to_resolve = 'masenqo'
+            elif 'krar' in parsed.instruments:
+                instrument_to_resolve = 'krar'
+            elif 'flute' in parsed.instruments:
+                instrument_to_resolve = 'flute'
+            elif 'brass' in parsed.instruments:
+                instrument_to_resolve = 'brass'
+            elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
+                instrument_to_resolve = 'synth_lead'
+            else:
+                instrument_to_resolve = 'synth_lead'
+            
+            resolved = self._instrument_service.resolve_instrument(
+                instrument_to_resolve,
+                genre=parsed.genre or ""
+            )
+            program = resolved.program
+        
+        # Fallback to hardcoded mappings if no service
+        if program is None:
+            if 'washint' in parsed.instruments:
+                program = 112  # Custom: Washint (Ethiopian flute) - great for melodies
+            elif 'masenqo' in parsed.instruments:
+                program = 111  # Custom: Masenqo (Ethiopian fiddle)
+            elif 'krar' in parsed.instruments:
+                program = 110  # Custom: Krar
+            elif 'flute' in parsed.instruments:
+                program = 73  # Flute
+            elif 'brass' in parsed.instruments:
+                program = 56  # Trumpet
+            elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
+                program = 80  # Lead 1 (square)
+            else:
+                program = 80  # Lead 1 (square) - default
         
         track.append(Message('program_change', program=program, channel=3, time=0))
         
