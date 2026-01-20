@@ -50,6 +50,9 @@ class GenerationRequest:
         export_stems: Whether to export stems
         export_mpc: Whether to export MPC project
         reference_url: Optional reference track URL
+        reference_bpm: Pre-analyzed BPM from reference (from JUCE frontend)
+        reference_key: Pre-analyzed key from reference (from JUCE frontend)
+        reference_genre: Pre-analyzed genre from reference (from JUCE frontend)
         template: Optional template file path
         verbose: Enable verbose output
         num_takes: Number of takes to generate per track (1 = no takes)
@@ -70,6 +73,9 @@ class GenerationRequest:
     export_stems: bool = False
     export_mpc: bool = False
     reference_url: str = ""
+    reference_bpm: int = 0      # Pre-analyzed BPM from JUCE frontend (0 = not provided)
+    reference_key: str = ""     # Pre-analyzed key from JUCE frontend (empty = not provided)
+    reference_genre: str = ""   # Pre-analyzed genre from JUCE frontend (empty = not provided)
     template: str = ""
     verbose: bool = False
     # Take generation
@@ -93,6 +99,10 @@ class GenerationRequest:
             "render_audio": self.render_audio,
             "export_stems": self.export_stems,
             "export_mpc": self.export_mpc,
+            "reference_url": self.reference_url,
+            "reference_bpm": self.reference_bpm,
+            "reference_key": self.reference_key,
+            "reference_genre": self.reference_genre,
             "num_takes": self.num_takes,
             "take_variation": self.take_variation,
         }
@@ -164,6 +174,11 @@ def build_run_generation_kwargs(
     """Build kwargs for main.run_generation from a GenerationRequest.
 
     Keeps server/protocol option mapping isolated and unit-testable.
+    
+    Note: If reference_bpm and reference_key are provided (from JUCE pre-analysis),
+    they are used as bpm_override and key_override respectively. This allows
+    main.run_generation() to skip the expensive YouTube re-download and use
+    the pre-analyzed values directly.
     """
 
     options = request.options if isinstance(request.options, dict) else {}
@@ -209,12 +224,36 @@ def build_run_generation_kwargs(
     motif_mode_opt = _as_str(_opt("motif_mode"))
     num_motifs_opt = _as_int(_opt("num_motifs"))
 
+    # TASK 3: Determine BPM override - prefer explicit request.bpm, then pre-analyzed reference_bpm
+    bpm_override = None
+    if request.bpm and request.bpm > 0:
+        bpm_override = request.bpm
+    elif request.reference_bpm and request.reference_bpm > 0:
+        # Use pre-analyzed BPM from JUCE frontend (avoids re-downloading YouTube)
+        bpm_override = request.reference_bpm
+    
+    # TASK 3: Determine key override - prefer explicit request.key, then pre-analyzed reference_key
+    key_override = None
+    if request.key:
+        key_override = request.key
+    elif request.reference_key:
+        # Use pre-analyzed key from JUCE frontend (avoids re-downloading YouTube)
+        key_override = request.reference_key
+    
+    # TASK 3: Determine genre override - prefer explicit request.genre, then pre-analyzed reference_genre
+    genre_override = None
+    if request.genre:
+        genre_override = request.genre
+    elif request.reference_genre:
+        # Use pre-analyzed genre from JUCE frontend
+        genre_override = request.reference_genre
+
     return {
         "prompt": request.prompt,
         "output_dir": output_dir,
-        "genre_override": request.genre if request.genre else None,
-        "bpm_override": request.bpm if request.bpm and request.bpm > 0 else None,
-        "key_override": request.key if request.key else None,
+        "genre_override": genre_override,
+        "bpm_override": bpm_override,
+        "key_override": key_override,
         "reference_url": request.reference_url if request.reference_url else None,
         "export_mpc": request.export_mpc,
         "export_stems": request.export_stems,

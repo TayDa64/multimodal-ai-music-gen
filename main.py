@@ -22,6 +22,8 @@ Features:
 import argparse
 import sys
 import os
+import shutil
+import re
 from pathlib import Path
 from datetime import datetime
 import json
@@ -49,7 +51,10 @@ from multimodal_gen import (
     validate_generation,
     repair_violations,
     TakeGenerator,
+    # Instrument resolution service
+    create_instrument_service,
 )
+from multimodal_gen.prompt_parser import set_instrument_service
 
 # Import StylePolicy for coherent producer decisions
 try:
@@ -125,6 +130,36 @@ def print_success(message: str):
         print(f"{Fore.GREEN}✓{Style.RESET_ALL}  {message}")
     except UnicodeEncodeError:
         print(f"{Fore.GREEN}[v]{Style.RESET_ALL}  {message}")
+
+
+def check_ffmpeg() -> bool:
+    """Check if ffmpeg is available for YouTube audio extraction.
+    
+    Returns:
+        True if ffmpeg is found, False otherwise.
+    """
+    if shutil.which('ffmpeg') is None:
+        print_warning("FFmpeg not found in PATH")
+        print_info("   YouTube reference analysis may not work")
+        print_info("   Install: winget install ffmpeg (Windows) or brew install ffmpeg (Mac)")
+        return False
+    return True
+
+
+def extract_youtube_url(text: str) -> Optional[str]:
+    """Extract YouTube URL from text if present.
+    
+    Supports both youtube.com/watch and youtu.be formats.
+    
+    Args:
+        text: Text that may contain a YouTube URL
+        
+    Returns:
+        Extracted YouTube URL or None if not found
+    """
+    pattern = r'(https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)[\w-]+)'
+    match = re.search(pattern, text)
+    return match.group(1) if match else None
 
 
 def print_parsed_prompt(parsed: ParsedPrompt, reference_info: dict = None):
@@ -291,69 +326,106 @@ def run_generation(
     # Preserve user prompt before any reference-based enhancement.
     base_prompt = prompt
     
+    # TASK 2: Auto-extract YouTube URL from prompt text if no explicit reference_url provided
+    if not reference_url:
+        extracted_url = extract_youtube_url(prompt)
+        if extracted_url:
+            reference_url = extracted_url
+            if verbose:
+                print_info(f"Auto-extracted YouTube URL from prompt: {reference_url}")
+    
     # Step 0: Analyze reference track if provided
+    # TASK 4: Skip expensive re-download if we already have pre-analyzed values from JUCE
     if reference_url:
-        print_step("0/6", "Analyzing reference track...")
-        try:
-            from multimodal_gen import ReferenceAnalyzer, analyze_reference
+        # Check if we already have pre-analyzed values (e.g., from JUCE frontend)
+        # If both BPM and key are already set, skip the expensive download/analysis
+        if bpm_override and key_override:
+            print_step("0/6", "Using pre-analyzed reference values (skipping re-download)...")
+            print_info(f"Pre-analyzed: {bpm_override} BPM, {key_override}")
             
-            analyzer = ReferenceAnalyzer(
-                cache_dir=str(output_dir / ".reference_cache"),
-                verbose=verbose
-            )
-            
-            if reference_url.startswith(("http://", "https://")):
-                analysis = analyzer.analyze_url(reference_url)
-            else:
-                analysis = analyzer.analyze_file(reference_url)
-            
-            # Store analysis results
+            # Store minimal reference info without re-analyzing
             results["reference_analysis"] = {
                 "source": reference_url,
-                "title": analysis.title,
-                "bpm": analysis.bpm,
-                "key": analysis.key,
-                "mode": analysis.mode,
-                "genre": analysis.estimated_genre,
-                "style_tags": analysis.style_tags,
-                # Store the hints actually used to enhance the prompt (genre excluded by default)
-                "prompt_hints": analysis.to_prompt_hints(include_genre=False),
+                "title": "(pre-analyzed by frontend)",
+                "bpm": bpm_override,
+                "key": key_override.rstrip('m'),
+                "mode": "minor" if key_override.endswith('m') else "major",
+                "genre": genre_override or "",
+                "style_tags": [],
+                "prompt_hints": "",
+                "pre_analyzed": True,
             }
             
             reference_info = {
-                "title": analysis.title,
-                "detected_bpm": analysis.bpm,
-                "detected_key": f"{analysis.key} {analysis.mode}",
-                "detected_genre": analysis.estimated_genre,
-                "style_hints": ", ".join(analysis.style_tags[:5]),
+                "title": "(pre-analyzed)",
+                "detected_bpm": bpm_override,
+                "detected_key": key_override,
+                "detected_genre": genre_override or "(from prompt)",
+                "style_hints": "",
             }
-            
-            print_success(f"Reference analyzed: {analysis.title}")
-            print_info(f"Detected: {analysis.bpm:.0f} BPM, {analysis.key} {analysis.mode}, {analysis.estimated_genre}")
-            
-            # Enhance prompt with reference analysis
-            enhanced_hints = analysis.to_prompt_hints(include_genre=False)
-            prompt = f"{prompt}, {enhanced_hints}"
-            if verbose:
-                print_info(f"Enhanced prompt: {prompt}")
-            
-            # Apply detected values as defaults (can be overridden)
-            if not bpm_override:
-                bpm_override = int(analysis.bpm)
+        else:
+            # No pre-analyzed values, perform full analysis
+            print_step("0/6", "Analyzing reference track...")
+            try:
+                from multimodal_gen import ReferenceAnalyzer, analyze_reference
+                
+                analyzer = ReferenceAnalyzer(
+                    cache_dir=str(output_dir / ".reference_cache"),
+                    verbose=verbose
+                )
+                
+                if reference_url.startswith(("http://", "https://")):
+                    analysis = analyzer.analyze_url(reference_url)
+                else:
+                    analysis = analyzer.analyze_file(reference_url)
+                
+                # Store analysis results
+                results["reference_analysis"] = {
+                    "source": reference_url,
+                    "title": analysis.title,
+                    "bpm": analysis.bpm,
+                    "key": analysis.key,
+                    "mode": analysis.mode,
+                    "genre": analysis.estimated_genre,
+                    "style_tags": analysis.style_tags,
+                    # Store the hints actually used to enhance the prompt (genre excluded by default)
+                    "prompt_hints": analysis.to_prompt_hints(include_genre=False),
+                }
+                
+                reference_info = {
+                    "title": analysis.title,
+                    "detected_bpm": analysis.bpm,
+                    "detected_key": f"{analysis.key} {analysis.mode}",
+                    "detected_genre": analysis.estimated_genre,
+                    "style_hints": ", ".join(analysis.style_tags[:5]),
+                }
+                
+                print_success(f"Reference analyzed: {analysis.title}")
+                print_info(f"Detected: {analysis.bpm:.0f} BPM, {analysis.key} {analysis.mode}, {analysis.estimated_genre}")
+                
+                # Enhance prompt with reference analysis
+                enhanced_hints = analysis.to_prompt_hints(include_genre=False)
+                prompt = f"{prompt}, {enhanced_hints}"
                 if verbose:
-                    print_info(f"Using detected BPM: {bpm_override}")
-            
-            if not key_override:
-                key_override = f"{analysis.key}{'m' if analysis.mode == 'minor' else ''}"
-                if verbose:
-                    print_info(f"Using detected key: {key_override}")
-                    
-        except ImportError as e:
-            print_warning(f"Reference analysis requires additional packages: {e}")
-            print_info("Install with: pip install librosa yt-dlp")
-        except Exception as e:
-            print_warning(f"Reference analysis failed: {e}")
-            print_info("Continuing with text prompt only...")
+                    print_info(f"Enhanced prompt: {prompt}")
+                
+                # Apply detected values as defaults (can be overridden)
+                if not bpm_override:
+                    bpm_override = int(analysis.bpm)
+                    if verbose:
+                        print_info(f"Using detected BPM: {bpm_override}")
+                
+                if not key_override:
+                    key_override = f"{analysis.key}{'m' if analysis.mode == 'minor' else ''}"
+                    if verbose:
+                        print_info(f"Using detected key: {key_override}")
+                        
+            except ImportError as e:
+                print_warning(f"Reference analysis requires additional packages: {e}")
+                print_info("Install with: pip install librosa yt-dlp")
+            except Exception as e:
+                print_warning(f"Reference analysis failed: {e}")
+                print_info("Continuing with text prompt only...")
     
     # Step 1: Parse prompt
     print_step("1/6", "Parsing prompt...")
@@ -597,6 +669,10 @@ def run_generation(
     # Step 3: Generate MIDI
     print_step("3/6", "Generating MIDI with humanization...")
     report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
+    # Note: instrument_service may be None here on first pass, MidiGenerator handles gracefully
+    # The service is created later (Step 4.7.1) after expansions are loaded
+    # For proper sequencing, MidiGenerator is created without service; expansion instruments
+    # are resolved at audio render time via AudioRenderer's instrument_service parameter
     midi_gen = MidiGenerator()
     
     # Compile style policy for coherent producer decisions
@@ -1148,6 +1224,7 @@ def run_generation(
     
     # Step 4.7: Load expansion packs for specialized instruments (Ethiopian, etc.)
     expansion_manager = None
+    instrument_service = None
     expansions_dir = Path(__file__).parent.parent / "expansions"
     if expansions_dir.exists():
         try:
@@ -1159,6 +1236,25 @@ def run_generation(
         except Exception as e:
             if verbose:
                 print_warning(f"Expansion loading: {e}")
+    
+    # Step 4.7.1: Create InstrumentResolutionService to bridge expansions to generation pipeline
+    # This wires up expansion instruments so MidiGenerator and AudioRenderer can use them
+    try:
+        from multimodal_gen.instrument_resolution import InstrumentResolutionService
+        instrument_service = InstrumentResolutionService(
+            expansion_manager=expansion_manager,
+            auto_register_expansions=True
+        )
+        # Set the module-level service for prompt_parser to use
+        set_instrument_service(instrument_service)
+        if verbose and expansion_manager:
+            stats = instrument_service.get_registry_stats()
+            print_info(f"InstrumentResolutionService: {stats['total_instruments']} instruments, "
+                      f"{stats['expansion_programs_allocated']} expansion programs allocated")
+    except Exception as e:
+        if verbose:
+            print_warning(f"InstrumentResolutionService setup: {e}")
+        instrument_service = None
     
     # Step 4.8: Intelligent Instrument Selection (using sonic adjectives)
     # If the prompt contains sonic descriptors (warm, vintage, analog, etc.),
@@ -1231,6 +1327,7 @@ def run_generation(
         require_soundfont=require_soundfont,
         instrument_library=instrument_library,
         expansion_manager=expansion_manager,
+        instrument_service=instrument_service,
         genre=parsed.genre,
         mood=parsed.mood,
         use_bwf=use_bwf,
@@ -2100,6 +2197,9 @@ Server Mode (for JUCE integration):
             
             if not args.no_banner:
                 print_banner()
+            
+            # Check for FFmpeg availability (needed for YouTube reference analysis)
+            check_ffmpeg()
             
             config = ServerConfig(
                 recv_port=args.port,

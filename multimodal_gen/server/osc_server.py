@@ -403,6 +403,18 @@ class MusicGenOSCServer:
             except Exception:
                 take_variation = ""
             
+            # Parse pre-analyzed reference values from JUCE frontend
+            # These allow skipping expensive YouTube re-download when JUCE has already analyzed
+            reference_bpm = 0
+            reference_key = ""
+            reference_genre = ""
+            try:
+                reference_bpm = int(data.get("reference_bpm", 0))
+            except (ValueError, TypeError):
+                reference_bpm = 0
+            reference_key = data.get("reference_key", "")
+            reference_genre = data.get("reference_genre", "")
+            
             # Build request with request_id
             request = GenerationRequest(
                 prompt=prompt,
@@ -419,6 +431,9 @@ class MusicGenOSCServer:
                 export_stems=data.get("export_stems", self.config.auto_export_stems),
                 export_mpc=data.get("export_mpc", self.config.auto_export_mpc),
                 reference_url=data.get("reference_url", ""),
+                reference_bpm=reference_bpm,
+                reference_key=reference_key,
+                reference_genre=reference_genre,
                 verbose=data.get("verbose", self.config.verbose),
                 num_takes=num_takes,
                 take_variation=take_variation,

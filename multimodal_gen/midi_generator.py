@@ -1656,14 +1656,12 @@ class MidiGenerator:
         # Track name
         track.append(MetaMessage('track_name', name='Meta', time=0))
         
-        # Time signature
+        # Time signature - mido handles log2 conversion internally
         num, denom = arrangement.time_signature
-        # MIDI time sig: denominator is log2
-        denom_log2 = {1: 0, 2: 1, 4: 2, 8: 3, 16: 4}.get(denom, 2)
         track.append(MetaMessage(
             'time_signature',
             numerator=num,
-            denominator=denom_log2,
+            denominator=denom,  # Pass actual value (e.g., 8), mido converts to log2 internally
             clocks_per_click=24,
             notated_32nd_notes_per_beat=8,
             time=0
