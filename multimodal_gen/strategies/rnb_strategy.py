@@ -48,11 +48,14 @@ class RnBStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # R&B uses the unified pattern generator for groove consistency
         patterns = generate_rnb_drum_pattern(
             section.bars,
             swing=parsed.swing_amount or 0.08,
-            base_velocity=int(80 * config.drum_density * vel_mult)
+            base_velocity=int(80 * effective_drum_density * vel_mult)
         )
         
         # === KICK ===

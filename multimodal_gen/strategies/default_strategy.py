@@ -46,11 +46,14 @@ class DefaultStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # Use lofi pattern generator as boom-bap base
         patterns = generate_lofi_drum_pattern(
             section.bars,
             swing=0.08,
-            base_velocity=int(90 * config.drum_density * vel_mult)
+            base_velocity=int(90 * effective_drum_density * vel_mult)
         )
         
         drum_mapping = {

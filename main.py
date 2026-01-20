@@ -390,6 +390,8 @@ def run_generation(
                     "style_tags": analysis.style_tags,
                     # Store the hints actually used to enhance the prompt (genre excluded by default)
                     "prompt_hints": analysis.to_prompt_hints(include_genre=False),
+                    # Store generation params for drum/bass generation influence
+                    "generation_params": analysis.to_generation_params(),
                 }
                 
                 reference_info = {
@@ -546,6 +548,39 @@ def run_generation(
             pass
     
     print_parsed_prompt(parsed, reference_info)
+    
+    # Apply reference analysis drum/bass params to parsed prompt
+    # These influence drum density, hi-hat style, and 808 usage during generation
+    if results.get("reference_analysis") and results["reference_analysis"].get("generation_params"):
+        ref_params = results["reference_analysis"]["generation_params"]
+        
+        # drum_density: 0.0-1.0 from reference track analysis
+        if "drum_density" in ref_params:
+            parsed.reference_drum_density = float(ref_params["drum_density"])
+            if verbose:
+                print_info(f"Reference drum density: {parsed.reference_drum_density:.2f}")
+        
+        # trap_hihats: True if rapid hi-hat patterns detected
+        if "trap_hihats" in ref_params:
+            parsed.reference_trap_hihats = bool(ref_params["trap_hihats"])
+            if parsed.reference_trap_hihats:
+                # Also enable hi-hat rolls in the prompt for consistency
+                parsed.use_hihat_rolls = True
+                parsed.hihat_density = '16th'  # Dense trap-style hi-hats
+            if verbose:
+                print_info(f"Reference trap hi-hats: {parsed.reference_trap_hihats}")
+        
+        # has_808: True if 808-style sub-bass detected
+        if "has_808" in ref_params:
+            parsed.reference_has_808 = bool(ref_params["has_808"])
+            if parsed.reference_has_808:
+                # Ensure 808 is in drum elements if not already
+                if '808' not in parsed.drum_elements:
+                    parsed.drum_elements.append('808')
+                # Update character for sub-bass presence
+                parsed.character_808 = 'heavy'
+            if verbose:
+                print_info(f"Reference has 808: {parsed.reference_has_808}")
     
     # Step 1.5: Validate against Genre Rules
     print_step("1.5/6", "Validating genre rules...")

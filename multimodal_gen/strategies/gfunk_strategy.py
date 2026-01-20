@@ -49,11 +49,14 @@ class GFunkStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # G-Funk uses the unified pattern generator
         patterns = generate_gfunk_drum_pattern(
             section.bars,
             swing=parsed.swing_amount or 0.15,
-            base_velocity=int(85 * config.drum_density * vel_mult)
+            base_velocity=int(85 * effective_drum_density * vel_mult)
         )
         
         # === KICK ===

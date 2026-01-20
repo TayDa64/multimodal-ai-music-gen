@@ -173,6 +173,13 @@ class ParsedPrompt:
     warmth: float = 0.5
     character_808: str = 'clean'
     
+    # === REFERENCE ANALYSIS PARAMS ===
+    # These are populated when a reference track is analyzed to influence generation
+    # None means "use genre defaults", a value means "override from reference"
+    reference_drum_density: Optional[float] = None  # 0.0-1.0, from DrumAnalysis.density
+    reference_trap_hihats: Optional[bool] = None    # True = enable dense 16th/32nd hi-hats
+    reference_has_808: Optional[bool] = None        # True = prefer 808-style bass/kick
+    
     # Validation results
     validation_warnings: List[str] = field(default_factory=list)
     forbidden_elements_used: List[str] = field(default_factory=list)

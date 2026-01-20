@@ -47,13 +47,16 @@ class EthiopianStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # Get time signature from parsed prompt (defaults to (6, 8) from GENRE_DEFAULTS)
         time_sig = getattr(parsed, 'time_signature', GENRE_DEFAULTS.get('ethiopian', {}).get('time_signature', (6, 8)))
         
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='ethiopian',
-            base_velocity=int(95 * config.drum_density * vel_mult),
+            base_velocity=int(95 * effective_drum_density * vel_mult),
             time_signature=time_sig
         )
         
@@ -126,10 +129,13 @@ class EthioJazzStrategy(GenreStrategy):
         # Ethio-jazz uses 12/8 feel (4 groups of 3) - no specific time sig in GENRE_DEFAULTS, default to 12/8
         time_sig = getattr(parsed, 'time_signature', (12, 8))
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='ethio_jazz',
-            base_velocity=int(90 * config.drum_density * vel_mult),
+            base_velocity=int(90 * effective_drum_density * vel_mult),
             time_signature=time_sig
         )
         
@@ -197,13 +203,16 @@ class EthiopianTraditionalStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # Traditional Ethiopian uses 12/8 (from GENRE_DEFAULTS)
         time_sig = getattr(parsed, 'time_signature', GENRE_DEFAULTS.get('ethiopian_traditional', {}).get('time_signature', (12, 8)))
         
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='ethiopian_traditional',
-            base_velocity=int(95 * config.drum_density * vel_mult),
+            base_velocity=int(95 * effective_drum_density * vel_mult),
             time_signature=time_sig
         )
         
@@ -271,13 +280,16 @@ class EskistaStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # Eskista uses 6/8 (from GENRE_DEFAULTS)
         time_sig = getattr(parsed, 'time_signature', GENRE_DEFAULTS.get('eskista', {}).get('time_signature', (6, 8)))
         
         patterns = generate_ethiopian_drum_pattern(
             section.bars,
             style='eskista',
-            base_velocity=int(100 * config.drum_density * vel_mult),
+            base_velocity=int(100 * effective_drum_density * vel_mult),
             time_signature=time_sig
         )
         

@@ -100,6 +100,27 @@ class GenreStrategy(ABC):
         """
         return DrumConfig()
     
+    def _get_effective_drum_density(
+        self,
+        section_density: float,
+        parsed: 'ParsedPrompt'
+    ) -> float:
+        """
+        Calculate effective drum density blending section config with reference analysis.
+        
+        Args:
+            section_density: The drum_density from SectionConfig
+            parsed: The parsed prompt (may contain reference_drum_density)
+            
+        Returns:
+            Effective drum density (0.0-1.0)
+        """
+        ref_density = getattr(parsed, 'reference_drum_density', None)
+        if ref_density is not None:
+            # Blend: section config 30%, reference analysis 70%
+            return (section_density * 0.3) + (float(ref_density) * 0.7)
+        return section_density
+    
     def _tension_multiplier(
         self,
         tension: float,

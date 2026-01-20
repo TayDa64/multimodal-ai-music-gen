@@ -57,12 +57,15 @@ class TrapSoulStrategy(GenreStrategy):
         
         vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
         
+        # Use base class helper for reference-aware drum density
+        effective_drum_density = self._get_effective_drum_density(config.drum_density, parsed)
+        
         # === KICK ===
         if config.enable_kick:
             kicks = generate_trap_kick_pattern(
                 section.bars,
                 variation=section.pattern_variation,
-                base_velocity=int(90 * config.drum_density * vel_mult)
+                base_velocity=int(90 * effective_drum_density * vel_mult)
             )
             for tick, dur, vel in kicks:
                 notes.append(NoteEvent(
@@ -78,7 +81,7 @@ class TrapSoulStrategy(GenreStrategy):
             snares = generate_trap_snare_pattern(
                 section.bars,
                 variation=section.pattern_variation,
-                base_velocity=int(85 * config.drum_density * vel_mult),
+                base_velocity=int(85 * effective_drum_density * vel_mult),
                 add_ghost_notes=False,  # Cleaner for trap_soul
                 half_time=False
             )
@@ -109,12 +112,16 @@ class TrapSoulStrategy(GenreStrategy):
         # === HI-HATS ===
         if config.enable_hihat:
             # Trap Soul: Use standard 8th note pattern - NOT 16th note trap pattern
+            # BUT: if reference analysis detected trap_hihats, allow denser patterns
+            use_trap_style = getattr(parsed, 'reference_trap_hihats', False)
+            hihat_density = '16th' if use_trap_style else '8th'
+            
             hihats = generate_standard_hihat_pattern(
                 section.bars,
-                density='8th',  # Clean 8th notes, not dense 16ths
-                base_velocity=int(70 * config.drum_density * vel_mult),
+                density=hihat_density,
+                base_velocity=int(70 * effective_drum_density * vel_mult),
                 swing=parsed.swing_amount or 0.08,
-                include_rolls=False  # No rolls for trap_soul
+                include_rolls=use_trap_style  # Rolls if reference detected trap style
             )
             for tick, dur, vel in hihats:
                 notes.append(NoteEvent(
