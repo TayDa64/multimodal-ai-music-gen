@@ -3103,6 +3103,141 @@ python main.py --server --port 9000
 
 ---
 
+### Phase 12: Agents-as-Performers Architecture
+**Duration**: 4-6 weeks  
+**Risk Level**: 🟠 Medium-High  
+**Goal**: Transform the generation pipeline from procedural to agent-based architecture
+**Status**: 🔲 PLANNING COMPLETE - See [AGENT_ARCHITECTURE_PLAN.md](docs/AGENT_ARCHITECTURE_PLAN.md)
+
+#### Overview
+
+This phase implements the **agents-as-performers** architecture where each musical role (drums, bass, keys, etc.) is handled by an autonomous agent with its own personality and style—coordinated by a Conductor Agent.
+
+**Two-Stage Implementation:**
+| Stage | Focus | Backend | Timeline |
+|-------|-------|---------|----------|
+| **Stage 1** | Offline Base Model | Rule-based + ML-free | 4-6 weeks |
+| **Stage 2** | API-Integrated Agentic | Copilot/Gemini APIs | TBD |
+
+#### Core Interfaces
+
+```python
+# IPerformerAgent - Base for all musical role agents
+class IPerformerAgent(ABC):
+    @property
+    def role(self) -> AgentRole: ...      # DRUMS, BASS, KEYS, LEAD, etc.
+    @property
+    def name(self) -> str: ...            # Human-readable name
+    
+    def perform(self, context, section, personality) -> PerformanceResult: ...
+    def react_to_cue(self, cue_type, context) -> List[NoteEvent]: ...
+
+# IConductorAgent - Orchestrates all performers
+class IConductorAgent(ABC):
+    def interpret_prompt(self, prompt) -> ParsedPrompt: ...
+    def research_style(self, parsed, reference_audio) -> Dict: ...
+    def create_score(self, parsed, style_intel) -> PerformanceScore: ...
+    def assemble_ensemble(self, parsed, style_intel) -> Dict[AgentRole, IPerformerAgent]: ...
+    def conduct_performance(self, score, ensemble) -> Dict[str, List[NoteEvent]]: ...
+```
+
+#### Detailed Plan
+
+📄 **Full implementation plan**: [docs/AGENT_ARCHITECTURE_PLAN.md](docs/AGENT_ARCHITECTURE_PLAN.md)
+
+Contains:
+- Detailed interface specifications (IPerformerAgent, IConductorAgent)
+- PerformanceContext shared state design
+- AgentPersonality system with genre presets
+- Phased implementation tasks (5 phases)
+- Migration strategy with feature flags
+- Stage 2 API-agent preparation
+
+#### File Structure
+
+```
+multimodal_gen/
+├── agents/
+│   ├── __init__.py          # Package exports
+│   ├── base.py              # IPerformerAgent, AgentRole, PerformanceResult
+│   ├── conductor.py         # IConductorAgent, PerformanceScore
+│   ├── context.py           # PerformanceContext (shared state)
+│   ├── personality.py       # AgentPersonality, genre presets
+│   ├── factory.py           # AgentFactory for creating ensembles
+│   │
+│   ├── performers/          # Performer implementations
+│   │   ├── drummer.py       # DrummerAgent (wraps GenreStrategy)
+│   │   ├── bassist.py       # BassistAgent
+│   │   ├── keyist.py        # KeyboardistAgent
+│   │   ├── melodist.py      # MelodistAgent (lead)
+│   │   └── padist.py        # PadAgent (ambient)
+│   │
+│   └── strategies/          # Bridge to existing strategies
+│       └── strategy_adapter.py  # StrategyToAgentAdapter
+```
+
+#### Tasks
+
+- [ ] **12.1** Create agent package structure (Week 1)
+  - Create `agents/__init__.py`, `base.py`, `context.py`, `personality.py`
+  - Define core interfaces: `IPerformerAgent`, `AgentRole`, `PerformanceContext`
+  - Define `AgentPersonality` with presets for each genre
+
+- [ ] **12.2** Implement DrummerAgent (Week 1-2)
+  - Wrap existing `GenreStrategy` implementations
+  - Add personality-based post-processing (timing, velocity, fills)
+  - Implement `react_to_cue()` for fills, builds, drops
+
+- [ ] **12.3** Implement BassistAgent (Week 2)
+  - Generate bass lines that lock with drum kicks
+  - Follow chord progression roots
+  - Apply personality-based groove variations
+
+- [ ] **12.4** Implement KeyboardistAgent, MelodistAgent (Week 2-3)
+  - Wrap existing chord/melody generation
+  - Add voicing variations based on personality
+  - Implement chord tension/resolution awareness
+
+- [ ] **12.5** Create OfflineConductor (Week 3-4)
+  - Integrate with existing `PromptParser`, `Arranger`
+  - Build `PerformanceScore` from arrangement
+  - Coordinate performers through sections
+  - Update `PerformanceContext` with inter-agent info
+
+- [ ] **12.6** Create main.py integration (Week 4)
+  - Add `generate_music_agentic()` entry point
+  - Feature flag for agent vs legacy mode
+  - A/B comparison tooling
+
+- [ ] **12.7** Write tests and documentation (Week 4-5)
+  - Unit tests for each agent
+  - Integration tests for conductor + ensemble
+  - Performance comparison with legacy system
+
+- [ ] **12.8** Stage 2 preparation (Week 5-6)
+  - Define `APIPerformerBase` interface
+  - Create `CopilotPerformer`, `GeminiPerformer` stubs
+  - Document API prompt engineering per role
+  - Update factory for API/offline swapping
+
+#### Success Criteria
+
+**Stage 1 Complete When:**
+- [ ] All performer agents implemented (drums, bass, keys, lead, pad)
+- [ ] OfflineConductor coordinates full song generation
+- [ ] Personality system affects output audibly
+- [ ] Feature parity with legacy system
+- [ ] All existing tests pass
+- [ ] New agent tests achieve 80%+ coverage
+
+**Stage 2 Ready When:**
+- [ ] API agent interfaces defined and tested (with mocks)
+- [ ] Factory supports hot-swapping offline ↔ API
+- [ ] Prompt engineering documented for each role
+- [ ] Rate limiting and error handling in place
+
+---
+
 ## 📚 Research & Best Practices Applied
 
 This TODO was enhanced with professional patterns from:
