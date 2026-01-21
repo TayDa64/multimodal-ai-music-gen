@@ -1,6 +1,6 @@
 # Agents-as-Performers Architecture Implementation Plan
 
-**Version**: 1.0  
+**Version**: 1.1  
 **Date**: January 21, 2026  
 **Status**: PLANNING PHASE  
 
@@ -9,6 +9,13 @@
 ## Executive Summary
 
 This document defines a comprehensive architectural transformation from the current procedural music generation system to an **agent-based performer model**. The architecture treats each musical role (drums, bass, keys, etc.) as an autonomous agent with its own personality, style, and decision-making capability—coordinated by a Conductor Agent.
+
+### Key Innovation: Dynamic Agent Spawning
+
+The Conductor can **dynamically spawn performer agents** for any requested instrument, enabling:
+- **Grand Orchestrations**: Full string sections, brass ensembles, choirs
+- **Arbitrary Combinations**: Ethiopian kebero + trap 808s + jazz piano
+- **Extensible Architecture**: New instrument agents added without code changes
 
 ### Two-Stage Roadmap
 
@@ -82,19 +89,28 @@ This document defines a comprehensive architectural transformation from the curr
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           CONDUCTOR AGENT                                    │
 │  ┌─────────────┐  ┌───────────────┐  ┌─────────────┐  ┌────────────────┐   │
-│  │   Parser    │  │   Researcher  │  │  Arranger   │  │   Coordinator  │   │
-│  │ (NLP→Music) │  │ (Style Intel) │  │ (Structure) │  │ (Agent Comms)  │   │
+│  │   Parser    │  │   Researcher  │  │  Arranger   │  │  Agent Spawner │   │
+│  │ (NLP→Music) │  │ (Style Intel) │  │ (Structure) │  │ (Dynamic Ens.) │   │
 │  └─────────────┘  └───────────────┘  └─────────────┘  └────────────────┘   │
 └───────────────────────────────┬─────────────────────────────────────────────┘
                                 │
+                    ┌───────────┴───────────┐
+                    │   AGENT REGISTRY      │
+                    │  ┌─────────────────┐  │
+                    │  │ Instrument→Agent│  │
+                    │  │    Mappings     │  │
+                    │  └─────────────────┘  │
+                    └───────────┬───────────┘
+                                │ spawn_agent(instrument)
           ┌────────────┬────────┴────────┬────────────┬────────────┐
           ▼            ▼                 ▼            ▼            ▼
     ┌──────────┐ ┌──────────┐    ┌──────────┐ ┌──────────┐ ┌──────────┐
-    │ DRUMMER  │ │ BASSIST  │    │  KEYIST  │ │ MELODIST │ │ PRODUCER │
-    │  Agent   │ │  Agent   │    │  Agent   │ │  Agent   │ │  Agent   │
+    │ DRUMMER  │ │ BASSIST  │    │ VIOLINS  │ │  MASENQO │ │  CHOIR   │
+    │  Agent   │ │  Agent   │    │ Section  │ │  Agent   │ │  Agent   │
     └──────────┘ └──────────┘    └──────────┘ └──────────┘ └──────────┘
           │            │                 │            │            │
-          ▼            ▼                 ▼            ▼            ▼
+          └────────────┴─────────────────┴────────────┴────────────┘
+                                │
     ┌─────────────────────────────────────────────────────────────────────┐
     │                    PERFORMANCE CONTEXT (Shared State)                │
     │  ┌─────────┐  ┌────────┐  ┌─────────┐  ┌────────────┐  ┌────────┐  │
@@ -113,7 +129,217 @@ This document defines a comprehensive architectural transformation from the curr
     └─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 Core Interfaces
+### 2.2 Dynamic Agent Spawning
+
+The Conductor dynamically spawns performer agents based on the prompt analysis:
+
+```python
+# multimodal_gen/agents/registry.py
+
+class AgentRegistry:
+    """
+    Registry of instrument → agent type mappings.
+    
+    Allows the Conductor to spawn appropriate agents for any
+    instrument requested in the prompt.
+    """
+    
+    # Core role mappings (always available)
+    CORE_AGENTS = {
+        "drums": DrummerAgent,
+        "bass": BassistAgent,
+        "piano": KeyboardistAgent,
+        "keys": KeyboardistAgent,
+        "synth": SynthAgent,
+        "lead": MelodistAgent,
+        "pad": PadAgent,
+    }
+    
+    # Orchestral instruments
+    ORCHESTRAL_AGENTS = {
+        # Strings
+        "violin": StringAgent,
+        "viola": StringAgent,
+        "cello": StringAgent,
+        "contrabass": StringAgent,
+        "strings": StringSectionAgent,  # Spawns multiple string agents
+        
+        # Woodwinds
+        "flute": WoodwindAgent,
+        "clarinet": WoodwindAgent,
+        "oboe": WoodwindAgent,
+        "bassoon": WoodwindAgent,
+        
+        # Brass
+        "trumpet": BrassAgent,
+        "trombone": BrassAgent,
+        "french_horn": BrassAgent,
+        "tuba": BrassAgent,
+        "brass": BrassSectionAgent,  # Spawns multiple brass agents
+    }
+    
+    # World/Ethnic instruments
+    WORLD_AGENTS = {
+        # Ethiopian
+        "masenqo": MasenqoAgent,      # Single-string fiddle
+        "krar": KrarAgent,            # 6-string lyre
+        "begena": BegenaAgent,        # Large lyre
+        "washint": WashintAgent,      # Bamboo flute
+        "kebero": KeberoAgent,        # Double-headed drum
+        
+        # Other world
+        "sitar": SitarAgent,
+        "tabla": TablaAgent,
+        "koto": KotoAgent,
+        "shamisen": ShamisenAgent,
+    }
+    
+    # Section agents (spawn multiple performers)
+    SECTION_AGENTS = {
+        "string_section": StringSectionAgent,
+        "brass_section": BrassSectionAgent,
+        "choir": ChoirAgent,
+        "woodwind_section": WoodwindSectionAgent,
+    }
+    
+    @classmethod
+    def get_agent_class(cls, instrument: str) -> type:
+        """Get the agent class for an instrument."""
+        instrument = instrument.lower().replace(" ", "_")
+        
+        # Check all registries
+        for registry in [cls.CORE_AGENTS, cls.ORCHESTRAL_AGENTS, 
+                         cls.WORLD_AGENTS, cls.SECTION_AGENTS]:
+            if instrument in registry:
+                return registry[instrument]
+        
+        # Fallback to generic melodic agent
+        return GenericMelodicAgent
+    
+    @classmethod
+    def spawn_agent(
+        cls,
+        instrument: str,
+        genre: str,
+        personality: AgentPersonality = None
+    ) -> IPerformerAgent:
+        """
+        Spawn an agent for the given instrument.
+        
+        This is the main factory method used by the Conductor.
+        """
+        agent_class = cls.get_agent_class(instrument)
+        return agent_class(
+            instrument_name=instrument,
+            genre=genre,
+            personality=personality or cls._get_default_personality(instrument, genre)
+        )
+    
+    @classmethod
+    def spawn_section(
+        cls,
+        section_type: str,
+        size: int,
+        genre: str
+    ) -> List[IPerformerAgent]:
+        """
+        Spawn a section of performers (e.g., string quartet, brass quintet).
+        
+        Example:
+            spawn_section("strings", 4, "classical") →
+                [Violin1Agent, Violin2Agent, ViolaAgent, CelloAgent]
+        """
+        if section_type == "strings":
+            return cls._spawn_string_section(size, genre)
+        elif section_type == "brass":
+            return cls._spawn_brass_section(size, genre)
+        elif section_type == "choir":
+            return cls._spawn_choir(size, genre)
+        else:
+            return [cls.spawn_agent(section_type, genre) for _ in range(size)]
+
+
+class SectionAgent(IPerformerAgent):
+    """
+    Meta-agent that coordinates multiple sub-performers.
+    
+    For example, a StringSectionAgent contains Violin1, Violin2,
+    Viola, and Cello agents and coordinates their voicings.
+    """
+    
+    def __init__(self, section_name: str, sub_agents: List[IPerformerAgent]):
+        self._section_name = section_name
+        self._sub_agents = sub_agents
+    
+    @property
+    def role(self) -> AgentRole:
+        return AgentRole.SECTION
+    
+    @property
+    def name(self) -> str:
+        return f"{self._section_name} ({len(self._sub_agents)} performers)"
+    
+    def perform(
+        self,
+        context: PerformanceContext,
+        section: 'SongSection',
+        personality: Optional[AgentPersonality] = None
+    ) -> PerformanceResult:
+        """
+        Coordinate all sub-agents to perform together.
+        
+        Handles voice leading, part distribution, and ensemble balance.
+        """
+        all_notes = []
+        decisions = [f"Section {self._section_name} coordinating {len(self._sub_agents)} performers"]
+        
+        # Distribute chord voicings across instruments
+        voicings = self._distribute_voicings(context)
+        
+        for agent, voicing in zip(self._sub_agents, voicings):
+            # Give each agent their voice assignment
+            agent_context = self._create_agent_context(context, voicing)
+            result = agent.perform(agent_context, section, personality)
+            all_notes.extend(result.notes)
+            decisions.extend(result.decisions_made)
+        
+        return PerformanceResult(
+            notes=all_notes,
+            agent_role=self.role,
+            agent_name=self.name,
+            personality_applied=personality or AgentPersonality(),
+            decisions_made=decisions,
+            patterns_used=[],
+            fill_locations=[]
+        )
+```
+
+#### Grand Orchestration Example
+
+```python
+# User prompt: "Epic orchestral piece with full strings, brass, and Ethiopian instruments"
+
+# Conductor analysis:
+parsed = conductor.interpret_prompt(prompt)
+# parsed.instruments = ["strings", "brass", "masenqo", "kebero"]
+
+# Conductor spawns appropriate agents:
+ensemble = {
+    # String section (4 agents: 2 violins, viola, cello)
+    "strings": AgentRegistry.spawn_section("strings", 4, "orchestral"),
+    
+    # Brass section (4 agents: 2 trumpets, horn, trombone)
+    "brass": AgentRegistry.spawn_section("brass", 4, "orchestral"),
+    
+    # Ethiopian instruments (individual agents)
+    "masenqo": AgentRegistry.spawn_agent("masenqo", "ethiopian"),
+    "kebero": AgentRegistry.spawn_agent("kebero", "ethiopian"),
+}
+
+# Total: 10 performer agents coordinated by 1 conductor
+```
+
+### 2.3 Core Interfaces
 
 #### 2.2.1 `IPerformerAgent` (Abstract Base)
 
