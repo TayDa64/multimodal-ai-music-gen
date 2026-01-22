@@ -501,6 +501,9 @@ class ProceduralRenderer:
     mapping from expansion packs.
     """
     
+    # Ethiopian instruments that should use procedural synthesis, not generic samples
+    ETHIOPIAN_INSTRUMENTS = {'krar', 'masenqo', 'washint', 'begena', 'kebero', 'atamo'}
+    
     def __init__(
         self,
         sample_rate: int = SAMPLE_RATE,
@@ -508,7 +511,8 @@ class ProceduralRenderer:
         expansion_manager: 'ExpansionManager' = None,
         instrument_service: 'InstrumentResolutionService' = None,
         genre: str = None,
-        mood: str = None
+        mood: str = None,
+        parsed_instruments: list = None,  # NEW: Explicit instruments from prompt
     ):
         self.sample_rate = sample_rate
         self.instrument_library = instrument_library
@@ -516,6 +520,10 @@ class ProceduralRenderer:
         self._instrument_service = instrument_service
         self.genre = genre or "trap"
         self.mood = mood
+        self._parsed_instruments = set(parsed_instruments) if parsed_instruments else set()
+        
+        # Check if Ethiopian instruments are requested
+        self._has_ethiopian_instruments = bool(self._parsed_instruments & self.ETHIOPIAN_INSTRUMENTS)
         
         # Matcher for intelligent instrument selection
         self._matcher = None
@@ -582,7 +590,11 @@ class ProceduralRenderer:
         self._drum_cache['hihat_open'] = generate_hihat(is_open=True)
     
     def _load_custom_instruments(self):
-        """Load best-fit instruments from library based on genre/mood."""
+        """Load best-fit instruments from library based on genre/mood.
+        
+        When Ethiopian instruments are explicitly requested, skip generic melodic
+        instrument loading to ensure procedural Ethiopian synthesis is used.
+        """
         if not self.instrument_library or not self._matcher:
             return
         
@@ -644,6 +656,13 @@ class ProceduralRenderer:
             # ===============================================================
             # Load melodic instruments (synth, bass, keys, pad, brass, strings)
             # These are used by _synthesize_note for varied, genre-appropriate sounds
+            
+            # CRITICAL: Skip generic melodic loading when Ethiopian instruments requested
+            # This ensures krar/masenqo/washint use authentic procedural synthesis
+            if self._has_ethiopian_instruments:
+                print(f"  [*] Ethiopian instruments requested ({', '.join(self._parsed_instruments & self.ETHIOPIAN_INSTRUMENTS)}) - using procedural synthesis")
+                return  # Skip generic sample loading
+            
             melodic_mappings = {
                 'synth': InstrumentCategory.SYNTH,
                 'bass': InstrumentCategory.BASS,
@@ -1138,7 +1157,8 @@ class AudioRenderer:
         use_bwf: bool = True,
         ai_metadata: Optional[Dict] = None,
         tail_seconds: float = 2.0,
-        synthesizer: Optional['ISynthesizer'] = None
+        synthesizer: Optional['ISynthesizer'] = None,
+        parsed_instruments: list = None,  # NEW: Explicit instruments from prompt
     ):
         """
         Initialize AudioRenderer.
@@ -1172,6 +1192,7 @@ class AudioRenderer:
         self.use_bwf = use_bwf
         self.ai_metadata = ai_metadata or {}
         self.tail_seconds = tail_seconds
+        self._parsed_instruments = set(parsed_instruments) if parsed_instruments else set()
 
         self._last_render_report: Optional[Dict] = None
         
@@ -1207,7 +1228,8 @@ class AudioRenderer:
             expansion_manager=expansion_manager,
             instrument_service=instrument_service,
             genre=genre,
-            mood=mood
+            mood=mood,
+            parsed_instruments=parsed_instruments,  # Pass instruments for Ethiopian detection
         )
     
     def set_instrument_library(

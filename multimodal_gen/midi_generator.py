@@ -1713,7 +1713,15 @@ class MidiGenerator:
     ) -> MidiTrack:
         """Generate drum track with humanized patterns."""
         track = MidiTrack()
-        track.append(MetaMessage('track_name', name='Drums', time=0))
+        
+        # Use Ethiopian drum name if kebero is primary drum element
+        if 'kebero' in parsed.drum_elements:
+            track_name = 'Kebero'
+        elif 'atamo' in parsed.drum_elements:
+            track_name = 'Atamo'
+        else:
+            track_name = 'Drums'
+        track.append(MetaMessage('track_name', name=track_name, time=0))
         
         all_notes = []
         
@@ -1824,7 +1832,6 @@ class MidiGenerator:
     ) -> MidiTrack:
         """Generate chord track."""
         track = MidiTrack()
-        track.append(MetaMessage('track_name', name='Chords', time=0))
         
         # Program change based on instrument
         # Priority: Ethiopian genres should prefer Ethiopian instruments
@@ -1867,39 +1874,54 @@ class MidiGenerator:
                 genre=parsed.genre or ""
             )
             program = resolved.program
-            resolved_instrument = resolved.name
+            resolved_instrument = instrument_to_resolve  # Use the instrument we asked to resolve
         
         # Fallback to hardcoded mappings if no service or resolution failed
         if program is None:
             # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
             if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
                 program = 110  # Custom: Krar (Ethiopian lyre)
+                resolved_instrument = 'Krar'
             elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
                 program = 111  # Custom: Masenqo (Ethiopian fiddle)
+                resolved_instrument = 'Masenqo'
             elif 'begena' in parsed.instruments:
                 program = 113  # Custom: Begena (Ethiopian harp)
+                resolved_instrument = 'Begena'
             elif 'washint' in parsed.instruments:
                 program = 112  # Custom: Washint (Ethiopian flute)
+                resolved_instrument = 'Washint'
             # Standard GM instruments
             elif 'rhodes' in parsed.instruments:
                 program = 4  # Electric Piano 1
+                resolved_instrument = 'Rhodes'
             elif 'piano' in parsed.instruments:
                 program = 0  # Acoustic Grand
+                resolved_instrument = 'Piano'
             elif 'pad' in parsed.instruments:
                 program = 89  # Pad 2 (warm)
+                resolved_instrument = 'Pad'
             elif 'strings' in parsed.instruments:
                 program = 48  # String Ensemble
+                resolved_instrument = 'Strings'
             elif 'organ' in parsed.instruments:
                 program = 16  # Drawbar Organ
+                resolved_instrument = 'Organ'
             elif 'brass' in parsed.instruments:
                 program = 61  # Brass Section
+                resolved_instrument = 'Brass'
             else:
                 # Default based on genre
                 if is_ethiopian:
                     program = 110  # Krar for Ethiopian
+                    resolved_instrument = 'Krar'
                 else:
                     program = 4  # Rhodes for others
+                    resolved_instrument = 'Rhodes'
         
+        # Set track name to actual instrument (instead of generic 'Chords')
+        track_name = resolved_instrument.capitalize() if resolved_instrument else 'Chords'
+        track.append(MetaMessage('track_name', name=track_name, time=0))
         track.append(Message('program_change', program=program, channel=2, time=0))
         
         all_notes = []
@@ -2003,10 +2025,10 @@ class MidiGenerator:
     ) -> MidiTrack:
         """Generate optional melody track."""
         track = MidiTrack()
-        track.append(MetaMessage('track_name', name='Melody', time=0))
         
         # Try to resolve instrument via service first (if available)
         program = None
+        resolved_instrument = None
         
         if self._instrument_service:
             # Determine which instrument to resolve based on parsed instruments
@@ -2032,24 +2054,35 @@ class MidiGenerator:
                 genre=parsed.genre or ""
             )
             program = resolved.program
+            resolved_instrument = instrument_to_resolve
         
         # Fallback to hardcoded mappings if no service
         if program is None:
             if 'washint' in parsed.instruments:
                 program = 112  # Custom: Washint (Ethiopian flute) - great for melodies
+                resolved_instrument = 'Washint'
             elif 'masenqo' in parsed.instruments:
                 program = 111  # Custom: Masenqo (Ethiopian fiddle)
+                resolved_instrument = 'Masenqo'
             elif 'krar' in parsed.instruments:
                 program = 110  # Custom: Krar
+                resolved_instrument = 'Krar'
             elif 'flute' in parsed.instruments:
                 program = 73  # Flute
+                resolved_instrument = 'Flute'
             elif 'brass' in parsed.instruments:
                 program = 56  # Trumpet
+                resolved_instrument = 'Brass'
             elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
                 program = 80  # Lead 1 (square)
+                resolved_instrument = 'Synth'
             else:
                 program = 80  # Lead 1 (square) - default
+                resolved_instrument = 'Melody'
         
+        # Set track name to actual instrument (instead of generic 'Melody')
+        track_name = resolved_instrument.capitalize() if resolved_instrument else 'Melody'
+        track.append(MetaMessage('track_name', name=track_name, time=0))
         track.append(Message('program_change', program=program, channel=3, time=0))
         
         all_notes = []

@@ -1370,7 +1370,8 @@ def run_generation(
         genre=parsed.genre,
         mood=parsed.mood,
         use_bwf=use_bwf,
-        ai_metadata=ai_metadata
+        ai_metadata=ai_metadata,
+        parsed_instruments=parsed.instruments + parsed.drum_elements,  # Pass explicit instruments
     )
     
     try:
