@@ -1340,14 +1340,15 @@ class AudioRenderer:
                 return False
 
         custom_drums_loaded = len(getattr(self.procedural, '_custom_drum_cache', {}) or {})
+        has_ethiopian = getattr(self.procedural, '_has_ethiopian_instruments', False)
 
         fluidsynth_allowed = bool(self.use_fluidsynth and self.soundfont_path)
         fluidsynth_skip_reason: Optional[str] = None
         fluidsynth_attempted = False
         fluidsynth_success = False
 
-        # Try FluidSynth first (only if no custom drums loaded)
-        if fluidsynth_allowed and custom_drums_loaded == 0:
+        # Try FluidSynth first (only if no custom drums loaded AND no Ethiopian instruments)
+        if fluidsynth_allowed and custom_drums_loaded == 0 and not has_ethiopian:
             fluidsynth_attempted = True
             fluidsynth_success = render_midi_with_fluidsynth(
                 midi_path,
@@ -1374,6 +1375,11 @@ class AudioRenderer:
                 return True
 
             warnings.append("FluidSynth render failed; falling back to procedural")
+        elif fluidsynth_allowed and has_ethiopian:
+            warnings.append(
+                "FluidSynth skipped because Ethiopian instruments requested - using procedural synthesis"
+            )
+            fluidsynth_skip_reason = "ethiopian_instruments"
         elif fluidsynth_allowed and custom_drums_loaded > 0:
             warnings.append(
                 f"FluidSynth skipped because custom drum samples are loaded (count={custom_drums_loaded})"
