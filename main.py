@@ -66,6 +66,21 @@ except ImportError:
     compile_policy = None
     PolicyContext = None
 
+# Import agent-based generation system (optional)
+try:
+    from multimodal_gen.agents import (
+        OfflineConductor,
+        MasenqoAgent,
+        WashintAgent,
+        KrarAgent,
+        BegenaAgent,
+        KeberoAgent,
+    )
+    HAS_AGENT_SYSTEM = True
+except ImportError:
+    HAS_AGENT_SYSTEM = False
+    OfflineConductor = None
+
 try:
     from colorama import init, Fore, Style
     init()
@@ -262,6 +277,7 @@ def run_generation(
     tension_intensity: Optional[float] = None,
     motif_mode: Optional[str] = None,
     num_motifs: Optional[int] = None,
+    use_agents: bool = False,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -284,6 +300,7 @@ def run_generation(
         takes: Number of alternative takes to generate per track
         comp: Auto-generate comp track from best sections of each take
         comp_bars: Number of bars per comp section (default: 2)
+        use_agents: Use agent-based generation for Ethiopian instruments (experimental)
         
     Returns:
         Dictionary with paths to generated files
@@ -860,12 +877,151 @@ def run_generation(
     # Get groove from session graph if available
     groove_template = session_graph.groove_template if session_graph else None
     
+    # Agent-based generation (experimental - for Ethiopian instruments)
+    # This provides more authentic qenet-based patterns for traditional instruments
+    agent_performances = None
+    if use_agents and HAS_AGENT_SYSTEM:
+        try:
+            from multimodal_gen.utils import normalize_genre
+            import mido
+            
+            normalized_genre = normalize_genre(parsed.genre)
+            ethiopian_genres = {'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'}
+            
+            if normalized_genre in ethiopian_genres:
+                print_info("Using agent-based generation for Ethiopian instruments...")
+                
+                # Create conductor
+                conductor = OfflineConductor()
+                
+                # Research style (prompt is already parsed)
+                style_intel = conductor.research_style(parsed)
+                mood = style_intel.get('mood', 'traditional')
+                energy = style_intel.get('energy', 0.5)
+                if isinstance(mood, str):
+                    print_info(f"Conductor style research: {mood} mood")
+                else:
+                    print_info(f"Conductor style research: energy={energy:.0%}")
+                
+                # Assemble Ethiopian ensemble
+                ensemble = conductor.assemble_ensemble(arrangement, parsed)
+                if ensemble:
+                    print_info(f"Ensemble: {[a.__class__.__name__ for a in ensemble]}")
+                
+                # Conduct performance (generates MIDI tracks per agent)
+                agent_performances = conductor.conduct_performance(
+                    ensemble=ensemble,
+                    arrangement=arrangement,
+                    parsed=parsed
+                )
+                
+                if agent_performances:
+                    print_success(f"Agent-based generation: {len(agent_performances)} performer tracks")
+                else:
+                    print_warning("Agent-based generation produced no tracks, falling back to standard")
+            else:
+                if verbose:
+                    print_info(f"Agent system available but not used for genre: {normalized_genre}")
+        except Exception as e:
+            print_warning(f"Agent-based generation failed: {e}, falling back to standard")
+            if verbose:
+                import traceback
+                traceback.print_exc()
+            agent_performances = None
+    elif use_agents and not HAS_AGENT_SYSTEM:
+        print_warning("Agent system requested but not available (check imports)")
+    
     midi_file = midi_gen.generate(
         arrangement, 
         parsed, 
         groove_template=groove_template,
         policy_context=policy_context
     )
+    
+    # Merge agent-based performances into MIDI file (if available)
+    # Agent tracks are added alongside standard generated tracks
+    if agent_performances:
+        try:
+            import mido
+            from multimodal_gen.midi_generator import NoteEvent
+            
+            # Load the generated MIDI to merge agent tracks
+            temp_path = output_dir / "_temp_midi_for_merge.mid"
+            midi_file.save(str(temp_path))
+            mid = mido.MidiFile(str(temp_path))
+            
+            for perf in agent_performances:
+                agent_name = perf.get('agent_name', 'Agent')
+                notes = perf.get('notes', [])
+                channel = perf.get('channel', 0)
+                program = perf.get('program', 0)
+                
+                if not notes:
+                    continue
+                
+                # Create MIDI track for this agent
+                track = mido.MidiTrack()
+                track.name = agent_name
+                
+                # Set program
+                track.append(mido.Message('program_change', channel=channel, program=program, time=0))
+                
+                # Sort notes by tick
+                sorted_notes = sorted(notes, key=lambda n: n.tick if hasattr(n, 'tick') else n.get('tick', 0))
+                
+                # Convert to MIDI messages with delta times
+                messages = []
+                for note in sorted_notes:
+                    if isinstance(note, NoteEvent):
+                        tick = note.tick
+                        pitch = note.pitch
+                        vel = note.velocity
+                        dur = note.duration
+                    else:
+                        tick = note.get('tick', 0)
+                        pitch = note.get('pitch', 60)
+                        vel = note.get('velocity', 80)
+                        dur = note.get('duration', 480)
+                    
+                    messages.append(('note_on', tick, pitch, vel, channel))
+                    messages.append(('note_off', tick + dur, pitch, 0, channel))
+                
+                # Sort all messages by time
+                messages.sort(key=lambda m: m[1])
+                
+                # Convert to delta times
+                last_tick = 0
+                for msg_type, abs_tick, pitch, vel, chan in messages:
+                    delta = abs_tick - last_tick
+                    if msg_type == 'note_on':
+                        track.append(mido.Message('note_on', note=pitch, velocity=vel, channel=chan, time=delta))
+                    else:
+                        track.append(mido.Message('note_off', note=pitch, velocity=0, channel=chan, time=delta))
+                    last_tick = abs_tick
+                
+                mid.tracks.append(track)
+                if verbose:
+                    print_info(f"  Added agent track: {agent_name} ({len(notes)} notes)")
+            
+            # Save merged file back
+            mid.save(str(temp_path))
+            
+            # Reload as MidiFile for the rest of the pipeline
+            midi_file = mido.MidiFile(str(temp_path))
+            
+            # Clean up temp file
+            try:
+                temp_path.unlink()
+            except:
+                pass
+            
+            print_success(f"Merged {len(agent_performances)} agent performances into MIDI")
+            
+        except Exception as e:
+            print_warning(f"Failed to merge agent performances: {e}")
+            if verbose:
+                import traceback
+                traceback.print_exc()
     
     # Save MIDI file
     project_name = generate_project_name(parsed)
@@ -2104,6 +2260,11 @@ Server Mode (for JUCE integration):
         help="Disable Broadcast Wave Format metadata (use standard WAV)",
     )
     parser.add_argument(
+        "--use-agents",
+        action="store_true",
+        help="[EXPERIMENTAL] Use agent-based generation for Ethiopian instruments (Krar, Masenqo, Washint, Begena, Kebero)",
+    )
+    parser.add_argument(
         "--takes",
         type=int,
         default=0,
@@ -2415,6 +2576,7 @@ Server Mode (for JUCE integration):
             preset=args.preset,
             style_preset=args.style_preset,
             production_preset=args.production_preset,
+            use_agents=args.use_agents,
         )
 
         require_soundfont_failed = bool(args.require_soundfont and not results.get('audio'))

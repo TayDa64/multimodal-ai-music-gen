@@ -11,15 +11,18 @@ Available Performers:
     - KeyboardistAgent: Chord voicings, voice leading, and harmonic accompaniment
     - MasenqoAgent: Ethiopian bowed fiddle with qenet modes and azmari phrases
     - WashintAgent: Ethiopian bamboo flute with breath phrasing and ornaments
+    - KrarAgent: Ethiopian lyre with arpeggios and drone accompaniment
+    - BegenaAgent: Ethiopian bass lyre with meditative drone patterns
+    - KeberoAgent: Ethiopian drum with eskista and traditional rhythms
 
 Future Performers:
     - LeadAgent: Melodic lead lines and runs
     - StringsAgent: Orchestral string arrangements
-    - KrarAgent: Ethiopian lyre
 
 Usage:
     from multimodal_gen.agents.performers import (
-        DrummerAgent, BassistAgent, KeyboardistAgent, MasenqoAgent, WashintAgent
+        DrummerAgent, BassistAgent, KeyboardistAgent,
+        MasenqoAgent, WashintAgent, KrarAgent, BegenaAgent, KeberoAgent
     )
     
     drummer = DrummerAgent()
@@ -27,12 +30,12 @@ Usage:
     keyboardist = KeyboardistAgent()
     masenqo = MasenqoAgent()
     washint = WashintAgent()
+    krar = KrarAgent()
+    begena = BegenaAgent()
+    kebero = KeberoAgent()
     
-    drum_result = drummer.perform(context, section, personality)
-    bass_result = bassist.perform(context, section, personality)
-    keys_result = keyboardist.perform(context, section, personality)
-    masenqo_result = masenqo.perform(context, section, personality)
-    washint_result = washint.perform(context, section, personality)
+    # Each agent can perform with context, section, and personality
+    result = krar.perform(context, section, personality)
 """
 
 from .drummer import DrummerAgent
@@ -40,6 +43,9 @@ from .bassist import BassistAgent
 from .keyboardist import KeyboardistAgent
 from .masenqo import MasenqoAgent, MASENQO_PRESETS
 from .washint import WashintAgent, WASHINT_PRESETS
+from .krar import KrarAgent, KRAR_PRESETS
+from .begena import BegenaAgent, BEGENA_PRESETS
+from .kebero import KeberoAgent, KEBERO_PRESETS
 
 # Re-export personality presets from parent module for convenience
 from ..personality import (
@@ -49,16 +55,24 @@ from ..personality import (
 )
 
 __all__ = [
-    # Agents
+    # Standard Agents
     "DrummerAgent",
     "BassistAgent",
     "KeyboardistAgent",
+    # Ethiopian Agents
     "MasenqoAgent",
     "WashintAgent",
-    # Presets
+    "KrarAgent",
+    "BegenaAgent",
+    "KeberoAgent",
+    # Standard Presets
     "DRUMMER_PRESETS",
     "BASSIST_PRESETS",
     "KEYIST_PRESETS",
+    # Ethiopian Presets
     "MASENQO_PRESETS",
     "WASHINT_PRESETS",
+    "KRAR_PRESETS",
+    "BEGENA_PRESETS",
+    "KEBERO_PRESETS",
 ]
