@@ -391,19 +391,6 @@
         "FLAW-3": "Comment range updated to match actual formula range [0.16, 0.30]"
       },
       "test_count": "934 passed"
-    },
-      "validation": {
-        "builder": "recursive-builder — 908 passed (+9 new tests)",
-        "auditor": "recursive-verifier — 3 HIGH findings (type mismatch, dead drum panning, vacuous tests), 2 MEDIUM, 2 LOW",
-        "stress_tester": "recursive-verifier — confirmed all 3 auditor HIGHs + found BUG-1 (second renderer missing bridges)",
-        "diagnostician": "recursive-builder — ALL 4 findings fixed, 908 passed"
-      },
-      "fixes_applied": {
-        "F1_TYPE_MISMATCH": "ReferenceProfile (from reference_matching) created with correct type instead of passing ReferenceAnalysis",
-        "F2_DEAD_DRUM_PANNING": "Removed dead kick_pan/snare_pan/hihat_pan branches (drums always on MIDI ch9, can't pan individually). Documented as architectural limitation",
-        "F4_F5_VACUOUS_TESTS": "Extracted _compute_pan() method from inline panning logic, rewrote 3 tests to call production _compute_pan() directly",
-        "BUG1_SECOND_RENDERER": "Added TODO comment for second renderer in CLI re-render path"
-      }
     }
   },
   "sprint_7_5": {
@@ -506,10 +493,44 @@
         "100% backward compatible fallback"
       ]
     },
-    "builder_2_genre_strategy_pattern": {"status": "pending"},
-    "builder_3_synthesizer_interface": {"status": "pending"},
-    "builder_4_instrument_plugin_system": {"status": "pending"},
-    "builder_5_mpc_schema_validation": {"status": "pending"},
-    "builder_6_test_suite_expansion": {"status": "pending"}
+    "builder_2_genre_strategy_pattern": {
+      "status": "completed",
+      "files_created": [
+        "multimodal_gen/strategies/drill_strategy.py",
+        "multimodal_gen/strategies/boom_bap_strategy.py"
+      ],
+      "files_modified": [
+        "multimodal_gen/strategies/registry.py",
+        "multimodal_gen/strategies/__init__.py",
+        "multimodal_gen/midi_generator.py"
+      ],
+      "features": [
+        "Bass strategy delegation in _create_bass_track",
+        "Chord strategy delegation in _create_chord_track",
+        "DrillStrategy with aggressive hi-hat patterns",
+        "BoomBapStrategy with classic swing feel"
+      ]
+    },
+    "builder_3_synthesizer_interface": {
+      "status": "completed",
+      "files_created": ["multimodal_gen/synthesizers/plugin_synth.py"],
+      "files_modified": [
+        "multimodal_gen/synthesizers/factory.py",
+        "multimodal_gen/synthesizers/__init__.py"
+      ],
+      "features": [
+        "PluginSynthesizer ISynthesizer adapter",
+        "Registered in SynthesizerFactory as lower-priority backend"
+      ]
+    },
+    "builder_4_instrument_plugin_system": {"status": "deferred"},
+    "builder_5_mpc_schema_validation": {
+      "status": "completed"
+    },
+    "builder_6_test_suite_expansion": {
+      "status": "completed",
+      "files_created": ["tests/test_wave2_c1.py"],
+      "test_count": "see test results"
+    }
   }
 }

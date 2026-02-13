@@ -187,6 +187,13 @@ def _register_builtins():
     SynthesizerFactory.register('fluidsynth', FluidSynthSynthesizer)
     SynthesizerFactory.register('procedural', ProceduralSynthesizer)
 
+    # Plugin-based synthesizer (lower priority, Wave 2)
+    try:
+        from .plugin_synth import PluginSynthesizer
+        SynthesizerFactory.register('plugin', PluginSynthesizer)
+    except Exception:
+        pass  # graceful degradation if plugin infra unavailable
+
 
 # Auto-register on import
 _register_builtins()

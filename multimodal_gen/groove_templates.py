@@ -798,6 +798,97 @@ class GrooveApplicator:
         
         return result
 
+    def apply_with_instrument_offset(
+        self,
+        notes: List[Dict[str, Any]],
+        template: GrooveTemplate,
+        genre: str,
+        instrument_role: str,
+        intensity: Optional[float] = None,
+    ) -> List[Dict[str, Any]]:
+        """Apply groove template plus per-instrument timing offset.
+
+        First applies the groove template (existing timing deviations), then
+        adds the per-instrument timing offset from
+        ``GENRE_TIMING_OFFSETS[genre][instrument_role]``.
+
+        Falls back to plain ``apply()`` when the genre/instrument pair is
+        not found in the offsets dict.
+
+        Args:
+            notes: Note dicts with 'tick', 'velocity', etc.
+            template: Groove template to apply.
+            genre: Genre name (e.g. 'trap', 'jazz').
+            instrument_role: Instrument role (e.g. 'bass', 'keys').
+            intensity: Override template intensity.
+
+        Returns:
+            Notes with groove + per-instrument offset applied.
+        """
+        # Step 1: apply the groove template
+        grooved = self.apply(notes, template, intensity=intensity)
+
+        # Step 2: look up per-instrument offset
+        offset = get_timing_offset(genre, instrument_role)
+        if offset == 0:
+            return grooved
+
+        result = []
+        for note in grooved:
+            adjusted = dict(note)
+            if 'tick' in adjusted:
+                adjusted['tick'] = max(0, adjusted['tick'] + offset)
+            elif 'start' in adjusted:
+                adjusted['start'] = max(0, adjusted['start'] + offset)
+            result.append(adjusted)
+        return result
+
+
+# =============================================================================
+# GROOVE PROFILE LOADER (Wave 2 – C3)
+# =============================================================================
+
+class GrooveProfileLoader:
+    """Load groove profiles from JSON files in a directory.
+
+    Scans a directory for ``.json`` groove files and caches them in memory.
+
+    Default directory: ``<project>/configs/grooves/``
+    """
+
+    def __init__(self, groove_dir: Optional[str] = None):
+        self._dir = Path(groove_dir) if groove_dir else Path(__file__).parent.parent / "configs" / "grooves"
+        self._cache: Dict[str, GrooveTemplate] = {}
+
+    def list_profiles(self) -> List[str]:
+        """Return the stem names of available ``.json`` groove files."""
+        if not self._dir.is_dir():
+            return []
+        return sorted(p.stem for p in self._dir.glob("*.json"))
+
+    def load_profile(self, name: str) -> GrooveTemplate:
+        """Load and return a :class:`GrooveTemplate` from a JSON file.
+
+        Args:
+            name: File stem (without ``.json`` extension).
+
+        Returns:
+            Parsed ``GrooveTemplate``.
+
+        Raises:
+            FileNotFoundError: If the profile file does not exist.
+        """
+        if name in self._cache:
+            return self._cache[name].copy()
+
+        path = self._dir / f"{name}.json"
+        if not path.is_file():
+            raise FileNotFoundError(f"Groove profile not found: {path}")
+
+        template = GrooveTemplate.load(path)
+        self._cache[name] = template
+        return template.copy()
+
 
 # =============================================================================
 # PRESET GROOVES

@@ -2071,6 +2071,17 @@ class MidiGenerator:
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.90, 1.12)
             if section.config.enable_bass:
+                # Strategy delegation (Wave 2) — try genre strategy first
+                _strategy_bass: List[NoteEvent] = []
+                try:
+                    _strat = StrategyRegistry.get_or_default(parsed.genre or 'default')
+                    _strategy_bass = _strat.generate_bass(section, parsed, tension)
+                except Exception:
+                    _strategy_bass = []
+                if _strategy_bass:
+                    all_notes.extend(_strategy_bass)
+                    continue  # strategy handled this section
+                # Fallback: existing inline bass generation
                 if parsed.genre == 'g_funk':
                     bass_pattern = generate_gfunk_bass_pattern(
                         section.bars,
@@ -2238,6 +2249,17 @@ class MidiGenerator:
                 complexity = max(complexity, vp.max_extensions * 0.15)
             
             if section.config.enable_chords:
+                # Strategy delegation (Wave 2) — try genre strategy first
+                _strategy_chords: List[NoteEvent] = []
+                try:
+                    _cstrat = StrategyRegistry.get_or_default(parsed.genre or 'default')
+                    _strategy_chords = _cstrat.generate_chords(section, parsed, tension)
+                except Exception:
+                    _strategy_chords = []
+                if _strategy_chords:
+                    all_notes.extend(_strategy_chords)
+                    continue  # strategy handled this section
+                # Fallback: existing inline chord generation
                 chord_pattern = generate_chord_progression_midi(
                     section.bars,
                     parsed.key,

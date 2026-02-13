@@ -61,7 +61,8 @@ class DynamicsEngine:
     def apply(
         self,
         notes: List[Tuple[int, int, int, int]],  # (tick, duration, pitch, velocity)
-        config: DynamicsConfig
+        config: DynamicsConfig,
+        auto_detect_phrases: bool = False,
     ) -> List[Tuple[int, int, int, int]]:
         """
         Apply dynamics shaping to notes.
@@ -69,6 +70,8 @@ class DynamicsEngine:
         Args:
             notes: List of (tick, duration, pitch, velocity) tuples
             config: Dynamics configuration
+            auto_detect_phrases: When True, use ``detect_phrase_boundaries``
+                instead of fixed ``phrase_length_beats`` splitting.
             
         Returns:
             New list with shaped velocities
@@ -80,8 +83,12 @@ class DynamicsEngine:
         result = [(tick, dur, pitch, config.base_velocity) for tick, dur, pitch, vel in notes]
         
         # Apply phrase-level shaping
-        phrase_length_ticks = config.phrase_length_beats * self.ticks_per_beat
-        result = self.apply_phrase_shape(result, config.phrase_shape, phrase_length_ticks)
+        if auto_detect_phrases:
+            boundaries = detect_phrase_boundaries(result, self.ticks_per_beat)
+            result = self.apply_phrase_aware_dynamics(result, boundaries, config)
+        else:
+            phrase_length_ticks = config.phrase_length_beats * self.ticks_per_beat
+            result = self.apply_phrase_shape(result, config.phrase_shape, phrase_length_ticks)
         
         # Apply downbeat accents if configured
         if config.downbeat_accent > 0:
@@ -92,6 +99,62 @@ class DynamicsEngine:
         result = [(tick, dur, pitch, self._clamp_velocity(vel, min_vel, max_vel)) 
                   for tick, dur, pitch, vel in result]
         
+        return result
+
+    def apply_phrase_aware_dynamics(
+        self,
+        notes: List[Tuple[int, int, int, int]],
+        boundaries: List[int],
+        config: Optional[DynamicsConfig] = None,
+    ) -> List[Tuple[int, int, int, int]]:
+        """Apply dynamics shaping independently to each detected phrase.
+
+        Uses ``get_shape_curve`` to build a velocity envelope per phrase,
+        then scales each note's velocity by the corresponding curve value.
+
+        Args:
+            notes: (tick, duration, pitch, velocity) tuples.
+            boundaries: Sorted list of phrase-start tick positions.
+            config: Optional config (uses SWELL shape when *None*).
+
+        Returns:
+            New note list with per-phrase velocity shaping applied.
+            Note count is always preserved.
+        """
+        if not notes:
+            return []
+
+        shape = config.phrase_shape if config else DynamicShape.SWELL
+        if shape == DynamicShape.FLAT:
+            return list(notes)
+
+        sorted_notes = sorted(notes, key=lambda n: n[0])
+        sorted_bounds = sorted(boundaries) if boundaries else [0]
+
+        # Assign notes to phrases based on boundaries
+        phrases: List[List[int]] = []  # each entry is list of indices into sorted_notes
+        b_idx = 0
+        current_phrase: List[int] = []
+        for n_idx, (tick, _d, _p, _v) in enumerate(sorted_notes):
+            while b_idx + 1 < len(sorted_bounds) and tick >= sorted_bounds[b_idx + 1]:
+                if current_phrase:
+                    phrases.append(current_phrase)
+                    current_phrase = []
+                b_idx += 1
+            current_phrase.append(n_idx)
+        if current_phrase:
+            phrases.append(current_phrase)
+
+        # Build result preserving original order mapping
+        result = list(sorted_notes)
+        for phrase_indices in phrases:
+            num_points = len(phrase_indices)
+            curve = self.get_shape_curve(shape, num_points)
+            for local_i, global_i in enumerate(phrase_indices):
+                tick, dur, pitch, vel = result[global_i]
+                new_vel = int(vel * curve[local_i])
+                result[global_i] = (tick, dur, pitch, new_vel)
+
         return result
     
     def apply_phrase_shape(
@@ -423,6 +486,57 @@ GENRE_DYNAMICS: Dict[str, DynamicsConfig] = {
         phrase_length_beats=8
     ),
 }
+
+
+# =============================================================================
+# PHRASE BOUNDARY DETECTION (Wave 2 – C3)
+# =============================================================================
+
+def detect_phrase_boundaries(
+    notes: List[Tuple[int, int, int, int]],
+    ticks_per_beat: int = 480,
+) -> List[int]:
+    """Detect tick positions where musical phrases start.
+
+    A phrase boundary is inserted when:
+    * There is a rest longer than 1 beat between consecutive notes.
+    * A note is longer than 2 beats (phrase-ending sustained note) –
+      the *next* note starts a new phrase.
+
+    Tick 0 is always included as the first boundary.
+
+    Args:
+        notes: Sorted (tick, duration, pitch, velocity) tuples.
+        ticks_per_beat: Resolution (default 480).
+
+    Returns:
+        Sorted list of unique tick positions marking phrase starts.
+    """
+    if not notes:
+        return [0]
+
+    boundaries: set = {0}
+    rest_threshold = ticks_per_beat  # >1 beat rest
+    long_note_threshold = ticks_per_beat * 2  # >2 beats duration
+
+    sorted_notes = sorted(notes, key=lambda n: n[0])
+
+    for i in range(len(sorted_notes) - 1):
+        tick_i, dur_i, _pitch_i, _vel_i = sorted_notes[i]
+        tick_next = sorted_notes[i + 1][0]
+
+        note_end = tick_i + dur_i
+        rest_gap = tick_next - note_end
+
+        # Rest longer than 1 beat → new phrase at next note
+        if rest_gap > rest_threshold:
+            boundaries.add(tick_next)
+
+        # Note longer than 2 beats → phrase ends, next note starts new phrase
+        if dur_i > long_note_threshold:
+            boundaries.add(tick_next)
+
+    return sorted(boundaries)
 
 
 # Convenience function

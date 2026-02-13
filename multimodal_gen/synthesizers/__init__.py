@@ -30,6 +30,7 @@ from .base import (
 from .factory import SynthesizerFactory
 from .fluidsynth_synth import FluidSynthSynthesizer
 from .procedural_synth import ProceduralSynthesizer
+from .plugin_synth import PluginSynthesizer
 
 __all__ = [
     # Base interface
@@ -42,4 +43,5 @@ __all__ = [
     # Implementations
     'FluidSynthSynthesizer',
     'ProceduralSynthesizer',
+    'PluginSynthesizer',
 ]

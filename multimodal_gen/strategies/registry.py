@@ -84,6 +84,8 @@ class StrategyRegistry:
         from .lofi_strategy import LofiStrategy
         from .gfunk_strategy import GFunkStrategy
         from .house_strategy import HouseStrategy
+        from .drill_strategy import DrillStrategy
+        from .boom_bap_strategy import BoomBapStrategy
         from .ethiopian_strategy import (
             EthiopianStrategy,
             EthioJazzStrategy,
@@ -103,6 +105,8 @@ class StrategyRegistry:
         cls.register(EthiopianTraditionalStrategy())
         cls.register(EskistaStrategy())
         cls.register(DefaultStrategy())
+        cls.register(DrillStrategy())      # overrides 'drill' from TrapStrategy
+        cls.register(BoomBapStrategy())    # overrides 'boom_bap'/'boombap' from DefaultStrategy
         
         cls._initialized = True
     

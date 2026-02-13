@@ -346,6 +346,43 @@ class DrumHumanizer:
         """Get genre-appropriate fill configuration."""
         return GENRE_FILL_CONFIGS.get(genre.lower(), FillConfig())
 
+    def generate_pattern_fill(
+        self,
+        genre: str,
+        pattern_name: str,
+        start_tick: int = 0,
+        **kwargs,
+    ) -> List[Tuple[int, int, int, int]]:
+        """Return fill notes from ``GENRE_FILL_PATTERNS``.
+
+        Each stored pattern is a list of ``(relative_tick, pitch, velocity)``
+        tuples. This method converts them to full note tuples offset by
+        *start_tick*.
+
+        Args:
+            genre: Genre key in ``GENRE_FILL_PATTERNS``.
+            pattern_name: Pattern key within the genre dict.
+            start_tick: Absolute tick to offset the pattern by.
+            **kwargs: Reserved for future use.
+
+        Returns:
+            List of ``(tick, duration, pitch, velocity)`` tuples.
+            Returns empty list if genre/pattern not found.
+        """
+        if not GENRE_FILL_PATTERNS:
+            _init_genre_fill_patterns()
+
+        patterns = GENRE_FILL_PATTERNS.get(genre, {})
+        pattern = patterns.get(pattern_name)
+        if pattern is None:
+            return []
+
+        duration = self.ticks_per_beat // 8  # 32nd-note default duration
+        return [
+            (start_tick + rel_tick, duration, pitch, vel)
+            for rel_tick, pitch, vel in pattern
+        ]
+
 
 # Genre-specific ghost note presets
 GENRE_GHOST_CONFIGS: Dict[str, GhostNoteConfig] = {
@@ -373,6 +410,101 @@ GENRE_FILL_CONFIGS: Dict[str, FillConfig] = {
 }
 
 
+# =============================================================================
+# GENRE FILL PATTERNS (Wave 2 – C3)
+# =============================================================================
+
+# Pre-composed fill patterns per genre.
+# Each pattern is a list of (relative_tick, pitch, velocity) tuples
+# covering a 1-bar fill (1920 ticks at 480 PPQ).
+
+GENRE_FILL_PATTERNS: Dict[str, Dict[str, List[Tuple[int, int, int]]]] = {}
+
+def _init_genre_fill_patterns() -> None:
+    """Populate ``GENRE_FILL_PATTERNS`` after DRUM_MIDI_MAP is defined."""
+    global GENRE_FILL_PATTERNS
+
+    _K = 36   # kick
+    _S = 38   # snare
+    _HH = 42  # hi-hat closed
+    _TH = 50  # tom high
+    _TM = 47  # tom mid
+    _TL = 45  # tom low
+    _CR = 49  # crash
+
+    GENRE_FILL_PATTERNS.update({
+        "trap": {
+            "hi_hat_roll": [
+                (i * 60, _HH, 60 + i * 4) for i in range(32)  # 32nd-note hi-hat build
+            ],
+            "snare_roll": [
+                (i * 120, _S, 70 + i * 3) for i in range(16)  # 16th-note snare roll
+            ],
+        },
+        "boom_bap": {
+            "classic_break": [
+                (0, _TH, 90), (240, _TH, 85),
+                (480, _TM, 95), (720, _TM, 88),
+                (960, _TL, 100), (1200, _TL, 92),
+                (1440, _S, 110), (1680, _K, 100),
+                (1800, _CR, 120),
+            ],
+            "snare_4": [
+                (0, _S, 85), (480, _S, 90),
+                (960, _S, 100), (1440, _S, 115),
+            ],
+        },
+        "house": {
+            "clap_build": [
+                (0, _S, 60), (240, _S, 65), (480, _S, 70),
+                (720, _S, 78), (960, _S, 85), (1200, _S, 95),
+                (1440, _S, 110), (1680, _S, 120),
+            ],
+            "percussion_fill": [
+                (0, _HH, 80), (120, _HH, 70), (240, _TH, 85),
+                (480, _HH, 75), (600, _HH, 65), (720, _TM, 90),
+                (960, _HH, 80), (1080, _HH, 70), (1200, _TL, 95),
+                (1440, _CR, 110), (1680, _K, 100),
+            ],
+        },
+    })
+
+
+def energy_aware_fill_selection(genre: str, energy: float = 0.5) -> str:
+    """Pick a fill pattern name based on energy level.
+
+    High energy (>0.6) → complex fills (rolls, builds).
+    Low energy (<=0.6) → simple fills (snare_4, ghost patterns).
+
+    Args:
+        genre: Genre key in ``GENRE_FILL_PATTERNS``.
+        energy: Energy level 0.0–1.0.
+
+    Returns:
+        Pattern name string from the genre's fill dict.
+        Falls back to the first available pattern if genre is unknown.
+    """
+    if not GENRE_FILL_PATTERNS:
+        _init_genre_fill_patterns()
+
+    patterns = GENRE_FILL_PATTERNS.get(genre, {})
+    if not patterns:
+        # Fallback: try first genre that exists
+        for _g, _p in GENRE_FILL_PATTERNS.items():
+            patterns = _p
+            break
+    if not patterns:
+        return "default"
+
+    names = list(patterns.keys())
+
+    # Simple heuristic: high-energy picks last pattern (more complex),
+    # low-energy picks first pattern (simpler).
+    if energy > 0.6:
+        return names[-1] if len(names) > 1 else names[0]
+    return names[0]
+
+
 # Standard MIDI drum mapping (General MIDI)
 DRUM_MIDI_MAP = {
     "kick": 36,
@@ -397,6 +529,10 @@ INSTRUMENT_GROUPS = {
     "hihat": ["hihat_closed", "hihat_open", "hihat_pedal"],
     "tom": ["tom_high", "tom_mid", "tom_low", "tom_floor"],
 }
+
+
+# Initialize genre fill patterns on module load
+_init_genre_fill_patterns()
 
 
 # Convenience function
