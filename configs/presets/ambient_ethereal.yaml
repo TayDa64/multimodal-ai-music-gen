@@ -1,0 +1,38 @@
+name: "ambient_ethereal"
+category: "genre"
+description: "Ambient ethereal — laid-back open voicings, sparse textures, vast atmosphere"
+tags: [ambient, ethereal, atmospheric, sparse, meditative]
+
+timing:
+  feel: laid_back
+  swing_amount: 0.10
+  timing_jitter: 0.03
+
+voicing:
+  style: open
+  max_extensions: 13
+
+dynamics:
+  velocity_range: [25, 80]
+  ghost_note_probability: 0.05
+  use_sidechain: false
+  sidechain_amount: 0.0
+
+arrangement:
+  template: ambient
+  density: sparse
+  fill_frequency_bars: 16
+
+mix:
+  sub_bass_target: 0.30
+  brightness_target: 0.60
+  warmth_target: 0.65
+  saturation_type: none
+  saturation_amount: 0.0
+
+mastering:
+  target_lufs: -16.0
+
+motif:
+  density: 0.2
+  complexity: 0.45

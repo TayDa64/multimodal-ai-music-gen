@@ -1,0 +1,38 @@
+name: "lofi_chill"
+category: "genre"
+description: "Lo-fi chill — wobbly tape feel, warm saturation, mellow vibes"
+tags: [lofi, chill, tape, warm, relaxed]
+
+timing:
+  feel: drunk
+  swing_amount: 0.35
+  timing_jitter: 0.04
+
+voicing:
+  style: drop2
+  max_extensions: 9
+
+dynamics:
+  velocity_range: [45, 90]
+  ghost_note_probability: 0.25
+  use_sidechain: false
+  sidechain_amount: 0.0
+
+arrangement:
+  template: lofi
+  density: sparse
+  fill_frequency_bars: 16
+
+mix:
+  sub_bass_target: 0.4
+  brightness_target: 0.25
+  warmth_target: 0.85
+  saturation_type: tape
+  saturation_amount: 0.75
+
+mastering:
+  target_lufs: -14.0
+
+motif:
+  density: 0.3
+  complexity: 0.3

@@ -1,0 +1,38 @@
+name: "jazz_swing"
+category: "genre"
+description: "Jazz swing — triplet feel, shell voicings, wide dynamic expression"
+tags: [jazz, swing, acoustic, dynamic, classic]
+
+timing:
+  feel: swing
+  swing_amount: 0.62
+  timing_jitter: 0.025
+
+voicing:
+  style: shell
+  max_extensions: 13
+
+dynamics:
+  velocity_range: [35, 110]
+  ghost_note_probability: 0.40
+  use_sidechain: false
+  sidechain_amount: 0.0
+
+arrangement:
+  template: jazz
+  density: normal
+  fill_frequency_bars: 4
+
+mix:
+  sub_bass_target: 0.35
+  brightness_target: 0.55
+  warmth_target: 0.70
+  saturation_type: none
+  saturation_amount: 0.0
+
+mastering:
+  target_lufs: -16.0
+
+motif:
+  density: 0.6
+  complexity: 0.8

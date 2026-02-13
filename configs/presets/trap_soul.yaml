@@ -1,0 +1,38 @@
+name: "trap_soul"
+category: "genre"
+description: "Trap soul — light swing, spread voicings, dramatic dynamics, ethereal pads"
+tags: [trap_soul, rnb, trap, melodic, atmospheric]
+
+timing:
+  feel: swing
+  swing_amount: 0.15
+  timing_jitter: 0.015
+
+voicing:
+  style: spread
+  max_extensions: 11
+
+dynamics:
+  velocity_range: [50, 120]
+  ghost_note_probability: 0.15
+  use_sidechain: true
+  sidechain_amount: 0.40
+
+arrangement:
+  template: trap_soul
+  density: normal
+  fill_frequency_bars: 8
+
+mix:
+  sub_bass_target: 0.75
+  brightness_target: 0.55
+  warmth_target: 0.55
+  saturation_type: tape
+  saturation_amount: 0.30
+
+mastering:
+  target_lufs: -11.0
+
+motif:
+  density: 0.5
+  complexity: 0.55

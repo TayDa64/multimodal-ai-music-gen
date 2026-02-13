@@ -1,0 +1,38 @@
+name: "house_deep"
+category: "genre"
+description: "Deep house — four-on-the-floor, tight timing, warm bass, subtle groove"
+tags: [house, deep, dance, four_on_floor, electronic]
+
+timing:
+  feel: straight
+  swing_amount: 0.05
+  timing_jitter: 0.008
+
+voicing:
+  style: open
+  max_extensions: 9
+
+dynamics:
+  velocity_range: [80, 120]
+  ghost_note_probability: 0.10
+  use_sidechain: true
+  sidechain_amount: 0.50
+
+arrangement:
+  template: house
+  density: normal
+  fill_frequency_bars: 8
+
+mix:
+  sub_bass_target: 0.70
+  brightness_target: 0.50
+  warmth_target: 0.60
+  saturation_type: tube
+  saturation_amount: 0.25
+
+mastering:
+  target_lufs: -10.0
+
+motif:
+  density: 0.45
+  complexity: 0.4

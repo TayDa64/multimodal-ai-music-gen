@@ -1,0 +1,38 @@
+name: "ethio_jazz"
+category: "genre"
+description: "Ethiopian jazz — push feel, modal harmony, warm tube saturation, Ethio-groove"
+tags: [ethio_jazz, ethiopian, modal, world, fusion]
+
+timing:
+  feel: push
+  swing_amount: 0.20
+  timing_jitter: 0.02
+
+voicing:
+  style: open
+  max_extensions: 9
+
+dynamics:
+  velocity_range: [50, 110]
+  ghost_note_probability: 0.25
+  use_sidechain: false
+  sidechain_amount: 0.0
+
+arrangement:
+  template: ethio_jazz
+  density: normal
+  fill_frequency_bars: 4
+
+mix:
+  sub_bass_target: 0.45
+  brightness_target: 0.50
+  warmth_target: 0.75
+  saturation_type: tube
+  saturation_amount: 0.40
+
+mastering:
+  target_lufs: -14.0
+
+motif:
+  density: 0.6
+  complexity: 0.7

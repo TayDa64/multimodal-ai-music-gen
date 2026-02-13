@@ -29,6 +29,7 @@ class TransitionType(Enum):
     BUILD = "build"          # Energy ramp (snare roll / hihat increasing density)
     CUT = "cut"              # Hard stop (silence) before new section
     CRASH = "crash"          # Crash cymbal + brief silence on downbeat
+    CROSSFADE = "crossfade"  # Overlapping volume crossfade
 
 
 @dataclass
@@ -69,6 +70,7 @@ GENRE_TRANSITION_STYLES: Dict[str, Dict[str, TransitionType]] = {
     "lofi": {
         "default": TransitionType.BREAKDOWN,
         "verse_to_chorus": TransitionType.FILL,
+        "ambient_transition": TransitionType.CROSSFADE,
     },
     "jazz": {
         "default": TransitionType.FILL,
@@ -87,8 +89,8 @@ GENRE_TRANSITION_STYLES: Dict[str, Dict[str, TransitionType]] = {
         "verse_to_chorus": TransitionType.CRASH,
     },
     "ambient": {
-        "default": TransitionType.BREAKDOWN,
-        "verse_to_chorus": TransitionType.BREAKDOWN,
+        "default": TransitionType.CROSSFADE,
+        "verse_to_chorus": TransitionType.CROSSFADE,
     },
 }
 
@@ -142,10 +144,24 @@ class TransitionGenerator:
         from_section,
         to_section,
         config: Optional[TransitionConfig] = None,
+        style: Optional[str] = None,
     ) -> TransitionEvent:
-        """Generate transition events between two sections."""
+        """Generate transition events between two sections.
+
+        Args:
+            from_section: Source section (duck-typed).
+            to_section: Destination section (duck-typed).
+            config: Optional explicit transition config.
+            style: Optional genre/style name. When provided, the transition type
+                is looked up from ``GENRE_TRANSITION_STYLES`` instead of being
+                auto-selected by energy delta.
+        """
         if config is None:
-            tt = self.select_transition_type(from_section, to_section)
+            if style and style in GENRE_TRANSITION_STYLES:
+                genre_styles = GENRE_TRANSITION_STYLES[style]
+                tt = genre_styles.get("default", TransitionType.FILL)
+            else:
+                tt = self.select_transition_type(from_section, to_section)
             config = TransitionConfig(transition_type=tt)
 
         duration_ticks = int(config.duration_beats * TICKS_PER_BEAT)
@@ -160,8 +176,11 @@ class TransitionGenerator:
             TransitionType.CRASH: self._generate_crash,
         }
 
-        gen_func = generators.get(config.transition_type, self._generate_fill)
-        events = gen_func(start_tick, end_tick, config.intensity, to_section)
+        if config.transition_type == TransitionType.CROSSFADE:
+            events = self._generate_crossfade(from_section, to_section, duration_ticks)
+        else:
+            gen_func = generators.get(config.transition_type, self._generate_fill)
+            events = gen_func(start_tick, end_tick, config.intensity, to_section)
 
         return TransitionEvent(
             transition_type=config.transition_type,
@@ -320,6 +339,29 @@ class TransitionGenerator:
         events.append(
             (36, crash_tick, TICKS_PER_BEAT // 2, min(127, int(90 + 30 * intensity)))
         )
+        return events
+
+    def _generate_crossfade(
+        self,
+        from_section,
+        to_section,
+        duration_ticks: int,
+    ) -> list:
+        """Generate overlapping crossfade transition events.
+
+        Returns a list of velocity-scale dicts describing a fade-out on the
+        outgoing section and a fade-in on the incoming section.
+        """
+        events: list = []
+        steps = 8
+        for i in range(steps):
+            tick = int(duration_ticks * i / steps)
+            velocity = int(127 * (1.0 - i / steps))
+            events.append({"tick": tick, "type": "velocity_scale", "value": velocity, "source": "from"})
+        for i in range(steps):
+            tick = int(duration_ticks * i / steps)
+            velocity = int(127 * (i / steps))
+            events.append({"tick": tick, "type": "velocity_scale", "value": velocity, "source": "to"})
         return events
 
 

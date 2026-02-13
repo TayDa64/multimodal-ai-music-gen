@@ -1,0 +1,38 @@
+name: "boom_bap_classic"
+category: "genre"
+description: "Classic 90s boom bap — dusty swing, punchy drums, soulful chops"
+tags: [boom_bap, classic, 90s, hip_hop, vinyl]
+
+timing:
+  feel: swing
+  swing_amount: 0.55
+  timing_jitter: 0.025
+
+voicing:
+  style: power
+  max_extensions: 7
+
+dynamics:
+  velocity_range: [70, 115]
+  ghost_note_probability: 0.30
+  use_sidechain: false
+  sidechain_amount: 0.0
+
+arrangement:
+  template: hip_hop
+  density: normal
+  fill_frequency_bars: 8
+
+mix:
+  sub_bass_target: 0.55
+  brightness_target: 0.35
+  warmth_target: 0.75
+  saturation_type: tape
+  saturation_amount: 0.60
+
+mastering:
+  target_lufs: -12.0
+
+motif:
+  density: 0.5
+  complexity: 0.4

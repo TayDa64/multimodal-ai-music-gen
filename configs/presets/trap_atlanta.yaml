@@ -1,0 +1,38 @@
+name: "trap_atlanta"
+category: "genre"
+description: "Atlanta trap — heavy 808s, rolling hi-hats, straight timing with digital edge"
+tags: [trap, atlanta, 808, hard, southern]
+
+timing:
+  feel: straight
+  swing_amount: 0.0
+  timing_jitter: 0.01
+
+voicing:
+  style: power
+  max_extensions: 7
+
+dynamics:
+  velocity_range: [85, 127]
+  ghost_note_probability: 0.08
+  use_sidechain: true
+  sidechain_amount: 0.75
+
+arrangement:
+  template: trap
+  density: busy
+  fill_frequency_bars: 4
+
+mix:
+  sub_bass_target: 0.9
+  brightness_target: 0.65
+  warmth_target: 0.3
+  saturation_type: digital
+  saturation_amount: 0.55
+
+mastering:
+  target_lufs: -9.0
+
+motif:
+  density: 0.4
+  complexity: 0.35

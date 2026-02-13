@@ -1,0 +1,38 @@
+name: "drill_uk"
+category: "genre"
+description: "UK drill — straight aggressive timing, sliding 808s, high velocity, dark energy"
+tags: [drill, uk, aggressive, dark, 808]
+
+timing:
+  feel: straight
+  swing_amount: 0.0
+  timing_jitter: 0.01
+
+voicing:
+  style: power
+  max_extensions: 7
+
+dynamics:
+  velocity_range: [90, 127]
+  ghost_note_probability: 0.05
+  use_sidechain: true
+  sidechain_amount: 0.60
+
+arrangement:
+  template: drill
+  density: busy
+  fill_frequency_bars: 4
+
+mix:
+  sub_bass_target: 0.85
+  brightness_target: 0.55
+  warmth_target: 0.25
+  saturation_type: digital
+  saturation_amount: 0.50
+
+mastering:
+  target_lufs: -9.0
+
+motif:
+  density: 0.45
+  complexity: 0.3

@@ -97,6 +97,18 @@ class DrumAnalysis:
     trap_hihats: bool  # Rapid hi-hat patterns typical of trap
     boom_bap_feel: bool  # Classic hip-hop swing feel
     compound_meter: bool = False  # 6/8, 12/8 feel (Ethiopian, Afrobeat)
+    hihat_pattern: List[float] = field(default_factory=list)  # Normalized hi-hat positions
+    swing_amount: float = 0.0  # 0.0 = straight, ~0.67 = max swing
+
+    def as_template(self) -> dict:
+        """Export drum analysis as reusable template dict."""
+        return {
+            "kick": list(self.kick_pattern),
+            "snare": list(self.snare_pattern),
+            "hihat": list(self.hihat_pattern),
+            "swing": self.swing_amount,
+            "density": self.density,
+        }
 
 
 @dataclass
@@ -151,6 +163,9 @@ class ReferenceAnalysis:
     
     # Extracted chord progression (Sprint 7)
     chords: Optional[List[Dict]] = field(default_factory=list)
+    
+    # Extracted melodic contour (Wave 1 C4)
+    melody_contour: List[Dict] = field(default_factory=list)
     
     # Raw features for advanced use
     raw_features: Dict[str, Any] = field(default_factory=dict)
@@ -398,7 +413,10 @@ class ReferenceAnalyzer:
                     ]
                 except Exception:
                     pass
-            
+
+            # Melody contour extraction (Wave 1 C4)
+            analysis.melody_contour = self._extract_melody_contour(y, sr)
+
             if self.verbose:
                 print(f"\nAnalysis complete:")
                 print(f"  BPM: {bpm:.1f} (confidence: {bpm_confidence:.2f})")
@@ -470,6 +488,9 @@ class ReferenceAnalyzer:
                 ]
             except Exception:
                 pass
+
+        # Melody contour extraction (Wave 1 C4)
+        analysis.melody_contour = self._extract_melody_contour(y, sr)
 
         # Stem separation info for per-stem analysis (Sprint 7.5)
         if _HAS_STEM_SEPARATION:
@@ -763,6 +784,8 @@ class ReferenceAnalyzer:
         # Sprint 8.5: Populate kick/snare pattern transcription
         kick_positions: List[float] = []
         snare_positions: List[float] = []
+        hihat_positions: List[float] = []
+        swing_amount_val: float = 0.0
         try:
             # Get beat times for bar alignment (use cached result)
             beat_times = librosa.frames_to_time(_cached_beat_frames, sr=sr)
@@ -817,9 +840,37 @@ class ReferenceAnalyzer:
                 # Limit to reasonable maximum (16 per bar)
                 kick_positions = kick_positions[:16]
                 snare_positions = snare_positions[:16]
+
+                # Hi-hat pattern extraction (Wave 1 C4)
+                hihat_bar_positions: List[float] = []
+                for t in high_onset_times:
+                    if t >= bar_start:
+                        pos_in_bar = ((t - bar_start) % bar_duration) / bar_duration
+                        hihat_bar_positions.append(round(pos_in_bar, 3))
+                hihat_positions = _quantize_positions(hihat_bar_positions)[:16]
+
+                # Compute swing from hi-hat off-beat timing deviations
+                eighth_dur = (60.0 / max(30, bpm)) / 2.0
+                offbeat_ratios: List[float] = []
+                for bt in beat_times[:-1]:
+                    expected_offbeat = bt + eighth_dur
+                    nearby = high_onset_times[
+                        (high_onset_times > bt + eighth_dur * 0.3)
+                        & (high_onset_times < bt + eighth_dur * 1.7)
+                    ]
+                    if len(nearby) > 0:
+                        actual = nearby[np.argmin(np.abs(nearby - expected_offbeat))]
+                        ratio = (actual - bt) / (2.0 * eighth_dur)
+                        if 0.4 < ratio < 0.75:
+                            offbeat_ratios.append(ratio)
+                if offbeat_ratios:
+                    avg_ratio = float(np.mean(offbeat_ratios))
+                    swing_amount_val = max(0.0, min(0.67, (avg_ratio - 0.5) / 0.17 * 0.67))
         except Exception:
             kick_positions = []
             snare_positions = []
+            hihat_positions = []
+            swing_amount_val = 0.0
 
         return DrumAnalysis(
             density=density_normalized,
@@ -831,6 +882,8 @@ class ReferenceAnalyzer:
             trap_hihats=trap_hihats,
             boom_bap_feel=boom_bap_feel,
             compound_meter=compound_meter,
+            hihat_pattern=hihat_positions,
+            swing_amount=swing_amount_val,
         )
     
     def _analyze_spectral(self, y: np.ndarray, sr: int) -> SpectralProfile:
@@ -1017,7 +1070,78 @@ class ReferenceAnalyzer:
             micro_timing_variance=micro_timing,
             downbeat_emphasis=downbeat_emphasis,
         )
-    
+
+    def _extract_melody_contour(self, audio: np.ndarray, sr: int) -> list:
+        """Extract melodic contour using pYIN fundamental frequency estimation.
+
+        Returns list of dicts with keys:
+            direction: "up", "down", or "hold"
+            interval_semitones: float
+            duration_beats: float
+        """
+        try:
+            librosa = _get_librosa()
+            hop_length = 512
+            f0, voiced_flag, voiced_probs = librosa.pyin(
+                audio, fmin=librosa.note_to_hz('C2'),
+                fmax=librosa.note_to_hz('C7'), sr=sr
+            )
+            if f0 is None or len(f0) == 0:
+                return []
+
+            contour: list = []
+            prev_note = None
+            hold_count = 0
+            hop_duration_beats = (hop_length / sr) * (120.0 / 60.0)
+
+            for freq in f0:
+                if np.isnan(freq) or freq <= 0:
+                    if prev_note is not None and hold_count > 0:
+                        contour.append({
+                            "direction": "hold",
+                            "interval_semitones": 0.0,
+                            "duration_beats": hold_count * hop_duration_beats,
+                        })
+                        hold_count = 0
+                    prev_note = None
+                    continue
+
+                midi_note = 12 * np.log2(freq / 440.0) + 69
+                if prev_note is None:
+                    prev_note = midi_note
+                    hold_count = 1
+                    continue
+
+                interval = midi_note - prev_note
+                if abs(interval) < 0.5:
+                    hold_count += 1
+                else:
+                    if hold_count > 0:
+                        contour.append({
+                            "direction": "hold",
+                            "interval_semitones": 0.0,
+                            "duration_beats": hold_count * hop_duration_beats,
+                        })
+                    direction = "up" if interval > 0 else "down"
+                    contour.append({
+                        "direction": direction,
+                        "interval_semitones": round(abs(interval), 1),
+                        "duration_beats": round(hop_duration_beats, 3),
+                    })
+                    hold_count = 1
+                prev_note = midi_note
+
+            if hold_count > 0:
+                contour.append({
+                    "direction": "hold",
+                    "interval_semitones": 0.0,
+                    "duration_beats": hold_count * hop_duration_beats,
+                })
+
+            return contour
+        except Exception:
+            return []
+
     def _estimate_genre(
         self,
         bpm: float,

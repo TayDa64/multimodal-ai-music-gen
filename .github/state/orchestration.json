@@ -9,46 +9,54 @@
     {
       "id": "mc-001",
       "description": "Implement True Peak Limiter with ISP Detection",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "HIGH",
       "files_to_create": ["multimodal_gen/true_peak_limiter.py"],
       "files_to_modify": ["multimodal_gen/mix_engine.py", "multimodal_gen/audio_renderer.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": true,
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     },
     {
       "id": "mc-002",
       "description": "Implement Transient Shaper",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "HIGH",
       "files_to_create": ["multimodal_gen/transient_shaper.py"],
       "files_to_modify": ["multimodal_gen/mix_chain.py", "multimodal_gen/track_processor.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": true,
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     },
     {
       "id": "mc-003",
       "description": "Implement Multiband Dynamics Processing",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "HIGH",
       "files_to_create": ["multimodal_gen/multiband_dynamics.py"],
       "files_to_modify": ["multimodal_gen/mix_chain.py", "multimodal_gen/mix_engine.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": true,
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     },
     {
       "id": "mc-004",
       "description": "Implement Intelligent Auto-Gain Staging",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "MEDIUM",
       "files_to_create": ["multimodal_gen/auto_gain.py"],
       "files_to_modify": ["multimodal_gen/mix_engine.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": true,
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     },
     {
       "id": "mc-005",
@@ -77,35 +85,43 @@
     {
       "id": "mc-006",
       "description": "Implement Reference Track Matching",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "MEDIUM",
       "files_to_create": ["multimodal_gen/reference_matcher.py"],
       "files_to_modify": ["multimodal_gen/reference_analyzer.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": true,
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     },
     {
       "id": "mc-007",
       "description": "Implement Stem Separation Integration",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "LOW",
       "files_to_create": ["multimodal_gen/stem_separator.py"],
       "files_to_modify": ["multimodal_gen/reference_analyzer.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": false,
+      "wired_in": "reference_analyzer.py",
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     },
     {
       "id": "mc-008",
       "description": "Implement Spatial Audio / Dolby Atmos Prep",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "decompose",
+      "phase": "aggregate",
       "priority": "LOW",
       "files_to_create": ["multimodal_gen/spatial_audio.py"],
       "files_to_modify": ["multimodal_gen/mix_engine.py"],
-      "created": "2026-01-17T00:00:00Z"
+      "wired_in_renderer": false,
+      "note": "Exists but [UNREFERENCED] — future spatial audio feature",
+      "created": "2026-01-17T00:00:00Z",
+      "updated": "2026-02-13T00:00:00Z"
     }
   ],
   "completed_tasks": [

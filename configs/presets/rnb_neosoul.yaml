@@ -1,0 +1,38 @@
+name: "rnb_neosoul"
+category: "genre"
+description: "Neo-soul R&B — laid-back groove, rich extended chords, warm organic tone"
+tags: [rnb, neosoul, soul, groove, laid_back]
+
+timing:
+  feel: laid_back
+  swing_amount: 0.30
+  timing_jitter: 0.02
+
+voicing:
+  style: drop2
+  max_extensions: 11
+
+dynamics:
+  velocity_range: [45, 100]
+  ghost_note_probability: 0.35
+  use_sidechain: false
+  sidechain_amount: 0.0
+
+arrangement:
+  template: rnb
+  density: normal
+  fill_frequency_bars: 8
+
+mix:
+  sub_bass_target: 0.55
+  brightness_target: 0.4
+  warmth_target: 0.80
+  saturation_type: tape
+  saturation_amount: 0.35
+
+mastering:
+  target_lufs: -13.0
+
+motif:
+  density: 0.55
+  complexity: 0.65

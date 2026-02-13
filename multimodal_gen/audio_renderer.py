@@ -137,6 +137,27 @@ try:
 except ImportError:
     _HAS_TRACK_PROCESSOR = False
 
+# True Peak Limiter with ISP detection (Masterclass mc-001)
+try:
+    from .true_peak_limiter import TruePeakLimiter as _TPL, measure_true_peak as _measure_tp
+    _HAS_TPL = True
+except ImportError:
+    _HAS_TPL = False
+
+# Transient Shaper for per-stem drum processing (Masterclass mc-002)
+try:
+    from .transient_shaper import TransientShaper as _TransientShaper, TRANSIENT_PRESETS as _TS_PRESETS
+    _HAS_TRANSIENT_SHAPER = True
+except ImportError:
+    _HAS_TRANSIENT_SHAPER = False
+
+# Auto-Gain Staging with LUFS metering (Masterclass mc-004)
+try:
+    from .auto_gain_staging import AutoGainStaging as _AGS, LUFSMeter as _LUFSMeter
+    _HAS_AGS = True
+except ImportError:
+    _HAS_AGS = False
+
 
 # =============================================================================
 # AUDIO PROCESSING UTILITIES
@@ -1915,6 +1936,17 @@ class AudioRenderer:
                 except Exception:
                     pass  # Graceful degradation
 
+            # Transient shaping for drum stems (Masterclass mc-002)
+            if is_drums and _HAS_TRANSIENT_SHAPER:
+                try:
+                    _ts_preset_params = _TS_PRESETS.get('drum_punch')
+                    if _ts_preset_params is not None:
+                        _shaper = _TransientShaper(_ts_preset_params, sample_rate=self.sample_rate)
+                        audio = _shaper.process(audio)
+                        self._pipeline_stages['transient_shaper'] = 'drum_punch'
+                except Exception:
+                    self._pipeline_stages['transient_shaper'] = 'error'
+
             rms = calculate_rms(audio)
             
             if rms > 0.001:  # Avoid division by zero
@@ -2107,18 +2139,50 @@ class AudioRenderer:
         # Soft clip to prevent harsh distortion
         mix = soft_clip(mix, threshold=0.7)
         
-        # Normalize to louder level - 0.95 peak for modern loudness expectations
-        # Previous 0.85 was too quiet for pleasant listening
-        # Sprint 8.7: Respect MixPolicy master_ceiling_db when available
-        _norm_target = 0.95
-        if self._mix_policy:
+        # Auto-Gain Staging — LUFS-targeted normalization (Masterclass mc-004)
+        if _HAS_AGS:
             try:
-                _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0)
-                _norm_target = min(0.98, max(0.5, 10 ** (_ceil_db / 20.0)))
+                _target_lufs = getattr(self._mix_policy, 'target_lufs', -14.0) if self._mix_policy else -14.0
+                from .auto_gain_staging import GainStagingParams as _GSP
+                _ags = _AGS(_GSP(target_lufs=_target_lufs), sample_rate=self.sample_rate)
+                mix = _ags.process(mix)
+                self._pipeline_stages['auto_gain_staging'] = f'target={_target_lufs}'
             except Exception:
-                pass
-        mix = normalize_audio(mix, _norm_target)
-        mix = limit_audio(mix, TARGET_TRUE_PEAK)
+                self._pipeline_stages['auto_gain_staging'] = 'error'
+                # Fallback to simple normalization
+                _norm_target = 0.95
+                if self._mix_policy:
+                    try:
+                        _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0)
+                        _norm_target = min(0.98, max(0.5, 10 ** (_ceil_db / 20.0)))
+                    except Exception:
+                        pass
+                mix = normalize_audio(mix, _norm_target)
+        else:
+            # Normalize to louder level - 0.95 peak for modern loudness expectations
+            # Previous 0.85 was too quiet for pleasant listening
+            # Sprint 8.7: Respect MixPolicy master_ceiling_db when available
+            _norm_target = 0.95
+            if self._mix_policy:
+                try:
+                    _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0)
+                    _norm_target = min(0.98, max(0.5, 10 ** (_ceil_db / 20.0)))
+                except Exception:
+                    pass
+            mix = normalize_audio(mix, _norm_target)
+
+        # True Peak Limiter with ISP detection (Masterclass mc-001)
+        if _HAS_TPL:
+            try:
+                from .true_peak_limiter import TruePeakLimiterParams as _TPLP
+                _tpl = _TPL(_TPLP(ceiling_dbtp=-1.0), sample_rate=self.sample_rate)
+                mix = _tpl.process(mix)
+                self._pipeline_stages['true_peak_limiter'] = 'ceiling=-1.0dBTP'
+            except Exception:
+                self._pipeline_stages['true_peak_limiter'] = 'error'
+                mix = limit_audio(mix, TARGET_TRUE_PEAK)
+        else:
+            mix = limit_audio(mix, TARGET_TRUE_PEAK)
         
         # Save with BWF format if enabled
         # Master bit-depth policy: 16-bit with TPDF dither for delivery
