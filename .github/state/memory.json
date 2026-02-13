@@ -124,6 +124,26 @@
         "pattern": "Verify formula neutral points against actual preset values",
         "context": "Sprint 8.7 formula 0.28-0.12*ha had neutral at ha=0.25 — exactly the 'polished' preset value. Zero effect. Fix: shift formula so no built-in preset lands on the neutral point.",
         "timestamp": "2026-02-12T06:00:00Z"
+      },
+      {
+        "pattern": "Wave strategy (lower-risk first, higher-risk second) prevents cascading failures",
+        "context": "Wave 1 (C2+C4+C5) shipped 58 tests with zero regressions, building confidence for Wave 2 (C1+C3) which touched deeper architecture. No rollbacks needed.",
+        "timestamp": "2026-02-13T00:00:00Z"
+      },
+      {
+        "pattern": "Supervisor pre-digest eliminates Builder read cycles — zero-read edits",
+        "context": "Plan agent reads all files once, produces 19KB manifest with exact line numbers and edit targets. Builders receive manifest and edit without reading. Saves ~50% token budget per wave.",
+        "timestamp": "2026-02-13T00:00:00Z"
+      },
+      {
+        "pattern": "ROADMAP completion audits catch phantom 'deferred' statuses",
+        "context": "Builder 4 (plugin system) was marked 'deferred' in orchestration.json but plugins/ directory existed with ABC, registry, loader, Ethiopian plugin. Always verify file-level before trusting state file status.",
+        "timestamp": "2026-02-13T00:00:00Z"
+      },
+      {
+        "pattern": "MIDI CC events complement velocity dynamics — different layers of expression",
+        "context": "dynamics.py had velocity-only phrase shaping. Adding CC11/CC1/CC74 via generate_phrase_cc_events() completes the expression stack. CC injection was already wired in midi_generator._inject_cc_expression() from Sprint 7.",
+        "timestamp": "2026-02-13T00:00:00Z"
       }
     ],
     "failed": [
@@ -285,5 +305,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-02-12T00:00:00Z"
+  "last_updated": "2026-02-13T00:00:00Z"
 }

@@ -1336,3 +1336,48 @@ def reference_to_prompt(url: str, base_prompt: str = "") -> str:
         return f"{base_prompt}, {hints}"
     else:
         return f"beat {hints}"
+
+
+def extract_drum_pattern(audio_path: str, quantize_grid: int = 16) -> dict:
+    """Extract drum pattern from audio file as reusable template.
+
+    This is a convenience wrapper around :class:`ReferenceAnalyzer`'s
+    internal drum analysis.  It loads audio with librosa, runs the
+    private ``_analyze_drums`` pipeline, and returns the result via
+    :meth:`DrumAnalysis.as_template`.
+
+    Args:
+        audio_path: Path to audio file (WAV, MP3, etc.).
+        quantize_grid: Quantization grid resolution (8, 16, or 32).
+            Currently forwarded for future grid refinement; the
+            internal analysis uses a 16th-note grid by default.
+
+    Returns:
+        Dict with keys: kick, snare, hihat, swing, density
+        (from :meth:`DrumAnalysis.as_template`), plus ``tempo`` and
+        ``time_signature``.
+
+    Raises:
+        ImportError: If librosa is not installed.
+        FileNotFoundError: If *audio_path* does not exist.
+    """
+    librosa = _get_librosa()
+
+    path = Path(audio_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+    y, sr = librosa.load(str(path), sr=22050, mono=True)
+
+    # Detect tempo for drum analysis
+    tempo_arr = librosa.beat.beat_track(y=y, sr=sr)[0]
+    bpm = float(np.atleast_1d(tempo_arr)[0])
+
+    analyzer = ReferenceAnalyzer()
+    drums: DrumAnalysis = analyzer._analyze_drums(y, sr, bpm)
+
+    template = drums.as_template()
+    template["tempo"] = round(bpm, 1)
+    template["time_signature"] = (4, 4)
+    template["quantize_grid"] = quantize_grid
+    return template

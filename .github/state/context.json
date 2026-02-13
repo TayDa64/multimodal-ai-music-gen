@@ -148,6 +148,21 @@
     {"type": "gpt_stress_test", "result": "FAIL→FIXED", "details": "3 production bugs + 7 trivial tests → all fixed by diagnostician"},
     {"type": "full_regression", "result": "PASS", "details": "870 passed, 0 failed, 4 skipped"}
   ],
+  "wave_1": {
+    "status": "COMPLETE",
+    "test_progression": "1075 → 1133 (+58)",
+    "categories": ["C2 Masterclass Reconciliation (+30)", "C4 Analysis & Narrative (+15)", "C5 Polish & Presets (+13)"]
+  },
+  "wave_2": {
+    "status": "COMPLETE",
+    "test_progression": "1133 → 1197 (+64)",
+    "categories": ["C1 Architecture Refactoring (+29)", "C3 Groove & Expression (+35)"]
+  },
+  "wave_3": {
+    "status": "COMPLETE",
+    "test_progression": "1197 → 1223 (+26)",
+    "gaps_closed": ["MIDI CC injection (Task 2.1)", "extract_drum_pattern() API (Task 4.3)", "MASTERCLASS_GUIDE.md (Task 6.3)", "Builder 4 status correction"]
+  },
   "errors_encountered": [],
   "rollback_points": [
     {

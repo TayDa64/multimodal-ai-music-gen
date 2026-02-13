@@ -563,6 +563,134 @@ def apply_dynamics(
 
 
 # =============================================================================
+# MIDI CC INTENSITY PRESETS (Wave 3 – Gap 1)
+# =============================================================================
+
+CC_INTENSITY_PRESETS: Dict[str, Dict[str, float]] = {
+    "trap": {"cc11": 0.2, "cc1": 0.05, "cc74": 0.15},
+    "drill": {"cc11": 0.15, "cc1": 0.0, "cc74": 0.1},
+    "lofi": {"cc11": 0.5, "cc1": 0.4, "cc74": 0.3},
+    "lo-fi": {"cc11": 0.5, "cc1": 0.4, "cc74": 0.3},
+    "lo_fi": {"cc11": 0.5, "cc1": 0.4, "cc74": 0.3},
+    "jazz": {"cc11": 0.9, "cc1": 0.7, "cc74": 0.6},
+    "orchestral": {"cc11": 1.0, "cc1": 0.8, "cc74": 0.5},
+    "classical": {"cc11": 0.95, "cc1": 0.75, "cc74": 0.5},
+    "ethiopian": {"cc11": 0.6, "cc1": 0.4, "cc74": 0.8},
+    "ethio_jazz": {"cc11": 0.7, "cc1": 0.5, "cc74": 0.75},
+    "hip-hop": {"cc11": 0.3, "cc1": 0.1, "cc74": 0.2},
+    "hip_hop": {"cc11": 0.3, "cc1": 0.1, "cc74": 0.2},
+    "r&b": {"cc11": 0.6, "cc1": 0.5, "cc74": 0.4},
+    "rnb": {"cc11": 0.6, "cc1": 0.5, "cc74": 0.4},
+    "funk": {"cc11": 0.5, "cc1": 0.3, "cc74": 0.35},
+    "rock": {"cc11": 0.4, "cc1": 0.2, "cc74": 0.25},
+    "house": {"cc11": 0.35, "cc1": 0.1, "cc74": 0.2},
+    "ambient": {"cc11": 0.7, "cc1": 0.6, "cc74": 0.5},
+    "boom_bap": {"cc11": 0.35, "cc1": 0.15, "cc74": 0.2},
+    "trap_soul": {"cc11": 0.45, "cc1": 0.35, "cc74": 0.3},
+    "default": {"cc11": 0.5, "cc1": 0.3, "cc74": 0.3},
+}
+
+
+def generate_phrase_cc_events(
+    notes: List[Tuple[int, int, int, int]],
+    boundaries: List[int],
+    genre: str = "default",
+    ticks_per_beat: int = 480,
+) -> List[Tuple[int, int, int]]:
+    """Generate MIDI CC events (CC11, CC1, CC74) aligned with phrase boundaries.
+
+    CC11 (Expression): Overall phrase volume envelope following phrase shape.
+    CC1 (Modulation): Vibrato on sustained notes (duration > 2 beats).
+    CC74 (Brightness): Timbral variation that increases with phrase energy.
+
+    Args:
+        notes: List of (tick, duration, pitch, velocity) tuples.
+        boundaries: Sorted list of phrase-start tick positions
+            (from ``detect_phrase_boundaries``).
+        genre: Genre string for looking up CC intensity presets.
+        ticks_per_beat: MIDI resolution (default 480).
+
+    Returns:
+        List of (tick, cc_number, value) tuples sorted by tick.
+    """
+    if not notes:
+        return []
+
+    presets = CC_INTENSITY_PRESETS.get(
+        (genre or "default").lower().replace("-", "_"),
+        CC_INTENSITY_PRESETS["default"],
+    )
+
+    cc11_intensity = presets["cc11"]
+    cc1_intensity = presets["cc1"]
+    cc74_intensity = presets["cc74"]
+
+    sorted_notes = sorted(notes, key=lambda n: n[0])
+    sorted_bounds = sorted(boundaries) if boundaries else [0]
+
+    events: List[Tuple[int, int, int]] = []
+
+    # Build phrase ranges
+    phrase_ranges: List[Tuple[int, int]] = []
+    for bi in range(len(sorted_bounds)):
+        start = sorted_bounds[bi]
+        end = sorted_bounds[bi + 1] if bi + 1 < len(sorted_bounds) else (
+            sorted_notes[-1][0] + sorted_notes[-1][1] if sorted_notes else start + ticks_per_beat * 4
+        )
+        phrase_ranges.append((start, end))
+
+    sustained_threshold = ticks_per_beat * 2  # > 2 beats
+
+    for p_start, p_end in phrase_ranges:
+        phrase_len = max(1, p_end - p_start)
+
+        # Collect notes in this phrase
+        phrase_notes = [n for n in sorted_notes if p_start <= n[0] < p_end]
+        if not phrase_notes:
+            continue
+
+        # Average velocity as energy proxy (0..1)
+        avg_vel = sum(n[3] for n in phrase_notes) / (len(phrase_notes) * 127.0)
+
+        # Generate CC events at every beat within the phrase
+        tick = p_start
+        while tick < p_end:
+            position = (tick - p_start) / phrase_len  # 0..1
+
+            # CC11: expression following swell curve * intensity
+            swell = curve_swell(position)
+            cc11_val = int(swell * 127 * cc11_intensity)
+            cc11_val = max(0, min(127, cc11_val))
+            if cc11_intensity > 0:
+                events.append((tick, 11, cc11_val))
+
+            # CC74: brightness increases with phrase energy * intensity
+            brightness = 40 + int(avg_vel * 87 * cc74_intensity)
+            brightness = max(0, min(127, brightness))
+            if cc74_intensity > 0:
+                events.append((tick, 74, brightness))
+
+            tick += ticks_per_beat
+
+        # CC1: vibrato on sustained notes only
+        if cc1_intensity > 0:
+            for note_tick, dur, _pitch, _vel in phrase_notes:
+                if dur > sustained_threshold:
+                    # Generate a few vibrato points across the sustained note
+                    num_points = max(2, dur // ticks_per_beat)
+                    for vi in range(num_points):
+                        vib_tick = note_tick + int(vi * dur / num_points)
+                        # Vibrato ramps up then down
+                        vib_pos = vi / max(1, num_points - 1)
+                        vib_val = int(math.sin(vib_pos * math.pi) * 60 * cc1_intensity)
+                        vib_val = max(0, min(127, vib_val))
+                        events.append((vib_tick, 1, vib_val))
+
+    events.sort(key=lambda e: (e[0], e[1]))
+    return events
+
+
+# =============================================================================
 # MODULE TEST
 # =============================================================================
 

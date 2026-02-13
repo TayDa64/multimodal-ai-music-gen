@@ -523,7 +523,22 @@
         "Registered in SynthesizerFactory as lower-priority backend"
       ]
     },
-    "builder_4_instrument_plugin_system": {"status": "deferred"},
+    "builder_4_instrument_plugin_system": {
+      "status": "completed",
+      "files_created": [
+        "multimodal_gen/plugins/__init__.py",
+        "multimodal_gen/plugins/base.py",
+        "multimodal_gen/plugins/registry.py",
+        "multimodal_gen/plugins/loader.py",
+        "multimodal_gen/plugins/ethiopian/"
+      ],
+      "features": [
+        "ABC plugin base class",
+        "Plugin registry with discovery",
+        "Plugin loader with hot-reload",
+        "Ethiopian instrument plugin"
+      ]
+    },
     "builder_5_mpc_schema_validation": {
       "status": "completed"
     },
@@ -532,5 +547,24 @@
       "files_created": ["tests/test_wave2_c1.py"],
       "test_count": "see test results"
     }
+  },
+  "wave_3": {
+    "status": "COMPLETE",
+    "theme": "ROADMAP Gap Closure",
+    "tasks": {
+      "gap_1_midi_cc_injection": "COMPLETE — CC_INTENSITY_PRESETS (21 genre entries) + generate_phrase_cc_events() added to dynamics.py; CC11/CC1/CC74 aligned to phrase boundaries",
+      "gap_2_extract_drum_pattern": "COMPLETE — extract_drum_pattern(audio_path, quantize_grid) public wrapper added to reference_analyzer.py",
+      "gap_3_masterclass_guide": "COMPLETE — docs/MASTERCLASS_GUIDE.md comprehensive user-facing guide (8 feature sections, architecture, API reference)",
+      "gap_4_orchestration_update": "COMPLETE — builder_4_instrument_plugin_system status changed from deferred to completed"
+    },
+    "files_created": [
+      "docs/MASTERCLASS_GUIDE.md",
+      "tests/test_wave3_gaps.py"
+    ],
+    "files_modified": [
+      "multimodal_gen/dynamics.py",
+      "multimodal_gen/reference_analyzer.py",
+      ".github/state/orchestration.json"
+    ]
   }
 }
