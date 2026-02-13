@@ -807,7 +807,7 @@ class KeberoAgent(IPerformerAgent):
         section_energy_map = {
             SectionType.INTRO: -0.15,
             SectionType.VERSE: 0.0,
-            SectionType.PRECHORUS: 0.1,
+            SectionType.PRE_CHORUS: 0.1,
             SectionType.CHORUS: 0.2,
             SectionType.DROP: 0.25,
             SectionType.BRIDGE: -0.1,
@@ -902,7 +902,7 @@ class KeberoAgent(IPerformerAgent):
         for tick, dur, pitch, vel in notes:
             # Timing variation (drums are usually tight but with groove)
             timing_var = 0.02 + (personality.push_pull * 0.015)
-            timing_offset = humanize_timing(tick, variation=timing_var)
+            timing_offset = humanize_timing(tick, timing_variation=timing_var)
             tick = max(0, int(timing_offset))
             
             # Velocity humanization
@@ -953,20 +953,20 @@ class KeberoAgent(IPerformerAgent):
                 # Accent pattern
                 vel = base_vel if i % 4 == 0 else base_vel - 15
                 notes.append(NoteEvent(
-                    tick=tick,
+                    start_tick=tick,
                     pitch=pitch,
                     velocity=vel,
-                    duration=tpb // 4,
+                    duration_ticks=tpb // 4,
                     channel=9  # Drums channel
                 ))
         
         elif cue_type == "stop":
             # Single muted hit
             notes.append(NoteEvent(
-                tick=0,
+                start_tick=0,
                 pitch=MUTED_HIT,
                 velocity=60,
-                duration=tpb // 8,
+                duration_ticks=tpb // 8,
                 channel=9
             ))
         
@@ -979,44 +979,44 @@ class KeberoAgent(IPerformerAgent):
                 vel = min(127, 60 + i * 7)
                 pitch = BASS_HIT if i % 3 == 0 else SLAP_HIT
                 notes.append(NoteEvent(
-                    tick=tick,
+                    start_tick=tick,
                     pitch=pitch,
                     velocity=vel,
-                    duration=tpb // 4,
+                    duration_ticks=tpb // 4,
                     channel=9
                 ))
         
         elif cue_type == "drop":
             # Sparse - just beats 1 and 3
             notes.append(NoteEvent(
-                tick=0,
+                start_tick=0,
                 pitch=BASS_HIT,
                 velocity=50,
-                duration=tpb // 2,
+                duration_ticks=tpb // 2,
                 channel=9
             ))
             notes.append(NoteEvent(
-                tick=tpb * 2,
+                start_tick=tpb * 2,
                 pitch=MUTED_HIT,
                 velocity=40,
-                duration=tpb // 4,
+                duration_ticks=tpb // 4,
                 channel=9
             ))
         
         elif cue_type == "accent":
             # Strong unison hit - bass and slap together
             notes.append(NoteEvent(
-                tick=0,
+                start_tick=0,
                 pitch=BASS_HIT,
                 velocity=min(127, base_vel + 20),
-                duration=tpb // 2,
+                duration_ticks=tpb // 2,
                 channel=9
             ))
             notes.append(NoteEvent(
-                tick=10,  # Slight flam
+                start_tick=10,  # Slight flam
                 pitch=SLAP_HIT,
                 velocity=min(127, base_vel + 15),
-                duration=tpb // 4,
+                duration_ticks=tpb // 4,
                 channel=9
             ))
         
@@ -1031,10 +1031,10 @@ class KeberoAgent(IPerformerAgent):
         
         for tick, dur, pitch, vel in notes:
             event = NoteEvent(
-                tick=tick,
+                start_tick=tick,
                 pitch=pitch,
                 velocity=vel,
-                duration=dur,
+                duration_ticks=dur,
                 channel=9  # Drum channel
             )
             events.append(event)

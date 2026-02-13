@@ -574,7 +574,7 @@ class KrarAgent(IPerformerAgent):
         
         # Get scale for the key
         root_pitch = self._get_root_pitch(context.key or "C")
-        scale = self._qenet.get_scale_for_key(qenet_name, root_pitch)
+        scale = self._qenet.get_scale_notes(root_pitch, qenet_name)
         
         # Set tuning based on qenet
         self._current_tuning = KrarTuning.get_tuning_for_qenet(qenet_name)
@@ -785,7 +785,7 @@ class KrarAgent(IPerformerAgent):
         
         for tick, dur, pitch, vel in notes:
             # Timing variation
-            timing_offset = humanize_timing(tick, variation=0.03 + personality.push_pull * 0.02)
+            timing_offset = humanize_timing(tick, timing_variation=0.03 + personality.push_pull * 0.02)
             tick = max(0, int(timing_offset))
             
             # Velocity already humanized, but add personality push
@@ -836,10 +836,10 @@ class KrarAgent(IPerformerAgent):
                     pitch = scale[i % 2] + 60
                     tick = i * (tpb // 8)
                     notes.append(NoteEvent(
-                        tick=tick,
+                        start_tick=tick,
                         pitch=pitch,
                         velocity=base_vel - (i * 3),
-                        duration=tpb // 8,
+                        duration_ticks=tpb // 8,
                         channel=0
                     ))
         
@@ -847,10 +847,10 @@ class KrarAgent(IPerformerAgent):
             # Muted stop - short dampened chord
             for i, interval in enumerate(scale[:4]):
                 notes.append(NoteEvent(
-                    tick=0,
+                    start_tick=0,
                     pitch=60 + interval,
                     velocity=40,
-                    duration=tpb // 8,
+                    duration_ticks=tpb // 8,
                     channel=0
                 ))
         
@@ -863,10 +863,10 @@ class KrarAgent(IPerformerAgent):
                 pitch_idx = beat_div % 2
                 pitches = [scale[0], scale[4] if len(scale) > 4 else scale[2]]
                 notes.append(NoteEvent(
-                    tick=tick,
+                    start_tick=tick,
                     pitch=60 + pitches[pitch_idx],
                     velocity=vel,
-                    duration=tpb // 4,
+                    duration_ticks=tpb // 4,
                     channel=0
                 ))
         
@@ -874,10 +874,10 @@ class KrarAgent(IPerformerAgent):
             # Soft single chord
             for i, interval in enumerate(scale[:3]):
                 notes.append(NoteEvent(
-                    tick=i * 10,  # Slight spread
+                    start_tick=i * 10,  # Slight spread
                     pitch=60 + interval,
                     velocity=35,
-                    duration=tpb * 2,
+                    duration_ticks=tpb * 2,
                     channel=0
                 ))
         
@@ -885,10 +885,10 @@ class KrarAgent(IPerformerAgent):
             # Strong strummed chord
             for i, interval in enumerate(scale[:5]):
                 notes.append(NoteEvent(
-                    tick=i * 8,  # Fast strum
+                    start_tick=i * 8,  # Fast strum
                     pitch=60 + interval,
                     velocity=min(127, base_vel + 20),
-                    duration=tpb,
+                    duration_ticks=tpb,
                     channel=0
                 ))
         
@@ -903,10 +903,10 @@ class KrarAgent(IPerformerAgent):
         
         for tick, dur, pitch, vel in notes:
             event = NoteEvent(
-                tick=tick,
+                start_tick=tick,
                 pitch=pitch,
                 velocity=vel,
-                duration=dur,
+                duration_ticks=dur,
                 channel=0  # Will be assigned during rendering
             )
             events.append(event)

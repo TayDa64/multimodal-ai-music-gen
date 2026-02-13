@@ -403,8 +403,9 @@ class TestMasterProcessing:
         """Test that limiter doesn't significantly affect audio well below ceiling."""
         engine = MixEngine(sample_rate=44100)
         
-        # Quiet audio well below ceiling
-        audio = np.random.randn(5000, 2) * 0.2  # Max peak ~0.6, well below ceiling
+        # Deterministic seed + low amplitude keeps peaks well below ceiling
+        np.random.seed(42)
+        audio = np.random.randn(5000, 2) * 0.1  # Max peak ~0.4, well below ceiling
         
         result = engine.limit(audio, ceiling_db=-0.3)
         

@@ -44,6 +44,13 @@ from typing import List, Optional, Dict, Any, Tuple
 import random
 import logging
 
+# Guarded import: HarmonicBrain for chord-tone bass lines
+try:
+    from multimodal_gen.intelligence.harmonic_brain import HarmonicBrain, parse_chord_symbol
+    _HAS_HARMONIC_BRAIN = True
+except ImportError:
+    _HAS_HARMONIC_BRAIN = False
+
 from ..base import IPerformerAgent, AgentRole, PerformanceResult
 from ..context import PerformanceContext
 from ..personality import AgentPersonality, BASSIST_PRESETS, get_personality_for_role
@@ -163,6 +170,12 @@ class BassTheory:
             'sustain': 'medium',
             'slide_frequency': 0.05,
         },
+        'neo_soul': {
+            'description': 'Syncopated chord-tone bass with 7ths and extensions',
+            'typical_positions': [0, 0.75, 1.5, 2.0, 2.75, 3.5],
+            'sustain': 'medium',
+            'slide_frequency': 0.08,
+        },
     }
     
     # Walking bass note selection weights
@@ -173,6 +186,34 @@ class BassTheory:
         'minor_3rd': 0.15,
         'octave': 0.10,
     }
+    
+    # Genre-specific bass registers (MIDI note ranges)
+    REGISTER = {
+        "default": (28, 55),   # E1 to G3
+        "trap": (24, 43),      # C1 to G2 - ultra-low 808
+        "house": (28, 48),     # E1 to C3 - punchy and focused
+        "neo_soul": (33, 55),  # A1 to G3 - wider melodic range
+        "jazz": (28, 52),      # E1 to E3 - walking range
+        "gospel": (33, 50),    # A1 to D3 - round, midrange
+        "boom_bap": (28, 45),  # E1 to A2 - deep boom
+        "lo_fi": (33, 50),     # A1 to D3 - warm, medium
+        "funk": (28, 52),      # E1 to E3 - slappy range
+        "ethiopian": (33, 55), # A1 to G3 - masenqo-inspired
+    }
+    
+    @classmethod
+    def get_register(cls, genre: str) -> Tuple[int, int]:
+        """Get (low, high) MIDI note range for a genre."""
+        genre_key = genre.lower().strip()
+        aliases = {
+            'trap_soul': 'trap', 'drill': 'trap',
+            'lo_fi': 'lo_fi', 'lo-fi': 'lo_fi', 'lofi': 'lo_fi',
+            'r&b': 'neo_soul', 'rnb': 'neo_soul',
+            'ethio_jazz': 'ethiopian', 'eskista': 'ethiopian',
+            'ethiopian_traditional': 'ethiopian',
+        }
+        genre_key = aliases.get(genre_key, genre_key)
+        return cls.REGISTER.get(genre_key, cls.REGISTER["default"])
     
     @classmethod
     def get_interval_semitones(cls, interval_name: str) -> int:
@@ -678,16 +719,29 @@ class BassistAgent(IPerformerAgent):
         root_note = self._get_root_note(context.key, octave=1)
         scale_notes = self._get_extended_scale_notes(context.key, context.scale_notes, octave=1)
         
-        # Generate base pattern
-        base_notes = self._generate_genre_pattern(
-            section,
-            context,
-            scaled_personality,
-            pattern_info,
-            root_note,
-            scale_notes
-        )
-        self._log_decision(f"Generated {len(base_notes)} base notes")
+        # Try harmonic bass line first when HarmonicBrain is available
+        base_notes = None
+        if _HAS_HARMONIC_BRAIN and context.chord_progression:
+            try:
+                base_notes = self._generate_harmonic_bass_line(
+                    section, context, scaled_personality
+                )
+                self._log_decision(f"Generated {len(base_notes)} harmonic bass notes")
+            except Exception as exc:
+                logger.warning("Harmonic bass line failed, falling back: %s", exc)
+                base_notes = None
+        
+        # Fallback to genre pattern
+        if base_notes is None:
+            base_notes = self._generate_genre_pattern(
+                section,
+                context,
+                scaled_personality,
+                pattern_info,
+                root_note,
+                scale_notes
+            )
+            self._log_decision(f"Generated {len(base_notes)} base notes (genre pattern)")
         
         patterns_used = [pattern_info.get('description', 'standard').split()[0]]
         
@@ -979,24 +1033,62 @@ class BassistAgent(IPerformerAgent):
         bar: int,
         section_start: int
     ) -> List[int]:
-        """Get kick drum positions for a bar (for kick-lock)."""
-        # This would ideally come from the drummer's output
-        # For now, generate typical kick positions based on genre
-        kick_positions = []
+        """Get kick drum positions for a bar (for kick-lock).
+
+        Enhancement 4: Uses all available kick data from context
+        (kick_pattern, kick_ticks, last_kick_tick) with genre-specific
+        fallback patterns when no real kick data is found.
+        """
+        kick_positions: List[int] = []
         bar_offset = section_start + (bar * TICKS_PER_BAR_4_4)
-        
-        # Use last_kick_tick from context if available
+        bar_end = bar_offset + TICKS_PER_BAR_4_4
+
+        # 1. Use kick_pattern from context if available (bar-relative offsets or absolute ticks)
+        kick_pattern = getattr(context, 'kick_pattern', None)
+        if kick_pattern and isinstance(kick_pattern, (list, tuple)):
+            for kt in kick_pattern:
+                # Treat small values as bar-relative offsets, large as absolute ticks
+                abs_tick = bar_offset + kt if kt < TICKS_PER_BAR_4_4 else kt
+                if bar_offset <= abs_tick < bar_end:
+                    kick_positions.append(abs_tick)
+
+        # 2. Use ALL kick ticks from context.kick_ticks if available
+        kick_ticks = getattr(context, 'kick_ticks', None)
+        if kick_ticks and isinstance(kick_ticks, (list, tuple)):
+            for kt in kick_ticks:
+                if bar_offset <= kt < bar_end and kt not in kick_positions:
+                    kick_positions.append(kt)
+
+        # 3. Use last_kick_tick (single value) from context
         if context.last_kick_tick is not None:
-            # Calculate relative position
-            if bar_offset <= context.last_kick_tick < bar_offset + TICKS_PER_BAR_4_4:
-                kick_positions.append(context.last_kick_tick)
-        
-        # Add typical kick positions
-        typical_kicks = [0, beats_to_ticks(2.5)]  # Common trap/hip-hop
-        for pos in typical_kicks:
-            kick_positions.append(bar_offset + pos)
-        
-        return kick_positions
+            if bar_offset <= context.last_kick_tick < bar_end:
+                if context.last_kick_tick not in kick_positions:
+                    kick_positions.append(context.last_kick_tick)
+
+        # 4. Genre-specific fallback if no real kick data found
+        if not kick_positions:
+            genre = self._extract_genre_from_context(context)
+            genre_key = genre.lower().strip()
+            genre_kicks = {
+                'trap': [0, beats_to_ticks(2.5)],
+                'trap_soul': [0, beats_to_ticks(2.5)],
+                'boom_bap': [0, beats_to_ticks(2.0)],
+                'house': [0, beats_to_ticks(1.0), beats_to_ticks(2.0), beats_to_ticks(3.0)],
+                'funk': [0, beats_to_ticks(0.75), beats_to_ticks(2.0), beats_to_ticks(2.75)],
+                'neo_soul': [0, beats_to_ticks(2.5), beats_to_ticks(3.5)],
+                'ethiopian': [0, beats_to_ticks(3.0)],
+                'jazz': [0, beats_to_ticks(2.0)],
+                'gospel': [0, beats_to_ticks(2.0), beats_to_ticks(3.5)],
+                'lo_fi': [0, beats_to_ticks(2.0)],
+                'lofi': [0, beats_to_ticks(2.0)],
+                'g_funk': [0, beats_to_ticks(1.5), beats_to_ticks(2.5)],
+                'rnb': [0, beats_to_ticks(2.5), beats_to_ticks(3.5)],
+            }
+            fallback = genre_kicks.get(genre_key, [0, beats_to_ticks(2.5)])
+            for pos in fallback:
+                kick_positions.append(bar_offset + pos)
+
+        return sorted(set(kick_positions))
     
     def _add_slides(
         self,
@@ -1153,6 +1245,259 @@ class BassistAgent(IPerformerAgent):
             duration_beats=2.0, base_velocity=base_velocity
         )
     
+    # =========================================================================
+    # HARMONIC BASS LINE GENERATION (Task 2.1)
+    # =========================================================================
+
+    def _get_scale_notes_for_bass(
+        self, root_pc: int, key: str, scale: str = "major",
+        register: Optional[Tuple[int, int]] = None,
+    ) -> List[int]:
+        """
+        Return MIDI notes in the bass register that belong to the scale.
+
+        Args:
+            root_pc: Root pitch class (0-11).
+            key: Key string (e.g. "C", "Eb").
+            scale: Scale type — "major", "minor", "dorian", "mixolydian".
+            register: Optional (low, high) MIDI range. Defaults to (28, 55).
+
+        Returns:
+            Sorted list of MIDI note numbers in the register range.
+        """
+        lo, hi = register if register else (28, 55)
+        _SCALE_INTERVALS = {
+            "major":      [0, 2, 4, 5, 7, 9, 11],
+            "minor":      [0, 2, 3, 5, 7, 8, 10],
+            "dorian":     [0, 2, 3, 5, 7, 9, 10],
+            "mixolydian": [0, 2, 4, 5, 7, 9, 10],
+        }
+        intervals = _SCALE_INTERVALS.get(scale, _SCALE_INTERVALS["major"])
+        pitch_classes = set((root_pc + iv) % 12 for iv in intervals)
+        return sorted(n for n in range(lo, hi + 1) if n % 12 in pitch_classes)
+
+    def _generate_harmonic_bass_line(
+        self,
+        section: SongSection,
+        context: PerformanceContext,
+        personality: AgentPersonality,
+    ) -> List[NoteEvent]:
+        """
+        Generate a chord-tone–aware bass line with chromatic approaches,
+        passing tones, and optional walking-bass patterns.
+
+        This method uses ``parse_chord_symbol`` from HarmonicBrain to
+        identify chord tones (root, 3rd, 5th, 7th) for every bar and
+        then applies genre-specific rhythms, chromatic approaches
+        (1 semitone below, placed 1 sixteenth before the beat), and
+        passing tones on beats 3-4 approaching the next chord.
+
+        Walking bass (quarter-note) is activated when
+        ``genre_dna.swing > 0.4``.
+
+        Bass register is determined by genre via ``BassTheory.REGISTER``.
+        """
+        notes: List[NoteEvent] = []
+
+        chords = context.chord_progression
+        if not chords:
+            raise ValueError("No chord progression available")
+
+        # Determine genre DNA swing if available
+        genre_dna_swing = 0.0
+        if context.genre_dna is not None:
+            if isinstance(context.genre_dna, dict):
+                genre_dna_swing = context.genre_dna.get("swing", 0.0)
+            elif hasattr(context.genre_dna, "swing"):
+                genre_dna_swing = context.genre_dna.swing  # type: ignore[union-attr]
+
+        # Detect scale type from key
+        scale_type = "minor" if "m" in context.key and "maj" not in context.key.lower() else "major"
+
+        # Genre pattern for rhythm fallback
+        genre = self._extract_genre_from_context(context)
+        pattern_info = self._bass_theory.get_genre_pattern(genre)
+        typical_positions = pattern_info.get("typical_positions", [0, 2.5])
+
+        # Base velocity
+        base_velocity = int(100 * (0.7 + 0.3 * personality.aggressiveness))
+
+        # Duration from sustain type
+        sustain_type = pattern_info.get("sustain", "medium")
+        if sustain_type == "long":
+            base_duration = TICKS_PER_BEAT * 2
+        elif sustain_type == "short":
+            base_duration = TICKS_PER_8TH
+        else:
+            base_duration = TICKS_PER_BEAT
+        note_duration = int(base_duration * (1.0 - personality.aggressiveness * 0.3))
+
+        walking = genre_dna_swing > 0.4
+
+        # Enhancement 3: Genre-aware bass register
+        reg_lo, reg_hi = self._bass_theory.get_register(genre)
+        self._log_decision(f"Bass register MIDI {reg_lo}-{reg_hi} for genre '{genre}'")
+
+        for bar in range(section.bars):
+            bar_start = section.start_tick + bar * TICKS_PER_BAR_4_4
+
+            chord_idx = bar % len(chords)
+            chord_sym = chords[chord_idx]
+            next_chord_sym = chords[(chord_idx + 1) % len(chords)]
+
+            # Parse chord tones
+            try:
+                root_pc, chord_pcs, bass_pc = parse_chord_symbol(chord_sym)
+            except (ValueError, Exception):
+                root_pc = 0
+                chord_pcs = [0, 4, 7]
+                bass_pc = None
+
+            try:
+                next_root_pc, next_chord_pcs, _ = parse_chord_symbol(next_chord_sym)
+            except (ValueError, Exception):
+                next_root_pc = root_pc
+                next_chord_pcs = chord_pcs
+
+            # Build chord tone MIDI notes in bass register
+            def _pc_to_bass(pc: int) -> int:
+                """Map a pitch class to the nearest MIDI note in register."""
+                for octave_base in range(max(0, reg_lo - 12), reg_hi + 1, 12):
+                    candidate = octave_base + pc
+                    if reg_lo <= candidate <= reg_hi:
+                        return candidate
+                return max(reg_lo, min(reg_hi, 24 + pc))
+
+            root_midi = _pc_to_bass(root_pc if bass_pc is None else bass_pc)
+            # chord tones: root, 3rd, 5th, optional 7th
+            chord_tones = [_pc_to_bass(pc) for pc in chord_pcs[:4]]
+            next_root_midi = _pc_to_bass(next_root_pc)
+
+            scale_notes = self._get_scale_notes_for_bass(root_pc, context.key, scale_type, register=(reg_lo, reg_hi))
+
+            # Kick positions for kick-lock
+            kick_positions = self._get_kick_positions_in_bar(context, bar, section.start_tick)
+
+            if walking:
+                # Walking bass: quarter-note roots/chord tones with
+                # chromatic approaches
+                walk_targets = [
+                    root_midi,
+                    chord_tones[2] if len(chord_tones) > 2 else root_midi,
+                    chord_tones[1] if len(chord_tones) > 1 else root_midi,
+                    next_root_midi,  # approach next chord on beat 4
+                ]
+                for beat_idx, target in enumerate(walk_targets):
+                    tick = bar_start + beat_idx * TICKS_PER_BEAT
+                    if tick >= section.end_tick:
+                        break
+
+                    # Enhancement 1: Walking bass always has chromatic approach notes
+                    if beat_idx > 0:
+                        appr_tick = tick - TICKS_PER_16TH
+                        appr_from_below = random.random() < 0.7
+                        appr_pitch = max(reg_lo, min(reg_hi, target - 1 if appr_from_below else target + 1))
+                        if appr_tick >= bar_start:
+                            notes.append(NoteEvent(
+                                pitch=appr_pitch,
+                                start_tick=appr_tick,
+                                duration_ticks=TICKS_PER_16TH,
+                                velocity=max(40, base_velocity - 15),
+                                channel=1,
+                            ))
+
+                    vel = humanize_velocity(base_velocity, variation=0.08)
+                    target = max(reg_lo, min(reg_hi, target))
+                    notes.append(NoteEvent(
+                        pitch=target,
+                        start_tick=tick,
+                        duration_ticks=TICKS_PER_BEAT - TICKS_PER_16TH,
+                        velocity=min(127, vel),
+                        channel=1,
+                    ))
+            else:
+                # Rhythm-pattern–based approach
+                for pos in typical_positions:
+                    tick = bar_start + beats_to_ticks(pos)
+                    if tick >= section.end_tick:
+                        continue
+
+                    # Select pitch (Enhancement 2: passing tones at non-downbeat)
+                    if pos == 0:
+                        pitch = root_midi
+                    elif random.random() < personality.variation_tendency * 0.4:
+                        # Passing tone: diatonic or chromatic bridging to next chord
+                        direction = 1 if next_root_midi >= root_midi else -1
+                        if random.random() < 0.3:
+                            # Chromatic passing tone
+                            pitch = root_midi + direction * random.choice([1, 2])
+                        else:
+                            # Diatonic passing tone from scale
+                            passing_cands = [
+                                n for n in scale_notes
+                                if reg_lo <= n <= reg_hi and n != root_midi
+                            ]
+                            pitch = random.choice(passing_cands) if passing_cands else root_midi
+                    elif personality.complexity > 0.5 and random.random() < 0.35:
+                        pitch = random.choice(chord_tones) if chord_tones else root_midi
+                    else:
+                        pitch = root_midi
+
+                    pitch = max(reg_lo, min(reg_hi, pitch))
+
+                    # Kick-lock
+                    if kick_positions and personality.consistency > 0.5:
+                        closest_kick = min(kick_positions, key=lambda k: abs(k - tick))
+                        if abs(closest_kick - tick) < TICKS_PER_16TH:
+                            tick = closest_kick
+
+                    vel = humanize_velocity(base_velocity, variation=0.1 * (1.0 - personality.consistency))
+                    notes.append(NoteEvent(
+                        pitch=pitch,
+                        start_tick=tick,
+                        duration_ticks=note_duration,
+                        velocity=min(127, vel),
+                        channel=1,
+                    ))
+
+                # Enhancement 1: Chromatic approach in last 8th-note before bar boundary
+                # Only when chord root changes; probability from personality.complexity
+                if bar < section.bars - 1 and next_root_midi != root_midi and random.random() < personality.complexity * 0.7:
+                    appr_tick = bar_start + TICKS_PER_BAR_4_4 - TICKS_PER_8TH
+                    appr_from_below = random.random() < 0.65
+                    appr_pitch = max(reg_lo, min(reg_hi, next_root_midi - 1 if appr_from_below else next_root_midi + 1))
+                    if appr_tick < section.end_tick:
+                        notes.append(NoteEvent(
+                            pitch=appr_pitch,
+                            start_tick=appr_tick,
+                            duration_ticks=TICKS_PER_8TH,
+                            velocity=max(40, base_velocity - 15),
+                            channel=1,
+                        ))
+
+                # Enhancement 2: Passing tones on beats 3-4 approaching next chord
+                # Probability controlled by variation_tendency
+                if bar < section.bars - 1 and random.random() < personality.variation_tendency * 0.4:
+                    # Pick a scale-wise note between current root and next root
+                    passing_candidates = [
+                        n for n in scale_notes
+                        if min(root_midi, next_root_midi) <= n <= max(root_midi, next_root_midi)
+                        and n != root_midi and n != next_root_midi
+                    ]
+                    if passing_candidates:
+                        pass_note = random.choice(passing_candidates)
+                        pass_tick = bar_start + beats_to_ticks(3.0)
+                        if pass_tick < section.end_tick:
+                            notes.append(NoteEvent(
+                                pitch=max(reg_lo, min(reg_hi, pass_note)),
+                                start_tick=pass_tick,
+                                duration_ticks=TICKS_PER_8TH,
+                                velocity=max(40, base_velocity - 10),
+                                channel=1,
+                            ))
+
+        return notes
+
     def _generate_drop_cue(
         self,
         start_tick: int,

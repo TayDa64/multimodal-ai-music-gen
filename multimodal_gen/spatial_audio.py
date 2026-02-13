@@ -1,5 +1,8 @@
 """
-Spatial Audio Module - Professional 3D Audio Processing and Immersive Sound.
+[UNREFERENCED] Spatial Audio Module - Professional 3D Audio Processing and Immersive Sound.
+
+NOTE (Sprint 11.7): This module is not imported by any other module in the pipeline.
+Candidate for future integration or removal. Retained for reference designs.
 
 Provides production-ready spatial audio tools:
 - HRTF-based binaural rendering for accurate 3D positioning

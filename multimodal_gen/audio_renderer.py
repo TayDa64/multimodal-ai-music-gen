@@ -17,9 +17,12 @@ Features:
 
 import os
 import subprocess
+import logging
 import numpy as np
 import json
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 import tempfile
 
@@ -73,6 +76,7 @@ from .mix_chain import (
     create_drum_bus_chain,
     create_master_chain,
     create_lofi_chain,
+    create_bass_chain,
     EffectType,
     EffectParams,
     SaturationParams,
@@ -94,6 +98,44 @@ try:
 except ImportError:
     HAS_INSTRUMENT_SERVICE = False
     _IRS = None  # type: ignore
+
+# Convolution reverb for master bus processing (Sprint 7)
+try:
+    from .reverb import ConvolutionReverb, ReverbConfig, IR_PRESETS
+    _HAS_CONVOLUTION_REVERB = True
+except ImportError:
+    _HAS_CONVOLUTION_REVERB = False
+
+# Multiband dynamics for master bus processing (Sprint 7.5)
+try:
+    from .multiband_dynamics import MultibandDynamics, multiband_compress, MULTIBAND_PRESETS, MultibandDynamicsParams
+    _HAS_MULTIBAND_DYNAMICS = True
+except ImportError:
+    _HAS_MULTIBAND_DYNAMICS = False
+
+# Spectral processing for master bus (Sprint 7.5)
+try:
+    from .spectral_processing import (
+        HarmonicExciter, ResonanceSuppressor, apply_spectral_preset,
+        HarmonicExciterParams, ResonanceSuppressorParams, SPECTRAL_PRESETS
+    )
+    _HAS_SPECTRAL_PROCESSING = True
+except ImportError:
+    _HAS_SPECTRAL_PROCESSING = False
+
+# Reference matching for master bus (Sprint 7.5)
+try:
+    from .reference_matching import ReferenceMatcher, ReferenceAnalyzer
+    _HAS_REFERENCE_MATCHING = True
+except ImportError:
+    _HAS_REFERENCE_MATCHING = False
+
+# Track processor for per-stem channel strip (Sprint 8)
+try:
+    from .track_processor import TrackProcessor, TRACK_PRESETS
+    _HAS_TRACK_PROCESSOR = True
+except ImportError:
+    _HAS_TRACK_PROCESSOR = False
 
 
 # =============================================================================
@@ -1195,12 +1237,49 @@ class AudioRenderer:
         self._parsed_instruments = set(parsed_instruments) if parsed_instruments else set()
 
         self._last_render_report: Optional[Dict] = None
-        
+        self._pipeline_stages: Dict[str, str] = {}  # Sprint 10.5: Track which DSP stages fired
+
+        # Convolution reverb for master bus (Sprint 7)
+        self._reverb = ConvolutionReverb(sample_rate=sample_rate) if _HAS_CONVOLUTION_REVERB else None
+
+        # Multiband dynamics for master bus (Sprint 7.5)
+        # NOTE: We use the multiband_compress() convenience function in the
+        # render pipeline (which creates its own MultibandDynamics per genre
+        # preset). The flag is kept as the gate.
+        # self._multiband is no longer stored — _HAS_MULTIBAND_DYNAMICS is the gate.
+
+        # Spectral processing for master bus (Sprint 7.5)
+        if _HAS_SPECTRAL_PROCESSING:
+            self._resonance_suppressor = ResonanceSuppressor(
+                SPECTRAL_PRESETS.get('harsh_tamer', ResonanceSuppressorParams()),
+                sample_rate=sample_rate
+            )
+        else:
+            self._resonance_suppressor = None
+        # NOTE: Harmonic exciter is applied via apply_spectral_preset() in the
+        # render pipeline (which selects the correct preset per genre).
+        # No instance is stored — _HAS_SPECTRAL_PROCESSING is the gate.
+
+        # Reference matching for master bus (Sprint 7.5) — dormant until profile provided
+        self._reference_analyzer = ReferenceAnalyzer(sample_rate=sample_rate) if _HAS_REFERENCE_MATCHING else None
+        self._reference_matcher = None  # Created via set_reference_profile()
+        self._reference_profile = None
+
+        # Per-stem track processor (Sprint 8)
+        self._track_processor = TrackProcessor(sample_rate=sample_rate) if _HAS_TRACK_PROCESSOR else None
+
+        # Mix policy panning (Sprint 8.4) — set via set_mix_policy()
+        self._mix_policy = None
+
+        # Production preset values (Sprint 8.7) — set via set_preset_values()
+        self._preset_values: dict = {}
+
         # Initialize mix chains
         self.mix_chains = {
             'drums': create_drum_bus_chain(),
             'master': create_master_chain(),
-            'lofi': create_lofi_chain()
+            'lofi': create_lofi_chain(),
+            'bass': create_bass_chain(),
         }
         
         # Synthesizer abstraction layer
@@ -1291,6 +1370,114 @@ class AudioRenderer:
             synthesizer: ISynthesizer instance to use
         """
         self.synthesizer = synthesizer
+    
+    def set_reference_profile(self, profile) -> None:
+        """Store a reference profile to activate reference matching in the render pipeline.
+
+        Args:
+            profile: A ReferenceProfile object (from reference_matching module).
+                     Pass None to deactivate reference matching.
+        """
+        self._reference_profile = profile
+        if _HAS_REFERENCE_MATCHING and profile is not None:
+            self._reference_matcher = ReferenceMatcher(profile, sample_rate=self.sample_rate)
+        else:
+            self._reference_matcher = None
+
+    def set_mix_policy(self, mix_policy) -> None:
+        """Store a MixPolicy to use genre-specific panning in the render pipeline.
+
+        Args:
+            mix_policy: A MixPolicy object (from style_policy module).
+                        Pass None to use default hardcoded panning.
+        """
+        self._mix_policy = mix_policy
+
+    def set_preset_values(self, preset_values: dict) -> None:
+        """Store production preset values to influence the render pipeline.
+
+        Args:
+            preset_values: Dict of preset field→value pairs from PresetManager.
+                           Keys include humanize_amount, velocity_range, accent_strength, etc.
+                           Pass None or {} to use defaults.
+        """
+        self._preset_values = preset_values or {}
+
+    def _get_preset_target_rms(self) -> float:
+        """Compute target RMS based on preset values.
+
+        Returns 0.25 (default) when no preset is active.
+        """
+        target = 0.25
+        if self._preset_values:
+            try:
+                _ha = self._preset_values.get('humanize_amount')
+                if _ha is not None:
+                    # More humanized/rough → slightly lower RMS; polished → higher
+                    # Range: 0.16 (ha=1.0) to 0.30 (ha=0.0)
+                    target = 0.30 - 0.14 * max(0.0, min(1.0, float(_ha)))
+            except Exception:
+                pass
+        return target
+
+    def _get_preset_reverb_send(self) -> float:
+        """Compute reverb send level based on preset values.
+
+        Returns 0.15 (default) when no preset is active.
+        """
+        send = 0.15
+        if self._preset_values:
+            try:
+                _ha = self._preset_values.get('humanize_amount')
+                if _ha is not None:
+                    send = 0.10 + 0.12 * max(0.0, min(1.0, float(_ha)))
+                _ti = self._preset_values.get('tension_intensity')
+                if _ti is not None:
+                    send = min(0.30, send + 0.05 * max(0.0, min(1.0, float(_ti))))
+            except Exception:
+                pass
+        return send
+
+    def _normalize_genre(self) -> str:
+        """Normalize genre string for consistent lookup across pipeline blocks.
+
+        Returns lowercase, underscore-separated genre string.
+        Handles None, hyphens, and spaces.
+        """
+        return (self.genre or '').lower().replace(' ', '_').replace('-', '_')
+
+    def _compute_pan(self, name: str, is_drums: bool, index: int) -> float:
+        """Compute panning value for a track.
+
+        Args:
+            name: Track name
+            is_drums: Whether this is a drum track (MIDI ch9)
+            index: Track index for alternating spread
+
+        Returns:
+            Pan value from -1.0 (left) to 1.0 (right)
+        """
+        if is_drums:
+            # Sprint 10.2: Per-drum-element panning from MixPolicy
+            # NOTE: MIDI ch9 is a single track — can't pan individual drum elements
+            # without per-note stem separation. For mixed drum bus, honor hihat_pan
+            # as a slight stereo offset for variety.
+            if self._mix_policy:
+                _hihat_pan = getattr(self._mix_policy, 'hihat_pan', 0.0)
+                return _hihat_pan * 0.3  # Subtle offset, not full pan
+            return 0
+        name_lower = (name or '').lower()
+        if self._mix_policy:
+            if 'bass' in name_lower or '808' in name_lower:
+                return getattr(self._mix_policy, 'bass_pan', 0.0)
+            if 'kick' in name_lower:
+                return getattr(self._mix_policy, 'kick_pan', 0.0)
+            if 'snare' in name_lower:
+                return getattr(self._mix_policy, 'snare_pan', 0.0)
+            if 'hihat' in name_lower or 'hi-hat' in name_lower or 'hi_hat' in name_lower:
+                return getattr(self._mix_policy, 'hihat_pan', 0.0)
+            return 0.2 if index % 2 == 0 else -0.2
+        return 0.2 if index % 2 == 0 else -0.2
     
     def render_midi_file(
         self,
@@ -1479,7 +1666,7 @@ class AudioRenderer:
             "key": getattr(parsed, 'key', None) if parsed else None,
         }
 
-        return {
+        report = {
             "schema_version": 1,
             "renderer_path": renderer_path,
             "midi_path": midi_path,
@@ -1503,7 +1690,40 @@ class AudioRenderer:
             "instrument_library": instrument_stats,
             "expansions": expansion_stats,
             "warnings": warnings,
+            "production_preset": {
+                "preset_values": getattr(self, '_preset_values', None),
+                "target_rms": self._get_preset_target_rms() if hasattr(self, '_get_preset_target_rms') else None,
+                "reverb_send": self._get_preset_reverb_send() if hasattr(self, '_get_preset_reverb_send') else None,
+            },
+            "mix_policy": {
+                "active": bool(getattr(self, '_mix_policy', None)),
+                "saturation_type": getattr(self._mix_policy, 'saturation_type', None) if getattr(self, '_mix_policy', None) else None,
+                "saturation_amount": getattr(self._mix_policy, 'saturation_amount', None) if getattr(self, '_mix_policy', None) else None,
+                "brightness_target": getattr(self._mix_policy, 'brightness_target', None) if getattr(self, '_mix_policy', None) else None,
+                "warmth_target": getattr(self._mix_policy, 'warmth_target', None) if getattr(self, '_mix_policy', None) else None,
+                "drum_bus_fx": getattr(self._mix_policy, 'drum_bus_fx', None) if getattr(self, '_mix_policy', None) else None,
+                "bass_fx": getattr(self._mix_policy, 'bass_fx', None) if getattr(self, '_mix_policy', None) else None,
+                "master_fx_chain": getattr(self._mix_policy, 'master_fx_chain', None) if getattr(self, '_mix_policy', None) else None,
+            },
+            "genre_normalized": self._normalize_genre() if hasattr(self, '_normalize_genre') else None,
+            "pipeline_stages": dict(getattr(self, '_pipeline_stages', {})),
         }
+
+        # Sprint 10.4: Add LUFS estimate from rendered audio (if available)
+        try:
+            import os
+            if output_path and os.path.exists(output_path):
+                from scipy.io import wavfile as _wf
+                _sr, _audio = _wf.read(output_path)
+                _audio_f = _audio.astype(float) / (32768.0 if _audio.dtype == np.int16 else 1.0)
+                if len(_audio_f.shape) > 1:
+                    _audio_f = np.mean(_audio_f, axis=1)
+                report["estimated_lufs"] = round(estimate_lufs(_audio_f, _sr), 1)
+                report["peak_dbfs"] = round(20 * np.log10(max(np.max(np.abs(_audio_f)), 1e-10)), 1)
+        except Exception:
+            pass
+
+        return report
 
     def get_last_render_report(self) -> Optional[Dict]:
         """Return the most recent render report (if any)."""
@@ -1528,11 +1748,28 @@ class AudioRenderer:
             return self.mix_chains.get('drums')
         
         # Check for other roles based on name
-        name_lower = track_name.lower()
-        if 'bass' in name_lower:
-            # Could add bass chain
-            pass
-        elif 'lofi' in self.genre.lower() and ('piano' in name_lower or 'keys' in name_lower):
+        name_lower = (track_name or '').lower()
+        if 'bass' in name_lower or '808' in name_lower:
+            # Sprint 9.3: Activate bass chain; Sprint 10.3: modulate sub boost from policy
+            _bass_chain = self.mix_chains.get('bass')
+            if _bass_chain and self._mix_policy:
+                try:
+                    _sub_target = getattr(self._mix_policy, 'sub_bass_target', 0.5)
+                    # Scale the sub EQ boost: 0.5→+2dB (default), 0.8→+4dB, 0.2→+0dB
+                    _sub_boost_db = max(0.0, (_sub_target - 0.2) * 6.67)  # 0.2→0, 0.5→2, 0.8→4, 1.0→5.3
+                    if hasattr(_bass_chain, 'effects') and len(_bass_chain.effects) > 0:
+                        _first_fx = _bass_chain.effects[0]
+                        _fx_params = _first_fx[1] if isinstance(_first_fx, tuple) else _first_fx
+                        if hasattr(_fx_params, 'bands'):
+                            for band in _fx_params.bands:
+                                if isinstance(band, dict) and band.get('frequency') == 60:
+                                    band['gain_db'] = round(_sub_boost_db, 1)
+                except Exception:
+                    pass
+            return _bass_chain
+        
+        _genre_lower = self._normalize_genre()
+        if 'lofi' in _genre_lower and ('piano' in name_lower or 'keys' in name_lower):
             return self.mix_chains.get('lofi')
             
         return None
@@ -1634,7 +1871,8 @@ class AudioRenderer:
         
         # Target RMS levels for hot, modern mix
         # Increased from 0.15 to 0.25 for more punch
-        target_rms = 0.25  # Target RMS for melodic tracks
+        # Sprint 8.7: Let production presets influence target RMS
+        target_rms = self._get_preset_target_rms()
         
         stereo_tracks = []
         for i, (audio, (name, is_drums)) in enumerate(zip(tracks_audio, track_infos)):
@@ -1642,6 +1880,40 @@ class AudioRenderer:
             chain = self._get_chain_for_track(name, is_drums)
             if chain:
                 audio = chain.process(audio, self.sample_rate)
+
+            # Per-stem channel strip processing (Sprint 8)
+            _track_process_genres = {'trap', 'drill', 'boom_bap', 'house', 'phonk', 'edm', 'lofi', 'lo_fi', 'hip_hop', 'rnb', 'g_funk'}
+            _genre_norm = self._normalize_genre()
+            if self._track_processor and _HAS_TRACK_PROCESSOR and _genre_norm in _track_process_genres:
+                try:
+                    if is_drums:
+                        _stem_preset = {
+                            'trap': 'punchy_kick', 'drill': 'punchy_kick',
+                            'boom_bap': 'boom_bap_drums',
+                            'house': 'punchy_kick', 'phonk': 'punchy_kick',
+                            'edm': 'punchy_kick',
+                        }.get(_genre_norm, 'boom_bap_drums')
+                    else:
+                        name_lower = (name or '').lower()
+                        if 'bass' in name_lower or '808' in name_lower:
+                            _stem_preset = {
+                                'trap': 'trap_808', 'drill': 'trap_808',
+                                'boom_bap': 'boom_bap_bass', 'phonk': 'trap_808',
+                                'edm': 'trap_808',
+                            }.get(_genre_norm, 'clean_bass')
+                        elif 'pad' in name_lower:
+                            _stem_preset = 'warm_pad'
+                        elif 'lead' in name_lower or 'melody' in name_lower:
+                            _stem_preset = 'bright_synth'
+                        else:
+                            _stem_preset = {
+                                'lofi': 'lofi_keys', 'lo_fi': 'lofi_keys',
+                            }.get(_genre_norm, 'bright_synth')
+                    
+                    if _stem_preset in TRACK_PRESETS:
+                        audio = self._track_processor.process_with_preset(audio, _stem_preset)
+                except Exception:
+                    pass  # Graceful degradation
 
             rms = calculate_rms(audio)
             
@@ -1656,26 +1928,196 @@ class AudioRenderer:
                 
                 # Limit gain to avoid extreme amplification
                 gain = min(gain, 4.0)  # Max +12dB
+                # Sprint 8.7: Respect MixPolicy stem headroom when available
+                if self._mix_policy:
+                    try:
+                        _headroom_db = getattr(self._mix_policy, 'stem_headroom_db', -6.0)
+                        # Convert headroom to max allowed peak: target_rms * headroom_factor
+                        # -6dB headroom means peak can be ~2x (6dB above) target
+                        _headroom_linear = 10 ** (-_headroom_db / 20.0)  # -6dB → 2.0, -3dB → 1.41
+                        # NOTE: This cap interacts with preset-driven target_rms. At -6dB headroom,
+                        # quiet tracks may not reach target. This is intentional — headroom preserves
+                        # dynamic range at the expense of level targeting.
+                        gain = min(gain, _headroom_linear)
+                    except Exception:
+                        pass
                 audio = audio * gain
             
-            # Apply panning - drums center, melodic slightly spread
-            pan = 0 if is_drums else (0.2 if i % 2 == 0 else -0.2)
+            # Apply panning — use MixPolicy if available, else default spread (Sprint 8.4)
+            # NOTE: Drum tracks (MIDI ch9) always center. Per-drum-instrument panning
+            # requires per-note stem separation — future enhancement.
+            pan = self._compute_pan(name, is_drums, i)
             stereo = apply_stereo_pan(audio, pan)
             stereo_tracks.append(stereo)
-        
+
+        # Sidechain ducking for bass tracks (Sprint 8)
+        # Duck bass when kick/808 hits for that pumping effect
+        _sidechain_genres = {'trap', 'drill', 'house', 'edm', 'hip_hop', 'phonk'}
+        if self._normalize_genre() in _sidechain_genres:
+            try:
+                kick_idx = None
+                bass_indices = []
+                for idx, (name, is_drums) in enumerate(track_infos):
+                    name_lower = (name or '').lower()
+                    if is_drums:
+                        kick_idx = idx  # Use drum track as sidechain trigger
+                    elif 'bass' in name_lower or '808' in name_lower:
+                        bass_indices.append(idx)
+
+                if kick_idx is not None and bass_indices:
+                    # Extract mono trigger from kick/drum track
+                    kick_audio = stereo_tracks[kick_idx]
+                    if len(kick_audio.shape) > 1:
+                        trigger = np.mean(kick_audio, axis=-1)
+                    else:
+                        trigger = kick_audio
+
+                    for bi in bass_indices:
+                        bass_audio = stereo_tracks[bi]
+                        if len(bass_audio.shape) > 1:
+                            # Process each channel
+                            for ch in range(bass_audio.shape[-1]):
+                                min_len = min(len(trigger), len(bass_audio[:, ch]))
+                                bass_audio[:min_len, ch] = apply_sidechain_ducking(
+                                    bass_audio[:min_len, ch], trigger[:min_len],
+                                    attack_ms=5.0, release_ms=100.0, ratio=6.0, threshold=0.3
+                                )
+                        else:
+                            min_len = min(len(trigger), len(bass_audio))
+                            bass_audio[:min_len] = apply_sidechain_ducking(
+                                bass_audio[:min_len], trigger[:min_len],
+                                attack_ms=5.0, release_ms=100.0, ratio=6.0, threshold=0.3
+                            )
+                        stereo_tracks[bi] = bass_audio
+            except Exception:
+                self._pipeline_stages['sidechain_ducking'] = 'error'
+
         mix = mix_stereo_tracks(stereo_tracks)
+
+        # Sprint 10.5: Reset pipeline stage tracking for this render
+        self._pipeline_stages = {}
         
         # Apply master bus processing
         master_chain = self.mix_chains.get('master')
         if master_chain:
             mix = master_chain.process(mix, self.sample_rate)
-        
+
+        # Convolution reverb send (Sprint 7)
+        if self._reverb and _HAS_CONVOLUTION_REVERB:
+            try:
+                genre_reverb_map = {
+                    'jazz': 'hall', 'classical': 'hall', 'ambient': 'hall',
+                    'trap': 'room', 'drill': 'room', 'hip_hop': 'room',
+                    'lofi': 'lofi_room', 'lo_fi': 'lofi_room',
+                    'house': 'plate', 'rock': 'plate', 'funk': 'plate',
+                    'ethiopian': 'room', 'ethio_jazz': 'hall',
+                }
+                preset = genre_reverb_map.get(self._normalize_genre(), 'room')
+                # Pure wet signal for send mixing
+                reverb_cfg = ReverbConfig(wet_dry=1.0)
+                wet = self._reverb.process(mix, preset=preset, config=reverb_cfg)
+                # Sprint 8.7: Let production presets influence reverb send
+                send_level = self._get_preset_reverb_send()
+                # Sprint 9.7: Modulate reverb send with warmth target
+                if self._mix_policy:
+                    try:
+                        _warmth = getattr(self._mix_policy, 'warmth_target', 0.5)
+                        send_level *= (0.8 + 0.4 * _warmth)  # 0.5→1.0x, 0.8→1.12x, 0.2→0.88x
+                    except Exception:
+                        pass
+                if wet is not None and len(wet) > 0:
+                    # Trim/pad to match mix length
+                    if len(wet) > len(mix):
+                        wet = wet[:len(mix)]
+                    elif len(wet) < len(mix):
+                        pad_shape = [(0, len(mix) - len(wet))]
+                        if len(wet.shape) > 1:
+                            pad_shape.append((0, 0))
+                        wet = np.pad(wet, pad_shape)
+                    mix = mix + wet * send_level
+                    self._pipeline_stages['convolution_reverb'] = preset
+            except Exception:
+                self._pipeline_stages['convolution_reverb'] = 'error'
+
+        # Multiband dynamics on master bus (Sprint 7.5)
+        if _HAS_MULTIBAND_DYNAMICS:
+            try:
+                _genre_mb_map = {
+                    'trap': 'loudness_maximize', 'drill': 'loudness_maximize',
+                    'lofi': 'gentle_control', 'lo_fi': 'gentle_control',
+                    'ambient': 'gentle_control',
+                }
+                _mb_preset = _genre_mb_map.get(self._normalize_genre(), 'mastering_glue')
+                mix = multiband_compress(mix, preset=_mb_preset, sample_rate=self.sample_rate)
+                self._pipeline_stages['multiband_dynamics'] = _mb_preset
+            except Exception:
+                self._pipeline_stages['multiband_dynamics'] = 'error'
+
+        # Spectral processing (Sprint 7.5) — resonance suppression + harmonic excitement
+        if _HAS_SPECTRAL_PROCESSING and self._resonance_suppressor:
+            try:
+                # Step 1: Suppress harsh resonances / de-essing
+                mix = self._resonance_suppressor.process(mix)
+                # Step 2: Harmonic exciter — genre-appropriate preset
+                _genre_exciter_map = {
+                    'trap': 'tape_warmth', 'drill': 'tape_warmth',
+                    'lofi': 'analog_warmth', 'lo_fi': 'analog_warmth',
+                    'jazz': 'master_air', 'house': 'master_air',
+                    'classical': 'master_air', 'ambient': 'master_air',
+                }
+                _exciter_preset = _genre_exciter_map.get(
+                    self._normalize_genre(), 'radio_ready'
+                )
+                # Sprint 9.2: Let MixPolicy saturation influence exciter choice
+                if self._mix_policy:
+                    try:
+                        _sat_type = getattr(self._mix_policy, 'saturation_type', 'tape')
+                        _sat_amt = getattr(self._mix_policy, 'saturation_amount', 0.2)
+                        if _sat_type == 'tube' and _sat_amt > 0.3:
+                            _exciter_preset = 'analog_warmth'
+                        elif _sat_type == 'tape' and _sat_amt > 0.3:
+                            _exciter_preset = 'tape_warmth'
+                        elif _sat_type == 'digital' and _sat_amt < 0.15:
+                            _exciter_preset = 'master_air'
+                    except Exception:
+                        pass
+                    # Sprint 9.7: Brightness target biases exciter toward air or warmth
+                    try:
+                        _bright = getattr(self._mix_policy, 'brightness_target', 0.5)
+                        if _bright > 0.7:
+                            _exciter_preset = 'master_air'
+                        elif _bright < 0.3:
+                            _exciter_preset = 'tape_warmth'
+                    except Exception:
+                        pass
+                mix = apply_spectral_preset(mix, _exciter_preset, sample_rate=self.sample_rate)
+                self._pipeline_stages['spectral_processing'] = _exciter_preset
+            except Exception:
+                self._pipeline_stages['spectral_processing'] = 'error'
+
+        # Reference matching (Sprint 7.5) — activated when reference_profile is supplied
+        if _HAS_REFERENCE_MATCHING and self._reference_matcher:
+            try:
+                if getattr(self, '_reference_profile', None) is not None:
+                    mix = self._reference_matcher.process(mix)
+                    self._pipeline_stages['reference_matching'] = 'active'
+            except Exception:
+                self._pipeline_stages['reference_matching'] = 'error'
+
         # Soft clip to prevent harsh distortion
         mix = soft_clip(mix, threshold=0.7)
         
         # Normalize to louder level - 0.95 peak for modern loudness expectations
         # Previous 0.85 was too quiet for pleasant listening
-        mix = normalize_audio(mix, 0.95)
+        # Sprint 8.7: Respect MixPolicy master_ceiling_db when available
+        _norm_target = 0.95
+        if self._mix_policy:
+            try:
+                _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0)
+                _norm_target = min(0.98, max(0.5, 10 ** (_ceil_db / 20.0)))
+            except Exception:
+                pass
+        mix = normalize_audio(mix, _norm_target)
         mix = limit_audio(mix, TARGET_TRUE_PEAK)
         
         # Save with BWF format if enabled

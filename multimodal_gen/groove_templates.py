@@ -1100,6 +1100,338 @@ def _create_drill_groove() -> GrooveTemplate:
     return template
 
 
+# -------------------------------------------------------------------------
+# New preset grooves (Sprint 2 — Task 2.3)
+# -------------------------------------------------------------------------
+
+def _create_neo_soul_groove() -> GrooveTemplate:
+    """Neo-soul: heavily behind-beat, lazy hi-hats, 16th resolution."""
+    template = GrooveTemplate(
+        name="Neo Soul",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.35,
+        genre="neo_soul",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+
+        # Beats 2 & 4 (indices 4, 12) drag slightly late
+        if i in (4, 12):
+            timing = 18   # ~20ms at 120 BPM
+            accent = 1.3
+            velocity = 12
+        elif i in (0, 8):
+            timing = 5
+            accent = 1.15
+            velocity = 8
+        elif i % 2 == 1:
+            # Hi-hat off-beats: lazy ±variance
+            timing = random.choice([8, 12, 15])
+            accent = 0.55
+            velocity = -15
+        else:
+            timing = 6
+            accent = 0.85
+            velocity = -5
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_gospel_groove() -> GrooveTemplate:
+    """Gospel: shuffle with strong backbeat, quarter-note drive."""
+    template = GrooveTemplate(
+        name="Gospel",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.40,
+        genre="gospel",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+
+        if i == 0:
+            timing = -3   # push beat 1 slightly early
+            accent = 1.2
+            velocity = 10
+        elif i in (4, 12):
+            timing = 0    # beats 2 & 4 on grid (strong backbeat)
+            accent = 1.4
+            velocity = 18
+        elif i in (8,):
+            timing = -2
+            accent = 1.15
+            velocity = 8
+        elif i % 2 == 1:
+            timing = 14   # swing on off-beats
+            accent = 0.75
+            velocity = -10
+        else:
+            timing = 2
+            accent = 0.9
+            velocity = 0
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_jazz_groove() -> GrooveTemplate:
+    """Jazz: triplet swing on 8ths, very dynamic ride pattern."""
+    template = GrooveTemplate(
+        name="Jazz",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.55,
+        genre="jazz",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+
+        # Triplet swing: delay every other 8th
+        if i % 2 == 1:
+            timing = 22   # triplet swing offset
+            accent = 0.7
+            velocity = -12
+        elif i % 4 == 0:
+            timing = 0
+            accent = 1.4
+            velocity = 15
+        else:
+            timing = 0
+            accent = 0.5
+            velocity = -20
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_rnb_groove() -> GrooveTemplate:
+    """R&B: smooth pocket, slight behind-beat snare."""
+    template = GrooveTemplate(
+        name="R&B",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.25,
+        genre="rnb",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+
+        if i in (4, 12):
+            timing = 8    # snare slightly behind
+            accent = 1.1
+            velocity = 8
+        elif i in (0, 8):
+            timing = 0    # kick on grid
+            accent = 1.05
+            velocity = 5
+        elif i % 2 == 1:
+            timing = 6
+            accent = 0.7
+            velocity = -10
+        else:
+            timing = 3
+            accent = 0.85
+            velocity = -3
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_ambient_groove() -> GrooveTemplate:
+    """Ambient: very loose floating feel, soft dynamics."""
+    template = GrooveTemplate(
+        name="Ambient",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.10,
+        genre="ambient",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+        # Wide timing variance ±~20 ticks
+        timing = random.choice([-15, -8, 0, 8, 15])
+
+        if i % 4 == 0:
+            accent = 0.9
+            velocity = 0
+        else:
+            accent = 0.5 + random.random() * 0.4
+            velocity = random.randint(-18, -5)
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_deep_house_groove() -> GrooveTemplate:
+    """Deep house: four-on-floor with subtle push, consistent dynamics."""
+    template = GrooveTemplate(
+        name="Deep House",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.08,
+        genre="deep_house",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+
+        if i % 4 == 0:
+            # Kick dead on grid
+            timing = 0
+            accent = 1.1
+            velocity = 8
+        elif i % 2 == 1:
+            # Hi-hat slightly ahead
+            timing = -3
+            accent = 0.85
+            velocity = -5
+        else:
+            timing = 0
+            accent = 0.95
+            velocity = 0
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_afrobeat_groove() -> GrooveTemplate:
+    """Afrobeat: polyrhythmic feel, strong downbeat, cross-rhythmic hi-hat."""
+    template = GrooveTemplate(
+        name="Afrobeat",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.20,
+        genre="afrobeat",
+        source="preset",
+    )
+    template.points = []
+
+    # Cross-rhythmic accents: groupings of 3 over 16th grid
+    cross_accents = {0, 3, 6, 9, 12, 15}
+
+    for i in range(16):
+        pos = i / 16
+
+        if i == 0:
+            timing = 0
+            accent = 1.3
+            velocity = 15
+        elif i in cross_accents:
+            timing = 5
+            accent = 1.15
+            velocity = 8
+        elif i % 2 == 1:
+            timing = 8
+            accent = 0.8
+            velocity = -8
+        else:
+            timing = 3
+            accent = 0.9
+            velocity = -3
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
+def _create_classical_groove() -> GrooveTemplate:
+    """Classical: metronomic precision with subtle rubato."""
+    template = GrooveTemplate(
+        name="Classical",
+        resolution=GrooveResolution.SIXTEENTH,
+        bars=1,
+        swing_amount=0.0,
+        genre="classical",
+        source="preset",
+    )
+    template.points = []
+
+    for i in range(16):
+        pos = i / 16
+
+        # Near-zero timing offsets (±2 ticks ≈ rubato)
+        timing = random.choice([-2, -1, 0, 1, 2])
+
+        if i % 4 == 0:
+            accent = 1.2
+            velocity = 10
+        elif i % 2 == 0:
+            accent = 1.0
+            velocity = 0
+        else:
+            accent = 0.7
+            velocity = -8
+
+        template.points.append(GroovePoint(
+            position=pos,
+            timing_offset_ticks=timing,
+            velocity_offset=velocity,
+            accent=accent,
+        ))
+
+    return template
+
+
 # Preset groove registry
 PRESET_GROOVES: Dict[str, GrooveTemplate] = {}
 
@@ -1115,6 +1447,14 @@ def _init_presets():
         'g_funk': _create_gfunk_groove(),
         'eskista': _create_eskista_groove(),
         'drill': _create_drill_groove(),
+        'neo_soul': _create_neo_soul_groove(),
+        'gospel': _create_gospel_groove(),
+        'jazz': _create_jazz_groove(),
+        'rnb': _create_rnb_groove(),
+        'ambient': _create_ambient_groove(),
+        'deep_house': _create_deep_house_groove(),
+        'afrobeat': _create_afrobeat_groove(),
+        'classical': _create_classical_groove(),
     }
 
 
@@ -1122,7 +1462,8 @@ def get_preset_groove(name: str) -> Optional[GrooveTemplate]:
     """
     Get a preset groove template by name.
     
-    Available presets: boom_bap, trap, lofi, house, g_funk, eskista, drill
+    Available presets: boom_bap, trap, lofi, house, g_funk, eskista, drill,
+    neo_soul, gospel, jazz, rnb, ambient, deep_house, afrobeat, classical
     """
     if not PRESET_GROOVES:
         _init_presets()
@@ -1138,6 +1479,10 @@ def get_groove_for_genre(genre: str) -> Optional[GrooveTemplate]:
     Get the most appropriate groove template for a genre.
     
     Maps genre names to groove presets with fallbacks.
+    
+    See also:
+        get_timing_offset(): Get per-instrument timing offsets for a genre.
+        apply_timing_offsets(): Apply per-instrument timing offsets to notes.
     """
     if not PRESET_GROOVES:
         _init_presets()
@@ -1149,12 +1494,21 @@ def get_groove_for_genre(genre: str) -> Optional[GrooveTemplate]:
     # Genre to groove mapping
     genre_map = {
         'trap_soul': 'trap',
-        'rnb': 'lofi',
+        'rnb': 'rnb',
+        'r&b': 'rnb',
+        'neo_soul': 'neo_soul',
         'ethiopian_traditional': 'eskista',
         'ethio_jazz': 'eskista',
         'uk_drill': 'drill',
         'chicago_drill': 'drill',
         'west_coast': 'g_funk',
+        'gospel': 'gospel',
+        'jazz': 'jazz',
+        'ambient': 'ambient',
+        'deep_house': 'deep_house',
+        'afrobeats': 'afrobeat',
+        'afrobeat': 'afrobeat',
+        'classical': 'classical',
     }
     
     mapped = genre_map.get(genre.lower())
@@ -1177,6 +1531,161 @@ def list_preset_grooves() -> List[str]:
 
 # Initialize presets on module load
 _init_presets()
+
+
+# =============================================================================
+# GENRE-SPECIFIC PER-INSTRUMENT TIMING OFFSETS (P3-T6)
+# =============================================================================
+
+# Genre-specific per-instrument timing offsets in ticks (at 480 PPQ)
+# Positive = behind the beat (lay back), Negative = ahead of beat (push)
+GENRE_TIMING_OFFSETS: Dict[str, Dict[str, int]] = {
+    "neo_soul": {
+        "drums": 0,          # drums on grid
+        "bass": 8,           # slightly behind for warmth
+        "keys": -5,          # slightly ahead for presence
+        "lead": -3,
+        "strings": 10,       # strings laid back
+    },
+    "trap": {
+        "drums": 0,
+        "bass": 0,           # tight to grid for 808
+        "keys": -8,          # hi-hats push forward
+        "lead": -5,
+        "strings": 5,
+    },
+    "house": {
+        "drums": 0,
+        "bass": 3,           # slight push on bass
+        "keys": -4,
+        "lead": -2,
+        "strings": 6,
+    },
+    "lo_fi": {
+        "drums": 12,         # everything loose/behind
+        "bass": 15,
+        "keys": 8,
+        "lead": 10,
+        "strings": 12,
+    },
+    "jazz": {
+        "drums": 0,
+        "bass": 5,           # walking bass sits behind
+        "keys": -8,          # comping slightly ahead
+        "lead": -3,
+        "strings": 0,
+    },
+    "gospel": {
+        "drums": 0,
+        "bass": 6,
+        "keys": -4,          # organ pushes slightly
+        "lead": -2,
+        "strings": 8,
+    },
+    "boom_bap": {
+        "drums": 0,
+        "bass": 10,          # boom-bap bass lays way back
+        "keys": 5,           # samples drift slightly
+        "lead": 3,
+        "strings": 8,
+    },
+    "rnb": {
+        "drums": 0,
+        "bass": 6,
+        "keys": -3,
+        "lead": -5,
+        "strings": 8,
+    },
+    "funk": {
+        "drums": 0,
+        "bass": -5,          # funk bass pushes AHEAD
+        "keys": -8,          # clavinet on top
+        "lead": -3,
+        "strings": 5,
+    },
+    "ethiopian": {
+        "drums": 0,          # kebero anchors
+        "bass": 3,
+        "keys": -6,          # krar slightly ahead
+        "lead": -4,          # masenqo dances ahead
+        "strings": 0,
+    },
+    "ambient": {
+        "drums": 15,         # everything floaty
+        "bass": 12,
+        "keys": 10,
+        "lead": 8,
+        "strings": 20,       # strings very loose
+    },
+    "drill": {
+        "drums": 0,
+        "bass": 0,           # tight
+        "keys": -10,
+        "lead": -8,
+        "strings": 5,
+    },
+}
+
+# Genre alias mapping for timing offsets
+_TIMING_GENRE_ALIASES: Dict[str, str] = {
+    "trap_soul": "neo_soul",
+    "ethio_jazz": "ethiopian",
+    "deep_house": "house",
+    "tech_house": "house",
+    "classic_house": "house",
+    "lofi": "lo_fi",
+    "g_funk": "funk",
+}
+
+
+def get_timing_offset(genre: str, instrument: str) -> int:
+    """Get the genre-specific timing offset for an instrument in ticks.
+
+    Positive = behind the beat (laid back), Negative = ahead (pushing).
+    Returns 0 if genre/instrument not found.
+
+    Args:
+        genre: Genre name (e.g. 'neo_soul', 'trap', 'jazz').
+        instrument: Instrument role (e.g. 'drums', 'bass', 'keys', 'lead', 'strings').
+
+    Returns:
+        Timing offset in ticks at 480 PPQ.
+    """
+    genre_key = _TIMING_GENRE_ALIASES.get(genre, genre)
+    offsets = GENRE_TIMING_OFFSETS.get(genre_key, {})
+    return offsets.get(instrument, 0)
+
+
+def apply_timing_offsets(
+    notes: List[Dict[str, Any]],
+    genre: str,
+    instrument: str,
+) -> List[Dict[str, Any]]:
+    """Apply genre-specific timing offset to all notes.
+
+    Non-destructive: returns a new list with adjusted tick values.
+    Supports notes keyed by either ``tick`` or ``start``.
+
+    Args:
+        notes: List of note dicts (must contain 'tick' or 'start' key).
+        genre: Genre name.
+        instrument: Instrument role.
+
+    Returns:
+        New list of note dicts with timing offsets applied.
+    """
+    offset = get_timing_offset(genre, instrument)
+    if offset == 0:
+        return notes
+    result = []
+    for note in notes:
+        adjusted = dict(note)
+        if "tick" in adjusted:
+            adjusted["tick"] = max(0, adjusted["tick"] + offset)
+        elif "start" in adjusted:
+            adjusted["start"] = max(0, adjusted["start"] + offset)
+        result.append(adjusted)
+    return result
 
 
 # =============================================================================

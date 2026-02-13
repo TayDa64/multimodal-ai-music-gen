@@ -47,23 +47,44 @@ Examples:
         help="Enable verbose logging"
     )
     
+    parser.add_argument(
+        "--jsonrpc",
+        action="store_true",
+        help="Start JSON-RPC server instead of OSC server (default port 8765)"
+    )
+    
     args = parser.parse_args()
     
-    # Import here to avoid the RuntimeWarning
-    from .osc_server import run_server
-    
-    print(f"🎵 Starting AI Music Generator OSC Server")
-    print(f"   Receiving on port: {args.port}")
-    print(f"   Sending to port: {args.send_port}")
-    print(f"   Verbose: {args.verbose}")
-    print()
-    
-    run_server(
-        recv_port=args.port,
-        send_port=args.send_port,
-        host=args.host,
-        verbose=args.verbose,
-    )
+    if args.jsonrpc:
+        from .jsonrpc_server import run_jsonrpc_server
+        
+        jsonrpc_port = args.port if args.port != 9000 else 8765
+        print(f"🎵 Starting AI Music Generator JSON-RPC Server")
+        print(f"   Listening on: http://{args.host}:{jsonrpc_port}")
+        print(f"   Verbose: {args.verbose}")
+        print()
+        
+        run_jsonrpc_server(
+            host=args.host,
+            port=jsonrpc_port,
+            verbose=args.verbose,
+        )
+    else:
+        # Import here to avoid the RuntimeWarning
+        from .osc_server import run_server
+        
+        print(f"🎵 Starting AI Music Generator OSC Server")
+        print(f"   Receiving on port: {args.port}")
+        print(f"   Sending to port: {args.send_port}")
+        print(f"   Verbose: {args.verbose}")
+        print()
+        
+        run_server(
+            recv_port=args.port,
+            send_port=args.send_port,
+            host=args.host,
+            verbose=args.verbose,
+        )
 
 
 if __name__ == "__main__":

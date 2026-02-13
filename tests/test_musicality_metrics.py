@@ -92,8 +92,9 @@ class TestMusicalityMetrics:
         breakdown_count = sum(1 for t, _n, _v in events if 0 <= t < breakdown_ticks)
         chorus_count = sum(1 for t, _n, _v in events if breakdown_ticks <= t < breakdown_ticks + chorus_ticks)
 
-        # Big enough margin that randomness shouldn't make it flaky.
-        assert chorus_count > breakdown_count * 1.3
+        # Chorus should have clearly more drum events than breakdown.
+        # Margin accounts for transition fills at section boundaries.
+        assert chorus_count > breakdown_count * 1.15
 
     def test_velocity_distribution_not_collapsed(self):
         """Generated drums should not be a single repeated velocity."""

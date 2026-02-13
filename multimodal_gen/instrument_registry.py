@@ -1,5 +1,8 @@
 """
-Instrument Registry - Intelligent Sample Organization
+[UNREFERENCED] Instrument Registry - Intelligent Sample Organization
+
+NOTE (Sprint 11.7): This module is not imported by any other module in the pipeline.
+Superseded by expansion_manager.py and instrument_resolution.py. Retained for reference.
 
 Manages sample packs, their metadata, and provides smart import functionality.
 Prevents samples from getting "lost in the sea" by:

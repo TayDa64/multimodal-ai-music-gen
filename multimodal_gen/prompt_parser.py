@@ -55,6 +55,35 @@ except ImportError:
 _instrument_service: 'InstrumentResolutionService' = None  # type: ignore
 
 
+# ── Sprint 5: Preference-driven defaults ──
+
+def _get_preferred_bpm():
+    """Get BPM from user preferences if enough data exists."""
+    try:
+        from multimodal_gen.intelligence.preferences import PreferenceTracker
+        tracker = PreferenceTracker()
+        prefs = tracker.preferences
+        if prefs.signal_count >= 5 and prefs.confidence >= 0.4:
+            low, high = prefs.tempo_range
+            return (low + high) / 2
+    except Exception:
+        pass
+    return None
+
+
+def _get_preferred_key():
+    """Get key from user preferences if enough data exists."""
+    try:
+        from multimodal_gen.intelligence.preferences import PreferenceTracker
+        tracker = PreferenceTracker()
+        prefs = tracker.preferences
+        if prefs.key_preferences and prefs.signal_count >= 5:
+            return prefs.key_preferences[0]  # Most common key
+    except Exception:
+        pass
+    return None
+
+
 def set_instrument_service(service: 'InstrumentResolutionService') -> None:
     """
     Set the module-level InstrumentResolutionService.
@@ -734,8 +763,13 @@ class PromptParser:
         
         # Apply genre defaults if BPM not specified
         if bpm is None:
-            genre_config = GENRE_DEFAULTS.get(genre, {})
-            bpm = genre_config.get('default_bpm', DEFAULT_CONFIG.default_bpm)
+            # Sprint 5: Preference-driven BPM default
+            _pref_bpm = _get_preferred_bpm()
+            if _pref_bpm is not None:
+                bpm = _pref_bpm
+            else:
+                genre_config = GENRE_DEFAULTS.get(genre, {})
+                bpm = genre_config.get('default_bpm', DEFAULT_CONFIG.default_bpm)
         
         # Extract time_signature from genre defaults (critical for Ethiopian 6/8, 12/8)
         genre_config = GENRE_DEFAULTS.get(genre, {})
@@ -974,7 +1008,12 @@ class PromptParser:
             return ('C', ScaleType.MINOR)
         if any(kw in prompt for kw in ['bright', 'happy', 'major', 'uplifting']):
             return ('C', ScaleType.MAJOR)
-        
+
+        # Sprint 5: Preference-driven key default
+        _pref_key = _get_preferred_key()
+        if _pref_key:
+            return (_pref_key, ScaleType.MINOR)
+
         return ('C', ScaleType.MINOR)
     
     def _extract_genre(self, prompt: str) -> str:

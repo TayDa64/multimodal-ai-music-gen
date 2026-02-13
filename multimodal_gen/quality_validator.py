@@ -5,6 +5,18 @@ from typing import List, Dict, Tuple, Optional, Set
 from enum import Enum
 import statistics
 import math
+import logging
+
+logger = logging.getLogger(__name__)
+
+try:
+    from multimodal_gen.intelligence.critics import (
+        compute_vlc, compute_bkas, compute_adc, run_all_critics,
+        CriticResult, CriticReport,
+    )
+    _HAS_CRITICS = True
+except ImportError:
+    _HAS_CRITICS = False
 
 
 class QualityLevel(Enum):
@@ -137,7 +149,11 @@ class QualityValidator:
             scale: Scale type for theory checks
             tempo: Tempo in BPM
             ticks_per_beat: MIDI ticks per beat
-            **kwargs: Additional parameters (instrument, etc.)
+            **kwargs: Additional parameters:
+                instrument: Instrument name for pitch range checks
+                reference_notes: List[Tuple] — drum/reference note tuples for BKAS
+                    (kick = MIDI pitch 36)
+                tension_curve_data: List[float] — tension curve for ADC analysis
             
         Returns:
             ValidationReport with all metrics and recommendations
@@ -187,6 +203,16 @@ class QualityValidator:
         metrics.append(self.analyze_rhythmic_complexity(notes, ticks_per_beat))
         metrics.append(self.analyze_syncopation(notes, ticks_per_beat))
         metrics.append(self.analyze_note_duration_variety(notes, ticks_per_beat))
+        
+        # Sprint 2: Critic-based metrics (when module available)
+        if _HAS_CRITICS:
+            metrics.append(self.analyze_voice_leading_cost(notes, key))
+            reference_notes = kwargs.get("reference_notes")
+            metrics.append(self.analyze_bass_kick_alignment(notes, reference_notes))
+            tension_curve_data = kwargs.get("tension_curve_data")
+            metrics.append(self.analyze_arrangement_density(
+                notes, tension_curve_data, ticks_per_beat
+            ))
         
         # Calculate scores
         overall_score = self._calculate_overall_score(metrics)
@@ -1273,6 +1299,251 @@ class QualityValidator:
     
     # Rhythm Metrics
     
+    def analyze_voice_leading_cost(self, notes, key="C") -> MetricResult:
+        """Analyse voice-leading cost using the VLC critic.
+
+        Extracts voicings by grouping simultaneous notes (same start tick),
+        then delegates to ``compute_vlc``.
+
+        Args:
+            notes: List of (start_tick, duration_ticks, pitch, velocity) tuples.
+            key: Root note (reserved for future key-aware VLC weighting).
+
+        Returns:
+            MetricResult with category MUSIC_THEORY.
+        """
+        if not _HAS_CRITICS:
+            return self._create_acceptable_metric(
+                "Voice Leading Cost (VLC)", MetricCategory.MUSIC_THEORY, 0.7
+            )
+
+        # Group simultaneous notes by tick to extract voicings.
+        # Filter to chord register (MIDI 48-96 / C3-C7) to exclude
+        # drum hits and bass notes that inflate voice-leading cost.
+        from collections import defaultdict
+        tick_groups: Dict[int, List[int]] = defaultdict(list)
+        for start_tick, _dur, pitch, _vel in notes:
+            p = int(pitch)
+            if 48 <= p <= 96:
+                tick_groups[int(start_tick)].append(p)
+
+        voicings = [
+            sorted(tick_groups[t])
+            for t in sorted(tick_groups)
+            if len(tick_groups[t]) >= 2
+        ]
+
+        if len(voicings) < 2:
+            return self._create_acceptable_metric(
+                "Voice Leading Cost (VLC)", MetricCategory.MUSIC_THEORY, 0.7
+            )
+
+        result = compute_vlc(voicings)
+        vlc = result.value
+
+        # Stepped threshold mapping
+        if vlc < 1.5:
+            normalized, level = 1.0, QualityLevel.EXCELLENT
+        elif vlc < 3.0:
+            normalized, level = 0.8, QualityLevel.GOOD
+        elif vlc < 5.0:
+            normalized, level = 0.6, QualityLevel.ACCEPTABLE
+        else:
+            normalized, level = 0.3, QualityLevel.POOR
+
+        suggestions: List[str] = []
+        if not result.passed:
+            suggestions.append("Reduce voice-leading jumps — use closer voicings.")
+
+        return MetricResult(
+            name="Voice Leading Cost (VLC)",
+            category=MetricCategory.MUSIC_THEORY,
+            value=vlc,
+            normalized_score=normalized,
+            quality_level=level,
+            threshold_min=0.0,
+            threshold_max=result.threshold,
+            details=result.details,
+            suggestions=suggestions,
+        )
+    
+    def analyze_bass_kick_alignment(self, notes, reference_notes=None) -> MetricResult:
+        """Analyse bass-kick alignment using the BKAS critic.
+
+        Extracts bass notes (pitch < 60 MIDI) from *notes* and kick event
+        ticks (MIDI note 36) from *reference_notes*.
+
+        Args:
+            notes: List of (start_tick, duration_ticks, pitch, velocity) tuples.
+            reference_notes: Optional list of note tuples containing drum events.
+                Kick hits are identified as MIDI pitch 36.
+
+        Returns:
+            MetricResult with category RHYTHM.
+        """
+        if not _HAS_CRITICS:
+            return self._create_acceptable_metric(
+                "Bass-Kick Alignment (BKAS)", MetricCategory.RHYTHM, 0.7
+            )
+
+        # Extract bass notes (pitch < 60)
+        bass_notes = [{"tick": int(n[0])} for n in notes if int(n[2]) < 60]
+
+        # Extract kick ticks (MIDI 36) from reference_notes
+        kick_ticks: List[int] = []
+        if reference_notes:
+            kick_ticks = [int(n[0]) for n in reference_notes if int(n[2]) == 36]
+
+        if not bass_notes or not kick_ticks:
+            return self._create_acceptable_metric(
+                "Bass-Kick Alignment (BKAS)", MetricCategory.RHYTHM, 0.7
+            )
+
+        result = compute_bkas(bass_notes, kick_ticks, tolerance_ticks=60)
+        bkas = result.value
+
+        # Stepped threshold mapping
+        if bkas >= 0.85:
+            normalized, level = 1.0, QualityLevel.EXCELLENT
+        elif bkas >= 0.70:
+            normalized, level = 0.8, QualityLevel.GOOD
+        elif bkas >= 0.50:
+            normalized, level = 0.6, QualityLevel.ACCEPTABLE
+        else:
+            normalized, level = 0.3, QualityLevel.POOR
+
+        suggestions: List[str] = []
+        if not result.passed:
+            suggestions.append(
+                "Tighten bass-kick pocket — align bass onsets with kick hits."
+            )
+
+        return MetricResult(
+            name="Bass-Kick Alignment (BKAS)",
+            category=MetricCategory.RHYTHM,
+            value=bkas,
+            normalized_score=normalized,
+            quality_level=level,
+            threshold_min=result.threshold,
+            threshold_max=1.0,
+            details=result.details,
+            suggestions=suggestions,
+        )
+    
+    def analyze_arrangement_density(
+        self, notes, tension_curve=None, ticks_per_beat: int = 480
+    ) -> MetricResult:
+        """Analyse arrangement density correlation using the ADC critic.
+
+        Computes note density per bar from *notes*, then correlates with
+        *tension_curve*.  Using per-bar granularity captures section-level
+        density changes (intro=sparse, chorus=dense) that per-beat
+        analysis misses since performers repeat patterns consistently
+        within bars.
+
+        If no curve is supplied a simple ascending ramp is synthesised.
+
+        Args:
+            notes: List of (start_tick, duration_ticks, pitch, velocity) tuples.
+            tension_curve: Optional per-bar tension values (0-1).
+            ticks_per_beat: MIDI ticks per beat (default 480).
+
+        Returns:
+            MetricResult with category STRUCTURE.
+        """
+        if not _HAS_CRITICS:
+            return self._create_acceptable_metric(
+                "Arrangement Density Curve (ADC)", MetricCategory.STRUCTURE, 0.7
+            )
+
+        if not notes:
+            return self._create_acceptable_metric(
+                "Arrangement Density Curve (ADC)", MetricCategory.STRUCTURE, 0.7
+            )
+
+        # Compute note density per BAR (not per beat) for meaningful
+        # section-level correlation.  Songs vary density across sections
+        # (intro→verse→chorus) not within individual beats.
+        ticks_per_bar = ticks_per_beat * 4  # assume 4/4
+        from collections import Counter
+        bar_counts: Dict[int, int] = Counter()
+        for start_tick, _dur, _pitch, _vel in notes:
+            bar = int(start_tick) // max(ticks_per_bar, 1)
+            bar_counts[bar] += 1
+
+        if not bar_counts:
+            return self._create_acceptable_metric(
+                "Arrangement Density Curve (ADC)", MetricCategory.STRUCTURE, 0.7
+            )
+
+        max_bar = max(bar_counts)
+        density_per_bar = [float(bar_counts.get(b, 0)) for b in range(max_bar + 1)]
+
+        # When an explicit tension curve is provided, correlate with it.
+        # Otherwise measure density *variation* — a well-arranged piece
+        # has dynamic density (sparse intros, dense choruses) rather
+        # than flat density throughout.  The coefficient of variation
+        # (std/mean) captures this independent of any assumed shape.
+        if tension_curve is not None and len(tension_curve) >= 2 and len(density_per_bar) >= 2:
+            result = compute_adc(tension_curve, density_per_bar)
+            adc = result.value
+            details = result.details
+        else:
+            # Density-variation fallback (no tension curve available)
+            import math
+            n = len(density_per_bar)
+            if n < 2:
+                return self._create_acceptable_metric(
+                    "Arrangement Density Curve (ADC)", MetricCategory.STRUCTURE, 0.7
+                )
+            mean_d = sum(density_per_bar) / n
+            if mean_d < 0.01:
+                return self._create_acceptable_metric(
+                    "Arrangement Density Curve (ADC)", MetricCategory.STRUCTURE, 0.7
+                )
+            var = sum((d - mean_d) ** 2 for d in density_per_bar) / n
+            std_d = math.sqrt(var)
+            cv = std_d / mean_d  # coefficient of variation
+
+            # CV > 0.2 → very dynamic arrangement → EXCELLENT
+            # CV > 0.12 → good variation → GOOD
+            # CV > 0.06 → some variation → ACCEPTABLE  
+            # CV <= 0.06 → flat/monotonous
+            adc = min(cv / 0.2, 1.0)  # normalise to 0-1
+            details = (
+                f"Density variation (CV): {cv:.3f} over {n} bars. "
+                f"{'Dynamic arrangement.' if cv > 0.3 else 'Consider varying density across sections.'}"
+            )
+
+        # Stepped threshold mapping
+        if adc >= 0.8:
+            normalized, level = 1.0, QualityLevel.EXCELLENT
+        elif adc >= 0.5:
+            normalized, level = 0.8, QualityLevel.GOOD
+        elif adc >= 0.25:
+            normalized, level = 0.6, QualityLevel.ACCEPTABLE
+        else:
+            normalized, level = 0.3, QualityLevel.POOR
+
+        suggestions: List[str] = []
+        if adc < 0.6:
+            suggestions.append(
+                "Note density should track tension — add notes in high-energy "
+                "sections, thin out in calm sections."
+            )
+
+        return MetricResult(
+            name="Arrangement Density Curve (ADC)",
+            category=MetricCategory.STRUCTURE,
+            value=adc,
+            normalized_score=normalized,
+            quality_level=level,
+            threshold_min=0.4,
+            threshold_max=1.0,
+            details=details,
+            suggestions=suggestions,
+        )
+    
     def analyze_rhythmic_complexity(self, notes, ticks_per_beat) -> MetricResult:
         """Analyze rhythmic complexity."""
         if not notes:
@@ -1576,5 +1847,21 @@ def quick_validate(notes, genre="pop") -> Tuple[bool, float, List[str]]:
     for metric in report.metrics:
         if metric.normalized_score < 0.6:
             issues.append(f"{metric.name}: {metric.details}")
+    
+    # Lightweight VLC check when chord notes are present
+    if _HAS_CRITICS and notes:
+        from collections import defaultdict
+        tick_groups: Dict[int, List[int]] = defaultdict(list)
+        for start_tick, _dur, pitch, _vel in notes:
+            tick_groups[int(start_tick)].append(int(pitch))
+        voicings = [
+            sorted(tick_groups[t])
+            for t in sorted(tick_groups)
+            if len(tick_groups[t]) >= 2
+        ]
+        if len(voicings) >= 2:
+            vlc_result = compute_vlc(voicings)
+            if not vlc_result.passed:
+                issues.append(f"VLC: {vlc_result.details}")
     
     return report.passed, report.overall_score, issues

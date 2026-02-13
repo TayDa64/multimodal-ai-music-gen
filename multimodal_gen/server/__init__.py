@@ -48,6 +48,11 @@ from .osc_server import (
     run_server,
 )
 
+from .jsonrpc_server import (
+    MusicGenJSONRPCServer,
+    run_jsonrpc_server,
+)
+
 __all__ = [
     # Configuration
     "ServerConfig",
@@ -64,7 +69,11 @@ __all__ = [
     "TaskStatus",
     "ProgressCallback",
     
-    # Server
+    # Server (OSC)
     "MusicGenOSCServer",
     "run_server",
+    
+    # Server (JSON-RPC)
+    "MusicGenJSONRPCServer",
+    "run_jsonrpc_server",
 ]

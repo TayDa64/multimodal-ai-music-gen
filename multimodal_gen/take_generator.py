@@ -419,6 +419,10 @@ def _vary_pitch(notes: List[NoteVariation], rng: random.Random,
         elif rng.random() < neighbor_prob:
             direction = rng.choice([-1, 1]) * rng.randint(1, max_shift)
             new_pitch = note.pitch + direction
+            # Scale-snap: find nearest scale note (Sprint 5)
+            if scale_notes and len(scale_notes) < 128:
+                closest = min(scale_notes, key=lambda sn: abs(sn - new_pitch))
+                new_pitch = closest
             if 0 <= new_pitch <= 127:
                 varied.original_pitch = varied.pitch
                 varied.pitch = new_pitch

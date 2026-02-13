@@ -1,0 +1,55 @@
+{
+  "version": "1.0",
+  "sprint": "Sprint 1: Harmonic Foundation + MPC Corpus Ingestion",
+  "created": "2026-02-10T00:00:00Z",
+  "status": "in_progress",
+  "agents": {
+    "supervisor": {
+      "model": "claude-opus-4.6",
+      "role": "Orchestrator — reads state, delegates, aggregates",
+      "status": "active"
+    },
+    "agent_alpha": {
+      "model": "gemini-3-pro-preview",
+      "role": "Design reviewer + implementation (mpc_corpus, genre_dna, critics)",
+      "status": "pending_feedback"
+    },
+    "agent_beta": {
+      "model": "gpt-5.2-codex",
+      "role": "Design reviewer + implementation (harmonic_brain, context, session_graph, keyboardist)",
+      "status": "pending_feedback"
+    }
+  },
+  "modules": {
+    "intelligence/__init__.py": { "status": "not_started", "assigned": "supervisor" },
+    "intelligence/mpc_corpus.py": { "status": "not_started", "assigned": "agent_alpha" },
+    "intelligence/genre_dna.py": { "status": "not_started", "assigned": "agent_alpha" },
+    "intelligence/harmonic_brain.py": { "status": "not_started", "assigned": "agent_beta" },
+    "intelligence/critics.py": { "status": "not_started", "assigned": "agent_alpha" },
+    "agents/context.py": { "status": "not_started", "assigned": "agent_beta", "note": "extend only" },
+    "session_graph.py": { "status": "not_started", "assigned": "agent_beta", "note": "extend only" },
+    "agents/performers/keyboardist.py": { "status": "not_started", "assigned": "agent_beta", "note": "inject HarmonicBrain" }
+  },
+  "feedback": {
+    "agent_alpha": [],
+    "agent_beta": []
+  },
+  "decisions": [],
+  "constraints": {
+    "language": "Python only",
+    "data_structures": "dataclasses (not Pydantic)",
+    "offline_first": true,
+    "mpc_data_path": "configurable via MPC_BEATS_PATH env var, default c:\\dev\\MPC Beats",
+    "no_juce_changes": true,
+    "no_typescript": true,
+    "existing_tests_must_pass": true
+  },
+  "acceptance_criteria": [
+    "Neo Soul in Eb minor, 8 chords → voice-led progression with VLC < 3.0 avg",
+    "47 MPC progressions parsed with roman numeral analysis and genre tags",
+    "80 arp patterns parsed with density/swing/velocity profiles",
+    "GenreDNA vectors computed from corpus (not hardcoded)",
+    "All existing tests still pass",
+    "New tests for each intelligence module"
+  ]
+}

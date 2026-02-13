@@ -16,9 +16,13 @@ Design Philosophy:
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Any, Tuple, TYPE_CHECKING
+import logging
 
 if TYPE_CHECKING:
     from ..arranger import SongSection
+    from ..intelligence.harmonic_brain import VoicingConstraints
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -67,6 +71,9 @@ class PerformanceContext:
     current_section: Optional['SongSection'] = None
     section_position_beats: float = 0.0
     
+    # Mood / Genre Feel
+    mood: str = "neutral"
+    
     # Harmonic
     key: str = "C"
     scale_notes: List[int] = field(default_factory=list)
@@ -91,6 +98,25 @@ class PerformanceContext:
     # Reference analysis (from audio)
     reference_features: Optional[Dict[str, Any]] = None
     
+    # MUSE Intelligence Fields
+    voicing_constraints: Optional['VoicingConstraints'] = None
+    groove_template: Optional[Dict[str, Any]] = None
+    genre_dna: Optional[Dict[str, float]] = None
+    tension_curve: List[float] = field(default_factory=list)
+    orchestration_map: Dict[str, bool] = field(default_factory=dict)
+    previous_voicing: Optional[List[int]] = None
+    genre: str = ""
+    
+    # Sprint 2: Enhanced context fields
+    harmonic_rhythm: List[str] = field(default_factory=list)
+    bass_kick_alignment: float = 0.0
+    kick_ticks: List[int] = field(default_factory=list)
+    section_density: float = 0.5
+    active_instruments: List[str] = field(default_factory=list)
+    arrangement_density_curve: List[float] = field(default_factory=list)
+    critic_results: Optional[Dict[str, Any]] = None
+    regeneration_count: int = 0
+    
     def __post_init__(self):
         """Ensure mutable defaults are properly initialized."""
         if self.scale_notes is None:
@@ -99,6 +125,16 @@ class PerformanceContext:
             self.chord_progression = []
         if self.melody_notes is None:
             self.melody_notes = []
+        if self.tension_curve is None:
+            self.tension_curve = []
+        if self.orchestration_map is None:
+            self.orchestration_map = {}
+        if self.harmonic_rhythm is None:
+            self.harmonic_rhythm = []
+        if self.active_instruments is None:
+            self.active_instruments = []
+        if self.arrangement_density_curve is None:
+            self.arrangement_density_curve = []
     
     def update_from_performance(
         self,
@@ -141,6 +177,61 @@ class PerformanceContext:
             beat_in_bar = beat % 4
             return 1.9 < beat_in_bar < 2.1 or 3.9 < beat_in_bar < 4.1
         return False
+    
+    def update_harmonic_rhythm(
+        self, chord_map: Dict[int, str], ticks_per_beat: int
+    ) -> None:
+        """Convert a tick-to-chord mapping into a per-beat harmonic rhythm list.
+        
+        Args:
+            chord_map: Mapping of tick positions to chord symbols.
+            ticks_per_beat: Number of ticks per beat.
+        """
+        if not chord_map:
+            self.harmonic_rhythm = []
+            return
+        
+        sorted_ticks = sorted(chord_map.keys())
+        max_tick = sorted_ticks[-1] + ticks_per_beat  # at least one beat after last chord
+        total_beats = max(1, max_tick // ticks_per_beat)
+        
+        result: List[str] = []
+        for beat_idx in range(total_beats):
+            beat_tick = beat_idx * ticks_per_beat
+            # Find the most recent chord at or before this beat
+            active_chord = ""
+            for t in sorted_ticks:
+                if t <= beat_tick:
+                    active_chord = chord_map[t]
+                else:
+                    break
+            result.append(active_chord)
+        
+        self.harmonic_rhythm = result
+    
+    def compute_section_density(
+        self, notes: List[Any], section_bars: int, ticks_per_beat: int = 480
+    ) -> float:
+        """Compute note density for a section, normalised to 0-1.
+        
+        8 notes/beat = 1.0 (maximum density).
+        
+        Args:
+            notes: List of note objects (any type with length).
+            section_bars: Number of bars in the section.
+            ticks_per_beat: Ticks per beat (default 480).
+            
+        Returns:
+            Normalised density value between 0.0 and 1.0.
+        """
+        num_beats = section_bars * self.get_beats_per_bar()
+        if num_beats <= 0:
+            return 0.0
+        notes_per_beat = len(notes) / num_beats
+        # 8 notes per beat = 1.0 (saturation point)
+        density = min(1.0, notes_per_beat / 8.0)
+        self.section_density = density
+        return density
 
 
 @dataclass
@@ -181,6 +272,8 @@ class PerformanceScore:
     chord_map: Dict[int, str] = field(default_factory=dict)
     tension_curve: List[float] = field(default_factory=list)
     cue_points: List[Dict[str, Any]] = field(default_factory=list)
+    genre: str = ""
+    mood: str = "neutral"
     
     def __post_init__(self):
         """Ensure mutable defaults are properly initialized."""

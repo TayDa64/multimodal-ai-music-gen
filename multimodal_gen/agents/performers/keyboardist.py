@@ -1366,7 +1366,8 @@ class KeyboardistAgent(IPerformerAgent):
         voiced_chords = self._generate_voiced_progression(
             chord_progression,
             voicing_type,
-            scaled_personality.complexity
+            scaled_personality.complexity,
+            context=context
         )
         
         # Generate notes using the comping pattern
@@ -1619,15 +1620,22 @@ class KeyboardistAgent(IPerformerAgent):
         self,
         chord_symbols: List[str],
         voicing_type: str,
-        complexity: float
+        complexity: float,
+        context: Optional[PerformanceContext] = None,
     ) -> List[List[int]]:
         """
         Generate voiced chords with voice leading.
+        
+        If the PerformanceContext carries ``voicing_constraints`` and the
+        ``HarmonicBrain`` intelligence module is available, it is used for
+        higher-quality voice leading.  Otherwise the existing
+        ``VoiceLeader`` is used as a fallback.
         
         Args:
             chord_symbols: List of chord symbols
             voicing_type: Selected voicing type
             complexity: Personality complexity
+            context: Optional PerformanceContext for intelligence-path
             
         Returns:
             List of voiced chords (each is a list of MIDI notes)
@@ -1635,6 +1643,41 @@ class KeyboardistAgent(IPerformerAgent):
         if not chord_symbols:
             return [[60, 64, 67]]  # Default C major
         
+        # ------------------------------------------------------------------
+        # Intelligence path: prefer HarmonicBrain when available
+        # ------------------------------------------------------------------
+        if (
+            context is not None
+            and getattr(context, "voicing_constraints", None) is not None
+        ):
+            try:
+                from ...intelligence.harmonic_brain import HarmonicBrain
+                brain = HarmonicBrain()
+                key = getattr(context, "key", "C") or "C"
+                constraints = context.voicing_constraints
+                prev = getattr(context, "previous_voicing", None)
+
+                voiced_chords: List[List[int]] = []
+                for symbol in chord_symbols:
+                    notes = brain.voice_lead(prev, symbol, key, constraints)
+                    voiced_chords.append(notes)
+                    prev = notes
+
+                self._log_decision(
+                    "Used HarmonicBrain for voice leading (intelligence path)"
+                )
+                return voiced_chords
+            except Exception as exc:  # pragma: no cover
+                logger.debug(
+                    "HarmonicBrain unavailable, falling back to VoiceLeader: %s", exc
+                )
+                self._log_decision(
+                    f"HarmonicBrain fallback: {exc}"
+                )
+        
+        # ------------------------------------------------------------------
+        # Fallback path: existing VoiceLeader
+        # ------------------------------------------------------------------
         voiced_chords = []
         prev_notes = None
         

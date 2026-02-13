@@ -74,6 +74,8 @@ class PerformanceResult:
     decisions_made: List[str] = field(default_factory=list)
     patterns_used: List[str] = field(default_factory=list)
     fill_locations: List[int] = field(default_factory=list)
+    confidence: float = 0.5
+    metadata: Optional[dict] = None
     
     def __post_init__(self):
         """Ensure mutable defaults are properly initialized."""

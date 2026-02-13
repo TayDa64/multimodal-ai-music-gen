@@ -579,7 +579,7 @@ class BegenaAgent(IPerformerAgent):
         
         # Get scale for the key
         root_pitch = self._get_root_pitch(context.key or "E")
-        scale = self._qenet.get_scale_for_key(qenet_name, root_pitch - 12)  # Begena is bass register
+        scale = self._qenet.get_scale_notes(root_pitch - 12, qenet_name)  # Begena is bass register
         
         # Set tuning based on qenet
         self._current_tuning = BegenaTuning.get_tuning_for_qenet(qenet_name)
@@ -729,7 +729,7 @@ class BegenaAgent(IPerformerAgent):
         
         for tick, dur, pitch, vel in notes:
             # Very subtle timing variation (begena is meditative)
-            timing_offset = humanize_timing(tick, variation=0.015 + personality.push_pull * 0.01)
+            timing_offset = humanize_timing(tick, timing_variation=0.015 + personality.push_pull * 0.01)
             tick = max(0, int(timing_offset))
             
             # Velocity variation
@@ -777,20 +777,20 @@ class BegenaAgent(IPerformerAgent):
             for i, interval in enumerate(scale[:4]):
                 tick = i * tpb
                 notes.append(NoteEvent(
-                    tick=tick,
+                    start_tick=tick,
                     pitch=48 + interval,  # Bass register
                     velocity=base_vel,
-                    duration=tpb * 2,
+                    duration_ticks=tpb * 2,
                     channel=0
                 ))
         
         elif cue_type == "stop":
             # Single sustained note allowed to ring
             notes.append(NoteEvent(
-                tick=0,
+                start_tick=0,
                 pitch=48 + scale[0],
                 velocity=30,
-                duration=tpb * 4,
+                duration_ticks=tpb * 4,
                 channel=0
             ))
         
@@ -800,49 +800,49 @@ class BegenaAgent(IPerformerAgent):
                 tick = i * (tpb // 2)
                 vel = min(90, 40 + i * 6)
                 notes.append(NoteEvent(
-                    tick=tick,
+                    start_tick=tick,
                     pitch=48 + scale[0],
                     velocity=vel,
-                    duration=tpb // 2,
+                    duration_ticks=tpb // 2,
                     channel=0
                 ))
         
         elif cue_type == "drop":
             # Whisper-quiet sustained drone
             notes.append(NoteEvent(
-                tick=0,
+                start_tick=0,
                 pitch=48 + scale[0],
                 velocity=25,
-                duration=tpb * 4,
+                duration_ticks=tpb * 4,
                 channel=0
             ))
             # Add subtle fifth
             if len(scale) > 4:
                 notes.append(NoteEvent(
-                    tick=tpb // 2,
+                    start_tick=tpb // 2,
                     pitch=48 + scale[4],
                     velocity=20,
-                    duration=tpb * 3,
+                    duration_ticks=tpb * 3,
                     channel=0
                 ))
         
         elif cue_type == "accent":
             # Strong bass with sympathetic resonance
             notes.append(NoteEvent(
-                tick=0,
+                start_tick=0,
                 pitch=36 + scale[0],  # Deep bass
                 velocity=min(100, base_vel + 25),
-                duration=tpb * 2,
+                duration_ticks=tpb * 2,
                 channel=0
             ))
             # Sympathetic buzz notes
             for i in range(1, 4):
                 if i < len(scale):
                     notes.append(NoteEvent(
-                        tick=20,
+                        start_tick=20,
                         pitch=60 + scale[i],
                         velocity=25,
-                        duration=tpb,
+                        duration_ticks=tpb,
                         channel=0
                     ))
         
@@ -857,10 +857,10 @@ class BegenaAgent(IPerformerAgent):
         
         for tick, dur, pitch, vel in notes:
             event = NoteEvent(
-                tick=tick,
+                start_tick=tick,
                 pitch=pitch,
                 velocity=vel,
-                duration=dur,
+                duration_ticks=dur,
                 channel=0
             )
             events.append(event)

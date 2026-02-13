@@ -27,7 +27,7 @@ Implements professional producer techniques:
 
 import random
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple, Callable
+from typing import Any, List, Dict, Optional, Tuple, Callable
 from enum import Enum
 import mido
 from mido import MidiFile, MidiTrack, Message, MetaMessage
@@ -57,6 +57,9 @@ from .utils import (
     get_ticks_per_bar,
 )
 
+import logging
+_midi_logger = logging.getLogger(__name__)
+
 from .ethio_melody import embellish_melody_qenet
 from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SongSection, SectionType, get_section_motif
@@ -70,6 +73,13 @@ try:
 except ImportError:
     HAS_INSTRUMENT_SERVICE = False
     InstrumentResolutionService = None  # type: ignore
+
+# Optional harmonic brain for voice-leading intelligence (Sprint 5)
+try:
+    from multimodal_gen.intelligence.harmonic_brain import HarmonicBrain, VoicingConstraints
+    _HAS_HARMONIC_BRAIN = True
+except ImportError:
+    _HAS_HARMONIC_BRAIN = False
 
 
 def _nearest_note_in_scale(pitch: int, scale_notes: List[int]) -> int:
@@ -106,6 +116,56 @@ try:
 except ImportError:
     HAS_STYLE_POLICY = False
     PolicyContext = None
+
+# Dynamics engine for velocity shaping (Sprint 6)
+try:
+    from .dynamics import apply_dynamics, GENRE_DYNAMICS as _DYN_PRESETS
+    _HAS_DYNAMICS = True
+except ImportError:
+    _HAS_DYNAMICS = False
+    _DYN_PRESETS = {}  # type: ignore
+
+# Section variation engine for repeated sections (Sprint 6)
+try:
+    from .section_variation import SectionVariationEngine
+    _HAS_SECTION_VARIATION = True
+except ImportError:
+    _HAS_SECTION_VARIATION = False
+
+# Transition generator for section-boundary fills/builds/crashes (Sprint 7)
+try:
+    from .transitions import TransitionGenerator, TransitionEvent
+    _HAS_TRANSITIONS = True
+except ImportError:
+    _HAS_TRANSITIONS = False
+
+# Pattern library for genre-specific pattern enrichment (Sprint 7)
+try:
+    from multimodal_gen.pattern_library import PatternLibrary, PatternType, PatternIntensity
+    _HAS_PATTERN_LIBRARY = True
+except ImportError:
+    _HAS_PATTERN_LIBRARY = False
+
+# Drum humanizer for ghost note injection (Sprint 7)
+try:
+    from multimodal_gen.drum_humanizer import DrumHumanizer, GhostNoteConfig
+    _HAS_DRUM_HUMANIZER = True
+except ImportError:
+    _HAS_DRUM_HUMANIZER = False
+
+# Performance models for role-specific player profiles (Sprint 7.5)
+try:
+    from multimodal_gen.performance_models import apply_performance_model, get_profile_for_genre
+    _HAS_PERFORMANCE_MODELS = True
+except ImportError:
+    _HAS_PERFORMANCE_MODELS = False
+
+# Microtiming engine for genre-specific swing/push-pull (Sprint 7.5)
+try:
+    from multimodal_gen.microtiming import apply_microtiming, MicrotimingEngine
+    _HAS_MICROTIMING = True
+except ImportError:
+    _HAS_MICROTIMING = False
 
 
 # =============================================================================
@@ -1449,7 +1509,8 @@ class MidiGenerator:
         timing_variation: float = 0.03,
         swing: float = 0.0,
         use_physics_humanization: bool = True,
-        instrument_service: Optional['InstrumentResolutionService'] = None
+        instrument_service: Optional['InstrumentResolutionService'] = None,
+        harmonic_brain: Optional[Any] = None,
     ):
         """
         Initialize the MIDI generator.
@@ -1472,6 +1533,26 @@ class MidiGenerator:
         # Store instrument resolution service
         self._instrument_service = instrument_service
         
+        # Store harmonic brain for voice-leading intelligence (Sprint 5)
+        self._harmonic_brain = harmonic_brain
+        
+        # Policy context sub-policy caches (populated from PolicyContext in generate())
+        self._dynamics = None
+        self._voicing_policy = None
+        self._arrangement_policy = None
+
+        # Section variation engine for repeated sections (Sprint 6)
+        self._section_variation = SectionVariationEngine() if _HAS_SECTION_VARIATION else None
+
+        # Transition generator for fills/builds between sections (Sprint 7)
+        self._transition_gen = TransitionGenerator() if _HAS_TRANSITIONS else None
+
+        # Pattern library for genre-specific enrichment (Sprint 7)
+        self._pattern_library = PatternLibrary() if _HAS_PATTERN_LIBRARY else None
+
+        # Drum humanizer for ghost note injection (Sprint 7)
+        self._drum_humanizer = DrumHumanizer() if _HAS_DRUM_HUMANIZER else None
+
         if self.use_physics_humanization:
             print("  [*] Physics humanization enabled")
         elif use_physics_humanization and not HAS_PHYSICS_HUMANIZER:
@@ -1509,6 +1590,15 @@ class MidiGenerator:
             self.swing = policy_context.timing.swing_amount
             self.velocity_variation = policy_context.timing.velocity_variation
             self.timing_variation = policy_context.timing.timing_jitter
+            
+            # Dynamics — store for use in drum/bass/chord generation (Sprint 5)
+            self._dynamics = policy_context.dynamics
+            
+            # Voicing — store for chord generation (Sprint 5)
+            self._voicing_policy = policy_context.voicing
+            
+            # Arrangement — store for section handling (Sprint 5)
+            self._arrangement_policy = policy_context.arrangement
         
         # Resolve groove template
         if groove_template is None and parsed.genre:
@@ -1574,7 +1664,8 @@ class MidiGenerator:
             if value is None:
                 return 0.5
             return max(0.0, min(1.0, float(value)))
-        except Exception:
+        except Exception as _e:
+            _midi_logger.debug("tension value lookup failed: %s", _e)
             return 0.5
 
     def _get_section_complexity(self, arrangement: Arrangement, section: SongSection, genre: str) -> float:
@@ -1603,7 +1694,8 @@ class MidiGenerator:
         influence = 0.5
         try:
             influence = float(getattr(getattr(arc, 'config', None), 'complexity_influence', 0.5)) if arc else 0.5
-        except Exception:
+        except Exception as _e:
+            _midi_logger.debug("complexity influence lookup failed: %s", _e)
             influence = 0.5
 
         # Section-type shaping (small): choruses/drops can tolerate more.
@@ -1616,6 +1708,118 @@ class MidiGenerator:
         mod = (tension - 0.5) * 0.90 * influence
         return max(0.0, min(1.0, base + mod))
     
+    def _apply_performance_humanization(
+        self,
+        all_notes: List[NoteEvent],
+        genre: str,
+        role_hint: str,
+    ) -> List[NoteEvent]:
+        """Apply performance-model or microtiming humanization to notes.
+
+        Performance models (primary): role-specific timing/velocity variation.
+        Microtiming (fallback): genre-specific swing/push-pull.
+        Both are complementary to the physics humanization in _notes_to_track.
+
+        Args:
+            all_notes: Note events to humanize (modified in-place semantics via return).
+            genre: Raw genre string from prompt.
+            role_hint: Instrument role ("drums", "bass", "chords", "lead").
+
+        Returns:
+            Humanized list of NoteEvent (or original on failure).
+        """
+        if not all_notes:
+            return all_notes
+
+        genre_key = (genre or 'pop').replace('-', '_').replace(' ', '_')
+        # Keep the original (un-normalised) genre for microtiming, whose
+        # GENRE_PRESETS use hyphenated keys like "hip-hop" and "r&b".
+        genre_original = genre or 'pop'
+
+        if _HAS_PERFORMANCE_MODELS:
+            try:
+                profile = get_profile_for_genre(genre_key, role_hint)
+                if profile:
+                    ch = all_notes[0].channel
+                    if role_hint == 'chords':
+                        # Group simultaneous notes (same start_tick) so
+                        # the entire chord gets one unified timing shift.
+                        from collections import defaultdict
+                        groups = defaultdict(list)
+                        for n in all_notes:
+                            groups[n.start_tick].append(n)
+                        result = []
+                        for tick in sorted(groups):
+                            grp = groups[tick]
+                            rep = {"pitch": grp[0].pitch, "start_tick": tick,
+                                   "duration_ticks": grp[0].duration_ticks,
+                                   "velocity": grp[0].velocity}
+                            h = apply_performance_model([rep], profile)
+                            dt = h[0]["start_tick"] - tick
+                            dv_ratio = h[0]["velocity"] / max(1, rep["velocity"])
+                            for n in grp:
+                                result.append(NoteEvent(
+                                    pitch=n.pitch,
+                                    start_tick=max(0, n.start_tick + dt),
+                                    duration_ticks=n.duration_ticks,
+                                    velocity=max(1, min(127, int(n.velocity * dv_ratio))),
+                                    channel=ch,
+                                ))
+                        all_notes = result
+                    else:
+                        note_dicts = [
+                            {"pitch": n.pitch, "start_tick": n.start_tick,
+                             "duration_ticks": n.duration_ticks, "velocity": n.velocity}
+                            for n in all_notes
+                        ]
+                        humanized = apply_performance_model(note_dicts, profile)
+                        all_notes = [
+                            NoteEvent(
+                                pitch=n["pitch"],
+                                start_tick=n["start_tick"],
+                                duration_ticks=n["duration_ticks"],
+                                velocity=max(1, min(127, int(n["velocity"]))),
+                                channel=ch,
+                            )
+                            for n in humanized
+                        ]
+            except Exception as _e:
+                _midi_logger.debug("performance model humanization failed: %s", _e)
+        # NOTE: microtiming is fallback-only; performance_models always takes
+        # precedence when present (both modules ship together).
+        elif _HAS_MICROTIMING:
+            try:
+                tuples = [
+                    (n.start_tick, n.duration_ticks, n.pitch, n.velocity)
+                    for n in all_notes
+                ]
+                humanized = apply_microtiming(tuples, genre=genre_original)
+                ch = all_notes[0].channel
+                all_notes = [
+                    NoteEvent(
+                        pitch=p, start_tick=t, duration_ticks=d,
+                        velocity=v, channel=ch,
+                    )
+                    for t, d, p, v in humanized
+                ]
+            except Exception as _e:
+                _midi_logger.debug("microtiming humanization failed: %s", _e)
+
+        return all_notes
+
+    def _apply_section_variation(self, notes, section_type, occurrence):
+        """Apply variation to repeated sections (verse_2 differs from verse_1)."""
+        if not self._section_variation or occurrence < 2 or not notes:
+            return notes
+        try:
+            varied_notes, _ = self._section_variation.create_variation(
+                notes, section_type, occurrence
+            )
+            return varied_notes
+        except Exception as _e:
+            _midi_logger.debug("section variation failed: %s", _e)
+            return notes
+
     def _resolve_instrument_program(
         self,
         instrument_name: str,
@@ -1714,14 +1918,15 @@ class MidiGenerator:
         """Generate drum track with humanized patterns."""
         track = MidiTrack()
         
-        # Use Ethiopian drum name if kebero is primary drum element
+        # Always use generic 'Drums' track name for API compatibility.
+        # Instrument identity preserved via program_change and text meta.
+        track.append(MetaMessage('track_name', name='Drums', time=0))
+        
+        # Record specific drum instrument as a text meta event for display
         if 'kebero' in parsed.drum_elements:
-            track_name = 'Kebero'
+            track.append(MetaMessage('text', text='instrument:Kebero', time=0))
         elif 'atamo' in parsed.drum_elements:
-            track_name = 'Atamo'
-        else:
-            track_name = 'Drums'
-        track.append(MetaMessage('track_name', name=track_name, time=0))
+            track.append(MetaMessage('text', text='instrument:Atamo', time=0))
         
         all_notes = []
         
@@ -1730,6 +1935,79 @@ class MidiGenerator:
             section_notes = self._generate_drums_for_section(section, parsed, tension)
             all_notes.extend(section_notes)
         
+        # Generate transition events (fills / builds / crashes) at section boundaries
+        if self._transition_gen and len(arrangement.sections) > 1:
+            try:
+                transitions = self._transition_gen.generate_all_transitions(
+                    arrangement.sections
+                )
+                for t in transitions:
+                    for pitch, tick, dur, vel in t.events:
+                        all_notes.append(NoteEvent(
+                            pitch=pitch,
+                            start_tick=tick,
+                            duration_ticks=dur,
+                            velocity=vel,
+                            channel=GM_DRUM_CHANNEL,
+                        ))
+            except Exception as _e:
+                _midi_logger.debug("drum transition generation failed: %s", _e)
+
+        # Pattern library enrichment (Sprint 7)
+        if self._pattern_library and _HAS_PATTERN_LIBRARY:
+            try:
+                genre_key = (parsed.genre or 'pop').replace('-', '_').replace(' ', '_')
+                lib_patterns = self._pattern_library.get_patterns(genre_key, PatternType.DRUM)
+                if lib_patterns:
+                    pat = random.choice(lib_patterns)
+                    for section in arrangement.sections:
+                        st = section.section_type.value if hasattr(section.section_type, 'value') else str(section.section_type)
+                        if st in ('verse', 'chorus'):
+                            section_len = section.duration_ticks if hasattr(section, 'duration_ticks') else (section.end_tick - section.start_tick if hasattr(section, 'end_tick') else 0)
+                            for tick, dur, pitch, vel in pat.notes:
+                                if section_len <= 0 or tick < section_len:
+                                    accent_vel = max(50, min(70, vel))
+                                    all_notes.append(NoteEvent(
+                                        pitch=pitch,
+                                        start_tick=section.start_tick + tick,
+                                        duration_ticks=dur,
+                                        velocity=accent_vel,
+                                        channel=GM_DRUM_CHANNEL,
+                                    ))
+            except Exception as _e:
+                _midi_logger.debug("pattern library enrichment failed: %s", _e)
+
+        # Ghost note injection (Sprint 7)
+        if self._drum_humanizer and _HAS_DRUM_HUMANIZER:
+            try:
+                drum_tuples = [(n.start_tick, n.duration_ticks, n.pitch, n.velocity) for n in all_notes]
+                ghost_config = GhostNoteConfig(density=0.2)
+                humanized = self._drum_humanizer.add_ghost_notes(drum_tuples, ghost_config)
+                existing_set = set((n.start_tick, n.pitch) for n in all_notes)
+                for tick, dur, pitch, vel in humanized:
+                    if (tick, pitch) not in existing_set:
+                        all_notes.append(NoteEvent(
+                            pitch=pitch, start_tick=tick, duration_ticks=dur,
+                            velocity=vel, channel=GM_DRUM_CHANNEL
+                        ))
+            except Exception as _e:
+                _midi_logger.debug("ghost note injection failed: %s", _e)
+
+        # Apply dynamics policy ghost note modulation (Sprint 5)
+        if hasattr(self, '_dynamics') and self._dynamics:
+            ghost_prob = getattr(self._dynamics, 'ghost_note_probability', 0.3)
+            if 0 < ghost_prob < 1.0 and all_notes:
+                # Ghost notes typically have velocity < 50; modulate their density
+                all_notes = [
+                    n for n in all_notes
+                    if n.velocity >= 50 or random.random() < ghost_prob
+                ]
+        
+        # Apply performance model humanization (Sprint 7.5)
+        all_notes = self._apply_performance_humanization(
+            all_notes, parsed.genre or 'default', 'drums'
+        )
+
         # Convert to MIDI messages with physics humanization
         self._notes_to_track(
             all_notes, track, 
@@ -1820,6 +2098,11 @@ class MidiGenerator:
                         channel=1
                     ))
         
+        # Apply performance model humanization (Sprint 7.5)
+        all_notes = self._apply_performance_humanization(
+            all_notes, parsed.genre or 'default', 'bass'
+        )
+
         self._notes_to_track(all_notes, track, channel=1, groove_template=groove_template)
         
         return track
@@ -1919,9 +2202,11 @@ class MidiGenerator:
                     program = 4  # Rhodes for others
                     resolved_instrument = 'Rhodes'
         
-        # Set track name to actual instrument (instead of generic 'Chords')
-        track_name = resolved_instrument.capitalize() if resolved_instrument else 'Chords'
-        track.append(MetaMessage('track_name', name=track_name, time=0))
+        # Always use generic 'Chords' track name for API compatibility.
+        # Instrument identity preserved via program_change.
+        track.append(MetaMessage('track_name', name='Chords', time=0))
+        if resolved_instrument:
+            track.append(MetaMessage('text', text=f'instrument:{resolved_instrument}', time=0))
         track.append(Message('program_change', program=program, channel=2, time=0))
         
         all_notes = []
@@ -1936,11 +2221,22 @@ class MidiGenerator:
             rhythm_style = 'stab'
         else:
             rhythm_style = 'block'
-        
+
+        _chord_section_counts: Dict[str, int] = {}
         for section in arrangement.sections:
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
             complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
+
+            # Track section occurrences for variation (Sprint 6)
+            _st = section.section_type.value if hasattr(section.section_type, 'value') else str(section.section_type)
+            _chord_section_counts[_st] = _chord_section_counts.get(_st, 0) + 1
+
+            # Apply voicing policy if available (Sprint 5)
+            if hasattr(self, '_voicing_policy') and self._voicing_policy:
+                vp = self._voicing_policy
+                complexity = max(complexity, vp.max_extensions * 0.15)
+            
             if section.config.enable_chords:
                 chord_pattern = generate_chord_progression_midi(
                     section.bars,
@@ -1955,6 +2251,13 @@ class MidiGenerator:
                     section_type=section.section_type.value
                 )
                 
+                # Apply voice-leading if HarmonicBrain available (Sprint 5)
+                if self._harmonic_brain and _HAS_HARMONIC_BRAIN:
+                    chord_pattern = self._apply_voice_leading(chord_pattern, parsed)
+
+                # Apply section variation for repeated sections (Sprint 6)
+                chord_pattern = self._apply_section_variation(chord_pattern, _st, _chord_section_counts[_st])
+
                 for tick, dur, pitch, vel in chord_pattern:
                     all_notes.append(NoteEvent(
                         pitch=pitch,
@@ -1964,9 +2267,126 @@ class MidiGenerator:
                         channel=2
                     ))
         
+        # Apply dynamics shaping (Sprint 6)
+        if _HAS_DYNAMICS and all_notes:
+            _dyn_tuples = [(n.start_tick, n.duration_ticks, n.pitch, n.velocity) for n in all_notes]
+            _shaped = apply_dynamics(_dyn_tuples, parsed.genre or 'jazz')
+            _preset = _DYN_PRESETS.get(parsed.genre or 'jazz', _DYN_PRESETS.get('jazz'))
+            _base_v = _preset.base_velocity if _preset else 80
+            for _i, (_, _, _, _sv) in enumerate(_shaped):
+                _ratio = _sv / max(1, _base_v)
+                all_notes[_i].velocity = max(1, min(127, int(all_notes[_i].velocity * _ratio)))
+
+        # Apply performance model humanization (Sprint 7.5)
+        all_notes = self._apply_performance_humanization(
+            all_notes, parsed.genre or 'default', 'chords'
+        )
+
         self._notes_to_track(all_notes, track, channel=2, groove_template=groove_template)
-        
+
+        # CC Expression injection for chord track (Sprint 7)
+        if hasattr(arrangement, 'get_tension_curve'):
+            try:
+                _section_ticks = [
+                    (s.start_tick, s.end_tick,
+                     s.section_type.value if hasattr(s.section_type, 'value') else str(s.section_type))
+                    for s in arrangement.sections
+                ]
+                self._inject_cc_expression(track, arrangement, _section_ticks,
+                                           parsed.genre or 'pop', is_melody=False)
+            except Exception as _e:
+                _midi_logger.debug("CC expression injection failed: %s", _e)
+
         return track
+
+    def _apply_voice_leading(self, chord_pattern, parsed):
+        """Post-process chord pattern through HarmonicBrain voice leading."""
+        if not chord_pattern:
+            return chord_pattern
+        
+        # Group simultaneous notes into chords (same tick offset)
+        from collections import defaultdict
+        chords_by_tick = defaultdict(list)
+        for tick, duration, pitch, velocity in chord_pattern:
+            chords_by_tick[tick].append((tick, duration, pitch, velocity))
+        
+        # Sort by tick
+        sorted_ticks = sorted(chords_by_tick.keys())
+        if len(sorted_ticks) < 2:
+            return chord_pattern
+        
+        # Voice-lead sequential chords
+        previous_voicing = None
+        result = []
+        
+        for tick_offset in sorted_ticks:
+            notes = chords_by_tick[tick_offset]
+            pitches = [p for _, _, p, _ in notes]
+            
+            if previous_voicing is not None and len(pitches) >= 3:
+                # Get the average pitch range for constraint
+                constraints = VoicingConstraints(
+                    min_pitch=min(pitches) - 7,
+                    max_pitch=max(pitches) + 7,
+                )
+                
+                # Try to voice-lead from previous chord
+                try:
+                    led_pitches = self._harmonic_brain.voice_lead(
+                        previous_voicing=previous_voicing,
+                        chord_symbol=self._pitches_to_chord_symbol(pitches, parsed.key),
+                        key=parsed.key,
+                        constraints=constraints,
+                    )
+                    if led_pitches and len(led_pitches) >= 3:
+                        # Map the voice-led pitches back to notes, preserving timing/velocity
+                        for i, (t, d, _old_p, v) in enumerate(notes):
+                            new_pitch = led_pitches[i] if i < len(led_pitches) else _old_p
+                            result.append((t, d, new_pitch, v))
+                        previous_voicing = led_pitches
+                        continue
+                except Exception as _e:
+                    _midi_logger.debug("voice leading failed: %s", _e)
+            
+            # Keep original pitches
+            result.extend(notes)
+            previous_voicing = pitches
+        
+        return result
+
+    @staticmethod
+    def _pitches_to_chord_symbol(pitches, key):
+        """Convert MIDI pitches to an approximate chord symbol for voice leading."""
+        if not pitches:
+            return f"{key}m"
+        
+        # Get pitch classes
+        pcs = sorted(set(p % 12 for p in pitches))
+        root_pc = pcs[0] if pcs else 0
+        
+        # Note name mapping
+        names = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+        root_name = names[root_pc]
+        
+        # Determine quality from intervals
+        intervals = set((pc - root_pc) % 12 for pc in pcs)
+        
+        if 3 in intervals and 7 in intervals:
+            if 10 in intervals:
+                return f"{root_name}m7"
+            return f"{root_name}m"
+        elif 4 in intervals and 7 in intervals:
+            if 11 in intervals:
+                return f"{root_name}maj7"
+            if 10 in intervals:
+                return f"{root_name}7"
+            return f"{root_name}"
+        elif 5 in intervals:
+            return f"{root_name}sus4"
+        elif 2 in intervals:
+            return f"{root_name}sus2"
+        
+        return f"{root_name}"
 
     def _create_organ_track(
         self,
@@ -2080,9 +2500,11 @@ class MidiGenerator:
                 program = 80  # Lead 1 (square) - default
                 resolved_instrument = 'Melody'
         
-        # Set track name to actual instrument (instead of generic 'Melody')
-        track_name = resolved_instrument.capitalize() if resolved_instrument else 'Melody'
-        track.append(MetaMessage('track_name', name=track_name, time=0))
+        # Always use generic 'Melody' track name for API compatibility.
+        # Instrument identity preserved via program_change.
+        track.append(MetaMessage('track_name', name='Melody', time=0))
+        if resolved_instrument:
+            track.append(MetaMessage('text', text=f'instrument:{resolved_instrument}', time=0))
         track.append(Message('program_change', program=program, channel=3, time=0))
         
         all_notes = []
@@ -2215,6 +2637,9 @@ class MidiGenerator:
                                 embellished.append((approach_tick, TICKS_PER_16TH, approach_pitch, approach_vel))
                         melody = embellished
                 
+                # Apply section variation for repeated sections (Sprint 6)
+                melody = self._apply_section_variation(melody, st, section_counters[st])
+
                 for tick, dur, pitch, vel in melody:
                     all_notes.append(NoteEvent(
                         pitch=pitch,
@@ -2224,10 +2649,38 @@ class MidiGenerator:
                         channel=3
                     ))
         
+        # Apply dynamics shaping (Sprint 6)
+        if _HAS_DYNAMICS and all_notes:
+            _dyn_tuples = [(n.start_tick, n.duration_ticks, n.pitch, n.velocity) for n in all_notes]
+            _shaped = apply_dynamics(_dyn_tuples, parsed.genre or 'jazz')
+            _preset = _DYN_PRESETS.get(parsed.genre or 'jazz', _DYN_PRESETS.get('jazz'))
+            _base_v = _preset.base_velocity if _preset else 80
+            for _i, (_, _, _, _sv) in enumerate(_shaped):
+                _ratio = _sv / max(1, _base_v)
+                all_notes[_i].velocity = max(1, min(127, int(all_notes[_i].velocity * _ratio)))
+
+        # Apply performance model humanization (Sprint 7.5)
+        all_notes = self._apply_performance_humanization(
+            all_notes, parsed.genre or 'default', 'lead'
+        )
+
         self._notes_to_track(all_notes, track, channel=3, groove_template=groove_template)
-        
+
+        # CC Expression injection for melody track (Sprint 7)
+        if hasattr(arrangement, 'get_tension_curve'):
+            try:
+                _section_ticks = [
+                    (s.start_tick, s.end_tick,
+                     s.section_type.value if hasattr(s.section_type, 'value') else str(s.section_type))
+                    for s in arrangement.sections
+                ]
+                self._inject_cc_expression(track, arrangement, _section_ticks,
+                                           parsed.genre or 'pop', is_melody=True)
+            except Exception:
+                pass
+
         return track
-    
+
     def _notes_to_track(
         self,
         notes: List[NoteEvent],
@@ -2424,7 +2877,140 @@ class MidiGenerator:
                   f"{summary['limb_conflicts_resolved']} limb conflicts")
         
         return result
-    
+
+    def _inject_cc_expression(self, track, arrangement, section_ticks, genre, is_melody=False):
+        """Inject CC11/CC1/CC74 messages for expressive MIDI.
+
+        CC11 (Expression): Phrase-level volume envelope shaped by tension arc
+        CC1 (Modulation): Subtle vibrato on sustained sections (melody only)
+        CC74 (Brightness): Timbral variation per section
+
+        Args:
+            track: mido MidiTrack to inject CCs into
+            arrangement: Arrangement with tension_arc
+            section_ticks: List of (start_tick, end_tick, section_type) for each section
+            genre: Genre string for style-appropriate CC curves
+            is_melody: True for melody tracks (adds CC1 modulation)
+        """
+        # Genre intensity map — controls how aggressively CCs are applied
+        CC_GENRE_INTENSITY = {
+            'jazz': 0.8, 'r&b': 0.7, 'rnb': 0.7, 'classical': 0.9, 'ambient': 0.7,
+            'trap': 0.3, 'drill': 0.2, 'house': 0.4, 'rock': 0.5,
+            'lofi': 0.5, 'lo-fi': 0.5, 'boom_bap': 0.4, 'funk': 0.6,
+            'ethiopian': 0.7, 'ethio_jazz': 0.8, 'pop': 0.5, 'trap_soul': 0.5,
+        }
+
+        intensity = CC_GENRE_INTENSITY.get((genre or '').lower().replace('-', '_'), 0.5)
+
+        # Get tension curve from arrangement
+        tension_curve = None
+        try:
+            tension_curve = arrangement.get_tension_curve(num_points=200)
+        except Exception:
+            pass
+
+        if not tension_curve:
+            return
+
+        total_ticks = arrangement.total_ticks
+        if total_ticks <= 0:
+            return
+
+        # Determine channel from existing track messages
+        channel = 0
+        for msg in track:
+            if hasattr(msg, 'channel'):
+                channel = msg.channel
+                break
+
+        # Step 1: Convert existing track to (absolute_tick, msg) pairs
+        existing_events = []
+        abs_tick = 0
+        for msg in track:
+            abs_tick += msg.time
+            existing_events.append((abs_tick, msg))
+
+        # Separate end_of_track for re-appending later
+        regular_events = [
+            (t, m) for t, m in existing_events
+            if not (hasattr(m, 'type') and m.type == 'end_of_track')
+        ]
+        eot_events = [
+            (t, m) for t, m in existing_events
+            if hasattr(m, 'type') and m.type == 'end_of_track'
+        ]
+
+        # Step 2: Generate CC events at regular intervals
+        cc_interval = TICKS_PER_BEAT * 2  # Every 2 beats
+        cc_events = []
+
+        for tick in range(0, total_ticks, cc_interval):
+            position = tick / total_ticks
+            curve_idx = min(int(position * len(tension_curve)), len(tension_curve) - 1)
+            tension = tension_curve[curve_idx]
+
+            # CC11 (Expression): 64-127 based on tension × intensity
+            cc11_val = int((64 + tension * 63) * intensity)
+            cc11_val = max(0, min(127, cc11_val))
+            cc_events.append(
+                (tick, Message('control_change', channel=channel, control=11,
+                               value=cc11_val, time=0))
+            )
+
+            # CC1 (Modulation): melody/pad tracks only, subtle 0-40 range
+            if is_melody:
+                cc1_val = int(tension * 40 * intensity)
+                cc1_val = max(0, min(127, cc1_val))
+                cc_events.append(
+                    (tick, Message('control_change', channel=channel, control=1,
+                                   value=cc1_val, time=0))
+                )
+
+            # CC74 (Brightness): 40-127 based on tension × intensity
+            cc74_val = int((40 + tension * 87) * intensity)
+            cc74_val = max(0, min(127, cc74_val))
+            cc_events.append(
+                (tick, Message('control_change', channel=channel, control=74,
+                               value=cc74_val, time=0))
+            )
+
+        if not cc_events:
+            return
+
+        # Step 3: Merge existing events with CC events and sort
+        all_events = regular_events + cc_events
+
+        def _cc_sort_key(event):
+            tick, msg = event
+            tp = getattr(msg, 'type', '')
+            # Meta messages first, then CCs, then note_off, then note_on
+            order = {
+                'track_name': -3, 'text': -2, 'set_tempo': -2,
+                'time_signature': -2, 'key_signature': -2,
+                'program_change': -1,
+                'control_change': 0,
+                'note_off': 1,
+                'note_on': 2,
+            }
+            return (tick, order.get(tp, -1))
+
+        all_events.sort(key=_cc_sort_key)
+
+        # Re-append end_of_track
+        if eot_events:
+            all_events.append(eot_events[-1])
+        else:
+            all_events.append((total_ticks, MetaMessage('end_of_track', time=0)))
+
+        # Step 4: Rebuild track with recomputed delta times
+        track.clear()
+        prev_tick = 0
+        for abs_t, msg in all_events:
+            delta = max(0, abs_t - prev_tick)
+            msg.time = delta
+            track.append(msg)
+            prev_tick = abs_t
+
     def _resolve_drum_collisions(
         self,
         notes: List[NoteEvent],

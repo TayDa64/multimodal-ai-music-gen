@@ -334,6 +334,94 @@ GENRE_DYNAMICS: Dict[str, DynamicsConfig] = {
         downbeat_accent=0.3,
         phrase_length_beats=2
     ),
+    "trap": DynamicsConfig(
+        base_velocity=100,
+        velocity_range=(80, 120),
+        phrase_shape=DynamicShape.ACCENT_FIRST,
+        accent_strength=0.25,
+        downbeat_accent=0.2,
+        phrase_length_beats=4
+    ),
+    "lofi": DynamicsConfig(
+        base_velocity=70,
+        velocity_range=(45, 100),
+        phrase_shape=DynamicShape.SWELL,
+        accent_strength=0.10,
+        downbeat_accent=0.05,
+        phrase_length_beats=4
+    ),
+    "lo-fi": DynamicsConfig(
+        base_velocity=70,
+        velocity_range=(45, 100),
+        phrase_shape=DynamicShape.SWELL,
+        accent_strength=0.10,
+        downbeat_accent=0.05,
+        phrase_length_beats=4
+    ),
+    "lo_fi": DynamicsConfig(
+        base_velocity=70,
+        velocity_range=(45, 100),
+        phrase_shape=DynamicShape.SWELL,
+        accent_strength=0.10,
+        downbeat_accent=0.05,
+        phrase_length_beats=4
+    ),
+    "ethiopian": DynamicsConfig(
+        base_velocity=85,
+        velocity_range=(55, 115),
+        phrase_shape=DynamicShape.CRESCENDO,
+        accent_strength=0.20,
+        downbeat_accent=0.15,
+        phrase_length_beats=6
+    ),
+    "ethio_jazz": DynamicsConfig(
+        base_velocity=85,
+        velocity_range=(55, 115),
+        phrase_shape=DynamicShape.CRESCENDO,
+        accent_strength=0.20,
+        downbeat_accent=0.15,
+        phrase_length_beats=6
+    ),
+    "house": DynamicsConfig(
+        base_velocity=95,
+        velocity_range=(80, 115),
+        phrase_shape=DynamicShape.FLAT,
+        accent_strength=0.15,
+        downbeat_accent=0.10,
+        phrase_length_beats=4
+    ),
+    "trap_soul": DynamicsConfig(
+        base_velocity=90,
+        velocity_range=(60, 115),
+        phrase_shape=DynamicShape.SWELL,
+        accent_strength=0.18,
+        downbeat_accent=0.12,
+        phrase_length_beats=4
+    ),
+    "boom_bap": DynamicsConfig(
+        base_velocity=95,
+        velocity_range=(70, 120),
+        phrase_shape=DynamicShape.ACCENT_FIRST,
+        accent_strength=0.30,
+        downbeat_accent=0.25,
+        phrase_length_beats=4
+    ),
+    "drill": DynamicsConfig(
+        base_velocity=105,
+        velocity_range=(85, 127),
+        phrase_shape=DynamicShape.ACCENT_FIRST,
+        accent_strength=0.25,
+        downbeat_accent=0.20,
+        phrase_length_beats=4
+    ),
+    "ambient": DynamicsConfig(
+        base_velocity=60,
+        velocity_range=(30, 95),
+        phrase_shape=DynamicShape.FADE_IN,
+        accent_strength=0.05,
+        downbeat_accent=0.02,
+        phrase_length_beats=8
+    ),
 }
 
 

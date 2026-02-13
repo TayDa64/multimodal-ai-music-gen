@@ -26,6 +26,20 @@ import json
 
 import numpy as np
 
+# Chord extraction integration (Sprint 7)
+try:
+    from .chord_extractor import ChordExtractor, ChordProgression
+    _HAS_CHORD_EXTRACTOR = True
+except ImportError:
+    _HAS_CHORD_EXTRACTOR = False
+
+# Stem separation for per-stem analysis (Sprint 7.5)
+try:
+    from .stem_separation import separate_stems as _separate_stems
+    _HAS_STEM_SEPARATION = True
+except ImportError:
+    _HAS_STEM_SEPARATION = False
+
 # Lazy imports for optional dependencies
 _librosa = None
 _yt_dlp = None
@@ -135,6 +149,9 @@ class ReferenceAnalysis:
     # Style tags extracted from analysis
     style_tags: List[str] = field(default_factory=list)
     
+    # Extracted chord progression (Sprint 7)
+    chords: Optional[List[Dict]] = field(default_factory=list)
+    
     # Raw features for advanced use
     raw_features: Dict[str, Any] = field(default_factory=dict)
     
@@ -183,6 +200,11 @@ class ReferenceAnalysis:
                 hints.append("four-on-floor kick")
             if self.drums.boom_bap_feel:
                 hints.append("boom bap drums")
+        
+        # Chords (Sprint 7)
+        if self.chords:
+            chord_names = [c['chord'] for c in self.chords[:4]]
+            hints.append(f"chords: {' - '.join(chord_names)}")
         
         # Style tags
         if self.style_tags:
@@ -364,6 +386,18 @@ class ReferenceAnalyzer:
                 genre_confidence=genre_conf,
                 style_tags=style_tags,
             )
+
+            # Chord extraction (Sprint 7)
+            if _HAS_CHORD_EXTRACTOR:
+                try:
+                    chord_extractor = ChordExtractor(sample_rate=sr)
+                    chord_progression = chord_extractor.analyze(y)
+                    analysis.chords = [
+                        {"chord": c.chord, "start_time": c.start_time, "end_time": c.end_time, "confidence": c.confidence}
+                        for c in chord_progression.chords
+                    ]
+                except Exception:
+                    pass
             
             if self.verbose:
                 print(f"\nAnalysis complete:")
@@ -408,7 +442,7 @@ class ReferenceAnalyzer:
         genre, genre_conf = self._estimate_genre(bpm, drums, spectral, groove)
         style_tags = self._generate_style_tags(bpm, key, mode, drums, spectral, groove)
         
-        return ReferenceAnalysis(
+        analysis = ReferenceAnalysis(
             source_url=f"file://{path.absolute()}",
             title=path.stem,
             duration_seconds=duration,
@@ -424,6 +458,30 @@ class ReferenceAnalyzer:
             genre_confidence=genre_conf,
             style_tags=style_tags,
         )
+
+        # Chord extraction (Sprint 7)
+        if _HAS_CHORD_EXTRACTOR:
+            try:
+                chord_extractor = ChordExtractor(sample_rate=sr)
+                chord_progression = chord_extractor.analyze(y)
+                analysis.chords = [
+                    {"chord": c.chord, "start_time": c.start_time, "end_time": c.end_time, "confidence": c.confidence}
+                    for c in chord_progression.chords
+                ]
+            except Exception:
+                pass
+
+        # Stem separation info for per-stem analysis (Sprint 7.5)
+        if _HAS_STEM_SEPARATION:
+            try:
+                stems = _separate_stems(y, sample_rate=sr)
+                analysis.raw_features['stems_available'] = (
+                    list(stems.keys()) if isinstance(stems, dict) else []
+                )
+            except Exception:
+                pass
+
+        return analysis
     
     def _download_audio(self, url: str) -> Tuple[Path, Dict[str, Any]]:
         """Download audio from URL using yt-dlp.
@@ -655,8 +713,9 @@ class ReferenceAnalyzer:
             has_rolls = False
         
         # Detect four-on-floor (kick on every beat)
+        _cached_tempo, _cached_beat_frames = librosa.beat.beat_track(y=y_perc, sr=sr)
         beat_frames = librosa.time_to_frames(
-            librosa.beat.beat_track(y=y_perc, sr=sr)[1] * 512 / sr,
+            _cached_beat_frames * 512 / sr,
             sr=sr
         )
         if len(beat_frames) > 4:
@@ -680,8 +739,8 @@ class ReferenceAnalyzer:
         # Compound meters have accents in groups of 3 rather than 2 or 4
         compound_meter = False
         try:
-            # Get beat positions
-            tempo, beats = librosa.beat.beat_track(y=y_perc, sr=sr)
+            # Get beat positions (use cached result)
+            tempo, beats = _cached_tempo, _cached_beat_frames
             if len(beats) > 12:
                 # Analyze accent pattern - compound meters have different energy distribution
                 beat_times = librosa.frames_to_time(beats, sr=sr)
@@ -701,10 +760,71 @@ class ReferenceAnalyzer:
         except Exception:
             pass  # If detection fails, default to False
         
+        # Sprint 8.5: Populate kick/snare pattern transcription
+        kick_positions: List[float] = []
+        snare_positions: List[float] = []
+        try:
+            # Get beat times for bar alignment (use cached result)
+            beat_times = librosa.frames_to_time(_cached_beat_frames, sr=sr)
+
+            if len(beat_times) >= 4:
+                beats_per_bar = 4  # Default 4/4
+                bar_duration = beats_per_bar * (60.0 / max(30, bpm))
+
+                # Kick: peaks in low-frequency onset envelope
+                kick_peaks = librosa.onset.onset_detect(
+                    onset_envelope=onset_low, sr=sr, units='time'
+                )
+
+                # Snare: mid-frequency band via mel spectrogram (200-2000 Hz)
+                S_mid = librosa.feature.melspectrogram(
+                    y=y_perc, sr=sr, fmin=200.0, fmax=2000.0
+                )
+                onset_mid = librosa.onset.onset_strength(
+                    S=librosa.power_to_db(S_mid), sr=sr
+                )
+                snare_peaks = librosa.onset.onset_detect(
+                    onset_envelope=onset_mid, sr=sr, units='time'
+                )
+
+                # Map to normalized bar positions (0.0 to 1.0)
+                bar_start = beat_times[0] if len(beat_times) > 0 else 0.0
+                kick_bar_positions: List[float] = []
+                snare_bar_positions: List[float] = []
+
+                for t in kick_peaks:
+                    if t >= bar_start:
+                        pos_in_bar = ((t - bar_start) % bar_duration) / bar_duration
+                        kick_bar_positions.append(round(pos_in_bar, 3))
+
+                for t in snare_peaks:
+                    if t >= bar_start:
+                        pos_in_bar = ((t - bar_start) % bar_duration) / bar_duration
+                        snare_bar_positions.append(round(pos_in_bar, 3))
+
+                # Deduplicate by quantizing to 16th-note grid (0.0625 resolution)
+                def _quantize_positions(positions: List[float], grid: float = 0.0625) -> List[float]:
+                    quantized: set = set()
+                    for p in positions:
+                        q = round(p / grid) * grid
+                        q = round(min(q, 1.0 - grid), 4)  # Clamp to [0, 0.9375]
+                        quantized.add(q)
+                    return sorted(quantized)
+
+                kick_positions = _quantize_positions(kick_bar_positions)
+                snare_positions = _quantize_positions(snare_bar_positions)
+
+                # Limit to reasonable maximum (16 per bar)
+                kick_positions = kick_positions[:16]
+                snare_positions = snare_positions[:16]
+        except Exception:
+            kick_positions = []
+            snare_positions = []
+
         return DrumAnalysis(
             density=density_normalized,
-            kick_pattern=[],  # Would need beat-aligned analysis
-            snare_pattern=[],
+            kick_pattern=kick_positions,
+            snare_pattern=snare_positions,
             hihat_density=hihat_density,
             has_rolls=has_rolls,
             four_on_floor=four_on_floor,

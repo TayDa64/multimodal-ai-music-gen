@@ -1427,6 +1427,60 @@ class MusicGenOSCServer:
             "status": status,
             **data,
         }))
+
+    # =========================================================================
+    # Intelligence Push Notifications (Sprint 4)
+    # =========================================================================
+
+    def notify_genre_dna(self, genre: str, vector: Dict[str, float]):
+        """Push genre DNA computation result to JUCE display."""
+        self._send_message(OSCAddresses.INTEL_GENRE_DNA, json.dumps({
+            "genre": genre,
+            "vector": vector,
+        }))
+        self._log(f"🧬 Genre DNA pushed: {genre}")
+
+    def notify_preference_update(self, dimension: str, old_value: float, new_value: float):
+        """Push preference dimension update to JUCE display."""
+        self._send_message(OSCAddresses.INTEL_PREFERENCE_UPDATE, json.dumps({
+            "dimension": dimension,
+            "old_value": round(old_value, 4),
+            "new_value": round(new_value, 4),
+        }))
+        self._log(f"📊 Preference pushed: {dimension} {old_value:.2f}→{new_value:.2f}")
+
+    def notify_search_result(self, query: str, results: list):
+        """Push embedding search results to JUCE display."""
+        summary = [{"name": r.get("name", ""), "score": round(r.get("similarity", 0), 3)}
+                   for r in results[:5]]
+        self._send_message(OSCAddresses.INTEL_SEARCH_RESULT, json.dumps({
+            "query": query,
+            "count": len(results),
+            "top": summary,
+        }))
+        self._log(f"🔍 Search pushed: '{query}' → {len(results)} results")
+
+    def notify_session_compressed(self, level: str, token_budget: int):
+        """Push session compression event to JUCE display."""
+        self._send_message(OSCAddresses.INTEL_SESSION_COMPRESSED, json.dumps({
+            "level": level,
+            "token_budget": token_budget,
+        }))
+        self._log(f"📦 Compression pushed: L{level} (budget={token_budget})")
+
+    def notify_fusion_result(self, name: str, sources: list, distance_class: str):
+        """Push genre fusion result to JUCE display."""
+        self._send_message(OSCAddresses.INTEL_FUSION_RESULT, json.dumps({
+            "name": name,
+            "sources": sources,
+            "distance": distance_class,
+        }))
+        self._log(f"🎛️ Fusion pushed: {name} ({distance_class})")
+
+    def notify_exploration(self, suggestion: Dict[str, Any]):
+        """Push exploration suggestion to JUCE display."""
+        self._send_message(OSCAddresses.INTEL_EXPLORATION, json.dumps(suggestion))
+        self._log(f"🎲 Exploration pushed: {suggestion.get('dimension', '?')}")
     
     # =========================================================================
     # Utilities

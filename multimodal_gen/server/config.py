@@ -167,6 +167,14 @@ class OSCAddresses:
     EXPANSION_INSTRUMENTS_CHUNK = "/expansion/instruments_chunk"
     EXPANSION_RESOLVE_RESPONSE = "/expansion/resolve_response"
 
+    # Intelligence notifications (Python → JUCE, push)
+    INTEL_GENRE_DNA = "/intel/genre_dna"             # Genre DNA computed
+    INTEL_PREFERENCE_UPDATE = "/intel/preference"     # User preference updated
+    INTEL_SEARCH_RESULT = "/intel/search"             # Embedding search result
+    INTEL_SESSION_COMPRESSED = "/intel/compressed"    # Session graph compressed
+    INTEL_FUSION_RESULT = "/intel/fusion"             # Genre fusion computed
+    INTEL_EXPLORATION = "/intel/exploration"           # Exploration suggestion
+
 
 # Generation Steps (for progress reporting)
 class GenerationStep:

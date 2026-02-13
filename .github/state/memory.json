@@ -26,6 +26,104 @@
         "pattern": "Compound meter calculation: ticks_per_beat * numerator // 2 for /8 denominators",
         "context": "6/8 and 12/8 feel like 2 or 4 strong beats with subdivisions of 3",
         "timestamp": "2026-01-21T12:30:00Z"
+      },
+      {
+        "pattern": "Multi-model validation catches what single-model misses: Gemini found production code correct, GPT found test suite hollow",
+        "context": "Use parallel auditor + stress-tester subagents to cross-validate deliverables, then diagnostician to fix findings",
+        "timestamp": "2026-02-11T00:00:00Z"
+      },
+      {
+        "pattern": "Wiring tests > unit tests: assert the CALL SITE, not just the function in isolation",
+        "context": "Sprint 5 integration tests initially tested functions in isolation but never verified they were called from the pipeline. Always test that A calls B, not just that B works.",
+        "timestamp": "2026-02-11T00:00:00Z"
+      },
+      {
+        "pattern": "Guard empty collections before indexing: a[-1] on [] raises IndexError",
+        "context": "compute_vlc had latent bug where empty voicings caused a[-1] crash. Always filter/guard before list[-1] access.",
+        "timestamp": "2026-02-11T00:00:00Z"
+      },
+      {
+        "pattern": "Disable-compare wiring tests > import-flag-only checks",
+        "context": "Sprint 6 GPT stress-test found 7/11 trivially-passing assertions (import flags, track count). Use monkeypatch: generate WITH feature → disable → generate WITHOUT → assert difference.",
+        "timestamp": "2026-02-12T00:00:00Z"
+      },
+      {
+        "pattern": "Guard public API edge cases: falsy zero, negative values",
+        "context": "fragment(length=0) silently returned full motif due to `if length` being falsy for 0. displace(-0.5) produced negative durations. get_tension_curve(-5) raised ValueError. Clamp or early-return.",
+        "timestamp": "2026-02-12T00:00:00Z"
+      },
+      {
+        "pattern": "Module-level _HAS_* flags + guarded imports for optional pipeline modules",
+        "context": "All Sprint 5-7 wiring uses try/except ImportError pattern. Graceful degradation when missing.",
+        "timestamp": "2026-02-12T00:00:00Z"
+      },
+      {
+        "pattern": "Pattern library notes must be offset by section.start_tick",
+        "context": "Pattern objects have 0-based ticks. When merging into arrangement sections, each note tick must be offset by section.start_tick or all notes pile up at tick 0.",
+        "timestamp": "2026-02-12T01:00:00Z"
+      },
+      {
+        "pattern": "MIDI note durations require note_on/note_off pairing, not hardcoded values",
+        "context": "note_on messages don't carry duration. Must track pending dict of (track, pitch) -> (tick, vel) and compute duration on note_off. Fallback 480 for unclosed notes.",
+        "timestamp": "2026-02-12T01:00:00Z"
+      },
+      {
+        "pattern": "Wire orphaned modules before writing new code — highest ROI",
+        "context": "Sprint 7 wired 5,578+ LOC of existing orphaned modules. Writing new code only needed for CC expression (~200 LOC). Inventory orphaned modules first.",
+        "timestamp": "2026-02-12T01:00:00Z"
+      },
+      {
+        "pattern": "Use module instances directly, not convenience functions that create ephemeral copies",
+        "context": "Sprint 7.5 auditors found __init__ created instances (self._multiband, self._harmonic_exciter) but pipeline called convenience functions creating fresh copies. Either use the instance.process() or don't instantiate at all.",
+        "timestamp": "2026-02-12T02:00:00Z"
+      },
+      {
+        "pattern": "Genre normalization must match target module's key format",
+        "context": "microtiming.GENRE_PRESETS uses 'hip-hop' (hyphens) but midi_generator normalizes to 'hip_hop' (underscores). Keep original genre for modules that use hyphens.",
+        "timestamp": "2026-02-12T02:00:00Z"
+      },
+      {
+        "pattern": "Clamp velocities 1-127 on ALL NoteEvent reconstruction paths",
+        "context": "Sprint 7.5 had chord branch clamping but non-chord branch missing clamp. Defence-in-depth: always clamp when converting external module output to NoteEvent.",
+        "timestamp": "2026-02-12T02:00:00Z"
+      }
+      {
+        "pattern": "Sidechain ducking wiring uses stereo_tracks[] post-pan but pre-mix, with kick track as trigger",
+        "context": "Sprint 8: sidechain ducking is applied to stereo bass tracks using drum track as envelope trigger. Process per-channel for stereo, single pass for mono.",
+        "timestamp": "2026-02-12T03:00:00Z"
+      },
+      {
+        "pattern": "TrackProcessor per-stem uses genre→preset mapping dict with fallback defaults",
+        "context": "Sprint 8: genre-normalized string keys map to TRACK_PRESETS names. drums→punchy_kick/boom_bap_drums, bass→trap_808/boom_bap_bass/clean_bass, pad→warm_pad, lead→bright_synth, other→lofi_keys or bright_synth",
+        "timestamp": "2026-02-12T03:00:00Z"      },
+      {
+        "pattern": "Genre-gate per-stem processing to target genres only — don't apply hip-hop presets to classical",
+        "context": "TrackProcessor applied boom_bap_drums saturation to classical instruments. Gate with a set of genres that benefit from per-stem processing.",
+        "timestamp": "2026-02-12T04:00:00Z"
+      },
+      {
+        "pattern": "Wrap ALL optional pipeline blocks in try/except — asymmetric error handling is a bug class",
+        "context": "Sprint 8 sidechain block had no try/except while TrackProcessor did. If sidechain threw, render crashed. All blocks must match the graceful degradation pattern.",
+        "timestamp": "2026-02-12T04:00:00Z"
+      },
+      {
+        "pattern": "Multi-model custom agents catch more than single-model prompt engineering",
+        "context": "Sprint 8 first true multi-model run: Gemini 3 Pro auditor found preservation risk + dead code patterns, GPT 5.3 Codex stress-tester found 3 bugs + 2 flaws + 3 vacuous tests. Different models find different bug categories.",
+        "timestamp": "2026-02-12T04:00:00Z"      },
+      {
+        "pattern": "Extract formulas into named testable helpers — never mirror formulas in tests",
+        "context": "Sprint 8.7 had 9/15 tests copy-pasting the production formula into test helpers. Auditor + stress-tester flagged as vacuous. Fix: extract _get_preset_target_rms() and _get_preset_reverb_send() as production methods, then tests call production code directly.",
+        "timestamp": "2026-02-12T06:00:00Z"
+      },
+      {
+        "pattern": "dB→gain cap must be level-relative, not absolute constant",
+        "context": "Sprint 8.7 stem_headroom_db at -6dB capped gain to ~1.0x (absolute 10^(db/20)*2). Fix: use 10^(-db/20) so -6dB → max gain 2.0x (6dB of boost allowed).",
+        "timestamp": "2026-02-12T06:00:00Z"
+      },
+      {
+        "pattern": "Verify formula neutral points against actual preset values",
+        "context": "Sprint 8.7 formula 0.28-0.12*ha had neutral at ha=0.25 — exactly the 'polished' preset value. Zero effect. Fix: shift formula so no built-in preset lands on the neutral point.",
+        "timestamp": "2026-02-12T06:00:00Z"
       }
     ],
     "failed": [
@@ -44,6 +142,12 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Use multi-model cross-validation for Sprint 5 deliverables",
+      "rationale": "Gemini excels at holistic synthesis (found all production code correct), GPT excels at adversarial stress-testing (found 12 trivially-passing tests and a latent bug). Combined coverage exceeds single-model review.",
+      "alternatives_considered": ["Single-model review", "Manual review only", "Just run tests"],
+      "timestamp": "2026-02-11T00:00:00Z"
+    },
     {
       "decision": "Use copilot-instructions.md as source of truth, not individual agent files",
       "rationale": "VS Code Copilot reads copilot-instructions.md; agent files are reference specs only",
@@ -181,5 +285,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-01-21T12:30:00Z"
+  "last_updated": "2026-02-12T00:00:00Z"
 }

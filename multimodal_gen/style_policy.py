@@ -63,6 +63,13 @@ except ImportError:
     HAS_PHYSICS = False
     HumanizeConfig = None
 
+# Optional genre DNA for continuous genre dimension overlay (Sprint 5)
+try:
+    from multimodal_gen.intelligence.genre_dna import get_genre_dna, GenreDNAVector
+    _HAS_GENRE_DNA = True
+except ImportError:
+    _HAS_GENRE_DNA = False
+
 
 # =============================================================================
 # ENUMERATIONS
@@ -646,7 +653,7 @@ class StylePolicy:
         Returns:
             PolicyContext with all decisions and explanations
         """
-        genre = parsed.genre.lower().replace("-", "_").replace(" ", "_")
+        genre = (parsed.genre or '').lower().replace("-", "_").replace(" ", "_")
         
         # Initialize context
         ctx = PolicyContext(
@@ -666,6 +673,10 @@ class StylePolicy:
         ctx.mix = self._compile_mix_policy(parsed, ctx.decisions)
         ctx.instruments = self._compile_instrument_policy(parsed, ctx.decisions)
         
+        # Overlay genre DNA intelligence (Sprint 5)
+        if _HAS_GENRE_DNA:
+            self._apply_genre_dna_overlay(genre, ctx)
+        
         # Apply genre rules validation
         self._apply_genre_rules(parsed, ctx)
         
@@ -683,7 +694,7 @@ class StylePolicy:
         decisions: List[PolicyDecision]
     ) -> TimingPolicy:
         """Compile timing/rhythm policy."""
-        genre = parsed.genre.lower().replace("-", "_").replace(" ", "_")
+        genre = (parsed.genre or '').lower().replace("-", "_").replace(" ", "_")
         preset = GENRE_TIMING_PRESETS.get(genre, GENRE_TIMING_PRESETS["default"])
         
         policy = TimingPolicy()
@@ -735,7 +746,7 @@ class StylePolicy:
         decisions: List[PolicyDecision]
     ) -> VoicingPolicy:
         """Compile chord voicing policy."""
-        genre = parsed.genre.lower().replace("-", "_").replace(" ", "_")
+        genre = (parsed.genre or '').lower().replace("-", "_").replace(" ", "_")
         preset = GENRE_VOICING_PRESETS.get(genre, GENRE_VOICING_PRESETS["default"])
         
         policy = VoicingPolicy()
@@ -760,7 +771,7 @@ class StylePolicy:
         decisions: List[PolicyDecision]
     ) -> DynamicsPolicy:
         """Compile dynamics and velocity policy."""
-        genre = parsed.genre.lower().replace("-", "_").replace(" ", "_")
+        genre = (parsed.genre or '').lower().replace("-", "_").replace(" ", "_")
         preset = GENRE_DYNAMICS_PRESETS.get(genre, GENRE_DYNAMICS_PRESETS["default"])
         
         policy = DynamicsPolicy()
@@ -833,7 +844,7 @@ class StylePolicy:
         ))
         
         # Genre-specific arrangement
-        genre = parsed.genre.lower()
+        genre = (parsed.genre or '').lower()
         if genre in ["trap", "trap_soul"]:
             policy.use_dropouts = True
             policy.dropout_probability = 0.15
@@ -849,7 +860,7 @@ class StylePolicy:
         decisions: List[PolicyDecision]
     ) -> MixPolicy:
         """Compile mix and mastering policy."""
-        genre = parsed.genre.lower().replace("-", "_").replace(" ", "_")
+        genre = (parsed.genre or '').lower().replace("-", "_").replace(" ", "_")
         preset = GENRE_MIX_PRESETS.get(genre, GENRE_MIX_PRESETS["default"])
         
         policy = MixPolicy()
@@ -870,6 +881,20 @@ class StylePolicy:
             source=DecisionSource.GENRE_RULE,
             reason=f"{genre} mix character"
         ))
+        
+        # Sprint 11.1: Bias brightness/warmth from sonic adjectives
+        try:
+            _adj = getattr(parsed, 'sonic_adjectives', []) or []
+            if 'bright' in _adj or 'crisp' in _adj:
+                policy.brightness_target = min(1.0, policy.brightness_target + 0.15)
+            if 'dark' in _adj or 'heavy' in _adj:
+                policy.brightness_target = max(0.0, policy.brightness_target - 0.15)
+            if 'warm' in _adj or 'vintage' in _adj:
+                policy.warmth_target = min(1.0, policy.warmth_target + 0.15)
+            if 'crisp' in _adj or 'clean' in _adj:
+                policy.warmth_target = max(0.0, policy.warmth_target - 0.1)
+        except Exception:
+            pass
         
         # FX chains
         if parsed.fx_chain_master:
@@ -916,7 +941,7 @@ class StylePolicy:
     
     def _apply_genre_rules(self, parsed: ParsedPrompt, ctx: PolicyContext):
         """Apply genre rules validation and auto-repair."""
-        genre = parsed.genre.lower().replace("-", "_").replace(" ", "_")
+        genre = (parsed.genre or '').lower().replace("-", "_").replace(" ", "_")
         
         # Get validation result
         result = self.genre_engine.validate_elements(
@@ -966,6 +991,58 @@ class StylePolicy:
             swing_amount=ctx.timing.swing_amount,
             weak_hand_factor=0.85,
         )
+
+    def _apply_genre_dna_overlay(self, genre: str, ctx: 'PolicyContext'):
+        """Enrich PolicyContext with continuous genre DNA values.
+
+        Genre DNA provides 10 continuous dimensions (0.0-1.0) that refine
+        the discrete genre presets. Especially valuable for fusion genres
+        where no exact preset match exists.
+        """
+        try:
+            dna = get_genre_dna(genre)
+        except (KeyError, ValueError):
+            return  # Unknown genre, skip overlay
+
+        if dna is None:
+            return
+
+        # Timing enrichment
+        if hasattr(dna, 'swing') and dna.swing > ctx.timing.swing_amount:
+            ctx.timing.swing_amount = dna.swing * 0.8  # DNA-informed swing
+            ctx.decisions.append(PolicyDecision(
+                category="timing",
+                name="swing_amount",
+                value=ctx.timing.swing_amount,
+                source=DecisionSource.GENRE_RULE,
+                reason=f"Genre DNA swing={dna.swing:.2f} applied"
+            ))
+
+        # Voicing enrichment
+        if hasattr(dna, 'harmonic_complexity'):
+            target_extensions = int(1 + dna.harmonic_complexity * 3)  # 1-4
+            if target_extensions > ctx.voicing.max_extensions:
+                ctx.voicing.max_extensions = target_extensions
+                ctx.decisions.append(PolicyDecision(
+                    category="voicing",
+                    name="max_extensions",
+                    value=target_extensions,
+                    source=DecisionSource.GENRE_RULE,
+                    reason=f"Genre DNA harmonic_complexity={dna.harmonic_complexity:.2f}"
+                ))
+
+        # Dynamics enrichment
+        if hasattr(dna, 'dynamic_range'):
+            ghost_prob = 0.05 + dna.dynamic_range * 0.20  # 0.05-0.25
+            if ghost_prob > ctx.dynamics.ghost_note_probability:
+                ctx.dynamics.ghost_note_probability = ghost_prob
+                ctx.decisions.append(PolicyDecision(
+                    category="dynamics",
+                    name="ghost_note_probability",
+                    value=ghost_prob,
+                    source=DecisionSource.GENRE_RULE,
+                    reason=f"Genre DNA dynamic_range={dna.dynamic_range:.2f}"
+                ))
 
 
 # =============================================================================

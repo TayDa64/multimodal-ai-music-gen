@@ -1,5 +1,8 @@
 """
-Unified Instrument Index - Single Source of Truth for Instrument Selection
+[UNREFERENCED] Unified Instrument Index - Single Source of Truth for Instrument Selection
+
+NOTE (Sprint 11.7): This module is not imported by any other module in the pipeline.
+Functionality covered by instrument_resolution.py. Retained for reference designs.
 
 This module unifies the instrument fingerprint concepts from:
 - instrument_manager.py (SonicProfile, InstrumentAnalyzer)

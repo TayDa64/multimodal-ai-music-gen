@@ -620,113 +620,9 @@ def create_lofi_chain() -> MixChain:
     # Would add Low Pass Filter here
     return chain
 
-def create_wide_stereo_chain() -> MixChain:
-    """Chain with subtle stereo widening for masters."""
-    chain = MixChain("Wide Stereo")
-    chain.add_effect(EffectType.STEREO_WIDTH, StereoWidthParams(width=1.2, mono_below_hz=120))
-    return chain
-
-
-def create_vocal_chain() -> MixChain:
-    """Chain optimized for vocals with de-essing and presence."""
-    chain = MixChain("Vocal Chain")
-    
-    # High-pass to remove rumble
-    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
-        bands=[
-            {'type': 'highpass', 'frequency': 80, 'gain_db': 0, 'q': 0.7},
-            {'type': 'peak', 'frequency': 200, 'gain_db': -2, 'q': 1.5},  # Reduce mud
-            {'type': 'peak', 'frequency': 3000, 'gain_db': 2, 'q': 1.0},  # Presence
-        ]
-    ))
-    
-    # De-ess harsh frequencies dynamically
-    chain.add_effect(EffectType.DYNAMIC_EQ, DynamicEQParams(
-        frequency=5000,
-        q=3.0,
-        threshold_db=-18,
-        ratio=6.0,
-        attack_ms=2,
-        release_ms=50,
-        max_gain_db=-8,
-        mode="compress"
-    ))
-    
-    # Gentle compression
-    chain.add_effect(EffectType.COMPRESSOR, CompressorParams(
-        threshold_db=-15,
-        ratio=3.0,
-        attack_ms=15,
-        release_ms=100
-    ))
-    
-    # Add air/presence
-    chain.add_effect(EffectType.HARMONIC_EXCITER, HarmonicExciterParams(
-        even_harmonics=0.2,
-        odd_harmonics=0.1,
-        high_drive=0.2,
-        air_drive=0.3,
-        mix=0.3
-    ))
-    
-    return chain
-
-
-def create_mastering_chain() -> MixChain:
-    """Full mastering chain with EQ, dynamics, and enhancement."""
-    chain = MixChain("Mastering Chain")
-    
-    # Surgical EQ
-    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
-        bands=[
-            {'type': 'highpass', 'frequency': 30, 'gain_db': 0, 'q': 0.7},
-            {'type': 'low_shelf', 'frequency': 80, 'gain_db': 1.5, 'q': 0.7},
-            {'type': 'peak', 'frequency': 200, 'gain_db': -1.5, 'q': 1.5},  # Reduce mud
-            {'type': 'peak', 'frequency': 3000, 'gain_db': 0.5, 'q': 2.0},  # Presence
-            {'type': 'high_shelf', 'frequency': 10000, 'gain_db': 1.0, 'q': 0.7},  # Air
-        ]
-    ))
-    
-    # Tame harsh midrange dynamically
-    chain.add_effect(EffectType.DYNAMIC_EQ, DynamicEQParams(
-        frequency=2500,
-        q=2.5,
-        threshold_db=-15,
-        ratio=3.0,
-        attack_ms=5,
-        release_ms=75,
-        max_gain_db=-6,
-        mode="compress"
-    ))
-    
-    # Gentle bus compression
-    chain.add_effect(EffectType.COMPRESSOR, CompressorParams(
-        threshold_db=-6,
-        ratio=2.0,
-        attack_ms=30,
-        release_ms=150,
-        knee_width_db=6.0
-    ))
-    
-    # Add warmth and air
-    chain.add_effect(EffectType.HARMONIC_EXCITER, HarmonicExciterParams(
-        even_harmonics=0.15,
-        odd_harmonics=0.05,
-        mid_drive=0.1,
-        air_drive=0.2,
-        mix=0.25
-    ))
-    
-    # Stereo width enhancement
-    chain.add_effect(EffectType.STEREO_WIDTH, StereoWidthParams(
-        width=1.1,
-        mono_below_hz=100
-    ))
-    
-    # Subtle saturation for glue
-    chain.add_effect(EffectType.SATURATION, SaturationParams(drive=0.1, type="tube", mix=0.3))
-    
-    return chain
+# Sprint 10.8: Removed unused factories (create_wide_stereo_chain,
+# create_vocal_chain, create_mastering_chain, create_clean_eq_chain).
+# These were never imported. See docs/DYNAMIC_EQ_RESEARCH.md for reference designs.
 
 
 def create_bass_chain() -> MixChain:
@@ -754,19 +650,4 @@ def create_bass_chain() -> MixChain:
     # Subtle saturation for warmth
     chain.add_effect(EffectType.SATURATION, SaturationParams(drive=0.25, type="tube", mix=0.4))
     
-    return chain
-
-
-def create_clean_eq_chain() -> MixChain:
-    """Simple parametric EQ chain for transparent correction."""
-    chain = MixChain("Clean EQ")
-    chain.add_effect(EffectType.PARAMETRIC_EQ, ParametricEQParams(
-        bands=[
-            {'type': 'low_shelf', 'frequency': 100, 'gain_db': 0, 'q': 0.7},
-            {'type': 'peak', 'frequency': 400, 'gain_db': 0, 'q': 1.0},
-            {'type': 'peak', 'frequency': 1500, 'gain_db': 0, 'q': 1.0},
-            {'type': 'peak', 'frequency': 4000, 'gain_db': 0, 'q': 1.0},
-            {'type': 'high_shelf', 'frequency': 8000, 'gain_db': 0, 'q': 0.7},
-        ]
-    ))
     return chain

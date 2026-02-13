@@ -1,0 +1,73 @@
+{
+  "version": "1.0",
+  "sprint": 2,
+  "name": "Generation Quality",
+  "status": "COMPLETE",
+  "completed_at": "2025-07-18",
+  "tasks": {
+    "2.1": {"status": "complete", "file": "multimodal_gen/agents/performers/bassist.py", "desc": "Harmonic bass line generator"},
+    "2.2": {"status": "complete", "file": "multimodal_gen/agents/performers/drummer.py", "desc": "Genre-specific drum patterns"},
+    "2.3": {"status": "complete", "file": "multimodal_gen/groove_templates.py", "desc": "Genre-specific timing offset tables"},
+    "2.4": {"status": "complete", "file": "multimodal_gen/agents/conductor_offline.py", "desc": "Section-based instrument activation"},
+    "2.5": {"status": "complete", "file": "multimodal_gen/agents/context.py", "desc": "Enrich PerformanceContext"},
+    "2.6": {"status": "complete", "file": "multimodal_gen/quality_validator.py", "desc": "VLC + BKAS + ADC critics"},
+    "2.7": {"status": "complete", "file": "multimodal_gen/agents/conductor_offline.py", "desc": "Targeted regeneration on critic failure"},
+    "S1": {"status": "complete", "file": "multimodal_gen/intelligence/mpc_corpus.py", "desc": "load_corpus O(n²)→O(n)"},
+    "S2": {"status": "complete", "file": "multimodal_gen/intelligence/mpc_corpus.py", "desc": "Roman numeral normalization"},
+    "S3": {"status": "complete", "file": "multimodal_gen/intelligence/mpc_corpus.py", "desc": "Arp genre detection expansion"},
+    "S5": {"status": "complete", "file": "multimodal_gen/intelligence/harmonic_brain.py", "desc": "VoicingCorpus JSON loader"},
+    "S6": {"status": "complete", "file": "multimodal_gen/intelligence/genre_dna.py", "desc": "Beat-grid syncopation/repetition"}
+  },
+  "acceptance": {
+    "criterion": "5-genre test (neo-soul, trap, house, lo-fi, Ethiopian). Multi-track MIDI passing 3+ critics.",
+    "result": "PASS",
+    "details": {
+      "neo_soul": {"tracks": 4, "VLC": 0.80, "BKAS": 1.00, "ADC": 0.60, "critics_pass": "3/3", "overall": 0.79},
+      "trap": {"tracks": 3, "VLC": 0.70, "BKAS": 1.00, "ADC": 0.80, "critics_pass": "3/3", "overall": 0.75},
+      "house": {"tracks": 4, "VLC": 1.00, "BKAS": 1.00, "ADC": 0.60, "critics_pass": "3/3", "overall": 0.78},
+      "lofi": {"tracks": 2, "VLC": 0.70, "BKAS": 1.00, "ADC": 0.60, "critics_pass": "3/3", "overall": 0.82},
+      "ethiopian": {"tracks": 3, "VLC": 0.60, "BKAS": 0.70, "ADC": 1.00, "critics_pass": "3/3", "overall": 0.77}
+    }
+  },
+  "test_suite": {
+    "passed": 777,
+    "failed": 6,
+    "skipped": 4,
+    "regressions": 0,
+    "pre_existing_failures": [
+      "test_golden_prompt_smoke[ethiopian_traditional_krar_kebero]",
+      "test_golden_prompt_smoke[eskista_shoulder_dance]",
+      "test_golden_prompt_smoke[ethiopian_tizita_habesha]",
+      "test_midi_generator_uses_motif_for_melody_track",
+      "test_tension_increases_chord_velocity",
+      "test_complexity_increases_chord_note_count"
+    ]
+  },
+  "files_modified": [
+    "multimodal_gen/agents/conductor_offline.py",
+    "multimodal_gen/agents/context.py",
+    "multimodal_gen/agents/base.py",
+    "multimodal_gen/agents/performers/bassist.py",
+    "multimodal_gen/agents/performers/drummer.py",
+    "multimodal_gen/agents/performers/keyboardist.py",
+    "multimodal_gen/agents/performers/krar.py",
+    "multimodal_gen/agents/performers/begena.py",
+    "multimodal_gen/agents/performers/kebero.py",
+    "multimodal_gen/groove_templates.py",
+    "multimodal_gen/quality_validator.py",
+    "multimodal_gen/intelligence/mpc_corpus.py",
+    "multimodal_gen/intelligence/genre_dna.py",
+    "multimodal_gen/intelligence/harmonic_brain.py",
+    "multimodal_gen/intelligence/critics.py"
+  ],
+  "bugs_fixed": [
+    "NoteEvent constructor: tick→start_tick, duration→duration_ticks in krar.py, begena.py, kebero.py (22 instances)",
+    "SectionType.PRECHORUS→PRE_CHORUS in conductor_offline.py",
+    "Missing mood field on PerformanceContext and PerformanceScore",
+    "Missing confidence/metadata on PerformanceResult",
+    "get_scale_for_key→get_scale_notes in krar.py, begena.py",
+    "humanize_timing(variation=...)→humanize_timing(timing_variation=...) in krar.py, kebero.py, begena.py",
+    "VLC compute: filter to chord register (48-96) to exclude drums/bass",
+    "ADC compute: per-bar granularity + CV-based density variation fallback"
+  ]
+}

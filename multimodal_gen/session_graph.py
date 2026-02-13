@@ -715,6 +715,12 @@ class SessionGraph:
     # Generation history (for explainability)
     history: List[GenerationHistory] = field(default_factory=list)
     
+    # MUSE Intelligence Fields
+    genre_dna: Optional[Dict[str, float]] = None
+    progression: List[Dict] = field(default_factory=list)
+    preferences: Optional[Dict] = None
+    compression_version: str = "1.0.0"
+    
     def __post_init__(self):
         """Initialize session ID and timestamps if not set."""
         if not self.session_id:
@@ -852,6 +858,10 @@ class SessionGraph:
             "stems_path": self.stems_path,
             "render_directive": self.render_directive.to_dict(),
             "history": [h.to_dict() for h in self.history],
+            "genre_dna": self.genre_dna,
+            "progression": self.progression,
+            "preferences": self.preferences,
+            "compression_version": self.compression_version,
         }
     
     @classmethod
@@ -864,6 +874,10 @@ class SessionGraph:
         groove_data = data.pop("groove_template", None)
         render_data = data.pop("render_directive", {})
         history_data = data.pop("history", [])
+        genre_dna_data = data.pop("genre_dna", None)
+        progression_data = data.pop("progression", [])
+        preferences_data = data.pop("preferences", None)
+        compression_version_data = data.pop("compression_version", "1.0.0")
         time_sig = data.pop("time_signature", [4, 4])
         
         # Create base object
@@ -880,6 +894,10 @@ class SessionGraph:
         graph.groove_template = GrooveTemplate.from_dict(groove_data) if groove_data else None
         graph.render_directive = RenderDirective.from_dict(render_data)
         graph.history = [GenerationHistory.from_dict(h) for h in history_data]
+        graph.genre_dna = genre_dna_data
+        graph.progression = progression_data
+        graph.preferences = preferences_data
+        graph.compression_version = compression_version_data
         
         return graph
     
@@ -890,6 +908,140 @@ class SessionGraph:
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(self.to_dict(), f, indent=2)
     
+    # -----------------------------------------------------------------
+    # Compression levels (for context-window-friendly representations)
+    # -----------------------------------------------------------------
+
+    def to_l0(self) -> str:
+        """Level 0 compression (~100 tokens).
+
+        Returns a single human-readable sentence summarising the session.
+        Useful for quick identification in chat / prompt contexts.
+
+        Returns:
+            A short summary string.
+        """
+        track_count = len(self.tracks)
+        section_count = len(self.sections)
+        dur = f"{self.duration_seconds():.0f}s" if self.total_ticks else "0s"
+        parts = [
+            f"{track_count} tracks",
+            f"{self.key} {self.scale}",
+            f"{self.bpm:.0f} BPM",
+            self.genre.replace("_", " "),
+        ]
+        if section_count:
+            parts.append(f"{section_count} sections")
+        parts.append(dur)
+        return ", ".join(parts)
+
+    def to_l1(self) -> dict:
+        """Level 1 compression (~500 tokens).
+
+        Structural skeleton: timing, key, genre, section names,
+        track roles, and global constraints summary.
+
+        Returns:
+            A compact dictionary.
+        """
+        return {
+            "session_id": self.session_id,
+            "bpm": self.bpm,
+            "key": self.key,
+            "scale": self.scale,
+            "genre": self.genre,
+            "time_signature": list(self.time_signature),
+            "total_bars": self.total_bars,
+            "sections": [
+                {"name": s.name, "bars": s.bars, "energy": round(s.energy_level, 2)}
+                for s in self.sections
+            ],
+            "tracks": [
+                {"name": t.name, "role": t.role}
+                for t in self.tracks
+            ],
+            "genre_dna": self.genre_dna,
+            "compression_version": self.compression_version,
+        }
+
+    def to_l2(self) -> dict:
+        """Level 2 compression (~3000 tokens).
+
+        Full structural detail including section timing, track
+        instruments, mix settings, constraints, and progression.
+
+        Returns:
+            A detailed dictionary.
+        """
+        return {
+            "session_id": self.session_id,
+            "bpm": self.bpm,
+            "key": self.key,
+            "scale": self.scale,
+            "genre": self.genre,
+            "time_signature": list(self.time_signature),
+            "total_bars": self.total_bars,
+            "total_ticks": self.total_ticks,
+            "sections": [s.to_dict() for s in self.sections],
+            "tracks": [
+                {
+                    "track_id": t.track_id,
+                    "name": t.name,
+                    "role": t.role,
+                    "channel": t.channel,
+                    "instrument": t.instrument.to_dict() if t.instrument else None,
+                    "mix": t.mix.to_dict(),
+                    "clip_count": len(t.clips),
+                    "player_profile": t.player_profile,
+                }
+                for t in self.tracks
+            ],
+            "global_constraints": self.global_constraints.to_dict() if self.global_constraints else None,
+            "genre_dna": self.genre_dna,
+            "progression": self.progression,
+            "preferences": self.preferences,
+            "tension_arc": self.tension_arc,
+            "render_directive": self.render_directive.to_dict(),
+            "compression_version": self.compression_version,
+        }
+
+    def to_l3(self) -> dict:
+        """Level 3 compression (variable, full detail).
+
+        Complete session data including all clips, takes, history,
+        and every field.  Equivalent to :meth:`to_dict` with an
+        explicit compression-level marker.
+
+        Returns:
+            The full session dictionary.
+        """
+        data = self.to_dict()
+        data["_compression_level"] = "L3"
+        return data
+
+    def auto_compress(self, token_budget: int = 500) -> dict | str:
+        """Select the best compression level for the given token budget.
+
+        Heuristics:
+            < 150   → L0 (single sentence, ~100 tokens)
+            < 800   → L1 (structural skeleton, ~500 tokens)
+            < 4000  → L2 (full structure, ~3000 tokens)
+            >= 4000 → L3 (complete data)
+
+        Args:
+            token_budget: Approximate token count available.
+
+        Returns:
+            L0 string, or L1/L2/L3 dict.
+        """
+        if token_budget < 150:
+            return self.to_l0()
+        if token_budget < 800:
+            return self.to_l1()
+        if token_budget < 4000:
+            return self.to_l2()
+        return self.to_l3()
+
     @classmethod
     def load_manifest(cls, path: str) -> "SessionGraph":
         """Load session manifest from JSON file."""
@@ -1047,11 +1199,53 @@ class SessionGraphBuilder:
     def _get_genre_constraints(self, genre: str) -> List[Constraint]:
         """Get constraints specific to a genre.
         
-        This is a placeholder that will integrate with genre_rules.py
-        when Milestone B is implemented.
+        Integrates with genre_rules.py GenreRulesEngine for rich,
+        data-driven genre constraints (Sprint 11.3).
+        Falls back to hardcoded rules if genre_rules is unavailable.
         """
-        # Basic genre-specific constraints
-        genre_rules = {
+        constraints: List[Constraint] = []
+
+        # Sprint 11.3: Try genre_rules.py engine first
+        try:
+            from .genre_rules import get_genre_rules, RuleSeverity
+            engine = get_genre_rules()
+            _genre_norm = (genre or '').lower().replace(' ', '_').replace('-', '_')
+
+            # Map RuleSeverity → ConstraintSeverity
+            _severity_map = {
+                RuleSeverity.ERROR: ConstraintSeverity.FORBIDDEN.value,
+                RuleSeverity.WARNING: ConstraintSeverity.DISCOURAGED.value,
+                RuleSeverity.INFO: ConstraintSeverity.RECOMMENDED.value,
+            }
+
+            # Get forbidden signatures as FORBIDDEN constraints
+            if hasattr(engine, 'get_forbidden_signatures'):
+                for sig in engine.get_forbidden_signatures(_genre_norm):
+                    _elements = sig.elements if hasattr(sig, 'elements') else [str(sig)]
+                    for elem in _elements:
+                        constraints.append(Constraint(
+                            str(elem),
+                            ConstraintSeverity.FORBIDDEN.value,
+                            reason=getattr(sig, 'reason', f"Forbidden in {_genre_norm}"),
+                        ))
+
+            # Get mandatory patterns as MANDATORY constraints
+            if hasattr(engine, 'get_mandatory_patterns'):
+                for pat in engine.get_mandatory_patterns(_genre_norm):
+                    _name = pat.name if hasattr(pat, 'name') else str(pat)
+                    constraints.append(Constraint(
+                        _name,
+                        ConstraintSeverity.MANDATORY.value,
+                        reason=getattr(pat, 'reason', f"Required in {_genre_norm}"),
+                    ))
+
+            if constraints:
+                return constraints
+        except Exception:
+            pass
+
+        # Fallback: hardcoded rules (original implementation)
+        _fallback_rules = {
             "boom_bap": [
                 Constraint("hihat_roll", ConstraintSeverity.FORBIDDEN.value,
                           substitution="hihat", reason="Boom bap uses clean hi-hats"),
@@ -1065,7 +1259,7 @@ class SessionGraphBuilder:
                           reason="Brass stabs add trap soul flavor"),
             ],
         }
-        return genre_rules.get(genre, [])
+        return _fallback_rules.get(genre, [])
     
     def _create_tracks(self, graph: SessionGraph, parsed) -> SessionGraph:
         """Create tracks based on parsed instruments and genre."""

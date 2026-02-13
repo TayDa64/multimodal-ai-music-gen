@@ -51,6 +51,13 @@ from typing import List, Optional, Dict, Any, Tuple
 import random
 import logging
 
+# Guarded import: GenreDNA for subdivision adjustments
+try:
+    from multimodal_gen.intelligence.genre_dna import get_genre_dna, GenreDNAVector
+    _HAS_GENRE_DNA = True
+except ImportError:
+    _HAS_GENRE_DNA = False
+
 from ..base import IPerformerAgent, AgentRole, PerformanceResult
 from ..context import PerformanceContext
 from ..personality import AgentPersonality, DRUMMER_PRESETS, get_personality_for_role
@@ -209,6 +216,96 @@ class GenrePatternKnowledge:
             'typical_bpm': (90, 130),
             'fills': ['kebero_roll', 'atamo_accent', 'compound_cascade'],
         },
+        'neo_soul': {
+            'description': 'Broken beat with ghost snares and open hi-hat accents',
+            'kick_style': 'broken_beat',         # Kick on 1 and and-of-3
+            'snare_position': 'ghost_heavy',     # Ghost snares on e-and-a
+            'hihat_density': '16th_open_accent',  # Open hi-hat accents
+            'swing': 0.15,                       # Moderate swing
+            'ghost_notes': 'heavy',              # Lots of ghost snares
+            'typical_bpm': (68, 95),
+            'fills': ['rim_roll', 'snare_drag', 'hihat_choke'],
+        },
+        'gospel': {
+            'description': 'Shuffle with strong backbeat and tom turnarounds',
+            'kick_style': 'shuffle_drive',       # Gospel drive
+            'snare_position': 'backbeat_strong',  # Very strong 2 and 4
+            'hihat_density': '8th',              # Clean 8ths
+            'swing': 0.30,                       # Shuffle feel
+            'ghost_notes': 'moderate',           # Musical ghosts
+            'typical_bpm': (85, 140),
+            'fills': ['tom_cascade', 'snare_roll', '8th_fill'],
+        },
+        'jazz': {
+            'description': 'Ride pattern with brush snare and light kick comping',
+            'kick_style': 'comping',             # Light kick comping
+            'snare_position': 'brush_2_4',       # Brush on 2 and 4
+            'hihat_density': 'ride_quarter',     # Ride cymbal keeps time
+            'swing': 0.45,                       # Strong swing
+            'ghost_notes': 'heavy',              # Jazz ghost notes
+            'typical_bpm': (100, 220),
+            'fills': ['tom_cascade', 'snare_roll', 'hihat_roll'],
+        },
+        'lo_fi': {
+            'description': 'Lo-fi hip-hop with heavy Dilla-style swing',
+            'kick_style': 'sparse, offbeat',
+            'snare_position': '2, 4 with ghost',
+            'hihat_density': '8th',
+            'swing': 0.5,                        # heavy Dilla-style swing
+            'ghost_notes': 'moderate',
+            'typical_bpm': (70, 90),
+            'fills': ['hihat_roll'],              # minimal fills
+        },
+        'ambient': {
+            'description': 'Sparse atmospheric percussion with minimal density',
+            'kick_style': 'sparse, atmospheric',
+            'snare_position': 'minimal',
+            'hihat_density': 'quarter',
+            'swing': 0.1,
+            'ghost_notes': 'none',
+            'typical_bpm': (80, 120),
+            'fills': ['hihat_roll'],
+        },
+        'funk': {
+            'description': 'Syncopated grooves with heavy ghost notes and busy kick',
+            'kick_style': 'syncopated, busy',
+            'snare_position': '2, 4 with ghosts between',
+            'hihat_density': '16th',
+            'swing': 0.3,
+            'ghost_notes': 'heavy',
+            'typical_bpm': (95, 120),
+            'fills': ['16th_roll', 'tom_cascade', 'snare_build'],
+        },
+        'drill': {
+            'description': 'Sliding 808 kicks with offbeat snare rolls and rapid hi-hats',
+            'kick_style': 'sliding 808',
+            'snare_position': 'offbeat, rolls',
+            'hihat_density': '32nd',
+            'swing': 0.1,
+            'ghost_notes': 'none',
+            'typical_bpm': (140, 145),
+            'fills': ['hihat_roll', 'snare_build'],
+        },
+        'deep_house': {
+            'description': 'Muted four-on-the-floor with rimshot and offbeat hi-hats',
+            'kick_style': 'four_on_floor muted',
+            'snare_position': '2, 4 rimshot',
+            'hihat_density': '16th_offbeat',
+            'swing': 0.2,
+            'ghost_notes': 'subtle',
+            'typical_bpm': (118, 124),
+            'fills': ['hihat_roll'],
+        },
+        'afrobeat': {
+            'description': 'Polyrhythmic kick with cross-rhythm snare and busy hi-hats',
+            'kick_style': 'polyrhythmic',
+            'snare_position': '2, 4 with cross-rhythm',
+            'hihat_density': '16th',
+            'swing': 0.35,
+            'ghost_notes': 'traditional',
+            'typical_bpm': (100, 130),
+            'fills': ['tom_cascade', '16th_roll'],
+        },
     }
     
     @classmethod
@@ -219,8 +316,6 @@ class GenrePatternKnowledge:
         # Handle aliases
         aliases = {
             'trap_soul': 'trap',
-            'drill': 'trap',
-            'lo_fi': 'lofi',
             'lo-fi': 'lofi',
             'chillhop': 'lofi',
             'r&b': 'rnb',
@@ -623,6 +718,23 @@ class DrummerAgent(IPerformerAgent):
         
         patterns_used = [pattern_info.get('kick_style', 'standard')]
         
+        # Apply GenreDNA subdivisions when available
+        if _HAS_GENRE_DNA and context.genre_dna is not None:
+            try:
+                # Accept both dict and GenreDNAVector
+                if isinstance(context.genre_dna, dict):
+                    dna = GenreDNAVector(**{k: v for k, v in context.genre_dna.items()
+                                           if hasattr(GenreDNAVector, k)})
+                else:
+                    dna = context.genre_dna  # type: ignore[assignment]
+                base_notes = self._apply_genre_dna_subdivision(
+                    base_notes, dna, TICKS_PER_BEAT
+                )
+                self._log_decision("Applied GenreDNA subdivision adjustments")
+                patterns_used.append('genre_dna')
+            except Exception as exc:
+                logger.warning("GenreDNA subdivision failed: %s", exc)
+        
         # Apply personality-based ghost note adjustments
         if scaled_personality.ghost_note_density > 0.3:
             ghost_notes = self._add_ghost_notes(
@@ -655,6 +767,13 @@ class DrummerAgent(IPerformerAgent):
         
         # Sort notes by time
         base_notes.sort(key=lambda n: (n.start_tick, n.pitch))
+        
+        # Collect kick ticks for bass-kick alignment
+        kick_ticks = sorted([
+            n.start_tick for n in base_notes
+            if n.pitch == DrumKit.KICK
+        ])
+        context.kick_ticks = kick_ticks
         
         # Build result
         result = PerformanceResult(
@@ -984,6 +1103,182 @@ class DrummerAgent(IPerformerAgent):
         
         return notes
     
+    # =========================================================================
+    # GENRE DNA SUBDIVISION (Task 2.2)
+    # =========================================================================
+
+    def _apply_genre_dna_subdivision(
+        self,
+        base_pattern: List[NoteEvent],
+        genre_dna: 'GenreDNAVector',
+        ticks_per_beat: int,
+    ) -> List[NoteEvent]:
+        """
+        Adjust a base drum pattern according to GenreDNA dimensions.
+
+        Modifications applied in order:
+
+        Hi-hat complexity (rhythmic_density):
+        - density > 0.8: add 32nd-note hi-hat runs in last beat of every 2 bars
+        - density > 0.6: add 16th-note hi-hat subdivisions
+        - density < 0.3: thin hi-hat pattern (remove ~40 % of hits)
+
+        Swing:
+        - swing > 0.3: apply swing offset to every other 8th note
+
+        Kick syncopation (syncopation):
+        - syncopation > 0.6: add off-beat kick on "and" of beat 3 (40 % chance)
+        - syncopation > 0.4: displace some existing kicks by a 16th note
+
+        Snare ghost displacement:
+        - syncopation > 0.5: shift soft snare hits by ±16th note
+
+        Dynamic range:
+        - dynamic_range > 0.6: widen velocity spread (floor 40, cap 127)
+        - dynamic_range < 0.3: compress velocities to tight range (75-105)
+
+        Args:
+            base_pattern: Existing drum NoteEvent list.
+            genre_dna: A :class:`GenreDNAVector` instance.
+            ticks_per_beat: Ticks per beat (typically 480).
+
+        Returns:
+            Adjusted list of NoteEvents (may include added events).
+        """
+        result = list(base_pattern)
+
+        tpb = ticks_per_beat
+        ticks_per_16 = tpb // 4   # 120
+        ticks_per_8 = tpb // 2    # 240
+        ticks_per_32 = tpb // 8   # 60
+
+        # -----------------------------------------------------------------
+        # 1. Hi-hat complexity based on rhythmic_density
+        # -----------------------------------------------------------------
+        if genre_dna.rhythmic_density > 0.8:
+            # Add 32nd-note hi-hat run in the last beat of every 2 bars
+            if result:
+                min_tick = min(n.start_tick for n in result)
+                max_tick = max(n.start_tick for n in result)
+                bar_len = tpb * 4  # TICKS_PER_BAR_4_4
+                total_bars = max(1, (max_tick - min_tick) // bar_len + 1)
+                for bar_idx in range(1, total_bars, 2):  # every 2nd bar
+                    run_start = min_tick + bar_idx * bar_len + 3 * tpb  # last beat
+                    run_end = run_start + tpb
+                    tick = run_start
+                    while tick < run_end:
+                        vel = random.randint(50, 75)
+                        result.append(NoteEvent(
+                            pitch=DrumKit.HIHAT_CLOSED,
+                            start_tick=tick,
+                            duration_ticks=ticks_per_32 // 2,
+                            velocity=vel,
+                            channel=GM_DRUM_CHANNEL,
+                        ))
+                        tick += ticks_per_32
+
+        if genre_dna.rhythmic_density > 0.6:
+            # Add 16th-note hi-hat subdivisions where missing
+            existing_hh_ticks = {
+                n.start_tick for n in result
+                if n.pitch in (DrumKit.HIHAT_CLOSED, DrumKit.HIHAT_OPEN)
+            }
+            if result:
+                min_tick = min(n.start_tick for n in result)
+                max_tick = max(n.start_tick for n in result)
+                tick = min_tick
+                while tick <= max_tick:
+                    if tick not in existing_hh_ticks:
+                        vel = random.randint(45, 70)
+                        result.append(NoteEvent(
+                            pitch=DrumKit.HIHAT_CLOSED,
+                            start_tick=tick,
+                            duration_ticks=ticks_per_16 // 2,
+                            velocity=vel,
+                            channel=GM_DRUM_CHANNEL,
+                        ))
+                    tick += ticks_per_16
+
+        elif genre_dna.rhythmic_density < 0.3:
+            # Thin the hi-hat pattern – remove ~40 % of hits
+            thinned: List[NoteEvent] = []
+            for note in result:
+                if note.pitch in (DrumKit.HIHAT_CLOSED, DrumKit.HIHAT_OPEN):
+                    if random.random() < 0.4:
+                        continue  # drop this hit
+                thinned.append(note)
+            result = thinned
+
+        # -----------------------------------------------------------------
+        # 2. Swing → shift every other 8th note forward
+        # -----------------------------------------------------------------
+        if genre_dna.swing > 0.3:
+            swing_offset = int(30 + 30 * min(genre_dna.swing, 1.0))  # 30-60 ticks
+            for note in result:
+                pos_in_beat = note.start_tick % tpb
+                if abs(pos_in_beat - ticks_per_8) < 20:
+                    note.start_tick += swing_offset
+
+        # -----------------------------------------------------------------
+        # 3. Kick syncopation based on syncopation
+        # -----------------------------------------------------------------
+        if genre_dna.syncopation > 0.6:
+            # Add off-beat kick on the "and" of beat 3 with 40 % probability
+            if result:
+                min_tick = min(n.start_tick for n in result)
+                max_tick = max(n.start_tick for n in result)
+                bar_len = tpb * 4
+                bar = 0
+                while True:
+                    bar_start = min_tick + bar * bar_len
+                    if bar_start > max_tick:
+                        break
+                    if random.random() < 0.4:
+                        kick_tick = bar_start + 2 * tpb + ticks_per_8  # "and" of beat 3
+                        result.append(NoteEvent(
+                            pitch=DrumKit.KICK,
+                            start_tick=kick_tick,
+                            duration_ticks=ticks_per_8,
+                            velocity=random.randint(80, 100),
+                            channel=GM_DRUM_CHANNEL,
+                        ))
+                    bar += 1
+
+        if genre_dna.syncopation > 0.4:
+            # Displace some existing kicks by a 16th note
+            for note in result:
+                if note.pitch == DrumKit.KICK:
+                    if random.random() < 0.25:
+                        direction = random.choice([-1, 1])
+                        note.start_tick = max(0, note.start_tick + direction * ticks_per_16)
+
+        # -----------------------------------------------------------------
+        # 4. Snare ghost displacement (syncopation > 0.5)
+        # -----------------------------------------------------------------
+        if genre_dna.syncopation > 0.5:
+            for note in result:
+                if note.pitch == DrumKit.SNARE and note.velocity < 80:
+                    if random.random() < 0.35:
+                        direction = random.choice([-1, 1])
+                        note.start_tick = max(0, note.start_tick + direction * ticks_per_16)
+
+        # -----------------------------------------------------------------
+        # 5. Dynamic range application
+        # -----------------------------------------------------------------
+        if genre_dna.dynamic_range > 0.6:
+            # Widen velocity spread (floor 40, cap 127)
+            for note in result:
+                if note.velocity < 60:
+                    note.velocity = max(40, note.velocity - random.randint(0, 15))
+                elif note.velocity >= 100:
+                    note.velocity = min(127, note.velocity + random.randint(0, 15))
+        elif genre_dna.dynamic_range < 0.3:
+            # Compress velocities to tight range (75-105)
+            for note in result:
+                note.velocity = max(75, min(105, note.velocity))
+
+        return result
+
     def _generate_cue_fill(
         self,
         start_tick: int,

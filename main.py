@@ -66,6 +66,27 @@ except ImportError:
     compile_policy = None
     PolicyContext = None
 
+# Comprehensive quality validation (Sprint 7)
+try:
+    from multimodal_gen.quality_validator import QualityValidator
+    _HAS_QUALITY_VALIDATOR = True
+except ImportError:
+    _HAS_QUALITY_VALIDATOR = False
+
+# File analysis for post-generation diagnostics (Sprint 7.5)
+try:
+    from multimodal_gen.file_analysis import analyze_path as file_analyze_path
+    _HAS_FILE_ANALYSIS = True
+except ImportError:
+    _HAS_FILE_ANALYSIS = False
+
+# Stem separation capability (Sprint 7.5 — dormant, used for discoverability)
+try:
+    from multimodal_gen.stem_separation import separate_stems, check_separation_backends
+    _HAS_STEM_SEPARATION = True
+except ImportError:
+    _HAS_STEM_SEPARATION = False
+
 # Import agent-based generation system (optional)
 try:
     from multimodal_gen.agents import (
@@ -232,6 +253,110 @@ def ensure_output_dir(output_dir: Path) -> Path:
     """Ensure output directory exists."""
     output_dir.mkdir(parents=True, exist_ok=True)
     return output_dir
+
+
+def _run_quality_gate(midi_file, arrangement, verbose=False):
+    """Run critic checks on generated MIDI (Sprint 5).
+
+    Returns dict with 'passed' (bool), 'scores' (dict), 'summary' (str).
+    """
+    # Extract chord voicings (channel 2 simultaneous notes)
+    voicings = []
+    for track in midi_file.tracks:
+        name = (getattr(track, 'name', '') or '').lower()
+        if name == 'chords':
+            current_tick = 0
+            active = {}
+            for msg in track:
+                current_tick += msg.time
+                if msg.type == 'note_on' and msg.velocity > 0 and msg.channel == 2:
+                    active[msg.note] = current_tick
+                elif msg.type in ('note_off', 'note_on') and msg.channel == 2:
+                    if hasattr(msg, 'note') and msg.note in active:
+                        del active[msg.note]
+                # Group notes at same tick as a voicing
+                if msg.time > 0 and active:
+                    voicings.append(sorted(active.keys()))
+
+    # Extract bass notes (channel 1)
+    bass_notes = []
+    kick_ticks = []
+    for track in midi_file.tracks:
+        name = (getattr(track, 'name', '') or '').lower()
+        if 'bass' in name or name == '808':
+            current_tick = 0
+            for msg in track:
+                current_tick += msg.time
+                if msg.type == 'note_on' and msg.velocity > 0:
+                    bass_notes.append({'tick': current_tick, 'pitch': msg.note, 'velocity': msg.velocity})
+        if name == 'drums':
+            current_tick = 0
+            for msg in track:
+                current_tick += msg.time
+                if msg.type == 'note_on' and msg.velocity > 0 and msg.note == 36:  # kick
+                    kick_ticks.append(current_tick)
+
+    from multimodal_gen.intelligence.critics import compute_vlc, compute_bkas, compute_adc
+
+    scores = {}
+    passed = True
+    issues = []
+
+    # VLC — Voice Leading Cost
+    if len(voicings) >= 2:
+        vlc_result = compute_vlc(voicings)
+        scores['vlc'] = vlc_result.value
+        if not vlc_result.passed:
+            passed = False
+            issues.append(f"VLC={vlc_result.value:.1f} (>{vlc_result.threshold})")
+        elif verbose:
+            print(f"  [\u2713] VLC: {vlc_result.value:.1f}")
+
+    # BKAS — Bass-Kick Alignment
+    if bass_notes and kick_ticks:
+        bkas_result = compute_bkas(
+            bass_notes=bass_notes,
+            kick_ticks=kick_ticks,
+            tolerance_ticks=48  # ~50ms at 480 tpq
+        )
+        scores['bkas'] = bkas_result.value
+        if not bkas_result.passed:
+            passed = False
+            issues.append(f"BKAS={bkas_result.value:.2f} (<{bkas_result.threshold})")
+        elif verbose:
+            print(f"  [\u2713] BKAS: {bkas_result.value:.2f}")
+
+    # ADC — Arrangement Density Curve
+    if arrangement and hasattr(arrangement, 'get_tension_curve'):
+        try:
+            tension = arrangement.get_tension_curve()
+            if tension:
+                tpb = midi_file.ticks_per_beat
+                total_ticks = sum(msg.time for track in midi_file.tracks for msg in track)
+                total_bars = max(1, total_ticks // (tpb * 4))
+
+                # Count note_ons per bar
+                note_counts = [0] * total_bars
+                for track in midi_file.tracks:
+                    tick = 0
+                    for msg in track:
+                        tick += msg.time
+                        if msg.type == 'note_on' and msg.velocity > 0:
+                            bar = min(tick // (tpb * 4), total_bars - 1)
+                            note_counts[bar] += 1
+
+                density = [float(c) for c in note_counts]
+                adc_result = compute_adc(tension[:len(density)], density)
+                scores['adc'] = adc_result.value
+                if not adc_result.passed:
+                    issues.append(f"ADC={adc_result.value:.2f} (<{adc_result.threshold})")
+                elif verbose:
+                    print(f"  [\u2713] ADC: {adc_result.value:.2f}")
+        except Exception:
+            pass
+
+    summary = "PASSED" if passed else f"Issues: {', '.join(issues)}"
+    return {'passed': passed, 'scores': scores, 'summary': summary}
 
 
 def generate_project_name(parsed: ParsedPrompt) -> str:
@@ -410,6 +535,24 @@ def run_generation(
                     # Store generation params for drum/bass generation influence
                     "generation_params": analysis.to_generation_params(),
                 }
+                # Sprint 8.3: Reference profile bridge
+                # NOTE: analysis is ReferenceAnalysis (prompt hints, BPM, key, genre).
+                # set_reference_profile() needs ReferenceProfile (spectral curve, LUFS, dynamics).
+                # The bridge requires the raw audio to build a ReferenceProfile via
+                # reference_matching.ReferenceAnalyzer.analyze(audio). Store the spectral data
+                # from the analysis for partial bridging.
+                if hasattr(analysis, 'spectral') and analysis.spectral is not None:
+                    try:
+                        from multimodal_gen.reference_matching import ReferenceProfile
+                        _ref_profile = ReferenceProfile(
+                            name=getattr(analysis, 'title', 'reference'),
+                            integrated_lufs=-14.0,  # Default — full profile needs raw audio
+                        )
+                        results["_reference_profile_obj"] = _ref_profile
+                    except Exception:
+                        results["_reference_profile_obj"] = None
+                else:
+                    results["_reference_profile_obj"] = None
                 
                 reference_info = {
                     "title": analysis.title,
@@ -758,8 +901,15 @@ def run_generation(
     # Step 3: Generate MIDI
     print_step("3/6", "Generating MIDI with humanization...")
     report_progress("generating_midi", 0.35, "Generating MIDI with humanization...")
+    # Optional: HarmonicBrain for voice-leading intelligence (Sprint 5)
+    harmonic_brain = None
+    try:
+        from multimodal_gen.intelligence.harmonic_brain import HarmonicBrain
+        harmonic_brain = HarmonicBrain(auto_load_corpus=True)
+    except Exception:
+        harmonic_brain = None
     # Now instrument_service is available for MidiGenerator to use expansion instruments
-    midi_gen = MidiGenerator(instrument_service=instrument_service)
+    midi_gen = MidiGenerator(instrument_service=instrument_service, harmonic_brain=harmonic_brain)
     
     # Compile style policy for coherent producer decisions
     policy_context = None
@@ -937,7 +1087,63 @@ def run_generation(
         groove_template=groove_template,
         policy_context=policy_context
     )
-    
+
+    # ── Sprint 5: Post-generation quality gate ──
+    quality_report = None
+    try:
+        from multimodal_gen.intelligence.critics import run_all_critics
+        quality_report = _run_quality_gate(midi_file, arrangement, verbose)
+        if quality_report and not quality_report.get("passed", True) and verbose:
+            print_warning(f"Quality gate: {quality_report.get('summary', 'issues detected')}")
+    except Exception as e:
+        if verbose:
+            print_warning(f"Quality gate skipped: {e}")
+
+    # Comprehensive quality validation (Sprint 7)
+    if _HAS_QUALITY_VALIDATOR:
+        try:
+            validator = QualityValidator()
+            all_notes = []
+            pending = {}  # (track_idx, pitch) -> (tick, velocity)
+            for t_idx, track in enumerate(midi_file.tracks):
+                tick = 0
+                for msg in track:
+                    tick += msg.time
+                    if msg.type == 'note_on' and msg.velocity > 0:
+                        pending[(t_idx, msg.note)] = (tick, msg.velocity)
+                    elif (msg.type == 'note_off' or
+                          (msg.type == 'note_on' and msg.velocity == 0)):
+                        key = (t_idx, msg.note)
+                        if key in pending:
+                            start, vel = pending.pop(key)
+                            dur = max(1, tick - start)
+                            all_notes.append((start, dur, msg.note, vel))
+            # Add any unclosed notes with fallback duration
+            for (t_idx, pitch), (start, vel) in pending.items():
+                all_notes.append((start, 480, pitch, vel))
+            if all_notes:
+                report = validator.validate(
+                    notes=all_notes,
+                    genre=(parsed.genre or 'pop').replace('-', '_'),
+                    key=parsed.key or 'C',
+                    scale=parsed.scale_type.name.lower() if parsed.scale_type else 'minor',
+                    tempo=parsed.bpm or 120,
+                    ticks_per_beat=midi_file.ticks_per_beat
+                )
+                if verbose:
+                    print(f"  Quality score: {report.overall_score:.1f}/100 ({report.overall_level.value})")
+                    for rec in report.recommendations[:3]:
+                        print(f"    \u2192 {rec}")
+                    if _HAS_STEM_SEPARATION:
+                        try:
+                            backends = check_separation_backends()
+                            active = [k for k, v in backends.items() if v]
+                            print(f"  [*] Stem separation available (backends: {', '.join(active)})")
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
     # Merge agent-based performances into MIDI file (if available)
     # Agent tracks are added alongside standard generated tracks
     if agent_performances:
@@ -1529,7 +1735,29 @@ def run_generation(
         ai_metadata=ai_metadata,
         parsed_instruments=parsed.instruments + parsed.drum_elements,  # Pass explicit instruments
     )
-    
+
+    # Sprint 8.3: Bridge reference profile to renderer for mix matching
+    try:
+        _ref_profile = results.get("_reference_profile_obj")
+        if _ref_profile is not None:
+            renderer.set_reference_profile(_ref_profile)
+    except Exception:
+        pass  # Graceful degradation — reference matching remains dormant
+
+    # Sprint 8.4: Forward MixPolicy panning to renderer
+    if policy_context and hasattr(policy_context, 'mix') and policy_context.mix:
+        try:
+            renderer.set_mix_policy(policy_context.mix)
+        except Exception:
+            pass  # Graceful degradation — use default panning
+
+    # Sprint 8.7: Forward production preset values to renderer for mix influence
+    if preset_values:
+        try:
+            renderer.set_preset_values(preset_values)
+        except Exception:
+            pass  # Graceful degradation — render uses defaults
+
     try:
         audio_path = output_dir / f"{project_name}.wav"
         # render_midi_file takes file path, not MidiFile object
@@ -1568,7 +1796,17 @@ def run_generation(
     except Exception as e:
         print_warning(f"Audio rendering issue: {e}")
         print_info("Audio rendering skipped - MIDI file still available")
-    
+
+    # Post-generation file analysis (Sprint 7.5)
+    if verbose and _HAS_FILE_ANALYSIS and results.get("audio"):
+        try:
+            fa_result = file_analyze_path(results["audio"], request_id="post_gen")
+            print(f"  File analysis: {fa_result.duration_seconds:.1f}s, "
+                  f"{fa_result.extra.get('sample_rate', 'n/a')} Hz, "
+                  f"{Path(results['audio']).suffix.lstrip('.')} format")
+        except Exception:
+            pass
+
     # Step 6: Export to MPC (optional)
     if export_mpc:
         print_step("6/6", "Exporting to MPC format...")
@@ -1630,6 +1868,12 @@ def run_generation(
             
         except Exception as e:
             print_warning(f"Failed to save session manifest: {e}")
+
+    # Sprint 9.4: Stash MixPolicy and preset values for CLI re-render path
+    if policy_context and hasattr(policy_context, 'mix') and policy_context.mix:
+        results["_mix_policy_obj"] = policy_context.mix
+    if preset_values:
+        results["_preset_values"] = preset_values
 
     return results
 
@@ -2602,6 +2846,25 @@ Server Mode (for JUCE integration):
                 verbose=args.verbose,
                 use_bwf=not args.no_bwf,
             )
+            # Sprint 9.4: Forward Sprint 8 bridges to re-render renderer
+            try:
+                _rp = results.get("_reference_profile_obj")
+                if _rp is not None:
+                    renderer.set_reference_profile(_rp)
+            except Exception:
+                pass
+            try:
+                _mp = results.get("_mix_policy_obj")
+                if _mp is not None:
+                    renderer.set_mix_policy(_mp)
+            except Exception:
+                pass
+            try:
+                _pv = results.get("_preset_values")
+                if _pv:
+                    renderer.set_preset_values(_pv)
+            except Exception:
+                pass
             results['audio'] = renderer.render_midi_to_audio(results['midi'])
         
         # Parse prompt again for metadata (could optimize)

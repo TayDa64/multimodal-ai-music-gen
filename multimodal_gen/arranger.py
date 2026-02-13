@@ -285,6 +285,15 @@ class Arrangement:
     def duration_seconds(self) -> float:
         return ticks_to_seconds(self.total_ticks, self.bpm)
     
+    def get_tension_curve(self, num_points: int = 100) -> Optional[List[float]]:
+        """Return dense tension curve from the tension arc, or None if absent."""
+        if self.tension_arc is None:
+            return None
+        if num_points <= 0:
+            return None
+        curve = self.tension_arc.to_curve(num_points)
+        return curve.tolist()
+    
     def get_section_at_tick(self, tick: int) -> Optional[SongSection]:
         """Get the section containing a given tick position."""
         for section in self.sections:
@@ -678,26 +687,29 @@ class Arranger:
         """
         template: List[Tuple[SectionType, int]] = []
         
+        # Sprint 10.1: Normalize genre for consistent template lookup
+        _genre_norm = (genre or '').lower().replace(' ', '_').replace('-', '_')
+        
         # Try config-driven loading first
         if USE_CONFIG_DRIVEN and self.config_loader is not None:
             try:
-                template_data = self.config_loader.load_arrangement_template(genre)
+                template_data = self.config_loader.load_arrangement_template(_genre_norm)
                 template = [
                     (SectionType[s["type"].upper()], s["bars"])
                     for s in template_data
                 ]
-                logger.debug(f"Loaded template for '{genre}' from config")
+                logger.debug(f"Loaded template for '{_genre_norm}' from config")
             except Exception as e:
                 # Fallback to hardcoded on any error
-                logger.debug(f"Config loading failed for '{genre}': {e}, using hardcoded")
+                logger.debug(f"Config loading failed for '{_genre_norm}': {e}, using hardcoded")
                 template = ARRANGEMENT_TEMPLATES.get(
-                    genre,
+                    _genre_norm,
                     ARRANGEMENT_TEMPLATES['trap_soul']
                 ).copy()
         else:
             # Use hardcoded templates
             template = ARRANGEMENT_TEMPLATES.get(
-                genre,
+                _genre_norm,
                 ARRANGEMENT_TEMPLATES['trap_soul']
             ).copy()
         
@@ -778,18 +790,19 @@ class Arranger:
         )
         
         # Apply genre modifications
-        genre_config = GENRE_DEFAULTS.get(parsed.genre, {})
+        _genre_norm = (parsed.genre or '').lower().replace(' ', '_').replace('-', '_')
+        genre_config = GENRE_DEFAULTS.get(_genre_norm, {})
         
         # Lo-fi has more textures
-        if parsed.genre == 'lofi':
+        if _genre_norm == 'lofi' or _genre_norm == 'lo_fi':
             config.texture_amount = min(1.0, config.texture_amount + 0.2)
         
         # House has higher drum density
-        if parsed.genre == 'house':
+        if _genre_norm == 'house':
             config.drum_density = min(1.0, config.drum_density + 0.1)
         
         # Ambient has lower drum density
-        if parsed.genre == 'ambient':
+        if _genre_norm == 'ambient':
             config.drum_density = max(0.0, config.drum_density - 0.2)
         
         # Apply mood modifications

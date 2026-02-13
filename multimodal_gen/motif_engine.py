@@ -225,22 +225,139 @@ class Motif:
                  transposed by those intervals
         
         Args:
-            steps: List of transposition intervals
-            scale_intervals: Optional scale to snap to (for diatonic sequences)
-                           NOTE: Currently unused - diatonic sequencing not yet implemented.
-                           For now, all sequences are chromatic (exact transposition).
+            steps: List of transposition intervals (semitones if chromatic,
+                   scale degrees if scale_intervals is provided)
+            scale_intervals: Optional scale interval pattern for diatonic sequences
+                           (e.g., [2,2,1,2,2,2,1] for major scale).
+                           When provided, steps are interpreted as scale degrees
+                           and transposition follows the scale structure.
             
         Returns:
             List of transposed Motif instances
         """
         result = []
-        for step in steps:
-            # Currently only chromatic sequences are implemented
-            # Diatonic sequences (using scale_intervals) would require additional logic
-            # to map intervals to scale degrees rather than semitones
-            result.append(self.transpose(step))
+        if scale_intervals is not None:
+            # Diatonic sequencing: interpret steps as scale degrees
+            cumulative = [0]
+            for si in scale_intervals:
+                cumulative.append(cumulative[-1] + si)
+            octave_size = cumulative[-1]  # typically 12
+            degree_count = len(scale_intervals)
+            for step in steps:
+                # Convert scale-degree step to semitone transposition
+                abs_step = abs(step)
+                full_octaves, remainder = divmod(abs_step, degree_count)
+                semitone_shift = full_octaves * octave_size + cumulative[remainder]
+                if step < 0:
+                    semitone_shift = -semitone_shift
+                result.append(self.transpose(semitone_shift))
+        else:
+            # Chromatic: exact semitone transposition
+            for step in steps:
+                result.append(self.transpose(step))
         return result
     
+    def retrograde_inversion(self, pivot: int = 0) -> 'Motif':
+        """Retrograde inversion: reverse note order then mirror intervals."""
+        return self.retrograde().invert(pivot)
+
+    def fragment(self, start: int = 0, length: Optional[int] = None) -> 'Motif':
+        """Extract a fragment of the motif from start index for length notes."""
+        end = (start + length) if length is not None else len(self.intervals)
+        end = min(end, len(self.intervals))
+        start = max(0, start)
+        if start >= end:
+            return Motif(intervals=[0], rhythm=[1.0], name=f"{self.name}_frag")
+        return Motif(
+            intervals=list(self.intervals[start:end]),
+            rhythm=list(self.rhythm[start:end]),
+            accent_pattern=list(self.accent_pattern[start:end]) if self.accent_pattern else None,
+            name=f"{self.name}_frag",
+            genre_tags=self.genre_tags,
+            chord_context=self.chord_context,
+        )
+
+    def ornament(self, density: float = 0.3, seed: Optional[int] = None) -> 'Motif':
+        """Add passing tones and neighbor notes between intervals."""
+        import random
+        rng = random.Random(seed)
+        new_intervals = []
+        new_rhythm = []
+        new_accents = []
+        for i, (interval, dur) in enumerate(zip(self.intervals, self.rhythm)):
+            new_intervals.append(interval)
+            accent = self.accent_pattern[i] if self.accent_pattern and i < len(self.accent_pattern) else 1.0
+            new_accents.append(accent)
+            if rng.random() < density and dur >= 0.5:
+                # Split duration: original gets 2/3, ornament gets 1/3
+                main_dur = dur * 2 / 3
+                orn_dur = dur / 3
+                new_rhythm.append(main_dur)
+                # Add neighbor tone (step up or down)
+                direction = rng.choice([-1, 1])
+                new_intervals.append(interval + direction)
+                new_rhythm.append(orn_dur)
+                new_accents.append(accent * 0.6)  # Softer ornament
+            else:
+                new_rhythm.append(dur)
+        return Motif(
+            intervals=new_intervals,
+            rhythm=new_rhythm,
+            accent_pattern=new_accents,
+            name=f"{self.name}_orn",
+            genre_tags=self.genre_tags,
+            chord_context=self.chord_context,
+        )
+
+    def displace(self, offset: float = 0.5) -> 'Motif':
+        """Rhythmic displacement: shift start by offset beats.
+
+        Prepends a rest (interval=0) of ``offset`` duration and trims the last note.
+        """
+        offset = max(0.125, offset)  # guard against negative/zero
+        new_rhythm = [offset] + list(self.rhythm)
+        new_intervals = [0] + list(self.intervals)  # Rest note
+        new_accents = [0.0] + (list(self.accent_pattern) if self.accent_pattern else [1.0] * len(self.intervals))
+        # Trim to preserve total duration: shorten last note
+        total_original = sum(self.rhythm)
+        total_new = sum(new_rhythm)
+        if total_new > total_original and len(new_rhythm) > 1:
+            excess = total_new - total_original
+            new_rhythm[-1] = max(0.25, new_rhythm[-1] - excess)
+        return Motif(
+            intervals=new_intervals,
+            rhythm=new_rhythm,
+            accent_pattern=new_accents,
+            name=f"{self.name}_disp",
+            genre_tags=self.genre_tags,
+            chord_context=self.chord_context,
+        )
+
+    def get_related_motifs(self, count: int = 4, seed: Optional[int] = None) -> List['Motif']:
+        """Return count varied but thematically connected motifs."""
+        import random
+        rng = random.Random(seed)
+        transforms = [
+            lambda m: m.invert(),
+            lambda m: m.retrograde(),
+            lambda m: m.augment(1.5),
+            lambda m: m.diminish(1.5),
+            lambda m: m.transpose(rng.choice([-3, -2, 2, 3, 5, 7])),
+            lambda m: m.fragment(0, max(2, len(m.intervals) // 2)),
+            lambda m: m.ornament(0.3, seed=rng.randint(0, 9999)),
+            lambda m: m.retrograde_inversion(),
+            lambda m: m.displace(0.5),
+        ]
+        rng.shuffle(transforms)
+        results = []
+        for i in range(min(count, len(transforms))):
+            try:
+                result = transforms[i](self)
+                results.append(result)
+            except Exception:
+                continue
+        return results
+
     def get_total_duration(self) -> float:
         """Get total duration of motif in beats."""
         return sum(self.rhythm)
