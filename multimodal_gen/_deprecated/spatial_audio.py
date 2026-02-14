@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from scipy.signal import butter, sosfiltfilt, firwin, lfilter
 from scipy.io import wavfile
 
-from .utils import SAMPLE_RATE
+from multimodal_gen.utils import SAMPLE_RATE
 
 
 # =============================================================================

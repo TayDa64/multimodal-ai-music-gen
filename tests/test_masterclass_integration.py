@@ -154,13 +154,13 @@ class TestStemSeparation:
         assert sep is not None
 
 
-# --- mc-008: Spatial Audio ---
+# --- mc-008: Spatial Audio (archived to _deprecated/) ---
 class TestSpatialAudio:
     def test_import(self):
-        from multimodal_gen.spatial_audio import HRTFProcessor
+        from multimodal_gen._deprecated.spatial_audio import HRTFProcessor
 
     def test_instantiate(self):
-        from multimodal_gen.spatial_audio import HRTFProcessor
+        from multimodal_gen._deprecated.spatial_audio import HRTFProcessor
         spatial = HRTFProcessor()
         assert spatial is not None
 

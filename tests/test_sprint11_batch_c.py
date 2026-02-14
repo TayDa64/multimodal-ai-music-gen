@@ -3,21 +3,21 @@ import pytest
 
 
 class TestDeadModuleFlags:
-    """Task 11.7: Dead modules flagged with UNREFERENCED notice."""
+    """Task 11.7: Dead modules archived to _deprecated/ directory."""
 
-    def test_spatial_audio_flagged(self):
-        """spatial_audio.py has UNREFERENCED notice."""
-        import multimodal_gen.spatial_audio as mod
+    def test_spatial_audio_archived(self):
+        """spatial_audio.py moved to _deprecated/ and has UNREFERENCED notice."""
+        import multimodal_gen._deprecated.spatial_audio as mod
         assert "[UNREFERENCED]" in (mod.__doc__ or "")
 
-    def test_instrument_registry_flagged(self):
-        """instrument_registry.py has UNREFERENCED notice."""
-        import multimodal_gen.instrument_registry as mod
+    def test_instrument_registry_archived(self):
+        """instrument_registry.py moved to _deprecated/ and has UNREFERENCED notice."""
+        import multimodal_gen._deprecated.instrument_registry as mod
         assert "[UNREFERENCED]" in (mod.__doc__ or "")
 
-    def test_instrument_index_flagged(self):
-        """instrument_index.py has UNREFERENCED notice."""
-        import multimodal_gen.instrument_index as mod
+    def test_instrument_index_archived(self):
+        """instrument_index.py moved to _deprecated/ and has UNREFERENCED notice."""
+        import multimodal_gen._deprecated.instrument_index as mod
         assert "[UNREFERENCED]" in (mod.__doc__ or "")
 
 
