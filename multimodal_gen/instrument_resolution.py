@@ -89,6 +89,9 @@ DEFAULT_GENRE_INSTRUMENTS: Dict[str, List[str]] = {
     'boom_bap': ['piano', 'bass', 'brass'],
     'house': ['bass', 'synth', 'pad'],
     'ambient': ['pad', 'strings', 'piano'],
+    # Cinematic / Classical genres
+    'cinematic': ['strings', 'brass', 'timpani', 'harp', 'choir', 'contrabass', 'french_horn'],
+    'classical': ['strings', 'piano', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
     # Ethiopian genres
     'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],
     'ethio_jazz': ['brass', 'piano', 'bass', 'organ'],
@@ -134,6 +137,13 @@ DEFAULT_INSTRUMENT_TO_PROGRAM: Dict[str, int] = {
     'viola': 41,
     'cello': 42,
     
+    # Strings solo (40-47) — orchestral additions
+    'harp': 46,
+    'orchestral_harp': 46,
+    'timpani': 47,
+    'contrabass': 43,
+    'double_bass': 43,
+    
     # Ensemble (48-55)
     'choir': 52,
     'voice': 54,
@@ -143,12 +153,15 @@ DEFAULT_INSTRUMENT_TO_PROGRAM: Dict[str, int] = {
     'trumpet': 56,
     'trombone': 57,
     'french_horn': 60,
+    'tuba': 58,
     'brass_section': 61,
     
     # Reed (64-71)
     'sax': 65,
     'alto_sax': 65,
     'tenor_sax': 66,
+    'oboe': 68,
+    'bassoon': 70,
     'clarinet': 71,
     
     # Pipe (72-79)

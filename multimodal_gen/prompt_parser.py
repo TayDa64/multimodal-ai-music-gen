@@ -251,6 +251,9 @@ class ParsedPrompt:
             'boom_bap': ['piano', 'bass', 'brass'],
             'house': ['bass', 'synth', 'pad'],
             'ambient': ['pad', 'strings', 'piano'],
+            # Cinematic / Classical genres
+            'cinematic': ['strings', 'brass', 'timpani', 'harp', 'choir', 'contrabass', 'french_horn'],
+            'classical': ['strings', 'piano', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
             # Ethiopian genres
             'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],
             'ethio_jazz': ['brass', 'piano', 'bass', 'organ'],
@@ -270,6 +273,9 @@ class ParsedPrompt:
             'boom_bap': ['kick', 'snare', 'hihat', 'crash'],
             'house': ['kick', 'clap', 'hihat_open', 'hihat'],
             'ambient': ['kick', 'snare', 'cymbal'],
+            # Cinematic / Classical genres - orchestral percussion
+            'cinematic': ['timpani', 'crash', 'ride', 'triangle'],
+            'classical': ['timpani', 'crash', 'triangle'],
             # Ethiopian genres - kebero-based patterns
             'ethiopian': ['kebero', 'kick', 'snare', 'shaker'],
             'ethio_jazz': ['kick', 'snare', 'hihat', 'ride', 'perc'],
@@ -459,8 +465,18 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'progressive house', 'progressive-house',
         'disco house', 'disco-house'
     ],
+    'cinematic': [
+        'cinematic', 'epic', 'orchestral', 'film score', 'film_score',
+        'soundtrack', 'symphonic', 'filmic', 'movie score', 'epic orchestral',
+        'sweeping', 'cinematic orchestral'
+    ],
+    'classical': [
+        'classical', 'symphony', 'concerto', 'sonata', 'baroque',
+        'romantic era', 'chamber music', 'philharmonic', 'overture',
+        'opus', 'orchestral suite'
+    ],
     'ambient': [
-        'ambient', 'atmospheric', 'cinematic', 'soundscape',
+        'ambient', 'atmospheric', 'soundscape',
         'meditation', 'calm', 'peaceful', 'drone'
     ],
     # Ethiopian music genres
@@ -495,7 +511,7 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
         'piano', 'keys', 'keyboard', 'grand piano', 'upright'
     ],
     'rhodes': [
-        'rhodes', 'fender rhodes', 'electric piano', 'ep', 'wurly',
+        'rhodes', 'fender rhodes', 'electric piano', 'wurly',
         'wurlitzer'
     ],
     'synth': [
@@ -1114,25 +1130,31 @@ class PromptParser:
             'lofi',
             'boom_bap',
             'ambient',
+            'cinematic',  # After ambient: when both match, count tiebreaker decides
+            'classical',  # After ambient: keyword counting disambiguates
         ]
 
-        # Score all matching genres, then break ties by priority.
+        # Score all matching genres, then break ties by match count and priority.
         scores: Dict[str, int] = {}
+        match_counts: Dict[str, int] = {}
 
         for genre_name, keywords in GENRE_KEYWORDS.items():
             best = 0
+            count = 0
             for keyword in keywords:
                 if _keyword_matches(keyword):
                     best = max(best, _keyword_weight(genre_name, keyword))
+                    count += 1
             if best > 0:
                 scores[genre_name] = best
+                match_counts[genre_name] = count
 
         if scores:
             def _priority_index(g: str) -> int:
                 return priority_order.index(g) if g in priority_order else 10_000
 
-            # Highest score wins; if tied, earlier priority_order wins.
-            return sorted(scores.items(), key=lambda item: (-item[1], _priority_index(item[0]), item[0]))[0][0]
+            # Highest score wins; if tied, more keyword matches wins; then priority.
+            return sorted(scores.items(), key=lambda item: (-item[1], -match_counts.get(item[0], 0), _priority_index(item[0]), item[0]))[0][0]
         
         # Default based on other hints
         if '808' in prompt or 'hihat roll' in prompt:
@@ -1145,11 +1167,15 @@ class PromptParser:
         return 'trap_soul'  # Safe default
     
     def _extract_instruments(self, prompt: str) -> List[str]:
-        """Extract instruments from prompt."""
+        """Extract instruments from prompt using word-boundary matching."""
+        import re
         found = []
         for instrument, keywords in INSTRUMENT_KEYWORDS.items():
             for keyword in keywords:
-                if keyword in prompt:
+                # Use word boundaries to avoid substring false positives
+                # e.g. 'ep' matching inside 'epic', 'bass' matching inside 'bassoon'
+                pattern = r'\b' + re.escape(keyword) + r'\b'
+                if re.search(pattern, prompt, re.IGNORECASE):
                     if instrument not in found:
                         found.append(instrument)
                     break
