@@ -239,6 +239,12 @@ class ErrorCode:
     FILE_WRITE_FAILED = 501
     OUTPUT_DIR_NOT_WRITABLE = 502
     
+    # Dependency errors (6xx)
+    OPTIONAL_DEPENDENCY_MISSING = 600  # librosa, yt-dlp, etc. not installed
+    
+    # Analysis errors (7xx)
+    ANALYZE_FAILED = 700
+    
     # Server errors (9xx)
     SERVER_BUSY = 900
     WORKER_CRASHED = 901

@@ -525,11 +525,6 @@ class MusicGenOSCServer:
                 )
                 return
 
-            # Import lazily so missing optional deps only affect /analyze
-            from ..reference_analyzer import ReferenceAnalyzer
-
-            analyzer = ReferenceAnalyzer(verbose=verbose)
-
             if source_path:
                 path = Path(source_path)
                 if not path.exists():
@@ -539,11 +534,89 @@ class MusicGenOSCServer:
                         request_id=request_id,
                     )
                     return
-                analysis = analyzer.analyze_file(str(path))
-                source_kind = "file"
+
+                is_midi = path.suffix.lower() in (".mid", ".midi")
+
+                if is_midi:
+                    # MIDI files: use file_analysis (no librosa needed)
+                    from ..file_analysis import analyze_path as fa_analyze_path
+                    fa_result = fa_analyze_path(
+                        str(path), request_id=request_id,
+                        progress=lambda step, pct, msg: self._on_progress(
+                            step, pct, msg
+                        ) if verbose else None,
+                    )
+                    analysis_dict = fa_result.to_dict()
+                    response: Dict[str, Any] = {
+                        "request_id": request_id,
+                        "schema_version": schema_version,
+                        "success": True,
+                        "source_kind": "file",
+                        "analyzer": "file_analysis",
+                        "analysis": analysis_dict,
+                        "prompt_hints": fa_result.prompt_suggestion,
+                        "generation_params": {
+                            "bpm": fa_result.bpm_estimate,
+                            "key": fa_result.key_estimate,
+                            "mode": fa_result.mode_estimate,
+                        },
+                    }
+                    if fa_result.warnings:
+                        response["warnings"] = fa_result.warnings
+                    self._send_message(OSCAddresses.ANALYZE_RESULT, json.dumps(response))
+                    return
+
+                # Local audio file: try reference_analyzer first, fall back to file_analysis
+                try:
+                    from ..reference_analyzer import ReferenceAnalyzer
+                    analyzer = ReferenceAnalyzer(verbose=verbose)
+                    analysis = analyzer.analyze_file(str(path))
+                    source_kind = "file"
+                except ImportError:
+                    # librosa not available — fall back to lightweight file_analysis
+                    self._log("   ℹ️ librosa not available, using lightweight file analysis")
+                    from ..file_analysis import analyze_path as fa_analyze_path
+                    fa_result = fa_analyze_path(
+                        str(path), request_id=request_id,
+                        progress=lambda step, pct, msg: self._on_progress(
+                            step, pct, msg
+                        ) if verbose else None,
+                    )
+                    analysis_dict = fa_result.to_dict()
+                    response = {
+                        "request_id": request_id,
+                        "schema_version": schema_version,
+                        "success": True,
+                        "source_kind": "file",
+                        "analyzer": "file_analysis",
+                        "analysis": analysis_dict,
+                        "prompt_hints": fa_result.prompt_suggestion,
+                        "generation_params": {
+                            "bpm": fa_result.bpm_estimate,
+                            "key": fa_result.key_estimate,
+                            "mode": fa_result.mode_estimate,
+                        },
+                    }
+                    if fa_result.warnings:
+                        response["warnings"] = fa_result.warnings
+                    self._send_message(OSCAddresses.ANALYZE_RESULT, json.dumps(response))
+                    return
             else:
-                analysis = analyzer.analyze_url(source_url)
-                source_kind = "url"
+                # URL analysis: requires reference_analyzer (librosa + yt-dlp)
+                try:
+                    from ..reference_analyzer import ReferenceAnalyzer
+                    analyzer = ReferenceAnalyzer(verbose=verbose)
+                    analysis = analyzer.analyze_url(source_url)
+                    source_kind = "url"
+                except ImportError as e:
+                    dep_name = "librosa" if "librosa" in str(e) else "yt-dlp"
+                    install_cmd = f"pip install {dep_name}"
+                    self._send_error(
+                        ErrorCode.OPTIONAL_DEPENDENCY_MISSING,
+                        f"URL analysis requires {dep_name}. Install with: {install_cmd}",
+                        request_id=request_id,
+                    )
+                    return
 
             def _to_jsonable(obj: Any) -> Any:
                 if dataclasses.is_dataclass(obj):
@@ -573,10 +646,16 @@ class MusicGenOSCServer:
         except json.JSONDecodeError as e:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}", request_id=request_id)
         except ImportError as e:
-            # librosa / yt-dlp are optional; surface a clear message
-            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
+            # librosa / yt-dlp are optional; surface a clear, actionable message
+            dep_name = "librosa" if "librosa" in str(e) else ("yt-dlp" if "yt" in str(e).lower() else "unknown")
+            install_cmd = f"pip install {dep_name}" if dep_name != "unknown" else str(e)
+            self._send_error(
+                ErrorCode.OPTIONAL_DEPENDENCY_MISSING,
+                f"Analysis requires {dep_name}. Install with: {install_cmd}",
+                request_id=request_id,
+            )
         except Exception as e:
-            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
+            self._send_error(ErrorCode.ANALYZE_FAILED, f"Analysis error: {e}", request_id=request_id)
     
     def _handle_regenerate(self, address: str, *args):
         """

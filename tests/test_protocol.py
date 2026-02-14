@@ -201,6 +201,14 @@ class TestErrorCodes:
         assert ErrorCode.GENERATION_CANCELLED == 202
         assert ErrorCode.INVALID_PROMPT == 203
     
+    def test_dependency_error_codes(self):
+        """Test dependency error codes (6xx)."""
+        assert ErrorCode.OPTIONAL_DEPENDENCY_MISSING == 600
+
+    def test_analysis_error_codes(self):
+        """Test analysis error codes (7xx)."""
+        assert ErrorCode.ANALYZE_FAILED == 700
+
     def test_server_error_codes(self):
         """Test server error codes (9xx)."""
         assert ErrorCode.SERVER_BUSY == 900
@@ -359,6 +367,144 @@ class TestAnalyzeMessages:
         assert parsed["success"] == True
         assert "analysis" in parsed
         assert parsed["analysis"]["bpm"] == 120.0
+
+    def test_analyze_result_with_analyzer_field(self):
+        """Test that analyze result includes 'analyzer' field for routing transparency."""
+        for analyzer_id in ("reference_analyzer", "file_analysis"):
+            result = {
+                "request_id": "test-routing-001",
+                "schema_version": SCHEMA_VERSION,
+                "success": True,
+                "source_kind": "file",
+                "analyzer": analyzer_id,
+                "analysis": {"bpm_estimate": 120.0},
+                "prompt_hints": "120 BPM track",
+                "generation_params": {"bpm": 120.0, "key": "C", "mode": "minor"},
+            }
+            parsed = json.loads(json.dumps(result))
+            assert parsed["analyzer"] == analyzer_id
+            assert "generation_params" in parsed
+
+    def test_analyze_result_warnings_field(self):
+        """Test that warnings list is present when file_analysis degrades."""
+        result = {
+            "request_id": "test-warnings-001",
+            "schema_version": SCHEMA_VERSION,
+            "success": True,
+            "source_kind": "file",
+            "analyzer": "file_analysis",
+            "analysis": {},
+            "prompt_hints": "",
+            "generation_params": {"bpm": 0.0, "key": "", "mode": ""},
+            "warnings": ["librosa not installed; BPM/key estimation skipped"],
+        }
+        parsed = json.loads(json.dumps(result))
+        assert "warnings" in parsed
+        assert len(parsed["warnings"]) > 0
+        assert "librosa" in parsed["warnings"][0]
+
+    def test_optional_dependency_error_format(self):
+        """Test error message for missing optional dependency."""
+        error = {
+            "request_id": "test-dep-001",
+            "code": ErrorCode.OPTIONAL_DEPENDENCY_MISSING,
+            "message": "URL analysis requires librosa. Install with: pip install librosa",
+            "recoverable": True,
+        }
+        parsed = json.loads(json.dumps(error))
+        assert parsed["code"] == 600
+        assert "pip install" in parsed["message"]
+        assert parsed["recoverable"] is True
+
+
+class TestAnalyzeRouting:
+    """Tests for /analyze smart routing logic (P2)."""
+
+    def test_file_analysis_handles_midi(self):
+        """file_analysis.analyze_path works for MIDI files without librosa."""
+        from multimodal_gen.file_analysis import analyze_path, AnalysisResult
+        import tempfile, os
+        try:
+            import mido
+        except ImportError:
+            pytest.skip("mido not installed")
+
+        # Create a minimal valid MIDI file
+        mid = mido.MidiFile()
+        track = mido.MidiTrack()
+        track.append(mido.MetaMessage('set_tempo', tempo=500000, time=0))
+        track.append(mido.Message('note_on', note=60, velocity=80, time=0))
+        track.append(mido.Message('note_off', note=60, velocity=0, time=480))
+        mid.tracks.append(track)
+
+        with tempfile.NamedTemporaryFile(suffix=".mid", delete=False) as f:
+            mid.save(f.name)
+            tmp_path = f.name
+
+        try:
+            result = analyze_path(tmp_path, request_id="test-midi-route")
+            assert isinstance(result, AnalysisResult)
+            assert result.file_type == "midi"
+            assert result.bpm_estimate == 120.0  # 500000 us/beat = 120 BPM
+            assert result.request_id == "test-midi-route"
+        finally:
+            os.unlink(tmp_path)
+
+    def test_file_analysis_handles_audio_without_librosa(self):
+        """file_analysis.analyze_path returns loudness/peak for WAV without librosa."""
+        from multimodal_gen.file_analysis import analyze_path, AnalysisResult
+        import tempfile, os, struct, wave
+
+        # Create a minimal WAV file with a 440 Hz sine
+        sr = 44100
+        duration = 0.1  # 100ms
+        n_samples = int(sr * duration)
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            tmp_path = f.name
+        with wave.open(tmp_path, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sr)
+            import math as _math
+            samples = [int(16000 * _math.sin(2 * _math.pi * 440 * i / sr)) for i in range(n_samples)]
+            wf.writeframes(struct.pack(f"<{n_samples}h", *samples))
+
+        try:
+            result = analyze_path(tmp_path, request_id="test-wav-route")
+            assert isinstance(result, AnalysisResult)
+            assert result.file_type == "audio"
+            assert result.duration_seconds > 0
+            assert result.loudness_rms_db < 0  # Should be negative dBFS
+            assert result.peak_db < 0
+        finally:
+            os.unlink(tmp_path)
+
+    def test_file_analysis_result_to_dict_replaces_nan(self):
+        """AnalysisResult.to_dict() converts NaN/inf to None for JSON safety."""
+        from multimodal_gen.file_analysis import AnalysisResult
+        result = AnalysisResult(
+            request_id="nan-test",
+            file_path="/fake",
+            file_type="unknown",
+            loudness_rms_db=float("nan"),
+            peak_db=float("inf"),
+            spectral_centroid_hz=float("-inf"),
+        )
+        d = result.to_dict()
+        assert d["loudness_rms_db"] is None
+        assert d["peak_db"] is None
+        assert d["spectral_centroid_hz"] is None
+        # Should be JSON-serializable
+        json.dumps(d)
+
+    def test_error_code_600_is_recoverable(self):
+        """ErrorCode.OPTIONAL_DEPENDENCY_MISSING should be recoverable."""
+        # The _send_error method marks non-recoverable only for SHUTDOWN_IN_PROGRESS and WORKER_CRASHED
+        assert ErrorCode.OPTIONAL_DEPENDENCY_MISSING == 600
+        assert ErrorCode.OPTIONAL_DEPENDENCY_MISSING not in (
+            ErrorCode.SHUTDOWN_IN_PROGRESS,
+            ErrorCode.WORKER_CRASHED,
+        )
 
 
 class TestTakeMessages:
