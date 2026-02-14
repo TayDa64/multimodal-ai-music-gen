@@ -93,6 +93,7 @@ class StrategyRegistry:
             EskistaStrategy
         )
         from .default_strategy import DefaultStrategy
+        from .cinematic_strategy import CinematicStrategy
         
         cls.register(TrapStrategy())
         cls.register(TrapSoulStrategy())
@@ -107,6 +108,7 @@ class StrategyRegistry:
         cls.register(DefaultStrategy())
         cls.register(DrillStrategy())      # overrides 'drill' from TrapStrategy
         cls.register(BoomBapStrategy())    # overrides 'boom_bap'/'boombap' from DefaultStrategy
+        cls.register(CinematicStrategy())  # cinematic/orchestral/film_score/soundtrack/epic
         
         cls._initialized = True
     

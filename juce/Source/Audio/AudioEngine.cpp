@@ -249,7 +249,12 @@ void AudioEngine::Track::releaseResources()
 void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples)
 {
     if (muted.load())
+    {
+        // Zero out metering when muted
+        rmsLevel.store(0.0f);
+        peakLevel.store(0.0f);
         return;
+    }
         
     // Render synth to a temp buffer
     juce::AudioBuffer<float> tempBuffer(outputBuffer.getNumChannels(), numSamples);
@@ -292,6 +297,25 @@ void AudioEngine::Track::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     
     // Apply volume
     tempBuffer.applyGain(volume.load());
+    
+    // Compute RMS and peak for metering (average across channels)
+    {
+        float rms = 0.0f;
+        float peak = 0.0f;
+        int numChannels = tempBuffer.getNumChannels();
+        
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            rms += tempBuffer.getRMSLevel(ch, 0, numSamples);
+            peak = juce::jmax(peak, tempBuffer.getMagnitude(ch, 0, numSamples));
+        }
+        
+        if (numChannels > 0)
+            rms /= (float)numChannels;
+        
+        rmsLevel.store(rms);
+        peakLevel.store(peak);
+    }
     
     // Mix into output
     for (int ch = 0; ch < outputBuffer.getNumChannels(); ++ch)
@@ -849,6 +873,25 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
             if (testTonePhase >= juce::MathConstants<double>::twoPi)
                 testTonePhase -= juce::MathConstants<double>::twoPi;
         }
+    }
+    
+    // Compute master bus RMS and peak for metering
+    {
+        float rms = 0.0f;
+        float peak = 0.0f;
+        int numChannels = bufferToFill.buffer->getNumChannels();
+        
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            rms += bufferToFill.buffer->getRMSLevel(ch, bufferToFill.startSample, bufferToFill.numSamples);
+            peak = juce::jmax(peak, bufferToFill.buffer->getMagnitude(ch, bufferToFill.startSample, bufferToFill.numSamples));
+        }
+        
+        if (numChannels > 0)
+            rms /= (float)numChannels;
+        
+        masterRmsLevel.store(rms);
+        masterPeakLevel.store(peak);
     }
     
     // Send audio samples to visualization listeners (lock-free)

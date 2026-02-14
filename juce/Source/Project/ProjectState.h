@@ -92,6 +92,15 @@ namespace Project
         bool loadProject(const juce::File& file);
         bool saveProject(const juce::File& file);
         
+        /**
+         * Collect all referenced files (audio, MIDI, instruments) into a subfolder
+         * next to the project file, and update paths to be relative.
+         * Creates: <projectName>_files/{midi,audio,instruments,soundfonts}/
+         * @param projectFile The .mmg project file
+         * @returns Number of files successfully collected
+         */
+        int collectAndCopy(const juce::File& projectFile);
+        
         juce::File getCurrentFile() const { return currentFile; }
         bool hasUnsavedChanges() const { return isDirty; }
 

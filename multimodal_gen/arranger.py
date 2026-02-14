@@ -378,6 +378,21 @@ GENRE_MOTIF_MAPPINGS: Dict[str, Dict[str, MotifAssignment]] = {
         "bridge": MotifAssignment(0, "invert", {}),
         "outro": MotifAssignment(0, "retrograde", {}),
     },
+    "cinematic": {
+        "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
+        "verse": MotifAssignment(0, "original", {}),
+        "pre_chorus": MotifAssignment(0, "sequence", {"steps": 2}),
+        "chorus": MotifAssignment(1, "original", {}),
+        "breakdown": MotifAssignment(0, "invert", {}),
+        "buildup": MotifAssignment(0, "sequence", {"steps": 3}),
+        "outro": MotifAssignment(0, "augment", {"factor": 2.0}),
+    },
+    "classical": {
+        "exposition": MotifAssignment(0, "original", {}),
+        "development": MotifAssignment(0, "invert", {}),
+        "recapitulation": MotifAssignment(0, "retrograde", {}),
+        "coda": MotifAssignment(0, "augment", {"factor": 2.0}),
+    },
 }
 
 
@@ -489,6 +504,24 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
         (SectionType.BUILDUP, 4),
         (SectionType.DROP, 8),
         (SectionType.OUTRO, 4),
+    ],
+    # Cinematic / Orchestral - dramatic narrative arc
+    'cinematic': [
+        (SectionType.INTRO, 4),          # Atmospheric opening
+        (SectionType.VERSE, 8),          # Theme exposition
+        (SectionType.PRE_CHORUS, 4),     # Building tension
+        (SectionType.CHORUS, 8),         # First climax
+        (SectionType.BREAKDOWN, 4),      # Contrast / diminuendo
+        (SectionType.BUILDUP, 4),        # Tension rebuild
+        (SectionType.CHORUS, 8),         # Triumphant return
+        (SectionType.OUTRO, 4),          # Resolution
+    ],
+    'classical': [
+        (SectionType.INTRO, 4),          # Opening statement
+        (SectionType.VERSE, 8),          # Exposition
+        (SectionType.VARIATION, 8),      # Development
+        (SectionType.CHORUS, 8),         # Recapitulation
+        (SectionType.OUTRO, 4),          # Coda
     ],
 }
 
@@ -624,6 +657,15 @@ class Arranger:
                     "linear": "linear_build",
                     "plateau": "flat",
                     "swell": "peak_middle",
+                    # Cinematic / orchestral aliases
+                    "rising": "linear_build",
+                    "falling": "linear_decay",
+                    "climax": "peak_end",
+                    "cinematic": "peak_end",
+                    "dramatic_arc": "dramatic",
+                    "crescendo": "linear_build",
+                    "decrescendo": "linear_decay",
+                    "arch": "peak_middle",
                 }
                 shape_key = shape_aliases.get(shape_key, shape_key)
 

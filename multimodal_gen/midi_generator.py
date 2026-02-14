@@ -1616,7 +1616,11 @@ class MidiGenerator:
         mid.tracks.append(drum_track)
         
         # Track 2: Bass/808
+        is_orchestral = parsed.genre in ['cinematic', 'classical', 'orchestral', 'film_score']
         if '808' in parsed.instruments or 'bass' in parsed.instruments:
+            bass_track = self._create_bass_track(arrangement, parsed, groove_template)
+            mid.tracks.append(bass_track)
+        elif is_orchestral and 'contrabass' in parsed.instruments:
             bass_track = self._create_bass_track(arrangement, parsed, groove_template)
             mid.tracks.append(bass_track)
         
@@ -1624,11 +1628,23 @@ class MidiGenerator:
         chord_instruments = [
             'piano', 'rhodes', 'pad', 'strings', 'organ', 'brass',
             # Ethiopian instruments
-            'krar', 'masenqo', 'begena'
+            'krar', 'masenqo', 'begena',
+            # Orchestral
+            'harp', 'choir', 'woodwinds',
         ]
         if any(inst in parsed.instruments for inst in chord_instruments):
             chord_track = self._create_chord_track(arrangement, parsed, groove_template)
             mid.tracks.append(chord_track)
+
+        # ── Orchestral secondary tracks ──
+        # For cinematic/classical genres, create additional tracks for
+        # instruments that couldn't fit in the single chord track.
+        if is_orchestral:
+            secondary = self._create_orchestral_secondary_tracks(
+                arrangement, parsed, groove_template
+            )
+            for trk in secondary:
+                mid.tracks.append(trk)
 
         # Optional: Organ bed for churchy trap keys
         wants_church = any(m in parsed.style_modifiers for m in ['church', 'gospel', 'zaytoven']) or ('zaytoven' in (parsed.raw_prompt or '').lower())
@@ -1638,7 +1654,7 @@ class MidiGenerator:
                 mid.tracks.append(organ_track)
         
         # Track 4: Melody (optional) - especially for Ethiopian flute/lead
-        melody_instruments = ['washint', 'flute', 'synth_lead', 'synth']
+        melody_instruments = ['washint', 'flute', 'synth_lead', 'synth', 'oboe', 'clarinet', 'french_horn']
         has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
         if parsed.genre not in ['ambient', 'lofi'] or has_melody_inst:
             melody_track = self._create_melody_track(arrangement, parsed, groove_template)
@@ -2457,6 +2473,224 @@ class MidiGenerator:
                 ))
 
         self._notes_to_track(all_notes, track, channel=4, groove_template=groove_template)
+        return track
+
+    # ------------------------------------------------------------------
+    # Orchestral multi-instrument support
+    # ------------------------------------------------------------------
+
+    def _create_orchestral_secondary_tracks(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None,
+    ) -> List[MidiTrack]:
+        """
+        Create additional tracks for orchestral instruments that couldn't
+        fit in the single chord track.
+
+        The primary chord track takes the first matching instrument (usually
+        strings). This method creates separate tracks for remaining orchestral
+        instruments: brass, harp, timpani, choir, woodwinds.
+
+        Each secondary track gets its own MIDI channel and GM program.
+        """
+        tracks: List[MidiTrack] = []
+
+        # Determine which instrument the primary chord track already uses
+        primary_chord_inst = None
+        for inst in ['strings', 'krar', 'piano', 'rhodes', 'pad', 'brass']:
+            if inst in parsed.instruments:
+                primary_chord_inst = inst
+                break
+
+        # ── BRASS SECTION (if not primary chord instrument) ──
+        if 'brass' in parsed.instruments and primary_chord_inst != 'brass':
+            brass_track = self._create_secondary_chord_track(
+                arrangement, parsed, groove_template,
+                program=61, channel=5, name='Brass',
+                velocity_scale=0.85, octave_offset=-1,
+            )
+            tracks.append(brass_track)
+
+        # ── HARP ──
+        if 'harp' in parsed.instruments:
+            harp_track = self._create_harp_track(arrangement, parsed, groove_template)
+            tracks.append(harp_track)
+
+        # ── CHOIR ──
+        if 'choir' in parsed.instruments:
+            choir_track = self._create_secondary_chord_track(
+                arrangement, parsed, groove_template,
+                program=52, channel=6, name='Choir',
+                velocity_scale=0.7, octave_offset=0,
+            )
+            tracks.append(choir_track)
+
+        # ── TIMPANI (melodic, not drum channel) ──
+        if 'timpani' in parsed.instruments:
+            timpani_track = self._create_timpani_melodic_track(
+                arrangement, parsed, groove_template
+            )
+            tracks.append(timpani_track)
+
+        return tracks
+
+    def _create_secondary_chord_track(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate],
+        program: int,
+        channel: int,
+        name: str,
+        velocity_scale: float = 1.0,
+        octave_offset: int = 0,
+    ) -> MidiTrack:
+        """Create a secondary chord track for an orchestral instrument."""
+        track = MidiTrack()
+        track.append(MetaMessage('track_name', name=name, time=0))
+        track.append(MetaMessage('text', text=f'instrument:{name}', time=0))
+        track.append(Message('program_change', program=program, channel=channel, time=0))
+
+        all_notes = []
+        for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.85, 1.15)
+
+            # Only play in higher-energy sections
+            if section.section_type in (
+                SectionType.INTRO, SectionType.OUTRO
+            ) and tension < 0.4:
+                continue
+
+            chord_pattern = generate_chord_progression_midi(
+                section.bars,
+                parsed.key,
+                parsed.scale_type,
+                octave=3 + octave_offset,
+                base_velocity=int(80 * section.config.energy_level * vel_mult * velocity_scale),
+                rhythm_style='block',
+                chord_color=True,
+                complexity=0.5,
+                genre=parsed.genre,
+                section_type=section.section_type.value,
+            )
+            for tick, dur, pitch, vel in chord_pattern:
+                all_notes.append(NoteEvent(
+                    pitch=pitch,
+                    start_tick=section.start_tick + tick,
+                    duration_ticks=dur,
+                    velocity=max(1, min(127, int(vel * velocity_scale))),
+                    channel=channel,
+                ))
+
+        self._notes_to_track(all_notes, track, channel=channel, groove_template=groove_template)
+        return track
+
+    def _create_harp_track(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate],
+    ) -> MidiTrack:
+        """Create harp arpeggio track for orchestral pieces."""
+        track = MidiTrack()
+        track.append(MetaMessage('track_name', name='Harp', time=0))
+        track.append(MetaMessage('text', text='instrument:Harp', time=0))
+        track.append(Message('program_change', program=46, channel=7, time=0))  # GM Harp
+
+        all_notes = []
+        for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+
+            # Harp plays arpeggios — more prominent in lower tension sections
+            if tension > 0.85:
+                continue  # Too intense for harp arpeggios
+
+            chord_pattern = generate_chord_progression_midi(
+                section.bars,
+                parsed.key,
+                parsed.scale_type,
+                octave=4,
+                base_velocity=int(65 * max(0.4, 1.0 - tension * 0.5)),
+                rhythm_style='arpeggiate',
+                chord_color=True,
+                complexity=0.4,
+                genre=parsed.genre,
+                section_type=section.section_type.value,
+            )
+            for tick, dur, pitch, vel in chord_pattern:
+                all_notes.append(NoteEvent(
+                    pitch=pitch,
+                    start_tick=section.start_tick + tick,
+                    duration_ticks=dur,
+                    velocity=max(1, min(100, vel)),
+                    channel=7,
+                ))
+
+        self._notes_to_track(all_notes, track, channel=7, groove_template=groove_template)
+        return track
+
+    def _create_timpani_melodic_track(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate],
+    ) -> MidiTrack:
+        """Create timpani track using melodic channel (GM Timpani = program 47)."""
+        track = MidiTrack()
+        track.append(MetaMessage('track_name', name='Timpani', time=0))
+        track.append(MetaMessage('text', text='instrument:Timpani', time=0))
+        track.append(Message('program_change', program=47, channel=8, time=0))  # GM Orchestral Strings
+
+        all_notes = []
+        # Timpani pitches: typically D2-A2 range
+        timpani_pitches = [38, 40, 41, 43, 45]  # D2, E2, F2, G2, A2
+
+        for section in arrangement.sections:
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.7, 1.2)
+
+            if tension < 0.35:
+                continue  # Timpani only in moderate-to-high tension sections
+
+            ticks_per_bar = TICKS_PER_BEAT * 4
+            root_pitch = timpani_pitches[0]  # Use root as default
+
+            for bar in range(section.bars):
+                bar_start = section.start_tick + bar * ticks_per_bar
+                # Downbeat hit
+                all_notes.append(NoteEvent(
+                    pitch=root_pitch,
+                    start_tick=bar_start,
+                    duration_ticks=TICKS_PER_BEAT,
+                    velocity=max(1, min(127, int(90 * vel_mult))),
+                    channel=8,
+                ))
+                # Beat 3 at higher tension
+                if tension > 0.6:
+                    all_notes.append(NoteEvent(
+                        pitch=root_pitch,
+                        start_tick=bar_start + 2 * TICKS_PER_BEAT,
+                        duration_ticks=TICKS_PER_BEAT,
+                        velocity=max(1, min(127, int(75 * vel_mult))),
+                        channel=8,
+                    ))
+                # Timpani roll on climax (16th notes)
+                if tension > 0.85 and bar == section.bars - 1:
+                    sixteenth = TICKS_PER_BEAT // 4
+                    for i in range(8):
+                        vel = max(1, min(127, int(70 * vel_mult + i * 4)))
+                        all_notes.append(NoteEvent(
+                            pitch=root_pitch,
+                            start_tick=bar_start + 2 * TICKS_PER_BEAT + i * sixteenth,
+                            duration_ticks=sixteenth,
+                            velocity=vel,
+                            channel=8,
+                        ))
+
+        self._notes_to_track(all_notes, track, channel=8, groove_template=groove_template)
         return track
     
     def _create_melody_track(

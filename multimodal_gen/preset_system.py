@@ -598,6 +598,42 @@ GENRE_PRESETS: Dict[str, PresetConfig] = {
         accent_strength=0.7,
         tags={"funk", "groove", "syncopated", "pocket"},
     ),
+
+    "cinematic_orchestral": PresetConfig(
+        name="cinematic_orchestral",
+        category=PresetCategory.GENRE,
+        description="Cinematic orchestral with sweeping dynamics and dramatic arc",
+        swing_amount=0.0,
+        microtiming_intensity=0.1,
+        humanize_amount=0.3,
+        ghost_note_probability=0.05,
+        velocity_range=(40, 127),
+        tension_arc_shape="peak_end",
+        tension_intensity=0.85,
+        variation_intensity=0.6,
+        pattern_intensity="medium",
+        accent_strength=0.7,
+        timing_variance=0.15,
+        tags={"cinematic", "orchestral", "film", "epic", "classical", "dramatic"},
+    ),
+
+    "classical_symphonic": PresetConfig(
+        name="classical_symphonic",
+        category=PresetCategory.GENRE,
+        description="Classical symphonic with exposition-development-recapitulation form",
+        swing_amount=0.0,
+        microtiming_intensity=0.15,
+        humanize_amount=0.35,
+        ghost_note_probability=0.05,
+        velocity_range=(35, 120),
+        tension_arc_shape="peak_middle",
+        tension_intensity=0.7,
+        variation_intensity=0.5,
+        pattern_intensity="medium",
+        accent_strength=0.5,
+        timing_variance=0.2,
+        tags={"classical", "symphonic", "acoustic", "orchestral"},
+    ),
 }
 
 STYLE_PRESETS: Dict[str, PresetConfig] = {

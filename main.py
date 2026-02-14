@@ -790,7 +790,7 @@ def run_generation(
         normalized_genre = normalize_genre(parsed.genre)
         use_motifs = normalized_genre in [
             'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista',
-            'g_funk'
+            'g_funk', 'cinematic', 'classical'
         ]
 
         # Phase 5.2: explicit override (auto|on|off)

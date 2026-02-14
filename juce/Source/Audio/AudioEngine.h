@@ -279,6 +279,12 @@ public:
         void setSolo(bool shouldSolo);
         bool isSoloed() const { return soloed.load(); }
         
+        /** Get the current RMS level (linear, 0.0-1.0+). Thread-safe (atomic). */
+        float getRmsLevel() const { return rmsLevel.load(); }
+        
+        /** Get the current peak level (linear, 0.0-1.0+). Thread-safe (atomic). */
+        float getPeakLevel() const { return peakLevel.load(); }
+        
         int getId() const { return id; }
         juce::String getName() const { return name; }
         void setName(const juce::String& newName) { name = newName; }
@@ -327,6 +333,10 @@ public:
         std::atomic<bool> muted { false };
         std::atomic<bool> soloed { false };
         
+        // Level metering (written on audio thread, read on UI thread)
+        std::atomic<float> rmsLevel { 0.0f };
+        std::atomic<float> peakLevel { 0.0f };
+        
         juce::MidiBuffer midiBuffer;
         juce::CriticalSection trackLock;
         
@@ -337,6 +347,12 @@ public:
     void removeTrack(int index);
     Track* getTrack(int index);
     int getNumTracks() const;
+    
+    /** Get the master bus RMS level (linear, 0.0-1.0+). Thread-safe (atomic). */
+    float getMasterRmsLevel() const { return masterRmsLevel.load(); }
+    
+    /** Get the master bus peak level (linear, 0.0-1.0+). Thread-safe (atomic). */
+    float getMasterPeakLevel() const { return masterPeakLevel.load(); }
 
     /** Set the waveform used by a track's Default Synth ("Default (Sine)"). */
     void setTrackDefaultSynthWaveform(int trackIndex, DefaultSynthWaveform waveform);
@@ -464,6 +480,10 @@ private:
     std::vector<std::unique_ptr<Track>> tracks;
     juce::CriticalSection tracksLock;
 
+    // Master bus metering (written on audio thread, read on UI thread)
+    std::atomic<float> masterRmsLevel { 0.0f };
+    std::atomic<float> masterPeakLevel { 0.0f };
+    
     // Visualization listeners (lock-free array for audio thread safety)
     static constexpr int maxVisualizationListeners = 8;
     std::array<std::atomic<VisualizationListener*>, maxVisualizationListeners> visualizationListeners;

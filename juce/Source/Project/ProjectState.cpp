@@ -84,7 +84,7 @@ namespace Project
         projectTree.removeAllChildren(&undoManager);
         projectTree.removeAllProperties(&undoManager);
         
-        projectTree.setProperty(IDs::version, "1.0.0", &undoManager);
+        projectTree.setProperty(IDs::version, "1.1.0", &undoManager);
         
         // Create Generation Node
         juce::ValueTree genNode(IDs::GENERATION);
@@ -229,6 +229,124 @@ namespace Project
             }
         }
         return false;
+    }
+
+    int ProjectState::collectAndCopy(const juce::File& projectFile)
+    {
+        auto projectDir = projectFile.getParentDirectory();
+        auto baseName = projectFile.getFileNameWithoutExtension();
+        auto filesDir = projectDir.getChildFile(baseName + "_files");
+        
+        // Create subfolder structure
+        auto midiDir = filesDir.getChildFile("midi");
+        auto audioDir = filesDir.getChildFile("audio");
+        auto instrumentsDir = filesDir.getChildFile("instruments");
+        auto soundfontsDir = filesDir.getChildFile("soundfonts");
+        
+        midiDir.createDirectory();
+        audioDir.createDirectory();
+        instrumentsDir.createDirectory();
+        soundfontsDir.createDirectory();
+        
+        int filesCopied = 0;
+        
+        // Helper: copy a file to a destination directory and return the relative path
+        auto copyAndRelativize = [&](const juce::String& absPath, const juce::File& destDir) -> juce::String
+        {
+            if (absPath.isEmpty()) return absPath;
+            
+            juce::File srcFile(absPath);
+            if (!srcFile.existsAsFile()) return absPath; // Leave unchanged if missing
+            
+            auto destFile = destDir.getChildFile(srcFile.getFileName());
+            
+            // Skip if already collected (same file)
+            if (destFile.existsAsFile() && destFile.getSize() == srcFile.getSize())
+            {
+                ++filesCopied;
+                return destFile.getRelativePathFrom(projectDir);
+            }
+            
+            if (srcFile.copyFileTo(destFile))
+            {
+                ++filesCopied;
+                return destFile.getRelativePathFrom(projectDir);
+            }
+            
+            return absPath; // Copy failed — leave original
+        };
+        
+        // Collect GENERATION midiPath and audioPath
+        auto genNode = projectTree.getChildWithName(IDs::GENERATION);
+        if (genNode.isValid())
+        {
+            juce::String mp = genNode.getProperty(IDs::midiPath).toString();
+            if (mp.isNotEmpty())
+            {
+                // Resolve if relative
+                juce::File midiFile = juce::File::isAbsolutePath(mp) ? juce::File(mp) : projectDir.getChildFile(mp);
+                if (midiFile.existsAsFile())
+                    genNode.setProperty(IDs::midiPath, copyAndRelativize(midiFile.getFullPathName(), midiDir), nullptr);
+            }
+            
+            juce::String ap = genNode.getProperty(IDs::audioPath).toString();
+            if (ap.isNotEmpty())
+            {
+                juce::File audioFile = juce::File::isAbsolutePath(ap) ? juce::File(ap) : projectDir.getChildFile(ap);
+                if (audioFile.existsAsFile())
+                    genNode.setProperty(IDs::audioPath, copyAndRelativize(audioFile.getFullPathName(), audioDir), nullptr);
+            }
+        }
+        
+        // Collect TRACK instrument paths
+        auto mixerNode = projectTree.getChildWithName(IDs::MIXER);
+        if (mixerNode.isValid())
+        {
+            for (auto child : mixerNode)
+            {
+                if (!child.hasType(IDs::TRACK)) continue;
+                
+                juce::String pathStr = child.getProperty(IDs::path).toString();
+                if (pathStr.isNotEmpty())
+                {
+                    juce::File srcFile = juce::File::isAbsolutePath(pathStr) ? juce::File(pathStr) : projectDir.getChildFile(pathStr);
+                    
+                    // Route to appropriate subfolder based on extension
+                    auto ext = srcFile.getFileExtension().toLowerCase();
+                    juce::File destDir = instrumentsDir;
+                    if (ext == ".sf2" || ext == ".sfz")
+                        destDir = soundfontsDir;
+                    
+                    child.setProperty(IDs::path, copyAndRelativize(srcFile.getFullPathName(), destDir), nullptr);
+                }
+            }
+        }
+        
+        // Collect INSTRUMENT paths
+        auto instsNode = projectTree.getChildWithName(IDs::INSTRUMENTS);
+        if (instsNode.isValid())
+        {
+            for (auto child : instsNode)
+            {
+                if (!child.hasType(IDs::INSTRUMENT)) continue;
+                
+                juce::String pathStr = child.getProperty(IDs::path).toString();
+                if (pathStr.isNotEmpty())
+                {
+                    juce::File srcFile = juce::File::isAbsolutePath(pathStr) ? juce::File(pathStr) : projectDir.getChildFile(pathStr);
+                    
+                    auto ext = srcFile.getFileExtension().toLowerCase();
+                    juce::File destDir = instrumentsDir;
+                    if (ext == ".sf2" || ext == ".sfz")
+                        destDir = soundfontsDir;
+                    
+                    child.setProperty(IDs::path, copyAndRelativize(srcFile.getFullPathName(), destDir), nullptr);
+                }
+            }
+        }
+        
+        DBG("ProjectState::collectAndCopy - Collected " << filesCopied << " files into " << filesDir.getFullPathName());
+        return filesCopied;
     }
 
     //==============================================================================

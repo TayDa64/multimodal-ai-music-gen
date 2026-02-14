@@ -540,6 +540,36 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
     'begena': [
         'begena', 'ethiopian harp', 'david harp', 'meditation harp'
     ],
+    # Orchestral instruments
+    'timpani': [
+        'timpani', 'kettledrum', 'kettledrums', 'orchestral timpani'
+    ],
+    'harp': [
+        'harp', 'concert harp', 'pedal harp', 'harp arpeggios',
+        'arpeggiated harp'
+    ],
+    'contrabass': [
+        'contrabass', 'double bass', 'string bass', 'orchestral bass'
+    ],
+    'french_horn': [
+        'french horn', 'horn', 'french horns'
+    ],
+    'oboe': [
+        'oboe', 'english horn', 'cor anglais'
+    ],
+    'clarinet': [
+        'clarinet', 'bass clarinet'
+    ],
+    'tuba': [
+        'tuba', 'sousaphone'
+    ],
+    'choir': [
+        'choir', 'chorus', 'choral', 'voices', 'soprano',
+        'alto', 'tenor', 'baritone'
+    ],
+    'woodwinds': [
+        'woodwinds', 'woodwind', 'wind section', 'wind ensemble'
+    ],
 }
 
 # Drum element keywords
@@ -559,6 +589,12 @@ DRUM_KEYWORDS: Dict[str, List[str]] = {
     'kebero': ['kebero', 'kebaro', 'ethiopian drum', 'habesha drum'],
     'atamo': ['atamo', 'ethiopian percussion'],
     'tom': ['tom', 'toms', 'floor tom'],
+    # Orchestral percussion
+    'timpani_drum': ['timpani', 'kettledrum', 'kettledrums'],
+    'cymbal_crash': ['crash cymbal', 'orchestral cymbal', 'suspended cymbal'],
+    'triangle': ['triangle'],
+    'gong': ['gong', 'tam tam', 'tam-tam'],
+    'chimes': ['chimes', 'tubular bells', 'orchestral chimes'],
 }
 
 # Texture/FX keywords

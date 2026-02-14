@@ -96,6 +96,8 @@ bool AppState::loadProject(const juce::File& file)
     // Try loading with ProjectState (XML/ValueTree)
     if (projectState.loadProject(file))
     {
+        auto projectDir = file.getParentDirectory();
+        
         // Sync legacy state from ProjectState
         auto genNode = projectState.getState().getChildWithName(Project::IDs::GENERATION);
         if (genNode.isValid())
@@ -107,11 +109,47 @@ bool AppState::loadProject(const juce::File& file)
             
             juce::String midiPath = genNode.getProperty(Project::IDs::midiPath);
             if (midiPath.isNotEmpty())
-                currentGeneration.midiFile = file.getParentDirectory().getChildFile(midiPath);
+                currentGeneration.midiFile = projectDir.getChildFile(midiPath);
                 
             juce::String audioPath = genNode.getProperty(Project::IDs::audioPath);
             if (audioPath.isNotEmpty())
-                currentGeneration.audioFile = file.getParentDirectory().getChildFile(audioPath);
+                currentGeneration.audioFile = projectDir.getChildFile(audioPath);
+        }
+        
+        // Resolve TRACK paths: relative → absolute
+        auto mixerNode = projectState.getMixerNode();
+        if (mixerNode.isValid())
+        {
+            for (auto child : mixerNode)
+            {
+                if (child.hasType(Project::IDs::TRACK))
+                {
+                    juce::String pathStr = child.getProperty(Project::IDs::path).toString();
+                    if (pathStr.isNotEmpty() && !juce::File::isAbsolutePath(pathStr))
+                    {
+                        auto resolved = projectDir.getChildFile(pathStr);
+                        child.setProperty(Project::IDs::path, resolved.getFullPathName(), nullptr);
+                    }
+                }
+            }
+        }
+        
+        // Resolve INSTRUMENT paths: relative → absolute
+        auto instsNode = projectState.getInstrumentsNode();
+        if (instsNode.isValid())
+        {
+            for (auto child : instsNode)
+            {
+                if (child.hasType(Project::IDs::INSTRUMENT))
+                {
+                    juce::String pathStr = child.getProperty(Project::IDs::path).toString();
+                    if (pathStr.isNotEmpty() && !juce::File::isAbsolutePath(pathStr))
+                    {
+                        auto resolved = projectDir.getChildFile(pathStr);
+                        child.setProperty(Project::IDs::path, resolved.getFullPathName(), nullptr);
+                    }
+                }
+            }
         }
         
         currentProjectFile = file;
@@ -172,6 +210,43 @@ bool AppState::saveProjectAs(const juce::File& file)
             currentGeneration.midiFile.getRelativePathFrom(file.getParentDirectory()),
             currentGeneration.audioFile.getRelativePathFrom(file.getParentDirectory())
         );
+    
+    // Convert TRACK and INSTRUMENT paths to relative before saving
+    auto projectDir = file.getParentDirectory();
+    
+    auto mixerNode = projectState.getMixerNode();
+    if (mixerNode.isValid())
+    {
+        for (auto child : mixerNode)
+        {
+            if (child.hasType(Project::IDs::TRACK))
+            {
+                juce::String absPath = child.getProperty(Project::IDs::path).toString();
+                if (absPath.isNotEmpty() && juce::File::isAbsolutePath(absPath))
+                {
+                    auto relative = juce::File(absPath).getRelativePathFrom(projectDir);
+                    child.setProperty(Project::IDs::path, relative, nullptr);
+                }
+            }
+        }
+    }
+    
+    auto instsNode = projectState.getInstrumentsNode();
+    if (instsNode.isValid())
+    {
+        for (auto child : instsNode)
+        {
+            if (child.hasType(Project::IDs::INSTRUMENT))
+            {
+                juce::String absPath = child.getProperty(Project::IDs::path).toString();
+                if (absPath.isNotEmpty() && juce::File::isAbsolutePath(absPath))
+                {
+                    auto relative = juce::File(absPath).getRelativePathFrom(projectDir);
+                    child.setProperty(Project::IDs::path, relative, nullptr);
+                }
+            }
+        }
+    }
 
     if (projectState.saveProject(file))
     {

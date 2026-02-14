@@ -1,5 +1,6 @@
 #include "MixerComponent.h"
 #include "../Theme/ColourScheme.h"
+#include "../../Audio/AudioEngine.h"
 
 namespace UI
 {
@@ -8,10 +9,16 @@ namespace UI
         addAndMakeVisible(viewport);
         viewport.setViewedComponent(&container, false);
         viewport.setScrollBarsShown(true, true); // Allow both horizontal and vertical scrolling
+        
+        // Create master strip
+        masterStrip = std::make_unique<ChannelStrip>("Master");
+        addAndMakeVisible(*masterStrip);
     }
 
     MixerComponent::~MixerComponent()
     {
+        stopTimer();
+        
         if (projectState)
             projectState->removeStateListener(this);
     }
@@ -19,11 +26,29 @@ namespace UI
     void MixerComponent::paint(juce::Graphics& g)
     {
         g.fillAll(AppColours::surface.darker(0.15f));
+        
+        // Draw separator line before master strip
+        if (masterStrip)
+        {
+            auto masterBounds = masterStrip->getBounds();
+            g.setColour(AppColours::border.brighter(0.2f));
+            g.drawVerticalLine(masterBounds.getX() - 2, 0.0f, (float)getHeight());
+        }
     }
 
     void MixerComponent::resized()
     {
-        viewport.setBounds(getLocalBounds());
+        auto area = getLocalBounds();
+        
+        // Reserve space for master strip on the right (80px + 2px separator)
+        static constexpr int masterStripWidth = 82;
+        auto masterArea = area.removeFromRight(masterStripWidth);
+        masterArea.removeFromLeft(2); // separator gap
+        if (masterStrip)
+            masterStrip->setBounds(masterArea);
+        
+        // Channel strips viewport fills the rest
+        viewport.setBounds(area);
         
         // Update container size
         if (strips.size() > 0)
@@ -187,5 +212,57 @@ namespace UI
     void MixerComponent::valueTreeChildRemoved(juce::ValueTree& parentTree, juce::ValueTree& childWhichHasBeenRemoved, int indexFromWhichChildWasRemoved) {}
     void MixerComponent::valueTreeChildOrderChanged(juce::ValueTree& parentTreeWhichHasChanged, int oldIndex, int newIndex) {}
     void MixerComponent::valueTreeParentChanged(juce::ValueTree& treeWhoseParentHasChanged) {}
+
+    void MixerComponent::setAudioEngine(mmg::AudioEngine* engine)
+    {
+        audioEngine = engine;
+        
+        if (audioEngine != nullptr)
+            startTimerHz(30); // 30 Hz meter polling — matches industry standard
+        else
+            stopTimer();
+    }
+
+    void MixerComponent::timerCallback()
+    {
+        if (audioEngine == nullptr)
+            return;
+        
+        // Check for solo state to zero non-soloed tracks
+        bool anySolo = false;
+        int numTracks = audioEngine->getNumTracks();
+        
+        for (int i = 0; i < numTracks; ++i)
+        {
+            if (auto* track = audioEngine->getTrack(i))
+            {
+                if (track->isSoloed())
+                {
+                    anySolo = true;
+                    break;
+                }
+            }
+        }
+        
+        // Update per-track meters
+        for (int i = 0; i < strips.size() && i < numTracks; ++i)
+        {
+            if (auto* track = audioEngine->getTrack(i))
+            {
+                float level = 0.0f;
+                
+                if (anySolo && !track->isSoloed())
+                    level = 0.0f; // Muted by solo — show 0
+                else
+                    level = track->getRmsLevel();
+                
+                strips[i]->updateLevel(level);
+            }
+        }
+        
+        // Update master strip
+        if (masterStrip)
+            masterStrip->updateLevel(audioEngine->getMasterRmsLevel());
+    }
 }
 

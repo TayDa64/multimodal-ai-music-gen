@@ -629,6 +629,21 @@ GENRE_TENSION_PROFILES: Dict[str, Dict[str, float]] = {
         "hook": 0.85,
         "bridge": 0.5,
     },
+    "cinematic": {
+        "intro": 0.3,
+        "verse": 0.5,
+        "pre_chorus": 0.75,
+        "chorus": 1.0,
+        "breakdown": 0.35,
+        "buildup": 0.8,
+        "outro": 0.3,
+    },
+    "classical": {
+        "exposition": 0.5,
+        "development": 0.8,
+        "recapitulation": 0.7,
+        "coda": 0.4,
+    },
 }
 
 

@@ -238,6 +238,7 @@ void MainComponent::setupBottomPanel()
     mixerComponent = std::make_unique<UI::MixerComponent>();
     mixerComponent->setVisible(false);
     mixerComponent->bindToProject(appState.getProjectState());
+    mixerComponent->setAudioEngine(&audioEngine);
     
     // Initialize mixer strips from project state
     juce::StringArray trackNames;

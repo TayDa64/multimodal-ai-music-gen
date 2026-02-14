@@ -186,6 +186,17 @@ def normalize_genre(genre: str) -> str:
         "trapsoul": "trap_soul",
         "r&b": "rnb",
         "rnb": "rnb",
+
+        # Cinematic / Orchestral / Classical
+        "cinematic": "cinematic",
+        "orchestral": "cinematic",
+        "film_score": "cinematic",
+        "soundtrack": "cinematic",
+        "film": "cinematic",
+        "epic": "cinematic",
+        "classical": "classical",
+        "symphonic": "cinematic",
+        "orchestra": "cinematic",
     }
 
     return aliases.get(g, g)
@@ -739,5 +750,24 @@ GENRE_DEFAULTS = {
         'time_signature': (6, 8),
         'emphasis': 'drums',
         'dance_rhythm': True,
+    },
+    # Cinematic / Orchestral
+    'cinematic': {
+        'bpm_range': (60, 140),
+        'default_bpm': 100,
+        'scale': ScaleType.MINOR,
+        'swing': 0.0,
+        'hihat_rolls': False,
+        'emphasis': 'strings',
+        'orchestral': True,
+    },
+    'classical': {
+        'bpm_range': (60, 160),
+        'default_bpm': 110,
+        'scale': ScaleType.MAJOR,
+        'swing': 0.0,
+        'hihat_rolls': False,
+        'emphasis': 'strings',
+        'orchestral': True,
     },
 }

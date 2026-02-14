@@ -2243,6 +2243,279 @@ def generate_organ_tone(
     return normalize_audio(audio, 0.72 * velocity)
 
 
+# ── Orchestral Synthesis Functions ─────────────────────────────────────
+
+
+def generate_strings_tone(
+    frequency: float,
+    duration: float = 0.5,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Generate Western orchestral string ensemble tone.
+
+    Models a section of bowed strings (violins/violas/cellos) with:
+    - Slow, smooth bow attack
+    - Rich harmonics with natural decay profile
+    - Subtle ensemble chorus (multiple detuned voices)
+    - Gentle vibrato onset after initial attack
+    """
+    num_samples = int(duration * sample_rate)
+    t = np.arange(num_samples) / sample_rate
+    audio = np.zeros(num_samples)
+
+    # --- Ensemble voices (4 slightly detuned players) ---
+    detune_cents = [-6, -2, 2, 6]
+    for cents in detune_cents:
+        ratio = 2 ** (cents / 1200)
+        freq = frequency * ratio
+
+        voice = np.zeros(num_samples)
+        # Bowed string harmonic profile: strong odd harmonics, weaker even
+        for n in range(1, 14):
+            harmonic_freq = freq * n
+            if harmonic_freq > sample_rate / 2 - 200:
+                break
+            if n % 2 == 1:  # odd harmonics stronger (bowed string characteristic)
+                amp = 1.0 / (n ** 1.05)
+            else:
+                amp = 0.6 / (n ** 1.15)
+            # Higher partials decay faster
+            partial_decay = max(0.08, duration * 0.9 / (1 + 0.15 * n))
+            env = np.exp(-t / partial_decay)
+            voice += amp * np.sin(2 * np.pi * harmonic_freq * t) * env
+
+        audio += voice * 0.25
+
+    # --- Delayed vibrato (bow vibrato, not finger) ---
+    if duration > 0.25:
+        vib_rate = 5.0 + np.random.uniform(-0.5, 0.5)
+        vib_depth = 0.004
+        vib_onset = np.clip((t - 0.18) / 0.15, 0, 1)
+        vibrato = np.sin(2 * np.pi * vib_rate * t) * vib_depth * vib_onset
+
+        vib_audio = np.zeros(num_samples)
+        for n in range(1, 8):
+            amp = 0.8 / (n ** 1.1) if n % 2 == 1 else 0.5 / (n ** 1.2)
+            vib_audio += amp * np.sin(2 * np.pi * frequency * n * (t + vibrato))
+        audio = audio * 0.65 + vib_audio * 0.35
+
+    # --- Envelope: slow bow attack ---
+    attack = int(0.08 * sample_rate)
+    decay = int(0.1 * sample_rate)
+    sustain_level = 0.88
+    release = int(0.15 * sample_rate)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release)
+
+    # --- Warmth filter ---
+    audio = lowpass_filter(audio, 6000, sample_rate)
+    audio = highpass_filter(audio, 80, sample_rate)
+
+    return normalize_audio(audio, 0.75 * velocity)
+
+
+def generate_harp_tone(
+    frequency: float,
+    duration: float = 0.8,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Generate orchestral harp pluck tone.
+
+    Models a concert harp string pluck with:
+    - Bright initial pluck transient
+    - Rich harmonic spectrum with fast upper-partial decay
+    - Long natural sustain on lower notes
+    - Gentle body resonance
+    """
+    num_samples = int(duration * sample_rate)
+    t = np.arange(num_samples) / sample_rate
+    audio = np.zeros(num_samples)
+
+    # --- Harmonic stack with natural string decay ---
+    base_decay = 0.6 + 1.2 * (1.0 - min(frequency, 800) / 800.0)  # lower notes ring longer
+    for n in range(1, 16):
+        harmonic_freq = frequency * n
+        if harmonic_freq > sample_rate / 2 - 200:
+            break
+        # Harp: strong fundamental, rapid decay of higher partials
+        amp = 1.0 / (n ** 1.3)
+        decay_time = max(0.05, base_decay / (n ** 0.7))
+        env = np.exp(-t / decay_time)
+        audio += amp * np.sin(2 * np.pi * harmonic_freq * t) * env
+
+    # --- Pluck transient (string snap) ---
+    transient_len = min(num_samples, int(0.008 * sample_rate))
+    if transient_len > 4:
+        noise = np.random.randn(transient_len) * 0.15
+        noise_env = np.exp(-np.arange(transient_len) / (0.002 * sample_rate))
+        noise *= noise_env
+        audio[:transient_len] += noise
+
+    # --- Body resonance (low-frequency boost) ---
+    if frequency < 400:
+        body = lowpass_filter(audio, 300, sample_rate) * 0.2
+        audio += body
+
+    # --- Overall envelope ---
+    attack = int(0.002 * sample_rate)
+    decay = int(0.08 * sample_rate)
+    sustain_level = 0.3
+    release = int(0.3 * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
+
+    # --- Brightness control ---
+    audio = lowpass_filter(audio, 8000, sample_rate)
+    audio = highpass_filter(audio, 60, sample_rate)
+
+    return normalize_audio(audio, 0.8 * velocity)
+
+
+def generate_timpani_tone(
+    frequency: float,
+    duration: float = 0.6,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Generate orchestral timpani strike.
+
+    Models a kettledrum with:
+    - Short mallet impact (low-mid noise burst)
+    - Pitched resonant membrane (inharmonic partials)
+    - Natural decay with pitch droop on hard hits
+    - Deep, boomy low-frequency content
+    """
+    num_samples = int(duration * sample_rate)
+    t = np.arange(num_samples) / sample_rate
+    audio = np.zeros(num_samples)
+
+    # --- Pitched membrane partials (inharmonic like a real drumhead) ---
+    # Timpani modal ratios (approximate circular membrane modes)
+    modal_ratios = [1.0, 1.504, 1.742, 2.0, 2.296, 2.654]
+    modal_amps = [1.0, 0.6, 0.35, 0.25, 0.15, 0.08]
+    modal_decays = [0.45, 0.25, 0.18, 0.12, 0.08, 0.06]
+
+    # Pitch droop on hard hits (membrane tension drops briefly)
+    pitch_droop = 1.0
+    if velocity > 0.6:
+        droop_amount = 0.015 * velocity
+        pitch_droop_env = 1.0 - droop_amount * np.exp(-t / 0.04)
+    else:
+        pitch_droop_env = np.ones(num_samples)
+
+    for ratio, amp, decay_t in zip(modal_ratios, modal_amps, modal_decays):
+        mode_freq = frequency * ratio * pitch_droop_env
+        # Phase for each mode
+        phase = np.cumsum(mode_freq / sample_rate) * 2 * np.pi
+        env = np.exp(-t / decay_t)
+        audio += amp * np.sin(phase) * env
+
+    # --- Mallet impact noise ---
+    impact_len = min(num_samples, int(0.015 * sample_rate))
+    if impact_len > 4:
+        impact_noise = np.random.randn(impact_len) * 0.4 * velocity
+        impact_env = np.exp(-np.arange(impact_len) / (0.003 * sample_rate))
+        impact_noise *= impact_env
+        # Bandpass to low-mid range (mallet thud, not metallic)
+        impact_noise = lowpass_filter(impact_noise, 2000, sample_rate)
+        audio[:impact_len] += impact_noise
+
+    # --- Low frequency boost (chest-punch quality) ---
+    bass = lowpass_filter(audio, 150, sample_rate)
+    audio += bass * 0.5
+
+    # --- Overall envelope ---
+    attack = int(0.002 * sample_rate)
+    decay = int(0.15 * sample_rate)
+    sustain_level = 0.15
+    release = int(0.2 * sample_rate)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release)
+
+    # --- Filter shaping ---
+    audio = lowpass_filter(audio, 3500, sample_rate)
+    audio = highpass_filter(audio, 30, sample_rate)
+
+    return normalize_audio(audio, 0.85 * velocity)
+
+
+def generate_choir_tone(
+    frequency: float,
+    duration: float = 0.5,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE
+) -> np.ndarray:
+    """Generate choir/voice pad tone.
+
+    Models an "aah" vocal ensemble with:
+    - Formant resonances at vocal tract frequencies
+    - Multiple detuned voices for ensemble width
+    - Slow attack (breath onset)
+    - Natural vibrato
+    """
+    num_samples = int(duration * sample_rate)
+    t = np.arange(num_samples) / sample_rate
+    audio = np.zeros(num_samples)
+
+    # --- Formant frequencies for "aah" vowel ---
+    formant_freqs = [730, 1090, 2440]
+    formant_bw = [80, 90, 120]  # bandwidths
+
+    # --- Multiple voices with slight detuning ---
+    voice_detunes = [-5, -2, 0, 2, 5]  # cents
+    for cents in voice_detunes:
+        ratio = 2 ** (cents / 1200)
+        f0 = frequency * ratio
+
+        # Basic glottal pulse (sum of harmonics with 1/n rolloff)
+        voice = np.zeros(num_samples)
+        for n in range(1, 20):
+            h_freq = f0 * n
+            if h_freq > sample_rate / 2 - 200:
+                break
+            amp = 1.0 / (n ** 1.0)
+            voice += amp * np.sin(2 * np.pi * h_freq * t)
+
+        # Apply formant filtering (resonant peaks)
+        for ff, bw in zip(formant_freqs, formant_bw):
+            lo = max(20, ff - bw)
+            hi = min(sample_rate // 2 - 100, ff + bw)
+            if lo < hi:
+                formant_band = bandpass_filter(voice, lo, hi, sample_rate)
+                audio += formant_band * 0.3
+
+        # Also add some unfiltered fundamental body
+        audio += voice * 0.06
+
+    audio /= len(voice_detunes)
+
+    # --- Vibrato (delayed, subtle) ---
+    if duration > 0.3:
+        vib_rate = 5.2 + np.random.uniform(-0.3, 0.3)
+        vib_depth = 0.005
+        vib_onset = np.clip((t - 0.25) / 0.2, 0, 1)
+        vibrato = np.sin(2 * np.pi * vib_rate * t) * vib_depth * vib_onset
+
+        vib_layer = np.zeros(num_samples)
+        for n in range(1, 8):
+            amp = 0.7 / n
+            vib_layer += amp * np.sin(2 * np.pi * frequency * n * (t + vibrato))
+        audio = audio * 0.7 + vib_layer * 0.3
+
+    # --- Envelope: breath onset ---
+    attack = int(0.12 * sample_rate)
+    decay = int(0.08 * sample_rate)
+    sustain_level = 0.85
+    release = int(0.2 * sample_rate)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release)
+
+    # --- Warmth ---
+    audio = lowpass_filter(audio, 5000, sample_rate)
+    audio = highpass_filter(audio, 100, sample_rate)
+
+    return normalize_audio(audio, 0.7 * velocity)
+
+
 def generate_kebero_hit(
     pitch: int = 63,
     velocity: float = 0.8,

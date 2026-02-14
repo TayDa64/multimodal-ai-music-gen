@@ -65,6 +65,11 @@ from .assets_gen import (
     generate_begena_tone,
     generate_brass_tone,
     generate_organ_tone,
+    # Orchestral instruments
+    generate_strings_tone,
+    generate_harp_tone,
+    generate_timpani_tone,
+    generate_choir_tone,
     lowpass_filter,
     highpass_filter,
     normalize_audio,
@@ -1012,15 +1017,24 @@ class ProceduralRenderer:
             return generate_piano_tone(freq, duration, velocity * 0.75, self.sample_rate)
         elif note.program in [38, 39]:  # Synth Bass
             return generate_808_kick(duration, freq * 4, freq)
+        elif note.program >= 32 and note.program <= 37:  # Acoustic/Electric/Fretless Bass
+            return generate_fm_pluck(freq, max(duration, 0.3))
         elif note.program >= 88 and note.program <= 95:  # Pads
             return generate_pad_tone(freq, duration)
-        elif note.program == 16 or note.program == 17:  # Organ
+        elif note.program >= 16 and note.program <= 23:  # All Organs
             return generate_organ_tone(freq, duration, velocity)
         elif note.program >= 56 and note.program <= 63:  # Brass
             return generate_brass_tone(freq, duration, velocity)
-        elif note.program >= 40 and note.program <= 51:  # Strings (40-47) + String Ensembles (48-51)
-            # Use masenqo for strings (bowed sound)
-            return generate_masenqo_tone(freq, duration, velocity)
+        elif note.program == 46:  # Harp (GM program 46)
+            return generate_harp_tone(freq, duration, velocity, self.sample_rate)
+        elif note.program == 47:  # Timpani (GM program 47)
+            return generate_timpani_tone(freq, duration, velocity, self.sample_rate)
+        elif note.program >= 52 and note.program <= 55:  # Choir/Voice
+            return generate_choir_tone(freq, duration, velocity, self.sample_rate)
+        elif note.program >= 40 and note.program <= 51:  # Strings (40-45) + Ensembles (48-51)
+            return generate_strings_tone(freq, duration, velocity, self.sample_rate)
+        elif note.program >= 64 and note.program <= 71:  # Reed instruments (sax, oboe, bassoon)
+            return generate_washint_tone(freq, duration, velocity)
         elif note.program >= 72 and note.program <= 79:  # Flute/Wind
             return generate_washint_tone(freq, duration, velocity)
         # Ethiopian instruments (custom program numbers 110-119)
