@@ -100,13 +100,21 @@ GENRE_QUALITY_PROFILES = {
 }
 
 # Pitch ranges for common instruments (MIDI note numbers)
-INSTRUMENT_PITCH_RANGES = {
-    "piano": (21, 108),
-    "guitar": (40, 88),
-    "bass": (28, 67),
-    "drums": (35, 81),
-    "synth": (21, 108),
-}
+# Pulled from the canonical instrument_ranges module.
+try:
+    from multimodal_gen.instrument_ranges import INSTRUMENT_RANGES as _IR
+    INSTRUMENT_PITCH_RANGES = {name: (r.low, r.high) for name, r in _IR.items()}
+    # Keep legacy keys that validators may reference
+    INSTRUMENT_PITCH_RANGES.setdefault("drums", (35, 81))
+except ImportError:
+    # Fallback: minimal set so the validator still works standalone
+    INSTRUMENT_PITCH_RANGES = {
+        "piano": (21, 108),
+        "guitar": (40, 88),
+        "bass": (28, 67),
+        "drums": (35, 81),
+        "synth": (21, 108),
+    }
 
 # Scale definitions (semitones from root)
 SCALES = {

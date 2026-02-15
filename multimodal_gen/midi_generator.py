@@ -63,6 +63,7 @@ _midi_logger = logging.getLogger(__name__)
 from .ethio_melody import embellish_melody_qenet
 from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SongSection, SectionType, get_section_motif
+from .instrument_ranges import get_chord_octave, get_melody_octave, get_bass_octave, clamp_to_range, get_timpani_pitches
 from .groove_templates import GrooveTemplate, GrooveApplicator, get_groove_for_genre
 from .strategies.registry import StrategyRegistry
 
@@ -2098,12 +2099,15 @@ class MidiGenerator:
                     all_notes.extend(_strategy_bass)
                     continue  # strategy handled this section
                 # Fallback: existing inline bass generation
+                # Determine bass instrument for octave lookup
+                _bass_inst = 'bass' if parsed.genre == 'g_funk' else '808'
+                _bass_oct = get_bass_octave(_bass_inst)
                 if parsed.genre == 'g_funk':
                     bass_pattern = generate_gfunk_bass_pattern(
                         section.bars,
                         parsed.key,
                         parsed.scale_type,
-                        octave=1,
+                        octave=_bass_oct,
                         base_velocity=int(100 * section.config.energy_level * vel_mult)
                     )
                 else:
@@ -2111,7 +2115,7 @@ class MidiGenerator:
                         section.bars,
                         parsed.key,
                         parsed.scale_type,
-                        octave=1,
+                        octave=_bass_oct,
                         base_velocity=int(100 * section.config.energy_level * vel_mult),
                         genre=parsed.genre
                     )
@@ -2276,11 +2280,13 @@ class MidiGenerator:
                     all_notes.extend(_strategy_chords)
                     continue  # strategy handled this section
                 # Fallback: existing inline chord generation
+                # Use instrument-aware chord octave
+                _chord_inst = (resolved_instrument or 'rhodes').lower()
                 chord_pattern = generate_chord_progression_midi(
                     section.bars,
                     parsed.key,
                     parsed.scale_type,
-                    octave=4,
+                    octave=get_chord_octave(_chord_inst),
                     base_velocity=int(85 * section.config.instrument_density * vel_mult),
                     rhythm_style=rhythm_style,
                     chord_color=wants_church,
@@ -2568,7 +2574,7 @@ class MidiGenerator:
                 section.bars,
                 parsed.key,
                 parsed.scale_type,
-                octave=3 + octave_offset,
+                octave=get_chord_octave(name.lower()),
                 base_velocity=int(80 * section.config.energy_level * vel_mult * velocity_scale),
                 rhythm_style='block',
                 chord_color=True,
@@ -2612,7 +2618,7 @@ class MidiGenerator:
                 section.bars,
                 parsed.key,
                 parsed.scale_type,
-                octave=4,
+                octave=get_chord_octave('harp'),
                 base_velocity=int(65 * max(0.4, 1.0 - tension * 0.5)),
                 rhythm_style='arpeggiate',
                 chord_color=True,
@@ -2645,8 +2651,8 @@ class MidiGenerator:
         track.append(Message('program_change', program=47, channel=8, time=0))  # GM Orchestral Strings
 
         all_notes = []
-        # Timpani pitches: typically D2-A2 range
-        timpani_pitches = [38, 40, 41, 43, 45]  # D2, E2, F2, G2, A2
+        # Timpani pitches: key-aware tuning in D2-C4 range
+        timpani_pitches = get_timpani_pitches(parsed.key)
 
         for section in arrangement.sections:
             tension = self._get_section_tension(arrangement, section)
@@ -2838,12 +2844,15 @@ class MidiGenerator:
                         repeats += 1
                 else:
                     # Fallback generators when motifs are not available.
+                    # Use instrument-aware melody octave
+                    _melody_inst = (resolved_instrument or 'synth_lead').lower()
+                    _melody_oct = get_melody_octave(_melody_inst)
                     if normalize_genre(parsed.genre or '') == 'g_funk':
                         melody = generate_gfunk_lead_pattern(
                             section.bars,
                             parsed.key,
                             parsed.scale_type,
-                            octave=5,
+                            octave=_melody_oct,
                             base_velocity=int(95 * section.config.energy_level * vel_mult)
                         )
                     else:
@@ -2851,7 +2860,7 @@ class MidiGenerator:
                             section.bars,
                             parsed.key,
                             parsed.scale_type,
-                            octave=5,
+                            octave=_melody_oct,
                             density=min(1.0, section.config.instrument_density * 0.5 * density_mult),
                             base_velocity=int(90 * section.config.energy_level * vel_mult)
                         )
