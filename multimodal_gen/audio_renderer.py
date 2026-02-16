@@ -740,6 +740,30 @@ class ProceduralRenderer:
                 'strings': InstrumentCategory.STRINGS,
             }
             
+            # Filter melodic mappings to only load instruments the prompt asked for
+            # Maps prompt instrument names to melodic_mappings keys
+            _INSTRUMENT_TO_MELODIC = {
+                'piano': 'keys', 'keys': 'keys', 'keyboard': 'keys', 'grand_piano': 'keys',
+                'rhodes': 'keys', 'organ': 'keys', 'clavinet': 'keys',
+                'bass': 'bass', 'contrabass': 'bass', '808': 'bass',
+                'synth': 'synth', 'synth_lead': 'synth', 'lead': 'synth',
+                'pad': 'pad', 'strings': 'strings', 'violin': 'strings', 'cello': 'strings',
+                'brass': 'brass', 'trumpet': 'brass', 'horn': 'brass',
+                'french_horn': 'brass', 'trombone': 'brass', 'saxophone': 'brass',
+                'harp': 'strings', 'choir': 'pad', 'flute': 'brass',
+                'oboe': 'brass', 'clarinet': 'brass',
+            }
+            if self._parsed_instruments:
+                requested_melodic = set()
+                for inst in self._parsed_instruments:
+                    mapped = _INSTRUMENT_TO_MELODIC.get(inst.lower())
+                    if mapped:
+                        requested_melodic.add(mapped)
+                # Only filter if we got valid mappings; otherwise fall back to all
+                if requested_melodic:
+                    melodic_mappings = {k: v for k, v in melodic_mappings.items() if k in requested_melodic}
+                    print(f"  [*] Prompt-filtered instruments: {', '.join(sorted(requested_melodic))}") 
+            
             loaded_melodic = []
             for inst_name, category in melodic_mappings.items():
                 # Get multiple candidates for variety using top_n parameter

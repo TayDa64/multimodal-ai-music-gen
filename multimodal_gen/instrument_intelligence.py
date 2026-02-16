@@ -280,6 +280,63 @@ GENRE_PROFILES: Dict[str, Dict] = {
         "excluded_sounds": ["whistle", "ambient", "slow"],
         "mood_keywords": ["groovy", "funky", "tight", "dance"],
     },
+
+    "cinematic": {
+        "description": "Cinematic/orchestral: epic, dramatic, sweeping",
+        "tempo_range": (60, 130),
+        "preferred_drums": {
+            "kick": {"energy": (0.5, 0.8), "warmth": (0.6, 0.9), "tags": ["orchestral", "timpani", "deep", "acoustic"]},
+            "snare": {"energy": (0.4, 0.7), "tags": ["orchestral", "acoustic", "snare_roll"]},
+            "hihat": {"energy": (0.2, 0.4), "tags": ["ride", "cymbal", "orchestral"]},
+        },
+        "preferred_bass": {
+            "tags": ["contrabass", "orchestral", "acoustic", "deep", "cello"],
+            "warmth": (0.6, 1.0),
+        },
+        "preferred_keys": {
+            "tags": ["piano", "grand", "concert", "acoustic"],
+        },
+        "preferred_strings": {
+            "tags": ["ensemble", "orchestral", "strings", "violin", "cello", "legato"],
+        },
+        "preferred_brass": {
+            "tags": ["french_horn", "trumpet", "orchestral", "horn"],
+        },
+        "preferred_synths": {
+            "tags": ["pad", "atmospheric", "warm", "orchestral"],
+            "exclude": ["aggressive", "harsh", "whistle", "screech", "808", "electronic"],
+        },
+        "excluded_sounds": ["808", "trap", "electronic", "whistle", "lo-fi", "dusty", "distort", "screech"],
+        "mood_keywords": ["epic", "dramatic", "sweeping", "majestic", "cinematic", "orchestral"],
+    },
+
+    "classical": {
+        "description": "Classical: acoustic, elegant, refined",
+        "tempo_range": (50, 180),
+        "preferred_drums": {
+            "kick": {"energy": (0.3, 0.6), "tags": ["timpani", "orchestral", "acoustic"]},
+            "snare": {"energy": (0.3, 0.5), "tags": ["orchestral", "acoustic"]},
+        },
+        "preferred_bass": {
+            "tags": ["contrabass", "acoustic", "cello", "orchestral"],
+            "warmth": (0.6, 1.0),
+        },
+        "preferred_keys": {
+            "tags": ["piano", "grand", "concert", "acoustic", "classical"],
+        },
+        "preferred_strings": {
+            "tags": ["violin", "cello", "viola", "strings", "orchestral", "ensemble"],
+        },
+        "preferred_brass": {
+            "tags": ["french_horn", "trumpet", "trombone", "orchestral"],
+        },
+        "preferred_synths": {
+            "tags": ["pad", "orchestral"],
+            "exclude": ["electronic", "808", "synth", "aggressive", "whistle"],
+        },
+        "excluded_sounds": ["808", "trap", "electronic", "whistle", "lo-fi", "dusty", "distort", "edm", "synth"],
+        "mood_keywords": ["elegant", "refined", "classical", "acoustic", "concert"],
+    },
 }
 
 
@@ -626,7 +683,7 @@ class SampleFilenameParser:
         
         # BASE AFFINITY: All samples get reasonable affinity for all genres
         # This prevents samples from being "invisible" to certain genres
-        base_genres = ['g_funk', 'funk', 'rnb', 'boom_bap', 'lofi', 'pop', 'jazz', 'trap']
+        base_genres = ['g_funk', 'funk', 'rnb', 'boom_bap', 'lofi', 'pop', 'jazz', 'trap', 'cinematic', 'classical']
         for genre in base_genres:
             affinity[genre] = 0.4  # Base - can be used but not preferred
         
@@ -673,6 +730,19 @@ class SampleFilenameParser:
         if 'pad' in filename_lower:
             for genre in affinity:
                 affinity[genre] = max(affinity[genre], 0.6)
+        
+        # Acoustic/orchestral sounds boost cinematic/classical
+        if any(word in filename_lower for word in ['piano', 'pno', 'grand', 'acoustic', 'concert']):
+            affinity['classical'] = max(affinity.get('classical', 0), 0.9)
+            affinity['cinematic'] = max(affinity.get('cinematic', 0), 0.8)
+        
+        if any(word in filename_lower for word in ['string', 'violin', 'cello', 'orchestra', 'ensemble']):
+            affinity['cinematic'] = max(affinity.get('cinematic', 0), 0.9)
+            affinity['classical'] = max(affinity.get('classical', 0), 0.85)
+        
+        if any(word in filename_lower for word in ['horn', 'trumpet', 'brass', 'timpani']):
+            affinity['cinematic'] = max(affinity.get('cinematic', 0), 0.85)
+            affinity['classical'] = max(affinity.get('classical', 0), 0.8)
         
         return affinity
     

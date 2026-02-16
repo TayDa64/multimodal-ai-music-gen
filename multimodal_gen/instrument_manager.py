@@ -539,6 +539,23 @@ GENRE_PROFILES = {
         "washint": SonicProfile(brightness=0.85, warmth=0.35, richness=0.5),
         "kebero": SonicProfile(punch=0.85, warmth=0.65, brightness=0.45),
     },
+    # Cinematic / orchestral music profiles
+    "cinematic": {
+        "kick": SonicProfile(punch=0.7, warmth=0.7, brightness=0.4, decay_time_ms=250),
+        "snare": SonicProfile(punch=0.6, brightness=0.5, noise_level=0.3),
+        "hihat": SonicProfile(brightness=0.5, punch=0.3, decay_time_ms=120),
+        "keys": SonicProfile(warmth=0.7, brightness=0.5, richness=0.8, decay_time_ms=600),
+        "strings": SonicProfile(warmth=0.7, brightness=0.5, richness=0.9, decay_time_ms=800),
+        "brass": SonicProfile(brightness=0.6, warmth=0.6, punch=0.5, richness=0.7),
+    },
+    # Classical music profiles
+    "classical": {
+        "kick": SonicProfile(punch=0.5, warmth=0.7, brightness=0.3, decay_time_ms=300),
+        "snare": SonicProfile(punch=0.4, brightness=0.4, noise_level=0.2),
+        "keys": SonicProfile(warmth=0.7, brightness=0.6, richness=0.9, decay_time_ms=700),
+        "strings": SonicProfile(warmth=0.8, brightness=0.5, richness=0.9, decay_time_ms=900),
+        "brass": SonicProfile(brightness=0.5, warmth=0.7, punch=0.4, richness=0.8),
+    },
 }
 
 # Mood modifiers for characteristics
