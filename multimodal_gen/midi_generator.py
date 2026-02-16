@@ -2282,10 +2282,19 @@ class MidiGenerator:
                 # Fallback: existing inline chord generation
                 # Use instrument-aware chord octave
                 _chord_inst = (resolved_instrument or 'rhodes').lower()
+                
+                # Score Plan: if chord_map is present, convert to scale-degree progression
+                _sp_progression = None
+                if getattr(arrangement, 'chord_map', None):
+                    _sp_progression = self._chord_map_to_progression(
+                        arrangement.chord_map, section, parsed.key, parsed.scale_type
+                    )
+                
                 chord_pattern = generate_chord_progression_midi(
                     section.bars,
                     parsed.key,
                     parsed.scale_type,
+                    progression=_sp_progression,
                     octave=get_chord_octave(_chord_inst),
                     base_velocity=int(85 * section.config.instrument_density * vel_mult),
                     rhythm_style=rhythm_style,
@@ -2342,6 +2351,74 @@ class MidiGenerator:
                 _midi_logger.debug("CC expression injection failed: %s", _e)
 
         return track
+
+    # ------------------------------------------------------------------
+    # Score Plan: convert chord_map symbols to scale-degree progression
+    # ------------------------------------------------------------------
+    _CHORD_SYMBOL_PC: Dict[str, int] = {
+        'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+        'E': 4, 'Fb': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7,
+        'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11, 'Cb': 11,
+    }
+
+    def _chord_root_pc(self, symbol: str) -> int:
+        """Extract the root pitch-class (0-11) from a chord symbol like 'Abm7'."""
+        if len(symbol) >= 2 and symbol[1] in ('#', 'b'):
+            root = symbol[:2]
+        else:
+            root = symbol[:1]
+        return self._CHORD_SYMBOL_PC.get(root, 0)
+
+    def _chord_map_to_progression(
+        self,
+        chord_map: Dict[int, str],
+        section: 'SongSection',
+        key: str,
+        scale_type: 'ScaleType',
+    ) -> Optional[List[int]]:
+        """Convert chord_map entries within *section* to a list of scale degrees.
+
+        Returns ``None`` when no entries fall inside the section so that the
+        caller falls back to auto-generation.
+        """
+        from multimodal_gen.utils import NOTE_NAMES, NOTE_NAMES_FLAT
+
+        # Compute key pitch-class
+        key_upper = key.upper().strip()
+        flat_to_sharp = {'DB': 'C#', 'EB': 'D#', 'GB': 'F#', 'AB': 'G#', 'BB': 'A#'}
+        key_norm = flat_to_sharp.get(key_upper, key_upper)
+        try:
+            key_pc = NOTE_NAMES.index(key_norm)
+        except ValueError:
+            key_pc = NOTE_NAMES.index(key_norm[0]) if key_norm else 0
+
+        # Scale intervals (semitones from root)
+        scale_intervals = list(scale_type.value)
+
+        # Collect chords in this section, sorted by tick
+        entries = sorted(
+            ((t, sym) for t, sym in chord_map.items()
+             if section.start_tick <= t < section.end_tick),
+            key=lambda x: x[0],
+        )
+        if not entries:
+            return None
+
+        degrees: List[int] = []
+        for _, sym in entries:
+            chord_pc = self._chord_root_pc(sym)
+            semitone_offset = (chord_pc - key_pc) % 12
+            # Find closest scale degree
+            best_deg = 1
+            best_dist = 999
+            for idx, iv in enumerate(scale_intervals):
+                dist = min(abs(iv - semitone_offset), 12 - abs(iv - semitone_offset))
+                if dist < best_dist:
+                    best_dist = dist
+                    best_deg = idx + 1  # 1-based scale degree
+            degrees.append(best_deg)
+
+        return degrees if degrees else None
 
     def _apply_voice_leading(self, chord_pattern, parsed):
         """Post-process chord pattern through HarmonicBrain voice leading."""

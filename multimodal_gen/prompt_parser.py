@@ -423,8 +423,8 @@ BPM_PATTERNS = [
 
 # Key extraction patterns
 KEY_PATTERNS = [
-    r'(?:in|key\s*(?:of)?)\s*([A-Ga-g][#b♯♭]?)\s*(major|minor|maj|min|m)?',
-    r'([A-Ga-g][#b♯♭]?)\s*(major|minor|maj|min|m)\s*(?:key)?',
+    r'\b(?:in|key\s*(?:of)?)\b\s*([A-Ga-g][#b♯♭]?)\b\s*(major|minor|maj|min|m)?\b',
+    r'\b([A-Ga-g][#b♯♭]?)\b\s*(major|minor|maj|min|m)\b\s*(?:key)?',
 ]
 
 # Genre keywords mapped to genre type
@@ -519,7 +519,7 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
     ],
     'pad': [
         'pad', 'pads', 'synth pad', 'ambient pad', 'warm pad',
-        'string pad'
+        'string pad', 'drone', 'drone pad'
     ],
     'strings': [
         'strings', 'orchestral', 'violin', 'cello', 'viola',

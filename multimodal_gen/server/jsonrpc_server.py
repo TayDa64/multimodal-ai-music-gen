@@ -923,6 +923,15 @@ class MusicGenJSONRPCServer:
         if not prompt:
             raise TypeError("Missing required param: prompt")
 
+        score_plan = params.get("score_plan")
+        if isinstance(score_plan, str):
+            try:
+                score_plan = json.loads(score_plan)
+            except Exception:
+                score_plan = None
+        if score_plan is not None and not isinstance(score_plan, dict):
+            score_plan = None
+
         return GenerationRequest(
             prompt=prompt,
             request_id=params.get("request_id", str(uuid.uuid4())[:8]),
@@ -941,6 +950,7 @@ class MusicGenJSONRPCServer:
             num_takes=int(params.get("num_takes", 1)),
             take_variation=params.get("take_variation", ""),
             options=params.get("options", {}),
+            score_plan=score_plan,
         )
 
     def _create_httpd(self) -> None:

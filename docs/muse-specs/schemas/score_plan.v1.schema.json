@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "muse://schemas/score-plan.v1.json",
+  "title": "MUSE Score Plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "prompt", "bpm", "key", "mode", "sections", "tracks"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["score_plan_v1"]
+    },
+    "request_id": { "type": "string" },
+    "prompt": { "type": "string", "minLength": 1 },
+    "bpm": { "type": "number", "minimum": 30, "maximum": 220 },
+    "key": { "type": "string", "pattern": "^[A-G](#|b)?$" },
+    "mode": { "type": "string", "enum": ["major", "minor", "dorian", "phrygian", "lydian", "mixolydian", "locrian"] },
+    "time_signature": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": [{ "type": "integer", "minimum": 1 }, { "type": "integer", "minimum": 1 }]
+    },
+    "genre": { "type": "string" },
+    "mood": { "type": "string" },
+    "influences": { "type": "array", "items": { "type": "string" } },
+    "seed": { "type": "integer" },
+    "duration_bars": { "type": "integer", "minimum": 1 },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "type", "bars"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["intro", "verse", "pre_chorus", "chorus", "drop", "bridge", "breakdown", "outro"]
+          },
+          "bars": { "type": "integer", "minimum": 1 },
+          "energy": { "type": "number", "minimum": 0, "maximum": 1 },
+          "tension": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "chord_map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bar", "chord"],
+        "properties": {
+          "bar": { "type": "integer", "minimum": 1 },
+          "chord": { "type": "string" }
+        }
+      }
+    },
+    "tension_curve": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0, "maximum": 1 }
+    },
+    "cue_points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["bar", "type"],
+        "properties": {
+          "bar": { "type": "integer", "minimum": 1 },
+          "type": { "type": "string", "enum": ["fill", "build", "drop", "breakdown"] },
+          "intensity": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "tracks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "instrument"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["drums", "bass", "keys", "lead", "strings", "fx", "pad"]
+          },
+          "instrument": { "type": "string" },
+          "pattern_hint": { "type": "string" },
+          "octave": { "type": "integer" },
+          "density": { "type": "number", "minimum": 0, "maximum": 1 },
+          "activation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["section", "active"],
+              "properties": {
+                "section": { "type": "string" },
+                "active": { "type": "boolean" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "avoid_instruments": { "type": "array", "items": { "type": "string" } },
+        "avoid_drums": { "type": "array", "items": { "type": "string" } },
+        "max_polyphony": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

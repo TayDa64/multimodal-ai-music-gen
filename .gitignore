@@ -112,3 +112,7 @@ test_output_integration/
 check_acceptance_criteria.py
 verify_chord_extraction.py
 .coverage
+
+output_cli_golden*/
+output_cli_golden_full/
+output_cli_golden_short/

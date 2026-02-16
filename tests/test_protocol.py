@@ -277,6 +277,7 @@ class TestPhase52OptionForwarding:
                 "num_motifs": 3,
                 "seed": 123,
             },
+            score_plan={"schema_version": "score_plan_v1", "prompt": "x", "bpm": 120, "key": "C", "mode": "minor", "sections": [{"name": "intro", "type": "intro", "bars": 4}], "tracks": [{"role": "pad", "instrument": "pad"}]},
         )
 
         def _progress(step: str, pct: float, msg: str):
@@ -296,6 +297,7 @@ class TestPhase52OptionForwarding:
         assert kwargs["motif_mode"] == "on"
         assert kwargs["num_motifs"] == 3
         assert kwargs["seed"] == 123
+        assert kwargs["score_plan"] == request.score_plan
     
     def test_error_message_format(self):
         """Test that error messages include request_id."""

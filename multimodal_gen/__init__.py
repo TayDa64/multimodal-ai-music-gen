@@ -116,6 +116,13 @@ from .take_generator import (
     TakeLane,
     take_to_midi_track,
 )
+from .score_plan_adapter import (
+    validate_score_plan,
+    score_plan_to_parsed_prompt,
+    score_plan_to_performance_score,
+    extract_seed,
+    ScorePlanError,
+)
 
 __all__ = [
     "PromptParser",
@@ -208,4 +215,10 @@ __all__ = [
     "TakeConfig",
     "TakeLane",
     "take_to_midi_track",
+    # Score plan adapter
+    "validate_score_plan",
+    "score_plan_to_parsed_prompt",
+    "score_plan_to_performance_score",
+    "extract_seed",
+    "ScorePlanError",
 ]

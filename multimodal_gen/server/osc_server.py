@@ -358,6 +358,15 @@ class MusicGenOSCServer:
             raw_options = data.get("options", {})
             options: Dict[str, Any] = raw_options if isinstance(raw_options, dict) else {}
 
+            score_plan = data.get("score_plan")
+            if isinstance(score_plan, str):
+                try:
+                    score_plan = json.loads(score_plan)
+                except Exception:
+                    score_plan = None
+            if score_plan is not None and not isinstance(score_plan, dict):
+                score_plan = None
+
             # Top-level convenience fields (mirrors CLI args/pipeline fields)
             for k in (
                 "tension_arc_shape",
@@ -375,6 +384,13 @@ class MusicGenOSCServer:
             # Merge persisted overrides with per-request options (per-request wins)
             if self._control_overrides:
                 options = {**self._control_overrides, **options}
+
+            if score_plan and ("seed" not in options or options.get("seed") is None):
+                try:
+                    if "seed" in score_plan:
+                        options["seed"] = score_plan["seed"]
+                except Exception:
+                    pass
 
             # Ensure unique seed if not provided - critical for take variation between requests
             if "seed" not in options or options.get("seed") is None:
@@ -438,6 +454,7 @@ class MusicGenOSCServer:
                 num_takes=num_takes,
                 take_variation=take_variation,
                 options=options,
+                score_plan=score_plan,
             )
             
             self._log(f"   Request ID: {request_id}" if request_id else "   Request ID: (none)")

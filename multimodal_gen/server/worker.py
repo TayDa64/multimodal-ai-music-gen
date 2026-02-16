@@ -82,6 +82,7 @@ class GenerationRequest:
     num_takes: int = 1          # Number of takes per track (1 = no variations)
     take_variation: str = ""    # Variation axis: "rhythm", "pitch", "timing", "combined"
     options: Dict[str, Any] = field(default_factory=dict)  # Additional options
+    score_plan: Optional[Dict[str, Any]] = None  # Optional score plan override
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for logging/serialization."""
@@ -105,6 +106,7 @@ class GenerationRequest:
             "reference_genre": self.reference_genre,
             "num_takes": self.num_takes,
             "take_variation": self.take_variation,
+            "score_plan": self.score_plan,
         }
 
 
@@ -211,6 +213,12 @@ def build_run_generation_kwargs(
             return None
 
     seed_opt = _as_int(_opt("seed"))
+    if seed_opt is None and request.score_plan:
+        try:
+            from ..score_plan_adapter import extract_seed
+            seed_opt = extract_seed(request.score_plan)
+        except Exception:
+            seed_opt = None
     # Ensure unique seed if not provided - critical for take variation between requests
     if seed_opt is None:
         import time
@@ -241,10 +249,13 @@ def build_run_generation_kwargs(
         key_override = request.reference_key
     
     # TASK 3: Determine genre override - prefer explicit request.genre, then pre-analyzed reference_genre
+    # Treat "auto" from JUCE as no override so prompt parsing can infer the genre.
     genre_override = None
     if request.genre:
-        genre_override = request.genre
-    elif request.reference_genre:
+        genre_candidate = str(request.genre).strip()
+        if genre_candidate and genre_candidate.lower() not in ("auto", "auto-detect", "auto_detect", "auto (from prompt)", "auto_from_prompt"):
+            genre_override = genre_candidate
+    if genre_override is None and request.reference_genre:
         # Use pre-analyzed genre from JUCE frontend
         genre_override = request.reference_genre
 
@@ -272,6 +283,7 @@ def build_run_generation_kwargs(
         "tension_intensity": tension_intensity_opt,
         "motif_mode": motif_mode_opt,
         "num_motifs": num_motifs_opt,
+        "score_plan": request.score_plan,
     }
 
 

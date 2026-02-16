@@ -282,6 +282,9 @@ class Arrangement:
     # NEW: Tension arc for emotional narrative shaping
     tension_arc: Optional[TensionArc] = None
     
+    # Score Plan: optional external chord map (tick → chord symbol)
+    chord_map: Dict[int, str] = field(default_factory=dict)
+    
     def duration_seconds(self) -> float:
         return ticks_to_seconds(self.total_ticks, self.bpm)
     

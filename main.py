@@ -24,6 +24,7 @@ import sys
 import os
 import shutil
 import re
+import copy
 from pathlib import Path
 from datetime import datetime
 import json
@@ -53,8 +54,14 @@ from multimodal_gen import (
     TakeGenerator,
     # Instrument resolution service
     create_instrument_service,
+    validate_score_plan,
+    score_plan_to_parsed_prompt,
+    score_plan_to_performance_score,
+    extract_seed,
+    ScorePlanError,
 )
 from multimodal_gen.prompt_parser import set_instrument_service
+from multimodal_gen.arranger import Arrangement
 
 # Import StylePolicy for coherent producer decisions
 try:
@@ -114,9 +121,14 @@ except ImportError:
         BRIGHT = RESET_ALL = ""
 
 
+def _supports_unicode_output() -> bool:
+    enc = (getattr(sys.stdout, "encoding", None) or "").lower()
+    return "utf" in enc
+
+
 def print_banner():
     """Print application banner."""
-    banner = """
+    banner_unicode = """
 ╔════════════════════════════════════════════════════════════════╗
 ║           🎵 MULTIMODAL AI MUSIC GENERATOR 🎵                 ║
 ║                                                                ║
@@ -124,6 +136,15 @@ def print_banner():
 ║      Professional Humanization • CPU-Only • Offline-First     ║
 ╚════════════════════════════════════════════════════════════════╝
     """
+    banner_ascii = """
+=================================================================
+  MULTIMODAL AI MUSIC GENERATOR
+
+  Text -> MIDI -> Audio -> MPC Project
+  Professional Humanization • CPU-Only • Offline-First
+=================================================================
+    """
+    banner = banner_unicode if _supports_unicode_output() else banner_ascii
     try:
         print(f"{Fore.CYAN}{banner}{Style.RESET_ALL}")
     except Exception:
@@ -403,6 +424,7 @@ def run_generation(
     motif_mode: Optional[str] = None,
     num_motifs: Optional[int] = None,
     use_agents: bool = False,
+    score_plan: Optional[dict] = None,
 ) -> dict:
     """Run the full music generation pipeline.
     
@@ -426,12 +448,35 @@ def run_generation(
         comp: Auto-generate comp track from best sections of each take
         comp_bars: Number of bars per comp section (default: 2)
         use_agents: Use agent-based generation for Ethiopian instruments (experimental)
+        score_plan: Optional score plan dict (Copilot orchestration)
         
     Returns:
         Dictionary with paths to generated files
     """
     # Ensure output_dir is a Path object
     output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
+
+    score_plan_parsed = None
+    score_plan_score = None
+    if score_plan:
+        try:
+            validate_score_plan(score_plan)
+        except ScorePlanError as e:
+            raise ValueError(f"Invalid score plan: {e}") from e
+
+        plan_prompt = str(score_plan.get("prompt", "")).strip()
+        if plan_prompt:
+            if plan_prompt != prompt and verbose:
+                print_info(f"Score plan prompt applied: \"{plan_prompt}\"")
+            prompt = plan_prompt
+
+        if seed is None:
+            plan_seed = extract_seed(score_plan)
+            if plan_seed is not None:
+                seed = plan_seed
+
+        score_plan_parsed = score_plan_to_parsed_prompt(score_plan)
+        score_plan_score = score_plan_to_performance_score(score_plan)
     
     # Set random seed if provided
     if seed is not None:
@@ -593,8 +638,12 @@ def run_generation(
     print_step("1/6", "Parsing prompt...")
     report_progress("parsing", 0.05, "Parsing prompt...")
     parser = PromptParser()
-    base_parsed = parser.parse(base_prompt)
-    parsed = parser.parse(prompt)
+    if score_plan_parsed is not None:
+        base_parsed = copy.deepcopy(score_plan_parsed)
+        parsed = score_plan_parsed
+    else:
+        base_parsed = parser.parse(base_prompt)
+        parsed = parser.parse(prompt)
 
     # Normalize genre strings early so downstream modules always see internal keys.
     try:
@@ -696,6 +745,17 @@ def run_generation(
         except Exception:
             pass
 
+    if duration_bars is None and score_plan:
+        try:
+            plan_duration_bars = score_plan.get("duration_bars")
+            if plan_duration_bars is None:
+                plan_duration_bars = sum(
+                    int(section.get("bars", 0)) for section in score_plan.get("sections", [])
+                )
+            duration_bars = int(plan_duration_bars) if plan_duration_bars else None
+        except Exception:
+            duration_bars = None
+
     if duration_bars is not None:
         try:
             bars = int(duration_bars)
@@ -781,50 +841,78 @@ def run_generation(
     # Pass user-specified duration if provided, otherwise Arranger uses its default (3 min)
     arranger = Arranger(target_duration_seconds=parsed.target_duration_seconds)
 
-    # Motif wiring (Phase 2): for prioritized genres, generate motifs + per-section assignments
-    # to drive coherent melodic themes across the full arrangement.
-    try:
-        from multimodal_gen.arranger import generate_arrangement_with_motifs
-        from multimodal_gen.utils import normalize_genre
-
-        normalized_genre = normalize_genre(parsed.genre)
-        use_motifs = normalized_genre in [
-            'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista',
-            'g_funk', 'cinematic', 'classical'
-        ]
-
-        # Phase 5.2: explicit override (auto|on|off)
-        force_motifs = None
-        try:
-            mm = (motif_mode or "").strip().lower()
-            if mm in ("on", "true", "1", "yes", "enable", "enabled"):
-                force_motifs = True
-            elif mm in ("off", "false", "0", "no", "disable", "disabled"):
-                force_motifs = False
-        except Exception:
-            force_motifs = None
-
-        if force_motifs is not None:
-            use_motifs = force_motifs
-
-        nm = 2
-        try:
-            if num_motifs is not None:
-                nm = max(1, min(3, int(num_motifs)))
-        except Exception:
-            nm = 2
-
-        if use_motifs:
-            arrangement = generate_arrangement_with_motifs(
-                parsed,
-                num_motifs=nm,
-                seed=seed,
-                target_duration_seconds=parsed.target_duration_seconds,
+    score_plan_sections = score_plan_score.sections if score_plan_score else None
+    if score_plan_sections:
+        total_ticks = score_plan_sections[-1].end_tick if score_plan_sections else 0
+        total_bars = sum(s.bars for s in score_plan_sections)
+        
+        # Build TensionArc from score plan tension_curve if provided
+        _sp_tension_arc = None
+        if score_plan_score and getattr(score_plan_score, 'tension_curve', None):
+            from multimodal_gen.tension_arc import TensionArc, TensionPoint, ArcShape
+            n = len(score_plan_score.tension_curve)
+            _sp_tension_arc = TensionArc(
+                points=[
+                    TensionPoint(position=i / max(n - 1, 1), tension=t)
+                    for i, t in enumerate(score_plan_score.tension_curve)
+                ],
+                shape=ArcShape.FLAT,  # custom points override shape
             )
-        else:
+        
+        arrangement = Arrangement(
+            sections=score_plan_sections,
+            total_bars=total_bars,
+            total_ticks=total_ticks,
+            bpm=parsed.bpm,
+            time_signature=parsed.time_signature,
+            tension_arc=_sp_tension_arc,
+            chord_map=getattr(score_plan_score, 'chord_map', {}) or {},
+        )
+    else:
+        # Motif wiring (Phase 2): for prioritized genres, generate motifs + per-section assignments
+        # to drive coherent melodic themes across the full arrangement.
+        try:
+            from multimodal_gen.arranger import generate_arrangement_with_motifs
+            from multimodal_gen.utils import normalize_genre
+
+            normalized_genre = normalize_genre(parsed.genre)
+            use_motifs = normalized_genre in [
+                'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista',
+                'g_funk', 'cinematic', 'classical'
+            ]
+
+            # Phase 5.2: explicit override (auto|on|off)
+            force_motifs = None
+            try:
+                mm = (motif_mode or "").strip().lower()
+                if mm in ("on", "true", "1", "yes", "enable", "enabled"):
+                    force_motifs = True
+                elif mm in ("off", "false", "0", "no", "disable", "disabled"):
+                    force_motifs = False
+            except Exception:
+                force_motifs = None
+
+            if force_motifs is not None:
+                use_motifs = force_motifs
+
+            nm = 2
+            try:
+                if num_motifs is not None:
+                    nm = max(1, min(3, int(num_motifs)))
+            except Exception:
+                nm = 2
+
+            if use_motifs:
+                arrangement = generate_arrangement_with_motifs(
+                    parsed,
+                    num_motifs=nm,
+                    seed=seed,
+                    target_duration_seconds=parsed.target_duration_seconds,
+                )
+            else:
+                arrangement = arranger.create_arrangement(parsed)
+        except Exception:
             arrangement = arranger.create_arrangement(parsed)
-    except Exception:
-        arrangement = arranger.create_arrangement(parsed)
     
     # Log duration info
     estimated_duration = arrangement.total_bars * 4 * 60 / parsed.bpm  # bars * beats/bar * sec/min / bpm
@@ -1939,8 +2027,26 @@ def save_project_metadata(
         "original_seed": history[0].get('seed') if history else seed,  # Preserve original "soul"
     }
     
+    # Strip non-serializable internal objects before writing to disk
+    # (_mix_policy_obj and _preset_values are only needed in-memory for CLI re-render)
+    outputs = metadata.get("current", {}).get("outputs", {})
+    _popped_mix = outputs.pop("_mix_policy_obj", None)
+    _popped_preset = outputs.pop("_preset_values", None)
+    
+    # Also strip from generation_history entries
+    for entry in metadata.get("generation_history", []):
+        entry_outputs = entry.get("outputs", {})
+        entry_outputs.pop("_mix_policy_obj", None)
+        entry_outputs.pop("_preset_values", None)
+    
     with open(metadata_path, 'w') as f:
-        json.dump(metadata, f, indent=2)
+        json.dump(metadata, f, indent=2, default=str)
+    
+    # Restore in-memory references after serialization
+    if _popped_mix is not None:
+        outputs["_mix_policy_obj"] = _popped_mix
+    if _popped_preset is not None:
+        outputs["_preset_values"] = _popped_preset
     
     return metadata_path
 
@@ -2355,6 +2461,11 @@ Server Mode (for JUCE integration):
         type=str,
         help="YouTube URL or audio file path to analyze for style reference",
     )
+    parser.add_argument(
+        "--score-plan",
+        type=str,
+        help="Path to score plan JSON (Copilot orchestration)",
+    )
 
     # MIDI controller integration (e.g., MPC Studio)
     parser.add_argument(
@@ -2634,6 +2745,14 @@ Server Mode (for JUCE integration):
         except Exception as e:
             print_error(str(e))
             return 1
+
+    score_plan_data = None
+    if args.score_plan:
+        try:
+            score_plan_path = Path(args.score_plan)
+            score_plan_data = json.loads(score_plan_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            parser.error(f"Failed to read score plan: {e}")
     
     # Handle server mode
     if args.server:
@@ -2735,7 +2854,7 @@ Server Mode (for JUCE integration):
             sys.exit(1)
     
     # Normal generation mode - require prompt
-    if not args.prompt:
+    if not args.prompt and not args.score_plan:
         parser.error("prompt is required (or use --server mode)")
     
     # Print banner unless suppressed
@@ -2747,7 +2866,10 @@ Server Mode (for JUCE integration):
     
     if not args.json:
         print_info(f"Output directory: {output_dir.absolute()}")
-        print_info(f"Prompt: \"{args.prompt}\"")
+        if args.prompt:
+            print_info(f"Prompt: \"{args.prompt}\"")
+        if args.score_plan:
+            print_info(f"Score plan: {args.score_plan}")
         if args.reference:
             print_info(f"Reference: {args.reference}")
         if args.instruments:
@@ -2800,7 +2922,7 @@ Server Mode (for JUCE integration):
 
         # Run generation pipeline
         results = run_generation(
-            prompt=args.prompt,
+            prompt=args.prompt or "",
             output_dir=output_dir,
             bpm_override=args.bpm,
             key_override=args.key,
@@ -2821,6 +2943,7 @@ Server Mode (for JUCE integration):
             style_preset=args.style_preset,
             production_preset=args.production_preset,
             use_agents=args.use_agents,
+            score_plan=score_plan_data,
         )
 
         require_soundfont_failed = bool(args.require_soundfont and not results.get('audio'))
