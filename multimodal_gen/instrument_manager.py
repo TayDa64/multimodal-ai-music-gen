@@ -631,14 +631,15 @@ class InstrumentMatcher:
         
         # Also do direct keyword check from GENRE_PROFILES for robustness
         # This catches cases where the instrument wasn't indexed properly
+        # NOTE: Only check instrument NAME, not full PATH — folder names like
+        # "funk/" would over-exclude samples that just happen to live there.
         from .instrument_intelligence import GENRE_PROFILES
         profile = GENRE_PROFILES.get(genre_key, {})
         excluded_sounds = profile.get('excluded_sounds', [])
         
-        inst_path_lower = instrument.path.lower()
         inst_name_lower = instrument.name.lower()
         for keyword in excluded_sounds:
-            if keyword in inst_path_lower or keyword in inst_name_lower:
+            if keyword in inst_name_lower:
                 return True
         
         return False
@@ -1172,17 +1173,31 @@ class InstrumentLibrary:
     def _detect_category(self, path: str) -> InstrumentCategory:
         """Detect instrument category from file path."""
         path_lower = path.lower()
+        filename_lower = Path(path).stem.lower()
         
-        # Check directory names
+        # PRIORITY 1: Filename prefix override — handles misplaced samples
+        # (e.g., Inst-Bass-* files duplicated into drums/hihats/ folder)
+        filename_prefix_map = {
+            'inst-bass-': InstrumentCategory.BASS,
+            'inst-synth-': InstrumentCategory.SYNTH,
+            'inst-pad-': InstrumentCategory.PAD,
+            'inst-keys-': InstrumentCategory.KEYS,
+            'inst-string': InstrumentCategory.STRINGS,
+            'inst-brass': InstrumentCategory.BRASS,
+        }
+        for prefix, category in filename_prefix_map.items():
+            if filename_lower.startswith(prefix):
+                return category
+        
+        # PRIORITY 2: Check directory names
         for dir_name, category in DIR_TO_CATEGORY.items():
             if f"/{dir_name}/" in path_lower or f"\\{dir_name}\\" in path_lower:
                 return category
         
-        # Check filename keywords
-        filename = Path(path).stem.lower()
+        # PRIORITY 3: Check filename keywords
         for category, keywords in KEYWORD_TO_CATEGORY.items():
             for keyword in keywords:
-                if keyword in filename:
+                if keyword in filename_lower:
                     return category
         
         return InstrumentCategory.UNKNOWN
