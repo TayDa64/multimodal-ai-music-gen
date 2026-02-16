@@ -1625,6 +1625,7 @@ class AudioRenderer:
                     fluidsynth_skip_reason=fluidsynth_skip_reason,
                     warnings=warnings,
                 )
+                self._run_output_analysis(output_path, parsed)
                 return True
 
             warnings.append("FluidSynth render failed; falling back to procedural")
@@ -1660,7 +1661,42 @@ class AudioRenderer:
             fluidsynth_skip_reason=fluidsynth_skip_reason,
             warnings=warnings,
         )
+        if procedural_success:
+            self._run_output_analysis(output_path, parsed)
         return procedural_success
+
+    def _run_output_analysis(
+        self, output_path: str, parsed: Optional[ParsedPrompt]
+    ) -> None:
+        """Run post-render output analysis and attach results to render report.
+
+        Analyzes the rendered WAV against genre expectations to detect issues
+        like drums in classical music, synthetic piano timbre, etc.
+        """
+        if not self._last_render_report:
+            return
+
+        genre = "pop"
+        if parsed and parsed.genre:
+            genre = parsed.genre
+        elif self.genre:
+            genre = self.genre
+
+        try:
+            from .output_analyzer import OutputAnalyzer
+
+            analyzer = OutputAnalyzer(sr=self.sample_rate)
+            report = analyzer.analyze(output_path, target_genre=genre)
+            self._last_render_report["audio_analysis"] = report.to_dict()
+
+            if not report.passed:
+                logger.warning(
+                    "Output analysis FAILED (score=%.3f): %s",
+                    report.genre_match_score,
+                    "; ".join(i.message for i in report.issues),
+                )
+        except Exception as e:
+            logger.debug("Output analysis skipped: %s", e)
 
     def _build_render_report(
         self,

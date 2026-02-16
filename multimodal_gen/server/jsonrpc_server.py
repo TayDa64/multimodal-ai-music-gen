@@ -272,6 +272,7 @@ class MusicGenJSONRPCServer:
             "build_index": self._handle_build_index,
             "get_preferences": self._handle_get_preferences,
             "record_preference": self._handle_record_preference,
+            "analyze_output": self._handle_analyze_output,
         }
 
         logger.info(
@@ -891,6 +892,32 @@ class MusicGenJSONRPCServer:
 
                 self._preference_tracker = PreferenceTracker()
             return self._preference_tracker
+
+    def _handle_analyze_output(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze a rendered WAV against genre expectations.
+
+        Params:
+            audio_path (str): Path to the rendered WAV file.
+            genre (str): Target genre (default: "pop").
+
+        Returns:
+            OutputAnalysisReport as dict with genre_match_score,
+            issues, corrections, spectral features, etc.
+        """
+        from ..output_analyzer import OutputAnalyzer
+
+        audio_path = params.get("audio_path")
+        if not audio_path or not isinstance(audio_path, str):
+            raise TypeError("Missing or invalid param: audio_path (str)")
+
+        import os
+        if not os.path.isfile(audio_path):
+            raise FileNotFoundError(f"Audio file not found: {audio_path}")
+
+        genre = str(params.get("genre", "pop"))
+        analyzer = OutputAnalyzer()
+        report = analyzer.analyze(audio_path, target_genre=genre)
+        return report.to_dict()
 
     def _handle_shutdown(self, _params: Dict[str, Any]) -> Dict[str, Any]:
         """Initiate graceful shutdown (returns before fully stopped)."""
