@@ -604,7 +604,7 @@ class InstrumentMatcher:
         """
         self._intelligence = intelligence
         # Pre-compute exclusions for common genres
-        for genre in ['g_funk', 'lofi', 'jazz', 'rnb', 'trap', 'boom_bap']:
+        for genre in ['g_funk', 'lofi', 'jazz', 'rnb', 'trap', 'boom_bap', 'classical', 'cinematic', 'pop', 'funk']:
             self._excluded_samples[genre] = set(
                 intelligence.get_excluded_samples(genre)
             )
@@ -710,12 +710,15 @@ class InstrumentMatcher:
         self,
         profile1: SonicProfile,
         profile2: SonicProfile,
-        weights: Dict[str, float] = None
+        weights: Dict[str, float] = None,
+        jitter: float = 0.0
     ) -> float:
         """
         Compute similarity between two sonic profiles.
         
         Returns a score from 0 (completely different) to 1 (identical).
+        Args:
+            jitter: Random variation (0-0.1) for variety across generations.
         """
         default_weights = {
             "brightness": 1.0,
@@ -746,6 +749,10 @@ class InstrumentMatcher:
         # Convert to similarity (0 diff = 1 similarity)
         max_possible_diff = total_weight
         similarity = 1.0 - (weighted_diff / max_possible_diff)
+        
+        if jitter > 0:
+            import random
+            similarity += random.uniform(-jitter, jitter)
         
         return max(0.0, min(1.0, similarity))
     
@@ -805,7 +812,7 @@ class InstrumentMatcher:
         scored = []
         for instrument in candidates:
             if instrument.profile:
-                score = self.compute_similarity(ideal, instrument.profile)
+                score = self.compute_similarity(ideal, instrument.profile, jitter=0.05)
                 scored.append((score, instrument))
         
         # Sort by score descending

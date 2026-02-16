@@ -306,7 +306,7 @@ GENRE_PROFILES: Dict[str, Dict] = {
             "tags": ["pad", "atmospheric", "warm", "orchestral"],
             "exclude": ["aggressive", "harsh", "whistle", "screech", "808", "electronic"],
         },
-        "excluded_sounds": ["808", "trap", "electronic", "whistle", "lo-fi", "dusty", "distort", "screech"],
+        "excluded_sounds": ["808", "trap", "electronic", "whistle", "lo-fi", "dusty", "distort", "screech", "rnb", "funk", "drill"],
         "mood_keywords": ["epic", "dramatic", "sweeping", "majestic", "cinematic", "orchestral"],
     },
 
@@ -334,7 +334,7 @@ GENRE_PROFILES: Dict[str, Dict] = {
             "tags": ["pad", "orchestral"],
             "exclude": ["electronic", "808", "synth", "aggressive", "whistle"],
         },
-        "excluded_sounds": ["808", "trap", "electronic", "whistle", "lo-fi", "dusty", "distort", "edm", "synth"],
+        "excluded_sounds": ["808", "trap", "electronic", "whistle", "lo-fi", "dusty", "distort", "edm", "synth", "rnb", "funk", "drill"],
         "mood_keywords": ["elegant", "refined", "classical", "acoustic", "concert"],
     },
 }

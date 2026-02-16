@@ -680,14 +680,21 @@ class ProceduralRenderer:
             }
             
             for drum_name, category in drum_mappings.items():
-                # Get best match for this drum type and genre
-                best = self._matcher.get_best_match(
+                # Get top 3 matches for variety, then randomly select
+                candidates = self._matcher.get_best_match(
                     category.value,
                     genre=self.genre,
-                    mood=self.mood
+                    mood=self.mood,
+                    top_n=3
                 )
                 
-                if best:
+                if candidates:
+                    import random
+                    if not isinstance(candidates, list):
+                        candidates = [candidates]
+                    # Weighted random: prefer best match but allow variety
+                    weights = [0.5, 0.3, 0.2][:len(candidates)]
+                    best = random.choices(candidates, weights=weights)[0]
                     # Load audio if not already loaded
                     if best.audio is None:
                         self.instrument_library.load_audio(best)
