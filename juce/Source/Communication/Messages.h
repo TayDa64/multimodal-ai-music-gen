@@ -174,6 +174,9 @@ struct GenerationResult
     float duration = 0.0f;
     int samplesGenerated = 0;
     
+    // Instruments used (from backend)
+    juce::var instrumentsUsed;
+
     // Takes (for TakeLanePanel)
     juce::String takesJson;  // JSON array of take data
     
@@ -232,6 +235,9 @@ struct GenerationResult
         result.samplesGenerated = obj->getProperty("samples_generated");
         result.errorCode = obj->getProperty("error_code");
         result.errorMessage = obj->getProperty("error_message").toString();
+
+        if (auto instruments = obj->getProperty("instruments_used"); instruments.isArray())
+            result.instrumentsUsed = instruments;
         
         // Extract takes array as JSON string for TakeLanePanel
         if (auto takesArr = obj->getProperty("takes"); takesArr.isArray())

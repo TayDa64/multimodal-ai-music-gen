@@ -13,6 +13,10 @@
 #include <juce_core/juce_core.h>
 #include <juce_events/juce_events.h>
 
+#if JUCE_WINDOWS
+#include <windows.h>
+#endif
+
 //==============================================================================
 /**
     Manages the Python backend server process.
@@ -70,6 +74,10 @@ public:
 private:
     //==============================================================================
     std::unique_ptr<juce::ChildProcess> process;
+#if JUCE_WINDOWS
+    HANDLE serverProcessHandle = nullptr;
+    DWORD serverPid = 0;
+#endif
     int serverPort = 0;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PythonManager)

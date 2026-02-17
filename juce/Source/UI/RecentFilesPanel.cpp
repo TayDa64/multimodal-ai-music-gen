@@ -122,7 +122,16 @@ void RecentFilesPanel::FileListBox::listBoxItemDoubleClicked(int row, const juce
 juce::String RecentFilesPanel::FileListBox::getTooltipForRow(int row)
 {
     if (row >= 0 && row < owner.files.size())
-        return owner.files[row].file.getFullPathName() + "\n\nRight-click for options";
+    {
+        const auto& info = owner.files[row];
+        juce::String tooltip;
+        tooltip << info.displayName << "\n"
+                << info.file.getFullPathName() << "\n"
+                << "Modified: " << info.lastModified.toString(true, true) << "\n"
+                << "Size: " << info.sizeString << "\n\n"
+                << "Right-click for options";
+        return tooltip;
+    }
     return {};
 }
 
@@ -302,7 +311,62 @@ RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& fil
     info.dateString = formatRelativeDate(info.lastModified);
     info.sizeString = formatFileSize(file.getSize());
     
-    // Parse filename: genre_bpm_key_timestamp.mid
+    // Try to read project_metadata.json for a richer display name
+    const auto metadataFile = file.getParentDirectory().getChildFile("project_metadata.json");
+    bool metadataUsed = false;
+    if (metadataFile.existsAsFile())
+    {
+        juce::var json;
+        if (auto stream = std::unique_ptr<juce::FileInputStream>(metadataFile.createInputStream()))
+        {
+            auto text = stream->readEntireStreamAsString();
+            json = juce::JSON::parse(text);
+        }
+
+        if (json.isObject())
+        {
+            auto hist = json.getProperty("generation_history", juce::var());
+            if (hist.isArray())
+            {
+                auto* arr = hist.getArray();
+                for (const auto& entry : *arr)
+                {
+                    if (!entry.isObject()) continue;
+                    auto outputs = entry.getProperty("outputs", juce::var());
+                    if (outputs.isObject())
+                    {
+                        auto midiPathVar = outputs.getProperty("midi", juce::String());
+                        juce::String midiPath = midiPathVar.toString();
+                        if (midiPath.isNotEmpty() && file.getFileName().equalsIgnoreCase(juce::File(midiPath).getFileName()))
+                        {
+                            juce::String promptStr = entry.getProperty("prompt", juce::String()).toString();
+                            if (promptStr.isNotEmpty())
+                            {
+                                info.displayName = promptStr.substring(0, 80);
+                                metadataUsed = true;
+                            }
+                            auto parsedVar = entry.getProperty("parsed", juce::var());
+                            if (auto* parsedObj = parsedVar.getDynamicObject())
+                            {
+                                auto genreVar = parsedObj->getProperty("genre");
+                                auto bpmVar = parsedObj->getProperty("bpm");
+                                auto keyVar = parsedObj->getProperty("key");
+                                auto parsedGenre = genreVar.toString();
+                                auto parsedKey = keyVar.toString();
+                                if (parsedGenre.isNotEmpty()) info.genre = parsedGenre;
+                                if (bpmVar.isInt()) info.bpm = (int)bpmVar;
+                                else if (bpmVar.isDouble()) info.bpm = (int)bpmVar;
+                                if (parsedKey.isNotEmpty()) info.key = parsedKey;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Parse filename fallback: genre_bpm_key_timestamp.mid
     // Example: trap_soul_92.0bpm_Gminor_20251209_125555.mid
     auto nameWithoutExt = file.getFileNameWithoutExtension();
     auto parts = juce::StringArray::fromTokens(nameWithoutExt, "_", "");
@@ -340,11 +404,20 @@ RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& fil
         }
     }
     
-    // Create display name (genre with proper capitalization)
-    info.displayName = info.genre;
-    if (info.displayName.length() > 0)
-        info.displayName = info.displayName.substring(0, 1).toUpperCase() 
-                         + info.displayName.substring(1);
+    // Create display name (prefer metadata prompt; otherwise genre)
+    if (!metadataUsed)
+    {
+        // Use a unique, human-readable fallback so multiple "ambient" renders don't all look identical.
+        // Filename is already structured: genre_bpm_key_timestamp.mid
+        auto base = file.getFileNameWithoutExtension().replaceCharacter('_', ' ').trim();
+        if (base.isEmpty())
+            base = info.genre;
+
+        info.displayName = base;
+        if (info.displayName.length() > 0)
+            info.displayName = info.displayName.substring(0, 1).toUpperCase()
+                             + info.displayName.substring(1);
+    }
     
     return info;
 }

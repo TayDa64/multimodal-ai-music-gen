@@ -492,6 +492,7 @@ void OSCBridge::handleStatus(const juce::OSCMessage& message)
     {
         juce::String status = obj->getProperty("status");
         juce::String reqId = obj->getProperty("request_id");
+        juce::String taskId = obj->getProperty("task_id");
         
         if (status == "generation_started")
         {
@@ -499,6 +500,10 @@ void OSCBridge::handleStatus(const juce::OSCMessage& message)
             {
                 isRequestAcknowledged = true;
                 DBG("OSCBridge: Generation request acknowledged");
+                listeners.call([reqId, taskId](Listener& l)
+                {
+                    l.onGenerationAcknowledged(reqId, taskId);
+                });
             }
         }
         else if (status == "cancelled")

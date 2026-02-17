@@ -11,9 +11,10 @@
 #include "PythonManager.h"
 #include "../Application/AppConfig.h"
 
+#include <vector>
+
 #if JUCE_WINDOWS
 #include <windows.h>
-#include <shellapi.h>
 #endif
 
 //==============================================================================
@@ -57,55 +58,97 @@ bool PythonManager::startServer(const juce::String& pythonPath,
         return false;
     }
     logFile.appendText("Found Python: " + python + "\\n");
-    
-    // Find main.py
+
+    // Historically we launched `main.py`. The gateway uses `python -m multimodal_gen.server`
+    // and does not require a `main.py` to exist. Keep this check best-effort for backward
+    // compatibility/logging only.
     auto mainScript = scriptPath.isEmpty() ? findMainScript() : juce::File(scriptPath);
-    if (!mainScript.existsAsFile())
-    {
-        DBG("PythonManager: main.py not found");
-        logFile.appendText("ERROR: main.py not found\\n");
-        return false;
-    }
-    logFile.appendText("Found main.py: " + mainScript.getFullPathName() + "\\n");
+    if (mainScript.existsAsFile())
+        logFile.appendText("Found main.py: " + mainScript.getFullPathName() + "\\n");
+    else
+        logFile.appendText("Note: main.py not found (ok when using -m multimodal_gen.server)\\n");
     
-    // Use Windows ShellExecute to run Python with proper path handling
+    // Use CreateProcessW so we can track/stop the process. (ShellExecuteW does not provide a PID.)
     #if JUCE_WINDOWS
     {
-        // Build argument string
-        juce::String arguments = "\"" + mainScript.getFullPathName() + "\"";
-        arguments += " --server --port " + juce::String(port);
-        arguments += " --no-signals --no-banner";
+        // Build argument string (command line excluding exe)
+        // Force UTF-8 mode so any backend logging won't crash due to Windows console codepages.
+        juce::String arguments = "-X utf8 -m multimodal_gen.server";
+        arguments += " --gateway --port " + juce::String(port);
         if (verbose)
             arguments += " --verbose";
         
-        logFile.appendText("Launching with ShellExecute...\\n");
+        logFile.appendText("Launching with CreateProcessW...\\n");
         logFile.appendText("Python: " + python + "\\n");
         logFile.appendText("Arguments: " + arguments + "\\n");
         
-        // Use ShellExecuteW for proper Unicode/space handling
-        HINSTANCE result = ShellExecuteW(
-            NULL,
-            L"open",
-            python.toWideCharPointer(),
-            arguments.toWideCharPointer(),
-            projectRoot.getFullPathName().toWideCharPointer(),  // Working directory
-            SW_HIDE  // Hide the window
+        // Capture stdout/stderr to a log file so we can diagnose startup failures.
+        auto backendLog = exeDir.getChildFile("python_backend.log");
+        backendLog.deleteFile();
+
+        SECURITY_ATTRIBUTES sa{};
+        sa.nLength = sizeof(sa);
+        sa.bInheritHandle = TRUE;
+
+        HANDLE hLog = CreateFileW(
+            backendLog.getFullPathName().toWideCharPointer(),
+            FILE_APPEND_DATA,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            &sa,
+            OPEN_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL
         );
-        
-        if ((intptr_t)result > 32)
+
+        STARTUPINFOW si{};
+        si.cb = sizeof(si);
+        si.dwFlags = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES;
+        si.wShowWindow = SW_HIDE;
+        si.hStdOutput = hLog;
+        si.hStdError = hLog;
+        si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+
+        PROCESS_INFORMATION pi{};
+
+        // CreateProcess requires a mutable, NUL-terminated command line buffer.
+        const juce::String cmdLine = "\"" + python + "\" " + arguments;
+        const std::wstring cmdWide(cmdLine.toWideCharPointer());
+        std::vector<wchar_t> cmdMutable(cmdWide.begin(), cmdWide.end());
+        cmdMutable.push_back(L'\0');
+
+        const auto workingDir = projectRoot.getFullPathName();
+        BOOL ok = CreateProcessW(
+            /*lpApplicationName*/ nullptr,
+            /*lpCommandLine*/ cmdMutable.data(),
+            /*lpProcessAttributes*/ nullptr,
+            /*lpThreadAttributes*/ nullptr,
+            /*bInheritHandles*/ TRUE,
+            /*dwCreationFlags*/ CREATE_NO_WINDOW,
+            /*lpEnvironment*/ nullptr,
+            /*lpCurrentDirectory*/ workingDir.toWideCharPointer(),
+            /*lpStartupInfo*/ &si,
+            /*lpProcessInformation*/ &pi
+        );
+
+        if (hLog != INVALID_HANDLE_VALUE && hLog != NULL)
+            CloseHandle(hLog);
+
+        if (ok)
         {
+            // Close thread handle; we only need process handle.
+            CloseHandle(pi.hThread);
+
+            serverProcessHandle = pi.hProcess;
+            serverPid = pi.dwProcessId;
             serverPort = port;
-            juce::Thread::sleep(1500);  // Wait for server to start
-            logFile.appendText("ShellExecute succeeded (result: " + juce::String((intptr_t)result) + ")\\n");
-            
-            // We can't track the process directly with ShellExecute
-            // Mark as running - OSC bridge will handle connection
+
+            logFile.appendText("CreateProcessW succeeded (pid: " + juce::String((int)serverPid) + ")\\n");
+            juce::Thread::sleep(1500);  // Give the server a moment to bind ports
             return true;
         }
-        else
-        {
-            logFile.appendText("ERROR: ShellExecute failed with code: " + juce::String((intptr_t)result) + "\\n");
-        }
+
+        const DWORD err = GetLastError();
+        logFile.appendText("ERROR: CreateProcessW failed. GetLastError=" + juce::String((int)err) + "\\n");
     }
     #endif
     
@@ -114,12 +157,13 @@ bool PythonManager::startServer(const juce::String& pythonPath,
     
     juce::StringArray args;
     args.add(python);
-    args.add(mainScript.getFullPathName());
-    args.add("--server");
+    args.add("-X");
+    args.add("utf8");
+    args.add("-m");
+    args.add("multimodal_gen.server");
+    args.add("--gateway");
     args.add("--port");
     args.add(juce::String(port));
-    args.add("--no-signals");
-    args.add("--no-banner");
     if (verbose)
         args.add("--verbose");
     
@@ -150,6 +194,29 @@ bool PythonManager::startServer(const juce::String& pythonPath,
 
 void PythonManager::stopServer()
 {
+    #if JUCE_WINDOWS
+    if (serverProcessHandle != nullptr)
+    {
+        DBG("PythonManager: Stopping server (CreateProcessW)...");
+
+        // Give it a chance to exit (MainComponent already tries OSC /shutdown).
+        WaitForSingleObject(serverProcessHandle, 1500);
+
+        DWORD exitCode = STILL_ACTIVE;
+        if (GetExitCodeProcess(serverProcessHandle, &exitCode) && exitCode == STILL_ACTIVE)
+        {
+            TerminateProcess(serverProcessHandle, 0);
+            WaitForSingleObject(serverProcessHandle, 2000);
+        }
+
+        CloseHandle(serverProcessHandle);
+        serverProcessHandle = nullptr;
+        serverPid = 0;
+        serverPort = 0;
+        return;
+    }
+    #endif
+
     if (process)
     {
         DBG("PythonManager: Stopping server...");
@@ -170,12 +237,26 @@ void PythonManager::stopServer()
 
 bool PythonManager::isRunning() const
 {
+    #if JUCE_WINDOWS
+    if (serverProcessHandle != nullptr)
+    {
+        DWORD exitCode = STILL_ACTIVE;
+        if (GetExitCodeProcess(serverProcessHandle, &exitCode))
+            return exitCode == STILL_ACTIVE;
+    }
+    #endif
+
     return process && process->isRunning();
 }
 
 int PythonManager::getProcessId() const
 {
-    // ChildProcess doesn't expose PID directly
+    #if JUCE_WINDOWS
+    if (serverPid != 0)
+        return (int)serverPid;
+    #endif
+
+    // juce::ChildProcess doesn't expose PID directly.
     return 0;
 }
 

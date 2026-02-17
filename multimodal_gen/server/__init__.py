@@ -52,6 +52,10 @@ from .jsonrpc_server import (
     MusicGenJSONRPCServer,
     run_jsonrpc_server,
 )
+from .gateway import (
+    GatewayServer,
+    run_gateway,
+)
 
 __all__ = [
     # Configuration
@@ -76,4 +80,8 @@ __all__ = [
     # Server (JSON-RPC)
     "MusicGenJSONRPCServer",
     "run_jsonrpc_server",
+
+    # Dual-protocol Gateway
+    "GatewayServer",
+    "run_gateway",
 ]

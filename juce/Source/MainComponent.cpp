@@ -12,6 +12,112 @@
 #include "UI/Theme/ColourScheme.h"
 #include "UI/Theme/LayoutConstants.h"
 
+#include <map>
+#include <thread>
+#include <vector>
+
+namespace
+{
+constexpr const char* kSampleInstrumentPrefix = "sample:";
+constexpr const char* kGenerateLogName = "juce_generate.log";
+
+bool isSampleInstrumentId(const juce::String& instrumentId)
+{
+    return instrumentId.startsWithIgnoreCase(kSampleInstrumentPrefix);
+}
+
+juce::File sampleFileFromInstrumentId(const juce::String& instrumentId)
+{
+    auto path = instrumentId.fromFirstOccurrenceOf(kSampleInstrumentPrefix, false, false).trim();
+    return juce::File(path);
+}
+
+std::vector<juce::String> preferredCategoriesForTrack(const juce::String& trackName)
+{
+    const auto name = trackName.toLowerCase();
+
+    if (name.contains("drum") || name.contains("perc"))
+        return { "kick", "snare", "clap", "hihat", "perc", "drums" };
+
+    if (name.contains("bass") || name.contains("808"))
+        return { "bass", "808" };
+
+    if (name.contains("chord") || name.contains("pad") || name.contains("keys") || name.contains("piano"))
+        return { "pad", "keys", "synth", "strings", "brass" };
+
+    if (name.contains("melody") || name.contains("lead") || name.contains("arp"))
+        return { "synth", "keys", "strings", "brass", "pad" };
+
+    return { "synth", "keys", "pad", "strings", "brass", "bass" };
+}
+
+juce::File resolveDefaultOutputDir()
+{
+    auto appDir = juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory();
+
+    juce::Array<juce::File> candidates = {
+        appDir.getParentDirectory().getParentDirectory().getParentDirectory().getParentDirectory().getChildFile("output"),
+        appDir.getSiblingFile("output"),
+        juce::File("C:/dev/AI Music Generator/multimodal-ai-music-gen/output")
+    };
+
+    for (const auto& dir : candidates)
+    {
+        if (dir.isDirectory())
+            return dir;
+    }
+
+    // Fallback: use app dir / output even if it doesn't exist yet.
+    return appDir.getSiblingFile("output");
+}
+
+void appendGenerateLog(const juce::File& outputDir, const juce::String& requestId, const juce::String& prompt)
+{
+    auto logFile = outputDir.getChildFile(kGenerateLogName);
+    auto timestamp = juce::Time::getCurrentTime().toString(true, true);
+    auto line = timestamp + " | request_id=" + requestId + " | prompt=" + prompt + "\n";
+    logFile.appendText(line);
+}
+
+juce::String formatGenerationStatus(MainComponent::GenerationStatus status,
+                                    const juce::String& requestId,
+                                    const juce::Time& sentTime,
+                                    const juce::Time& ackTime,
+                                    const juce::Time& doneTime)
+{
+    juce::String statusLabel = "Idle";
+    switch (status)
+    {
+        case MainComponent::GenerationStatus::RequestSent: statusLabel = "Request sent"; break;
+        case MainComponent::GenerationStatus::Acknowledged: statusLabel = "Ack received"; break;
+        case MainComponent::GenerationStatus::Completed: statusLabel = "Complete"; break;
+        case MainComponent::GenerationStatus::Cancelled: statusLabel = "Cancelled"; break;
+        case MainComponent::GenerationStatus::Error: statusLabel = "Error"; break;
+        case MainComponent::GenerationStatus::Idle:
+        default: break;
+    }
+
+    juce::String timeLabel;
+    if (status == MainComponent::GenerationStatus::RequestSent)
+        timeLabel = sentTime.toString(true, true);
+    else if (status == MainComponent::GenerationStatus::Acknowledged)
+        timeLabel = ackTime.toString(true, true);
+    else if (status == MainComponent::GenerationStatus::Completed)
+        timeLabel = doneTime.toString(true, true);
+
+    juce::String idShort = requestId;
+    if (idShort.length() > 8)
+        idShort = idShort.substring(0, 8);
+
+    juce::String out = "Gen: " + statusLabel;
+    if (idShort.isNotEmpty())
+        out += " (" + idShort + ")";
+    if (timeLabel.isNotEmpty())
+        out += " @ " + timeLabel;
+    return out;
+}
+}
+
 //==============================================================================
 MainComponent::MainComponent(AppState& state, mmg::AudioEngine& engine)
     : appState(state),
@@ -197,6 +303,125 @@ void MainComponent::applyDefaultSynthSettingsForTrackFromProjectState(int trackI
     audioEngine.setTrackDefaultSynthParam(trackIndex,
                                           mmg::AudioEngine::DefaultSynthParam::LfoDepth,
                                           (float)trackNode.getProperty(Project::IDs::defaultSynthLfoDepth, 0.0f));
+}
+
+void MainComponent::applyGeneratedInstrumentSamples(const GenerationResult& result)
+{
+    juce::var instrumentsVar = result.instrumentsUsed;
+
+    // Fallback to project_metadata.json if result didn't include instruments.
+    if (!instrumentsVar.isArray() && result.midiPath.isNotEmpty())
+    {
+        auto midiFile = juce::File(result.midiPath);
+        auto metadataFile = midiFile.getParentDirectory().getChildFile("project_metadata.json");
+        if (metadataFile.existsAsFile())
+        {
+            auto json = juce::JSON::parse(metadataFile);
+            if (auto* obj = json.getDynamicObject())
+            {
+                auto current = obj->getProperty("current");
+                if (auto* currentObj = current.getDynamicObject())
+                {
+                    auto outputs = currentObj->getProperty("outputs");
+                    if (auto* outputsObj = outputs.getDynamicObject())
+                    {
+                        auto midiRel = outputsObj->getProperty("midi").toString();
+                        if (midiRel.isNotEmpty() && midiFile.getFileName() == juce::File(midiRel).getFileName())
+                        {
+                            instrumentsVar = outputsObj->getProperty("instruments_used");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (!instrumentsVar.isArray())
+    {
+        DBG("MainComponent: No instruments_used data available for auto-mapping.");
+        return;
+    }
+
+    std::map<juce::String, juce::var> instrumentByCategory;
+    if (auto* arr = instrumentsVar.getArray())
+    {
+        for (const auto& entry : *arr)
+        {
+            if (auto* instObj = entry.getDynamicObject())
+            {
+                auto category = instObj->getProperty("category").toString().toLowerCase();
+                auto path = instObj->getProperty("path").toString();
+                if (category.isNotEmpty() && path.isNotEmpty() && instrumentByCategory.find(category) == instrumentByCategory.end())
+                    instrumentByCategory[category] = entry;
+            }
+        }
+    }
+
+    if (instrumentByCategory.empty())
+    {
+        DBG("MainComponent: instruments_used present but empty after filtering.");
+        return;
+    }
+
+    auto mixerNode = appState.getProjectState().getMixerNode();
+    if (!mixerNode.isValid())
+        return;
+
+    for (const auto& child : mixerNode)
+    {
+        if (!child.hasType(Project::IDs::TRACK))
+            continue;
+
+        const int trackIndex = (int)child.getProperty(Project::IDs::index, 0);
+        const auto trackName = child.getProperty(Project::IDs::name).toString();
+        auto existingId = child.getProperty(Project::IDs::instrumentId).toString();
+        if (existingId.isNotEmpty() && existingId != "default_sine")
+            continue;
+
+        juce::var selected;
+        auto preferred = preferredCategoriesForTrack(trackName);
+        for (const auto& cat : preferred)
+        {
+            auto it = instrumentByCategory.find(cat);
+            if (it != instrumentByCategory.end())
+            {
+                selected = it->second;
+                break;
+            }
+        }
+
+        if (selected.isVoid() || !selected.isObject())
+        {
+            selected = instrumentByCategory.begin()->second;
+        }
+
+        auto* selectedObj = selected.getDynamicObject();
+        if (!selectedObj)
+            continue;
+
+        auto samplePath = selectedObj->getProperty("path").toString();
+        auto sampleName = selectedObj->getProperty("name").toString();
+        if (samplePath.isEmpty())
+            continue;
+
+        juce::File sampleFile(samplePath);
+        if (!sampleFile.existsAsFile())
+        {
+            DBG("MainComponent: Sample file missing for track " << trackIndex << ": " << samplePath);
+            continue;
+        }
+
+        if (sampleName.isEmpty())
+            sampleName = sampleFile.getFileNameWithoutExtension();
+
+        auto instrumentId = juce::String(kSampleInstrumentPrefix) + sampleFile.getFullPathName();
+        auto trackNode = appState.getProjectState().getTrackNode(trackIndex);
+        if (trackNode.isValid())
+            trackNode.setProperty(Project::IDs::instrumentId, instrumentId, nullptr);
+
+        appState.getProjectState().setInstrument(trackIndex, sampleName, sampleFile.getFullPathName());
+        trackInstrumentSelected(trackIndex, instrumentId);
+    }
 }
 
 //==============================================================================
@@ -660,8 +885,12 @@ void MainComponent::paint(juce::Graphics& g)
     
     g.setFont(12.0f);
     g.setColour(connectionColour);
-    g.drawText(connectionText, statusArea.removeFromLeft(400), juce::Justification::left);
+    g.drawText(connectionText, statusArea.removeFromLeft(380), juce::Justification::left);
     
+    // Split right side between generation status and current status text
+    auto rightArea = statusArea.removeFromRight(320);
+    auto statusTextArea = rightArea.removeFromRight(170);
+
     // Current genre indicator (center) - show display name from GenreSelector
     g.setColour(AppColours::textSecondary);
     juce::String genreDisplay = currentGenre;
@@ -670,12 +899,21 @@ void MainComponent::paint(juce::Graphics& g)
         if (auto* tmpl = genreSelector->getSelectedGenre())
             genreDisplay = tmpl->displayName;
     }
-    g.drawText("Genre: " + genreDisplay, statusArea.reduced(100, 0), juce::Justification::centred);
+    g.drawText("Genre: " + genreDisplay, statusArea.reduced(60, 0), juce::Justification::centred);
+
+    // Generation pipeline status (right, left aligned)
+    g.setColour(AppColours::textSecondary);
+    auto genStatusText = formatGenerationStatus(generationStatus,
+                                                generationRequestId,
+                                                generationRequestTime,
+                                                generationAckTime,
+                                                generationCompleteTime);
+    g.drawText(genStatusText, rightArea, juce::Justification::centredLeft, true);
     
     // Current activity status (right side)
     g.setColour(AppColours::textSecondary);
-    g.drawText(currentStatus, statusArea, juce::Justification::right);
-}
+    g.drawText(currentStatus, statusTextArea, juce::Justification::right);
+  }
 
 void MainComponent::resized()
 {
@@ -829,14 +1067,23 @@ void MainComponent::onProgress(float percent, const juce::String& step, const ju
 void MainComponent::onGenerationComplete(const GenerationResult& result)
 {
     currentProgress = 1.0f;
-    currentStatus = "Generation complete!";
-    
-    juce::MessageManager::callAsync([this, result]()
     {
-        // Update app state with output file
-        juce::File outputFile(result.audioPath.isNotEmpty() 
-            ? result.audioPath : result.midiPath);
-        appState.setOutputFile(outputFile);
+        juce::File outputFile(result.audioPath.isNotEmpty()
+                                  ? result.audioPath
+                                  : result.midiPath);
+        currentStatus = outputFile.existsAsFile()
+                            ? ("Generated: " + outputFile.getFileNameWithoutExtension())
+                            : "Generation complete!";
+    }
+    generationStatus = GenerationStatus::Completed;
+    generationCompleteTime = juce::Time::getCurrentTime();
+    
+        juce::MessageManager::callAsync([this, result]()
+        {
+            // Update app state with output file
+            juce::File outputFile(result.audioPath.isNotEmpty() 
+                ? result.audioPath : result.midiPath);
+            appState.setOutputFile(outputFile);
         
         // IMPORTANT: Notify all AppState listeners that generation is complete
         // This must happen BEFORE setGenerating(false) to ensure proper UI reset
@@ -845,9 +1092,13 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
         // Now reset generating state
         appState.setGenerating(false);
         
-        // Refresh the visualization panel to show the new file
-        if (visualizationPanel)
-            visualizationPanel->refreshRecentFiles();
+            // Refresh the visualization panel to show the new file
+            if (visualizationPanel)
+            {
+                if (outputFile.existsAsFile())
+                    visualizationPanel->setOutputDirectory(outputFile.getParentDirectory());
+                visualizationPanel->refreshRecentFiles();
+            }
         
         // Load the generated MIDI file for playback and visualization
         if (result.midiPath.isNotEmpty())
@@ -859,6 +1110,8 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                 // Also load into piano roll
                 if (visualizationPanel)
                     visualizationPanel->loadMidiFile(midiFile);
+
+                applyGeneratedInstrumentSamples(result);
             }
         }
         
@@ -896,6 +1149,7 @@ void MainComponent::onError(int code, const juce::String& message)
 {
     juce::ignoreUnused(code);
     currentStatus = "Error: " + message;
+    generationStatus = GenerationStatus::Error;
     
     juce::MessageManager::callAsync([this, message]()
     {
@@ -1054,12 +1308,24 @@ void MainComponent::generateRequested(const juce::String& prompt)
     if (ensureBackendConnected("Generate"))
     {
         GenerationRequest request;
+        request.generateRequestId();
         request.prompt = prompt;
         request.genre = currentGenre;  // Pass genre from GenreSelector
         request.bpm = appState.getBPM();
         request.bars = appState.getDurationBars();
         request.numTakes = appState.getNumTakes();
         request.renderAudio = true;
+
+        auto outputDir = resolveDefaultOutputDir();
+        request.outputDir = outputDir.getFullPathName();
+        appendGenerateLog(outputDir, request.requestId, request.prompt);
+
+        generationStatus = GenerationStatus::RequestSent;
+        generationRequestId = request.requestId;
+        generationTaskId.clear();
+        jsonRpcPollInFlight = false;
+        lastJsonRpcPollMs = 0;
+        generationRequestTime = juce::Time::getCurrentTime();
         
         // Include reference URL if an analysis was performed
         if (appState.hasAnalyzedReference())
@@ -1135,6 +1401,7 @@ void MainComponent::cancelRequested()
     // Reset generating state immediately on user cancel
     appState.setGenerating(false);
     currentStatus = "Generation cancelled";
+    generationStatus = GenerationStatus::Cancelled;
     
     juce::MessageManager::callAsync([this]()
     {
@@ -1164,6 +1431,18 @@ void MainComponent::analyzeFileRequested(const juce::File& file)
 
     currentStatus = "Analyzing: " + file.getFileName();
     oscBridge->sendAnalyzeFile(file, false);
+    repaint();
+}
+
+void MainComponent::onGenerationAcknowledged(const juce::String& requestId, const juce::String& taskId)
+{
+    if (generationRequestId.isNotEmpty() && requestId.isNotEmpty() && requestId != generationRequestId)
+        return;
+
+    generationStatus = GenerationStatus::Acknowledged;
+    generationAckTime = juce::Time::getCurrentTime();
+    if (taskId.isNotEmpty())
+        generationTaskId = taskId;
     repaint();
 }
 
@@ -1302,7 +1581,28 @@ void MainComponent::trackInstrumentSelected(int trackIndex, const juce::String& 
     DBG("MainComponent: Track " << trackIndex << " instrument selected: " << instrumentId);
     
     // Load the instrument for this track
-    if (instrumentId == "default_sine")
+    if (isSampleInstrumentId(instrumentId))
+    {
+        auto sampleFile = sampleFileFromInstrumentId(instrumentId);
+        if (!sampleFile.existsAsFile())
+        {
+            DBG("MainComponent: Sample instrument missing: " << sampleFile.getFullPathName());
+            return;
+        }
+
+        currentStatus = "Loading sample...";
+        repaint();
+
+        juce::Thread::launch([this, trackIndex, sampleFile]() {
+            audioEngine.loadInstrument(trackIndex, sampleFile, sampleFile.getFileNameWithoutExtension());
+
+            juce::MessageManager::callAsync([this, name = sampleFile.getFileNameWithoutExtension()]() {
+                currentStatus = "Ready (" + name + ")";
+                repaint();
+            });
+        });
+    }
+    else if (instrumentId == "default_sine")
     {
         // Reset to simple sine synth (quick operation, no async needed)
         audioEngine.loadTrackInstrument(trackIndex, "");
@@ -2023,6 +2323,136 @@ void MainComponent::stopPythonServer()
     }
 }
 
+void MainComponent::pollJsonRpcStatus()
+{
+    if (generationTaskId.isEmpty() || generationStatus == GenerationStatus::Completed
+        || generationStatus == GenerationStatus::Error || generationStatus == GenerationStatus::Cancelled)
+        return;
+
+    jsonRpcPollInFlight = true;
+    lastJsonRpcPollMs = juce::Time::currentTimeMillis();
+
+    const auto taskId = generationTaskId;
+
+    std::thread([this, taskId]()
+    {
+        juce::String responseText;
+        juce::var responseJson;
+        juce::String errorText;
+
+        try
+        {
+            const juce::URL baseUrl("http://127.0.0.1:8765");
+
+            juce::DynamicObject::Ptr req = new juce::DynamicObject();
+            req->setProperty("jsonrpc", "2.0");
+            req->setProperty("id", 1);
+            req->setProperty("method", "get_status");
+
+            juce::DynamicObject::Ptr params = new juce::DynamicObject();
+            params->setProperty("task_id", taskId);
+            req->setProperty("params", juce::var(params.get()));
+
+            const auto postData = juce::JSON::toString(juce::var(req.get()), false);
+            const auto url = baseUrl.withPOSTData(postData);
+
+            auto options = juce::URL::InputStreamOptions(juce::URL::ParameterHandling::inPostData)
+                               .withHttpRequestCmd("POST")
+                               .withExtraHeaders("Content-Type: application/json\r\n")
+                               .withConnectionTimeoutMs(jsonRpcTimeoutMs)
+                               .withNumRedirectsToFollow(0);
+
+            if (auto stream = std::unique_ptr<juce::InputStream>(url.createInputStream(options)))
+            {
+                responseText = stream->readEntireStreamAsString();
+                responseJson = juce::JSON::parse(responseText);
+            }
+            else
+            {
+                errorText = "No response (connection failed)";
+            }
+        }
+        catch (const std::exception& e)
+        {
+            errorText = "Exception: " + juce::String(e.what());
+        }
+        catch (...)
+        {
+            errorText = "Unknown exception";
+        }
+
+        juce::MessageManager::callAsync([this, taskId, responseJson, responseText, errorText]()
+        {
+            jsonRpcPollInFlight = false;
+
+            // If the user started a new generation, ignore stale polls.
+            if (taskId != generationTaskId)
+                return;
+
+            if (errorText.isNotEmpty())
+                return;
+
+            if (!responseJson.isObject())
+                return;
+
+            auto* top = responseJson.getDynamicObject();
+            if (!top)
+                return;
+
+            auto resultVar = top->getProperty("result");
+            if (!resultVar.isObject())
+                return;
+
+            auto* statusObj = resultVar.getDynamicObject();
+            if (!statusObj)
+                return;
+
+            const bool found = (bool) statusObj->getProperty("found");
+            if (!found)
+                return;
+
+            // Progress (optional)
+            if (auto progressVar = statusObj->getProperty("progress"); progressVar.isObject())
+            {
+                if (auto* progObj = progressVar.getDynamicObject())
+                {
+                    const float percent = (float) progObj->getProperty("percent");
+                    const juce::String step = progObj->getProperty("step").toString();
+                    const juce::String message = progObj->getProperty("message").toString();
+                    if (message.isNotEmpty() || step.isNotEmpty())
+                        onProgress(percent, step, message.isNotEmpty() ? message : step);
+                }
+            }
+
+            const juce::String status = statusObj->getProperty("status").toString().toLowerCase();
+            if (status == "completed" || status == "failed" || status == "cancelled")
+            {
+                // If we didn't receive an OSC /complete, synthesize completion from JSON-RPC.
+                if (auto resVar = statusObj->getProperty("result"); resVar.isObject())
+                {
+                    const auto resJsonStr = juce::JSON::toString(resVar, true);
+                    const auto genResult = GenerationResult::fromJson(resJsonStr);
+
+                    // Stop polling before dispatching completion UI.
+                    generationTaskId.clear();
+
+                    if (genResult.success)
+                        onGenerationComplete(genResult);
+                    else
+                        onError(genResult.errorCode != 0 ? genResult.errorCode : 201,
+                                genResult.errorMessage.isNotEmpty() ? genResult.errorMessage
+                                                                   : ("Generation " + status));
+                }
+                else
+                {
+                    generationTaskId.clear();
+                    onError(201, "Backend reported completion but no result payload was returned");
+                }
+            }
+        });
+    }).detach();
+}
+
 //==============================================================================
 void MainComponent::timerCallback()
 {
@@ -2054,6 +2484,16 @@ void MainComponent::timerCallback()
     {
         // Try to reconnect
         oscBridge->connect();
+    }
+
+    // JSON-RPC polling fallback for generation observability.
+    // This fixes "hung" UX when OSC /progress or /complete is missed but the backend is still working.
+    if ((generationStatus == GenerationStatus::RequestSent || generationStatus == GenerationStatus::Acknowledged)
+        && generationTaskId.isNotEmpty())
+    {
+        const auto nowMs = juce::Time::currentTimeMillis();
+        if (!jsonRpcPollInFlight && (lastJsonRpcPollMs == 0 || nowMs - lastJsonRpcPollMs >= jsonRpcPollIntervalMs))
+            pollJsonRpcStatus();
     }
 }
 

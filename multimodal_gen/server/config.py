@@ -74,6 +74,7 @@ class ServerConfig:
             MMG_OUTPUT_DIR: Default output directory
             MMG_SOUNDFONT: Path to soundfont
             MMG_VERBOSE: Enable verbose mode (1/true/yes)
+            MMG_LOG_FILE: Append logs to this file (in addition to stdout when verbose/important)
         """
         return cls(
             recv_port=int(os.getenv("MMG_RECV_PORT", 9000)),
@@ -82,6 +83,7 @@ class ServerConfig:
             default_output_dir=os.getenv("MMG_OUTPUT_DIR"),
             default_soundfont=os.getenv("MMG_SOUNDFONT"),
             verbose=os.getenv("MMG_VERBOSE", "").lower() in ("1", "true", "yes"),
+            log_file=os.getenv("MMG_LOG_FILE") or None,
         )
 
 

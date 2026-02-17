@@ -73,6 +73,10 @@ public:
         virtual void onConnectionStateChanged(ConnectionState newState) {}
         virtual void onConnectionStatusChanged(bool connected) {}  // Legacy, calls onConnectionStateChanged
         virtual void onProgress(float percent, const juce::String& step, const juce::String& message) {}
+        virtual void onGenerationAcknowledged(const juce::String& requestId, const juce::String& taskId)
+        {
+            juce::ignoreUnused(requestId, taskId);
+        }
         virtual void onGenerationComplete(const GenerationResult& result) {}
         virtual void onError(int code, const juce::String& message) {}
         virtual void onInstrumentsLoaded(const juce::String& json) {}

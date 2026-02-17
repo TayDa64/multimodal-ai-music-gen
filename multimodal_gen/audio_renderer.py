@@ -534,10 +534,13 @@ def render_midi_with_fluidsynth(
             '-F', output_path,          # Output file
             '-r', str(sample_rate),     # Sample rate
         ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True)
+
+        # Safety: FluidSynth can hang on some systems (driver/device issues, bad SF2, etc).
+        # If it times out, fall back to procedural rendering.
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         return result.returncode == 0 and os.path.exists(output_path)
-    
+    except subprocess.TimeoutExpired:
+        return False
     except Exception:
         return False
 

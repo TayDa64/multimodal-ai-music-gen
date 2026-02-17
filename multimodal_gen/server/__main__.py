@@ -52,16 +52,44 @@ Examples:
         action="store_true",
         help="Start JSON-RPC server instead of OSC server (default port 8765)"
     )
+    parser.add_argument(
+        "--gateway",
+        action="store_true",
+        help="Start dual-protocol gateway (OSC + JSON-RPC)"
+    )
     
     args = parser.parse_args()
     
+    if args.gateway:
+        from .gateway import run_gateway
+
+        jsonrpc_port = args.port if args.port != 9000 else 8765
+
+        # Use ASCII-only output to avoid Windows console encoding crashes when embedded.
+        print("Starting AI Music Generator Gateway (OSC + JSON-RPC)")
+        print(f"  OSC recv: {args.host}:{args.port}")
+        print(f"  OSC send: {args.host}:{args.send_port}")
+        print(f"  JSON-RPC: http://{args.host}:{jsonrpc_port}")
+        print(f"  Verbose: {args.verbose}")
+        print()
+
+        run_gateway(
+            osc_host=args.host,
+            osc_recv_port=args.port,
+            osc_send_port=args.send_port,
+            jsonrpc_host=args.host,
+            jsonrpc_port=jsonrpc_port,
+            verbose=args.verbose,
+        )
+        return
+
     if args.jsonrpc:
         from .jsonrpc_server import run_jsonrpc_server
         
         jsonrpc_port = args.port if args.port != 9000 else 8765
-        print(f"🎵 Starting AI Music Generator JSON-RPC Server")
-        print(f"   Listening on: http://{args.host}:{jsonrpc_port}")
-        print(f"   Verbose: {args.verbose}")
+        print("Starting AI Music Generator JSON-RPC Server")
+        print(f"  Listening on: http://{args.host}:{jsonrpc_port}")
+        print(f"  Verbose: {args.verbose}")
         print()
         
         run_jsonrpc_server(
@@ -73,10 +101,10 @@ Examples:
         # Import here to avoid the RuntimeWarning
         from .osc_server import run_server
         
-        print(f"🎵 Starting AI Music Generator OSC Server")
-        print(f"   Receiving on port: {args.port}")
-        print(f"   Sending to port: {args.send_port}")
-        print(f"   Verbose: {args.verbose}")
+        print("Starting AI Music Generator OSC Server")
+        print(f"  Receiving on port: {args.port}")
+        print(f"  Sending to port: {args.send_port}")
+        print(f"  Verbose: {args.verbose}")
         print()
         
         run_server(

@@ -76,7 +76,7 @@ class MusicGenOSCServer:
         ```
     """
     
-    def __init__(self, config: Optional[ServerConfig] = None):
+    def __init__(self, config: Optional[ServerConfig] = None, worker: Optional[GenerationWorker] = None):
         """
         Initialize the OSC server.
         
@@ -97,7 +97,7 @@ class MusicGenOSCServer:
         self._client: Optional[udp_client.SimpleUDPClient] = None
         
         # Workers
-        self._gen_worker: Optional[GenerationWorker] = None
+        self._gen_worker: Optional[GenerationWorker] = worker
         self._instrument_worker: Optional[InstrumentScanWorker] = None
         
         # Expansion Manager
@@ -256,12 +256,13 @@ class MusicGenOSCServer:
         )
         
         # Create workers
-        self._gen_worker = GenerationWorker(
-            max_workers=self.config.max_workers,
-            progress_callback=self._on_progress,
-            completion_callback=self._on_generation_complete,
-            error_callback=self._on_error,
-        )
+        if self._gen_worker is None:
+            self._gen_worker = GenerationWorker(
+                max_workers=self.config.max_workers,
+                progress_callback=self._on_progress,
+                completion_callback=self._on_generation_complete,
+                error_callback=self._on_error,
+            )
         
         self._instrument_worker = InstrumentScanWorker(
             completion_callback=self._on_instruments_loaded,
@@ -1589,6 +1590,18 @@ class MusicGenOSCServer:
         
         if self.config.verbose or important:
             print(message, end=end, flush=True)
+
+        # Always append to a log file if configured (helps when embedded in a GUI app).
+        if self.config.log_file:
+            try:
+                from pathlib import Path
+
+                log_path = Path(self.config.log_file)
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                with log_path.open("a", encoding="utf-8") as f:
+                    f.write(f"{message}{end if end != '' else ''}")
+            except Exception:
+                pass
     
     def _signal_handler(self, signum, frame):
         """Handle shutdown signals."""

@@ -209,6 +209,7 @@ class MusicGenJSONRPCServer:
         config: Optional[ServerConfig] = None,
         host: str = "127.0.0.1",
         port: int = 8765,
+        worker: Optional[GenerationWorker] = None,
     ) -> None:
         self.config = config or ServerConfig()
         self.host = host
@@ -220,7 +221,7 @@ class MusicGenJSONRPCServer:
         self._server_thread: Optional[threading.Thread] = None
 
         # Worker
-        self._worker = GenerationWorker(
+        self._worker = worker or GenerationWorker(
             max_workers=self.config.max_workers,
             progress_callback=self._on_progress,
             completion_callback=self._on_complete,
@@ -234,6 +235,9 @@ class MusicGenJSONRPCServer:
         # Task result cache (task_id → GenerationResult dict)
         self._results: Dict[str, Dict[str, Any]] = {}
         self._results_lock = threading.Lock()
+        # Progress cache (task_id → progress dict)
+        self._progress: Dict[str, Dict[str, Any]] = {}
+        self._progress_lock = threading.Lock()
 
         # Uptime tracking
         self._start_time: Optional[float] = None
@@ -295,31 +299,34 @@ class MusicGenJSONRPCServer:
         self._running.set()
 
         # Graceful signal handling
-        original_sigint = signal.getsignal(signal.SIGINT)
-        original_sigterm = signal.getsignal(signal.SIGTERM)
+        original_sigint = None
+        original_sigterm = None
+        if threading.current_thread() is threading.main_thread():
+            original_sigint = signal.getsignal(signal.SIGINT)
+            original_sigterm = signal.getsignal(signal.SIGTERM)
 
-        def _signal_handler(sig: int, frame: Any) -> None:
-            logger.info("Signal %d received — shutting down", sig)
-            self.stop()
+            def _signal_handler(sig: int, frame: Any) -> None:
+                logger.info("Signal %d received — shutting down", sig)
+                self.stop()
 
-        signal.signal(signal.SIGINT, _signal_handler)
-        signal.signal(signal.SIGTERM, _signal_handler)
+            signal.signal(signal.SIGINT, _signal_handler)
+            signal.signal(signal.SIGTERM, _signal_handler)
 
         logger.info(
             "JSON-RPC server listening on http://%s:%d",
             self.host,
             self.port,
         )
-        print(
-            f"🎵 MUSE JSON-RPC server listening on "
-            f"http://{self.host}:{self.port}"
-        )
+        # ASCII-only output: avoids Windows console encoding crashes when embedded in GUI launches.
+        print(f"MUSE JSON-RPC server listening on http://{self.host}:{self.port}")
 
         try:
             self._httpd.serve_forever()  # type: ignore[union-attr]
         finally:
-            signal.signal(signal.SIGINT, original_sigint)
-            signal.signal(signal.SIGTERM, original_sigterm)
+            if original_sigint is not None:
+                signal.signal(signal.SIGINT, original_sigint)
+            if original_sigterm is not None:
+                signal.signal(signal.SIGTERM, original_sigterm)
 
     def start_async(self) -> None:
         """Start the server in a background daemon thread."""
@@ -434,6 +441,13 @@ class MusicGenJSONRPCServer:
         """
         request = self._build_generation_request(params)
         task_id = self._worker.submit(request)
+        with self._progress_lock:
+            self._progress[task_id] = {
+                "request_id": request.request_id,
+                "step": "queued",
+                "percent": 0.0,
+                "message": "Queued",
+            }
         return {"task_id": task_id, "request_id": request.request_id}
 
     def _handle_generate_sync(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -443,6 +457,13 @@ class MusicGenJSONRPCServer:
         """
         request = self._build_generation_request(params)
         task_id = self._worker.submit(request)
+        with self._progress_lock:
+            self._progress[task_id] = {
+                "request_id": request.request_id,
+                "step": "queued",
+                "percent": 0.0,
+                "message": "Queued",
+            }
 
         # Poll until the task finishes (with a generous timeout)
         timeout = self.config.generation_timeout
@@ -490,11 +511,18 @@ class MusicGenJSONRPCServer:
         if status is None:
             return {"task_id": task_id, "found": False}
 
+        progress_snapshot: Dict[str, Any] = {}
+        with self._progress_lock:
+            if task_id in self._progress:
+                progress_snapshot = dict(self._progress.get(task_id, {}))
+
         resp: Dict[str, Any] = {
             "task_id": task_id,
             "found": True,
             "status": status.value,
         }
+        if progress_snapshot:
+            resp["progress"] = progress_snapshot
 
         if status in (
             TaskStatus.COMPLETED,
@@ -994,6 +1022,19 @@ class MusicGenJSONRPCServer:
 
     def _on_progress(self, step: str, percent: float, message: str) -> None:
         """Called by GenerationWorker on progress updates."""
+        try:
+            task_id = getattr(self._worker, "_current_task_id", None)
+            if task_id:
+                with self._progress_lock:
+                    prev = self._progress.get(task_id, {})
+                    self._progress[task_id] = {
+                        "step": step,
+                        "percent": percent,
+                        "message": message,
+                        "request_id": prev.get("request_id", ""),
+                    }
+        except Exception:
+            pass  # Keep progress best-effort
         if self.verbose:
             logger.debug("Progress: %s %.0f%% — %s", step, percent * 100, message)
 
@@ -1002,6 +1043,13 @@ class MusicGenJSONRPCServer:
         result_dict = result.to_dict()
         with self._results_lock:
             self._results[result.task_id] = result_dict
+        with self._progress_lock:
+            self._progress[result.task_id] = {
+                "request_id": result.request_id,
+                "step": "complete",
+                "percent": 1.0,
+                "message": "Generation complete",
+            }
 
         # Try to capture the session graph from the last generation
         self._try_capture_session_graph(result)

@@ -75,6 +75,16 @@ public:
     MainComponent(AppState& state, mmg::AudioEngine& engine);
     ~MainComponent() override;
 
+    enum class GenerationStatus
+    {
+        Idle,
+        RequestSent,
+        Acknowledged,
+        Completed,
+        Cancelled,
+        Error
+    };
+
     //==============================================================================
     void paint(juce::Graphics& g) override;
     void resized() override;
@@ -88,6 +98,7 @@ public:
     // OSCBridge::Listener
     void onConnectionStatusChanged(bool connected) override;
     void onProgress(float percent, const juce::String& step, const juce::String& message) override;
+    void onGenerationAcknowledged(const juce::String& requestId, const juce::String& taskId) override;
     void onGenerationComplete(const GenerationResult& result) override;
     void onError(int code, const juce::String& message) override;
     void onAnalyzeResultReceived(const AnalyzeResult& result) override;
@@ -234,6 +245,7 @@ private:
     //==============================================================================
     void syncTrackAudioFromProjectState();
     void applyDefaultSynthSettingsForTrackFromProjectState(int trackIndex);
+    void applyGeneratedInstrumentSamples(const GenerationResult& result);
     static constexpr int timelineHeight = Layout::timelineHeightDefault;
     static constexpr int promptPanelWidth = Layout::sidebarWidthDefault;
     static constexpr int padding = Layout::paddingSM;
@@ -246,6 +258,20 @@ private:
     juce::String currentGenre = "auto";  // Default genre (synced with GenreSelector)
     bool initialInstrumentsRequested = false;
     AnalyzeResult lastAnalyzeResult;  // Store last analysis for Apply action
+
+    GenerationStatus generationStatus = GenerationStatus::Idle;
+    juce::String generationRequestId;
+    juce::String generationTaskId; // From backend status (used for JSON-RPC polling/cancel)
+    juce::Time generationRequestTime;
+    juce::Time generationAckTime;
+    juce::Time generationCompleteTime;
+
+    // JSON-RPC polling fallback: drives progress/complete even if OSC /progress or /complete is missed.
+    bool jsonRpcPollInFlight = false;
+    juce::int64 lastJsonRpcPollMs = 0;
+    static constexpr int jsonRpcPollIntervalMs = 750;
+    static constexpr int jsonRpcTimeoutMs = 2000;
+    void pollJsonRpcStatus();
 
     // Debounce for backend connectivity warnings.
     juce::int64 lastBackendNotConnectedWarningMs = 0;
