@@ -1711,9 +1711,10 @@ def run_generation(
                 # Get recommendations for this genre
                 matcher = InstrumentMatcher(instrument_library)
                 recommendations = matcher.get_recommendations(parsed.genre, parsed.mood)
-                
-                if verbose and recommendations:
-                    print_info("Instrument recommendations:")
+
+                if recommendations:
+                    if verbose:
+                        print_info("Instrument recommendations:")
                     for cat, matches in recommendations.items():
                         if matches:
                             best, score = matches[0]
@@ -1721,7 +1722,8 @@ def run_generation(
                             source_info = ""
                             if len(instruments_paths) > 1 and hasattr(best, 'source'):
                                 source_info = f" [{Path(best.source).name}]"
-                            print_info(f"  {cat}: {best.name}{source_info} ({score:.0%} match)")
+                            if verbose:
+                                print_info(f"  {cat}: {best.name}{source_info} ({score:.0%} match)")
                             results["instruments_used"].append({
                                 "category": cat,
                                 "name": best.name,

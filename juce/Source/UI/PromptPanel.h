@@ -92,8 +92,10 @@ private:
     void setupDurationControls();
     void setupGenerateButton();
     void setupHistoryButton();
+    void setupStatusPanel();
     void updateGenrePresets();
     void showHistoryPopup();
+    void updateGenerationStatus(const juce::String& status, const juce::String& detail = {});
     
     // AppState::Listener
     void onGenerationStarted() override;
@@ -137,6 +139,10 @@ private:
     // History button and popup
     juce::TextButton historyButton{ "History" };
     PromptHistoryManager historyManager;
+
+    // Generation status panel
+    juce::Label generationStatusLabel;
+    juce::Label generationDetailLabel;
     
     // Drag-drop state
     bool isDragOver = false;
@@ -144,6 +150,8 @@ private:
     // State
     bool isGenerating = false;
     bool isConnected = false;
+    bool hasAck = false;
+    GenerationProgress lastProgress;
     
     // Genre presets
     struct GenrePreset

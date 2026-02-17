@@ -81,7 +81,7 @@ void RecentFilesPanel::FileListBox::paintListBoxItem(int rowNumber, juce::Graphi
     g.setFont(juce::Font(14.0f, juce::Font::bold));
     g.drawText(info.displayName, nameArea, juce::Justification::centredLeft, true);
     
-    // Details line (BPM, Key)
+    // Details line (BPM, Key, Seed, Prompt snippet)
     g.setColour(AppColours::textSecondary);
     g.setFont(juce::Font(12.0f));
     juce::String details;
@@ -91,6 +91,16 @@ void RecentFilesPanel::FileListBox::paintListBoxItem(int rowNumber, juce::Graphi
     {
         if (details.isNotEmpty()) details += "  •  ";
         details += info.key;
+    }
+    if (info.seed != 0)
+    {
+        if (details.isNotEmpty()) details += "  •  ";
+        details += "seed " + juce::String(info.seed);
+    }
+    if (info.promptSnippet.isNotEmpty())
+    {
+        if (details.isNotEmpty()) details += "  •  ";
+        details += info.promptSnippet;
     }
     g.drawText(details, bounds, juce::Justification::centredLeft);
 }
@@ -129,6 +139,9 @@ juce::String RecentFilesPanel::FileListBox::getTooltipForRow(int row)
                 << info.file.getFullPathName() << "\n"
                 << "Modified: " << info.lastModified.toString(true, true) << "\n"
                 << "Size: " << info.sizeString << "\n\n"
+                << (info.seed != 0 ? ("Seed: " + juce::String(info.seed) + "\n") : juce::String())
+                << (info.generatedAtIso.isNotEmpty() ? ("Generated: " + info.generatedAtIso + "\n") : juce::String())
+                << (info.promptSnippet.isNotEmpty() ? ("Prompt: " + info.promptSnippet + "\n\n") : juce::String())
                 << "Right-click for options";
         return tooltip;
     }
@@ -342,9 +355,21 @@ RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& fil
                             juce::String promptStr = entry.getProperty("prompt", juce::String()).toString();
                             if (promptStr.isNotEmpty())
                             {
-                                info.displayName = promptStr.substring(0, 80);
+                                // Keep the title unique and scannable in a list:
+                                // show filename as title; show prompt as detail snippet.
+                                info.promptSnippet = promptStr.substring(0, 70);
                                 metadataUsed = true;
                             }
+                            // Seed + timestamp help distinguish multiple renders with same prompt.
+                            if (entry.hasProperty("seed"))
+                            {
+                                auto seedVar = entry.getProperty("seed", 0);
+                                if (seedVar.isInt() || seedVar.isInt64())
+                                    info.seed = (juce::int64) seedVar;
+                                else if (seedVar.isDouble())
+                                    info.seed = (juce::int64) (double) seedVar;
+                            }
+                            info.generatedAtIso = entry.getProperty("generated_at", juce::String()).toString();
                             auto parsedVar = entry.getProperty("parsed", juce::var());
                             if (auto* parsedObj = parsedVar.getDynamicObject())
                             {
@@ -414,6 +439,14 @@ RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& fil
             base = info.genre;
 
         info.displayName = base;
+        if (info.displayName.length() > 0)
+            info.displayName = info.displayName.substring(0, 1).toUpperCase()
+                             + info.displayName.substring(1);
+    }
+    else
+    {
+        // When metadata matched, use a stable unique label for the list.
+        info.displayName = file.getFileNameWithoutExtension().replaceCharacter('_', ' ').trim();
         if (info.displayName.length() > 0)
             info.displayName = info.displayName.substring(0, 1).toUpperCase()
                              + info.displayName.substring(1);

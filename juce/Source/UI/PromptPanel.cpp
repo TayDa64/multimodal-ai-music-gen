@@ -22,6 +22,7 @@ PromptPanel::PromptPanel(AppState& state)
     setupDurationControls();
     setupGenerateButton();
     setupHistoryButton();
+    setupStatusPanel();
     
     appState.addListener(this);
 }
@@ -261,6 +262,19 @@ void PromptPanel::setupHistoryButton()
     addAndMakeVisible(historyButton);
 }
 
+void PromptPanel::setupStatusPanel()
+{
+    generationStatusLabel.setText("Generation: Idle", juce::dontSendNotification);
+    generationStatusLabel.setFont(juce::Font(12.0f, juce::Font::bold));
+    generationStatusLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    addAndMakeVisible(generationStatusLabel);
+
+    generationDetailLabel.setText("No request yet", juce::dontSendNotification);
+    generationDetailLabel.setFont(juce::Font(11.0f));
+    generationDetailLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    addAndMakeVisible(generationDetailLabel);
+}
+
 void PromptPanel::showHistoryPopup()
 {
     // Create popup menu with history items
@@ -419,8 +433,9 @@ void PromptPanel::resized()
     
     // Calculate available height for prompt input
     // Reserve: negative prompt label (18) + input (26) + gap +
-    //          duration row (26) + takes row (26) + gap + button row (34) + margins
-    int reservedHeight = 18 + 26 + 10 + 26 + 26 + 10 + 34 + Layout::paddingMD * 3;
+    //          duration row (26) + takes row (26) + gap + button row (34)
+    //          + status row (22) + margins
+    int reservedHeight = 18 + 26 + 10 + 26 + 26 + 10 + 34 + 22 + Layout::paddingMD * 3;
     int availableForPrompt = bounds.getHeight() - reservedHeight;
     
     // Prompt input - use more space on taller windows
@@ -469,6 +484,14 @@ void PromptPanel::resized()
     
     // Cancel button shares position with generate button
     cancelButton.setBounds(generateButton.getBounds());
+
+    bounds.removeFromTop(Layout::paddingSM);
+
+    // Status row
+    auto statusRow = bounds.removeFromTop(22);
+    auto statusLeft = statusRow.removeFromLeft(140);
+    generationStatusLabel.setBounds(statusLeft);
+    generationDetailLabel.setBounds(statusRow);
 }
 
 //==============================================================================
@@ -544,25 +567,48 @@ void PromptPanel::onGenerationStarted()
 {
     juce::MessageManager::callAsync([this] {
         isGenerating = true;
+        hasAck = false;
         generateButton.setVisible(false);
         cancelButton.setVisible(true);
         promptInput.setEnabled(false);
         negativePromptInput.setEnabled(false);
         genreSelector.setEnabled(false);
         durationSlider.setEnabled(false);
+        updateGenerationStatus("Request sent", "Waiting for server response...");
     });
 }
 
-void PromptPanel::onGenerationProgress(const GenerationProgress& /*progress*/)
+void PromptPanel::onGenerationProgress(const GenerationProgress& progress)
 {
-    // Could update button text with progress if desired
+    lastProgress = progress;
+    if (!hasAck)
+    {
+        hasAck = true;
+        updateGenerationStatus("Ack received", progress.message.isNotEmpty() ? progress.message : "Generation started");
+        return;
+    }
+
+    juce::String detail = progress.stepName;
+    if (progress.progress > 0.0f)
+    {
+        detail += " (" + juce::String((int)(progress.progress * 100.0f)) + "%)";
+    }
+    if (progress.message.isNotEmpty())
+    {
+        detail += " - " + progress.message;
+    }
+    updateGenerationStatus("Generating", detail);
 }
 
-void PromptPanel::onGenerationCompleted(const juce::File& /*outputFile*/)
+void PromptPanel::onGenerationCompleted(const juce::File& outputFile)
 {
-    juce::MessageManager::callAsync([this] {
+    juce::MessageManager::callAsync([this, outputFile] {
         DBG("PromptPanel::onGenerationCompleted - resetting UI state");
         isGenerating = false;
+        juce::String detail = outputFile.existsAsFile()
+            ? ("Saved: " + outputFile.getFileName())
+            : "Generation finished";
+        updateGenerationStatus("Complete", detail);
         
         // Restore Generate button
         generateButton.setVisible(true);
@@ -583,11 +629,13 @@ void PromptPanel::onGenerationCompleted(const juce::File& /*outputFile*/)
     });
 }
 
-void PromptPanel::onGenerationError(const juce::String& /*error*/)
+void PromptPanel::onGenerationError(const juce::String& error)
 {
-    juce::MessageManager::callAsync([this] {
+    juce::MessageManager::callAsync([this, error] {
         DBG("PromptPanel::onGenerationError - resetting UI state");
         isGenerating = false;
+        juce::String detail = error.isNotEmpty() ? error : "Generation failed or cancelled";
+        updateGenerationStatus("Error", detail);
         
         // Restore Generate button
         generateButton.setVisible(true);
@@ -615,6 +663,30 @@ void PromptPanel::onConnectionStatusChanged(bool connected)
         // Keep button enabled - clicking when disconnected shows helpful error message
         generateButton.setEnabled(!isGenerating);
         generateButton.setButtonText(connected ? "Generate" : "Generate (Offline)");
+        if (!connected && !isGenerating)
+        {
+            updateGenerationStatus("Offline", "Server not connected");
+        }
+    });
+}
+
+void PromptPanel::updateGenerationStatus(const juce::String& status, const juce::String& detail)
+{
+    juce::MessageManager::callAsync([this, status, detail] {
+        generationStatusLabel.setText("Generation: " + status, juce::dontSendNotification);
+        generationDetailLabel.setText(detail.isNotEmpty() ? detail : " ", juce::dontSendNotification);
+        if (status == "Error")
+        {
+            generationStatusLabel.setColour(juce::Label::textColourId, AppColours::error);
+        }
+        else if (status == "Complete")
+        {
+            generationStatusLabel.setColour(juce::Label::textColourId, AppColours::success);
+        }
+        else
+        {
+            generationStatusLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+        }
     });
 }
 

@@ -44,6 +44,11 @@ public:
         juce::String dateString;     // "Today 2:30 PM" or "Dec 9, 2025"
         juce::String sizeString;     // "12 KB"
         juce::Time lastModified;
+
+        // Optional rich metadata (best-effort from project_metadata.json)
+        juce::String promptSnippet;
+        juce::String generatedAtIso;
+        juce::int64 seed = 0;
         
         // Parsed from filename
         juce::String genre;

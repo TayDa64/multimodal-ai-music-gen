@@ -24,6 +24,7 @@ Or standalone:
 from __future__ import annotations
 
 import json
+import time
 import logging
 import signal
 import sys
@@ -262,9 +263,11 @@ class MusicGenJSONRPCServer:
         self._methods: Dict[str, Callable[..., Any]] = {
             "generate": self._handle_generate,
             "generate_sync": self._handle_generate_sync,
+            "produce_sync": self._handle_produce_sync,
             "get_status": self._handle_get_status,
             "cancel": self._handle_cancel,
             "run_critics": self._handle_run_critics,
+            "run_critics_midi": self._handle_run_critics_midi,
             "genre_dna_lookup": self._handle_genre_dna_lookup,
             "genre_blend": self._handle_genre_blend,
             "session_state": self._handle_session_state,
@@ -594,6 +597,182 @@ class MusicGenJSONRPCServer:
                 for m in report.metrics
             ],
         }
+
+    def _handle_run_critics_midi(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract critic features from a MIDI file and run all critics.
+
+        This is the preferred entrypoint for clients because it is self-contained
+        (no need to pre-extract voicings / kick ticks / tension curves).
+
+        Params:
+            midi_path: Path to the MIDI file to evaluate.
+            time_signature: Optional [numerator, denominator] (default [4,4]).
+            tension_curve: Optional list[float] (0..1). If omitted, a ramp is synthesized.
+        """
+        from ..intelligence.critics import run_all_critics  # noqa: F811
+        from ..intelligence.midi_critic_features import extract_critic_features_from_midi
+
+        midi_path = params.get("midi_path")
+        if not midi_path:
+            raise TypeError("Missing required param: midi_path")
+
+        ts = params.get("time_signature") or [4, 4]
+        try:
+            time_signature = (int(ts[0]), int(ts[1]))
+        except Exception:
+            time_signature = (4, 4)
+
+        tension_curve = params.get("tension_curve")
+        if tension_curve is not None and not isinstance(tension_curve, list):
+            tension_curve = None
+
+        feats = extract_critic_features_from_midi(
+            midi_path=str(midi_path),
+            time_signature=time_signature,
+            tension_curve=tension_curve,
+        )
+
+        report = run_all_critics(
+            voicings=feats.voicings,
+            bass_notes=feats.bass_notes,
+            kick_ticks=feats.kick_ticks,
+            tolerance_ticks=int(params.get("tolerance_ticks", 60)),
+            tension_curve=feats.tension_curve,
+            note_density_per_beat=feats.note_density_per_beat,
+        )
+
+        return {
+            "overall_passed": report.overall_passed,
+            "summary": report.summary,
+            "features": {
+                "ticks_per_beat": feats.ticks_per_beat,
+                "voicings_count": len(feats.voicings),
+                "bass_notes_count": len(feats.bass_notes),
+                "kick_ticks_count": len(feats.kick_ticks),
+                "tension_points": len(feats.tension_curve),
+                "density_points": len(feats.note_density_per_beat),
+            },
+            "metrics": [
+                {
+                    "name": m.name,
+                    "value": m.value,
+                    "threshold": m.threshold,
+                    "passed": m.passed,
+                    "details": m.details,
+                }
+                for m in report.metrics
+            ],
+        }
+
+    def _handle_produce_sync(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Agentic producer loop (no-LLM): plan -> generate -> analyze -> pick best.
+
+        Params:
+            prompt (str): Required.
+            attempts (int): Number of candidates to try (default 2).
+            duration_bars (int): Desired length (default 16).
+            genre (str): Optional hint.
+            options (dict): Forwarded into generation (per-attempt seed will override).
+
+        Returns:
+            { best: {result, critics, audio_analysis, score_plan}, attempts: [...] }
+        """
+        prompt = params.get("prompt")
+        if not prompt:
+            raise TypeError("Missing required param: prompt")
+
+        attempts = int(params.get("attempts", 2))
+        attempts = max(1, min(attempts, 5))
+
+        duration_bars = int(params.get("duration_bars", params.get("bars", 16)))
+        duration_bars = max(1, min(duration_bars, 64))
+
+        genre_hint = params.get("genre")
+        base_options = params.get("options") if isinstance(params.get("options"), dict) else {}
+
+        from ..intelligence.auto_producer import auto_score_plan_v1
+
+        runs: List[Dict[str, Any]] = []
+        best: Optional[Dict[str, Any]] = None
+        best_score = -1e9
+
+        # Stable base seed for this request, then offset for each attempt.
+        base_seed = int(params.get("seed", int(time.time() * 1000) % (2**31)))
+
+        for i in range(attempts):
+            seed = (base_seed + (i * 9973)) % (2**31)
+
+            score_plan = params.get("score_plan")
+            if isinstance(score_plan, str):
+                try:
+                    score_plan = json.loads(score_plan)
+                except Exception:
+                    score_plan = None
+            if not isinstance(score_plan, dict):
+                score_plan = auto_score_plan_v1(
+                    str(prompt),
+                    seed=seed,
+                    duration_bars=duration_bars,
+                    genre_hint=str(genre_hint) if genre_hint else None,
+                )
+            else:
+                # Ensure seed is present so downstream is reproducible.
+                score_plan = dict(score_plan)
+                score_plan.setdefault("seed", seed)
+
+            # Generate
+            gen = self._handle_generate_sync(
+                {
+                    "prompt": str(prompt),
+                    "score_plan": score_plan,
+                    "duration_bars": duration_bars,
+                    "options": {**base_options, "seed": seed},
+                }
+            )
+
+            critics = None
+            audio_analysis = None
+            score = 0.0
+
+            if gen and gen.get("success") and gen.get("midi_path"):
+                try:
+                    critics = self._handle_run_critics_midi({"midi_path": gen["midi_path"]})
+                except Exception:
+                    critics = None
+
+                if gen.get("audio_path"):
+                    try:
+                        audio_analysis = self._handle_analyze_output(
+                            {"audio_path": gen["audio_path"], "genre": genre_hint or "ambient"}
+                        )
+                    except Exception:
+                        audio_analysis = None
+
+                # Score: critics gate + genre match score when available
+                if critics and critics.get("overall_passed"):
+                    score += 100.0
+                if audio_analysis and isinstance(audio_analysis, dict):
+                    try:
+                        score += float(audio_analysis.get("genre_match_score", 0.0)) * 10.0
+                    except Exception:
+                        pass
+
+            run = {
+                "attempt": i + 1,
+                "seed": seed,
+                "score": score,
+                "score_plan": score_plan,
+                "result": gen,
+                "critics": critics,
+                "audio_analysis": audio_analysis,
+            }
+            runs.append(run)
+
+            if score > best_score:
+                best_score = score
+                best = run
+
+        return {"best": best, "attempts": runs}
 
     def _handle_genre_dna_lookup(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Look up the 10-dimensional DNA vector for a genre.
