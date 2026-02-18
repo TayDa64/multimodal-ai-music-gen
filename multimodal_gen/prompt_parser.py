@@ -142,6 +142,8 @@ class ParsedPrompt:
     # Instrumentation
     instruments: List[str] = field(default_factory=list)
     drum_elements: List[str] = field(default_factory=list)
+    drum_intent: bool = False
+    allow_default_drums: bool = True
     
     # Negative/exclusion elements (from negative prompts)
     excluded_drums: List[str] = field(default_factory=list)
@@ -177,6 +179,7 @@ class ParsedPrompt:
     
     # Duration
     target_duration_seconds: Optional[float] = None  # None = auto (2-4 minutes based on genre)
+    target_bars: Optional[int] = None  # Optional explicit bar count (CLI/JSON-RPC)
     
     # === GENRE INTELLIGENCE ENHANCEMENTS ===
     
@@ -218,7 +221,7 @@ class ParsedPrompt:
         """Apply defaults based on detected genre and filter exclusions."""
         if not self.instruments:
             self.instruments = self._get_genre_instruments()
-        if not self.drum_elements:
+        if not self.drum_elements and self.allow_default_drums:
             self.drum_elements = self._get_genre_drums()
         
         # Apply exclusions from negative prompt
@@ -250,9 +253,9 @@ class ParsedPrompt:
             'lofi': ['piano', 'rhodes', 'guitar'],
             'boom_bap': ['piano', 'bass', 'brass'],
             'house': ['bass', 'synth', 'pad'],
-            'ambient': ['pad', 'strings', 'piano'],
+            'ambient': ['pad', 'strings', 'synth', 'choir'],
             # Cinematic / Classical genres
-            'cinematic': ['strings', 'brass', 'timpani', 'harp', 'choir', 'contrabass', 'french_horn'],
+            'cinematic': ['strings', 'brass', 'harp', 'choir', 'contrabass', 'french_horn'],
             'classical': ['strings', 'piano', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
             # Ethiopian genres
             'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],
@@ -804,6 +807,7 @@ class PromptParser:
         genre = self._extract_genre(prompt_lower)
         instruments = self._extract_instruments(prompt_lower)
         drum_elements = self._extract_drums(prompt_lower)
+        drum_intent = bool(drum_elements) or self._has_explicit_drum_intent(prompt_lower)
         textures = self._extract_textures(prompt_lower)
         mood = self._extract_mood(prompt_lower)
         sections = self._extract_sections(prompt_lower)
@@ -842,7 +846,11 @@ class PromptParser:
         if 'swing' in prompt_lower or 'swung' in prompt_lower:
             use_swing = True
             swing_amount = max(swing_amount, 0.08)
-        
+
+        allow_default_drums = True
+        if genre in ('ambient', 'cinematic', 'classical') and not drum_intent:
+            allow_default_drums = False
+
         return ParsedPrompt(
             bpm=bpm,
             time_signature=time_sig,
@@ -853,6 +861,8 @@ class PromptParser:
             sonic_adjectives=sonic_adjectives,
             instruments=instruments,
             drum_elements=drum_elements,
+            drum_intent=drum_intent,
+            allow_default_drums=allow_default_drums,
             excluded_drums=excluded_drums,
             excluded_instruments=excluded_instruments,
             textures=textures,
@@ -1191,6 +1201,14 @@ class PromptParser:
                         found.append(element)
                     break
         return found
+
+    def _has_explicit_drum_intent(self, prompt: str) -> bool:
+        """Detect explicit drum/percussion intent beyond keyword mapping."""
+        intent_keywords = [
+            'drum', 'drums', 'drum kit', 'percussion', 'beat', 'rhythm', 'groove',
+            'kick', 'snare', 'clap', 'hi-hat', 'hihat', '808', 'cymbal', 'timpani',
+        ]
+        return any(kw in prompt for kw in intent_keywords)
     
     def _extract_negative_prompt(self, full_prompt: str) -> Tuple[str, str]:
         """

@@ -141,7 +141,11 @@ juce::String RecentFilesPanel::FileListBox::getTooltipForRow(int row)
                 << "Size: " << info.sizeString << "\n\n"
                 << (info.seed != 0 ? ("Seed: " + juce::String(info.seed) + "\n") : juce::String())
                 << (info.generatedAtIso.isNotEmpty() ? ("Generated: " + info.generatedAtIso + "\n") : juce::String())
-                << (info.promptSnippet.isNotEmpty() ? ("Prompt: " + info.promptSnippet + "\n\n") : juce::String())
+                << (info.promptSnippet.isNotEmpty() ? ("Prompt: " + info.promptSnippet + "\n") : juce::String())
+                << (info.hasAnalysis
+                        ? ("Analysis: genre_match=" + juce::String(info.genreMatchScore, 2)
+                           + ", drums=" + (info.drumsPresent ? "yes" : "no") + "\n\n")
+                        : juce::String())
                 << "Right-click for options";
         return tooltip;
     }
@@ -445,11 +449,46 @@ RecentFilesPanel::FileInfo RecentFilesPanel::parseFileInfo(const juce::File& fil
     }
     else
     {
-        // When metadata matched, use a stable unique label for the list.
-        info.displayName = file.getFileNameWithoutExtension().replaceCharacter('_', ' ').trim();
+        // When metadata matches, keep the *title* stable/unique by using the filename
+        // (it already includes timestamp/seed/bpm/key), and show prompt snippet on the details line.
+        auto base = file.getFileNameWithoutExtension().replaceCharacter('_', ' ').trim();
+        if (base.isEmpty())
+            base = info.promptSnippet.isNotEmpty() ? info.promptSnippet : info.genre;
+
+        info.displayName = base.trim();
         if (info.displayName.length() > 0)
             info.displayName = info.displayName.substring(0, 1).toUpperCase()
                              + info.displayName.substring(1);
+    }
+
+    // Render report (optional): provide analysis proof for quality gating.
+    auto reportFile = file.getSiblingFile(file.getFileNameWithoutExtension() + "_render_report.json");
+    if (reportFile.existsAsFile())
+    {
+        juce::var reportJson;
+        if (auto stream = std::unique_ptr<juce::FileInputStream>(reportFile.createInputStream()))
+        {
+            reportJson = juce::JSON::parse(stream->readEntireStreamAsString());
+        }
+
+        if (auto* reportObj = reportJson.getDynamicObject())
+        {
+            auto analysisVar = reportObj->getProperty("audio_analysis");
+            if (auto* analysisObj = analysisVar.getDynamicObject())
+            {
+                auto scoreVar = analysisObj->getProperty("genre_match_score");
+                if (scoreVar.isDouble() || scoreVar.isInt())
+                    info.genreMatchScore = (double) scoreVar;
+
+                auto drumsVar = analysisObj->getProperty("drums");
+                if (auto* drumsObj = drumsVar.getDynamicObject())
+                {
+                    info.drumsPresent = (bool) drumsObj->getProperty("drums_present");
+                }
+
+                info.hasAnalysis = (info.genreMatchScore >= 0.0);
+            }
+        }
     }
     
     return info;

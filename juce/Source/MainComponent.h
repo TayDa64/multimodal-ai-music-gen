@@ -262,6 +262,7 @@ private:
     GenerationStatus generationStatus = GenerationStatus::Idle;
     juce::String generationRequestId;
     juce::String generationTaskId; // From backend status (used for JSON-RPC polling/cancel)
+    int jsonRpcMissingResultPolls = 0;
     juce::Time generationRequestTime;
     juce::Time generationAckTime;
     juce::Time generationCompleteTime;

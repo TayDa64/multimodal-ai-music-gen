@@ -570,6 +570,7 @@ class Arranger:
         self.target_duration = target_duration_seconds if target_duration_seconds is not None else self.DEFAULT_DURATION_SECONDS
         self.min_bars = min_bars
         self.max_bars = max_bars
+        self._min_bars_override: Optional[int] = None
         
         # Initialize config loader for template-driven arrangements
         self.config_loader: Optional["ConfigLoader"] = None
@@ -598,7 +599,10 @@ class Arranger:
         """
         # Get template for genre
         template = self._get_template(parsed.genre, parsed.section_hints)
-        
+
+        # Allow explicit bar-count requests to bypass the global minimum
+        self._min_bars_override = getattr(parsed, "target_bars", None)
+
         # Adjust template to meet target duration
         template = self._adjust_to_duration(template, parsed.bpm)
         
@@ -797,13 +801,16 @@ class Arranger:
         
         # Ensure within limits
         total = sum(b for _, b in adjusted)
-        if total < self.min_bars:
+        min_bars_threshold = self.min_bars
+        if self._min_bars_override is not None and self._min_bars_override > 0:
+            min_bars_threshold = min(min_bars_threshold, self._min_bars_override)
+        if total < min_bars_threshold:
             # Extend main sections
             for i, (st, b) in enumerate(adjusted):
                 if st in [SectionType.DROP, SectionType.VERSE, SectionType.CHORUS]:
                     adjusted[i] = (st, b + 8)
                     total += 8
-                    if total >= self.min_bars:
+                    if total >= min_bars_threshold:
                         break
         
         return adjusted

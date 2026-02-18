@@ -392,7 +392,13 @@ void MainComponent::applyGeneratedInstrumentSamples(const GenerationResult& resu
 
         if (selected.isVoid() || !selected.isObject())
         {
-            selected = instrumentByCategory.begin()->second;
+            // If we can't find a category match for this track, keep the default synth.
+            // This prevents drum samples from being assigned to melodic tracks when
+            // instruments_used only contains drum categories.
+            if (preferred.empty())
+                selected = instrumentByCategory.begin()->second;
+            else
+                continue;
         }
 
         auto* selectedObj = selected.getDynamicObject();
@@ -1057,6 +1063,12 @@ void MainComponent::onProgress(float percent, const juce::String& step, const ju
 {
     currentProgress = percent;
     currentStatus = message;
+
+    GenerationProgress progress;
+    progress.progress = percent;
+    progress.stepName = step.isNotEmpty() ? step : message;
+    progress.message = message;
+    appState.notifyGenerationProgress(progress);
     
     juce::MessageManager::callAsync([this]()
     {
@@ -1325,6 +1337,7 @@ void MainComponent::generateRequested(const juce::String& prompt)
         generationTaskId.clear();
         jsonRpcPollInFlight = false;
         lastJsonRpcPollMs = 0;
+        jsonRpcMissingResultPolls = 0;
         generationRequestTime = juce::Time::getCurrentTime();
         
         // Include reference URL if an analysis was performed
@@ -2442,11 +2455,18 @@ void MainComponent::pollJsonRpcStatus()
                         onError(genResult.errorCode != 0 ? genResult.errorCode : 201,
                                 genResult.errorMessage.isNotEmpty() ? genResult.errorMessage
                                                                    : ("Generation " + status));
+                    jsonRpcMissingResultPolls = 0;
                 }
                 else
                 {
-                    generationTaskId.clear();
-                    onError(201, "Backend reported completion but no result payload was returned");
+                    jsonRpcMissingResultPolls += 1;
+                    currentStatus = "Finalizing result...";
+                    if (jsonRpcMissingResultPolls >= 5)
+                    {
+                        generationTaskId.clear();
+                        onError(201, "Backend reported completion but no result payload was returned");
+                        jsonRpcMissingResultPolls = 0;
+                    }
                 }
             }
         });

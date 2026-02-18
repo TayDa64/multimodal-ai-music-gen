@@ -49,6 +49,9 @@ public:
         juce::String promptSnippet;
         juce::String generatedAtIso;
         juce::int64 seed = 0;
+        double genreMatchScore = -1.0;
+        bool drumsPresent = false;
+        bool hasAnalysis = false;
         
         // Parsed from filename
         juce::String genre;

@@ -764,6 +764,7 @@ def run_generation(
                 bpm_val = float(parsed.bpm) if parsed.bpm else 120.0
                 bpm_val = max(30.0, bpm_val)
                 parsed.target_duration_seconds = (bars * beats_per_bar * 60.0) / bpm_val
+                parsed.target_bars = bars
         except Exception:
             pass
     
@@ -1717,6 +1718,12 @@ def run_generation(
                         print_info("Instrument recommendations:")
                     for cat, matches in recommendations.items():
                         if matches:
+                            # If the prompt intentionally suppresses drums (ambient/cinematic defaults),
+                            # don't attach drum sample recommendations to instruments_used. This prevents
+                            # downstream auto-mapping from assigning drum samples to melodic tracks.
+                            if (not getattr(parsed, "allow_default_drums", True)) and (not getattr(parsed, "drum_elements", [])):
+                                if cat in {"kick", "snare", "hihat", "clap", "tom", "perc", "808"}:
+                                    continue
                             best, score = matches[0]
                             # Show source for multi-source setups
                             source_info = ""
@@ -1731,6 +1738,39 @@ def run_generation(
                                 "path": best.path,
                                 "source": getattr(best, 'source', None),
                             })
+                # Chat/GUI robustness: if we only discovered drum categories (common when the client sends
+                # narrow instrumentPaths), append a minimal melodic palette using the expansion registry.
+                melodic_categories = {"pad", "strings", "keys", "synth", "brass", "bass", "fx", "choir"}
+                have_categories = {str(i.get("category", "")).lower() for i in results.get("instruments_used", []) if isinstance(i, dict)}
+                if instrument_service and not (have_categories & melodic_categories):
+                    fallback_queries = [
+                        ("pad", "pad"),
+                        ("strings", "strings"),
+                        ("keys", "piano"),
+                        ("synth", "synth"),
+                        ("brass", "brass"),
+                        ("bass", "bass"),
+                        ("choir", "choir"),
+                        ("fx", "fx"),
+                    ]
+                    for category, query in fallback_queries:
+                        if category in have_categories:
+                            continue
+                        try:
+                            resolved = instrument_service.resolve_instrument(query, genre=parsed.genre or "")
+                            sample_paths = getattr(resolved, "sample_paths", []) or []
+                            if not sample_paths:
+                                continue
+                            results["instruments_used"].append({
+                                "category": category,
+                                "name": getattr(resolved, "name", query),
+                                "score": float(getattr(resolved, "confidence", 0.5)),
+                                "path": sample_paths[0],
+                                "source": getattr(resolved, "source", None),
+                            })
+                            have_categories.add(category)
+                        except Exception:
+                            continue
             else:
                 print_warning("No instruments found in specified directories")
                 instrument_library = None
@@ -1964,6 +2004,22 @@ def run_generation(
         results["_mix_policy_obj"] = policy_context.mix
     if preset_values:
         results["_preset_values"] = preset_values
+
+    # Persist project metadata for both CLI and server flows so JUCE can build
+    # stable titles/tooltips from project_metadata.json (generation_history).
+    try:
+        metadata_path = save_project_metadata(
+            output_dir=output_dir,
+            prompt=base_prompt or prompt,
+            results=results,
+            parsed=parsed,
+            seed=seed,
+            synthesis_params=results.get("synthesis_params"),
+        )
+        results["project_metadata"] = str(metadata_path)
+    except Exception:
+        # Metadata persistence should never break generation.
+        pass
 
     return results
 
@@ -3011,23 +3067,26 @@ Server Mode (for JUCE integration):
                 parsed.key = args.key
                 parsed.scale = "major"
         
-        # Save metadata with seed and synthesis params
-        metadata_path = save_project_metadata(
-            output_dir,
-            args.prompt,
-            results,
-            parsed,
-            seed=results.get('seed'),
-            synthesis_params=results.get('synthesis_params')
-        )
+        # Metadata is already persisted by run_generation() (used by JUCE Recent Files).
+        # Keep this as a fallback for older runs / unexpected failures.
+        metadata_path = results.get("project_metadata")
+        if not metadata_path:
+            metadata_path = save_project_metadata(
+                output_dir,
+                args.prompt,
+                results,
+                parsed,
+                seed=results.get('seed'),
+                synthesis_params=results.get('synthesis_params')
+            )
         
         if args.json:
             # JSON output mode
             output = {
                 "success": not require_soundfont_failed,
                 "results": results,
-                "metadata": str(metadata_path),
-            }
+                    "metadata": str(metadata_path),
+                }
             print(json.dumps(output, indent=2))
         else:
             # Human-readable summary

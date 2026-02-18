@@ -73,4 +73,9 @@ def test_golden_prompt_smoke(case):
     mid = MidiGenerator().generate(arrangement, parsed)
 
     drum_notes = _count_drum_note_ons(mid)
-    assert drum_notes > 0
+    allow_default_drums = getattr(parsed, "allow_default_drums", True)
+    drum_elements = getattr(parsed, "drum_elements", []) or []
+    if allow_default_drums or drum_elements:
+        assert drum_notes > 0
+    else:
+        assert drum_notes == 0

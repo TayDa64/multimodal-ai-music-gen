@@ -836,7 +836,16 @@ class InstrumentMatcher:
         """
         recommendations = {}
         
-        categories = ["kick", "snare", "hihat", "clap", "808"]
+        # Provide a full "production palette" so UIs can auto-map reasonable defaults
+        # even when a given prompt doesn't explicitly name instruments.
+        categories = [
+            # Drums / rhythm
+            "kick", "snare", "hihat", "clap", "tom", "perc", "808",
+            # Melodic / harmonic
+            "bass", "keys", "pad", "synth", "strings", "brass",
+            # Ear candy
+            "fx",
+        ]
         
         for cat in categories:
             matches = self.get_best_match(cat, genre, mood, top_n=3)

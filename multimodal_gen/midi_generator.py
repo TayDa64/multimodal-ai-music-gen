@@ -1661,6 +1661,13 @@ class MidiGenerator:
             melody_track = self._create_melody_track(arrangement, parsed, groove_template)
             if len(melody_track) > 1:  # Has notes beyond track name
                 mid.tracks.append(melody_track)
+
+        # Track 5: Ambient/Cinematic texture pad (optional)
+        wants_texture = (parsed.genre or '').lower() in ['ambient', 'cinematic', 'soundscape']
+        if wants_texture and not has_melody_inst:
+            texture_track = self._create_texture_track(arrangement, parsed, groove_template)
+            if len(texture_track) > 1:
+                mid.tracks.append(texture_track)
         
         return mid
 
@@ -1944,7 +1951,11 @@ class MidiGenerator:
             track.append(MetaMessage('text', text='instrument:Kebero', time=0))
         elif 'atamo' in parsed.drum_elements:
             track.append(MetaMessage('text', text='instrument:Atamo', time=0))
-        
+
+        if not parsed.drum_elements and not getattr(parsed, "allow_default_drums", True):
+            track.append(MetaMessage('end_of_track', time=0))
+            return track
+
         all_notes = []
         
         for section in arrangement.sections:
@@ -3021,6 +3032,50 @@ class MidiGenerator:
             except Exception:
                 pass
 
+        return track
+
+    def _create_texture_track(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None
+    ) -> MidiTrack:
+        """Generate a sparse ambient/cinematic texture pad track."""
+        track = MidiTrack()
+        track.append(MetaMessage('track_name', name='Texture', time=0))
+        track.append(MetaMessage('text', text='instrument:Pad', time=0))
+        track.append(Message('program_change', program=89, channel=4, time=0))  # Pad 2 (warm)
+
+        all_notes: List[NoteEvent] = []
+        for section in arrangement.sections:
+            if not section.config.enable_textures:
+                continue
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.75, 0.95)
+            base_vel = max(1, min(127, int(55 * section.config.energy_level * vel_mult)))
+            section_ticks = int(bars_to_ticks(section.bars, arrangement.time_signature))
+            if section_ticks <= 0:
+                continue
+
+            root_pitch = note_name_to_midi(parsed.key, 4)
+            fifth_pitch = max(0, min(127, root_pitch + 7))
+
+            all_notes.append(NoteEvent(
+                pitch=root_pitch,
+                start_tick=section.start_tick,
+                duration_ticks=section_ticks,
+                velocity=base_vel,
+                channel=4,
+            ))
+            all_notes.append(NoteEvent(
+                pitch=fifth_pitch,
+                start_tick=section.start_tick + TICKS_PER_BEAT * 2,
+                duration_ticks=max(1, section_ticks - TICKS_PER_BEAT * 2),
+                velocity=max(1, base_vel - 6),
+                channel=4,
+            ))
+
+        self._notes_to_track(all_notes, track, channel=4, groove_template=groove_template)
         return track
 
     def _notes_to_track(

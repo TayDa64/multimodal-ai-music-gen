@@ -88,9 +88,9 @@ DEFAULT_GENRE_INSTRUMENTS: Dict[str, List[str]] = {
     'lofi': ['piano', 'rhodes', 'guitar'],
     'boom_bap': ['piano', 'bass', 'brass'],
     'house': ['bass', 'synth', 'pad'],
-    'ambient': ['pad', 'strings', 'piano'],
+    'ambient': ['pad', 'strings', 'synth', 'choir'],
     # Cinematic / Classical genres
-    'cinematic': ['strings', 'brass', 'timpani', 'harp', 'choir', 'contrabass', 'french_horn'],
+    'cinematic': ['strings', 'brass', 'harp', 'choir', 'contrabass', 'french_horn'],
     'classical': ['strings', 'piano', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
     # Ethiopian genres
     'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],

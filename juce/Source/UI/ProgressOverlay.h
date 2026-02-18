@@ -66,18 +66,22 @@ private:
     // Progress display
     juce::Label titleLabel;
     juce::Label stepLabel;
+    juce::Label detailLabel;
     juce::Label percentLabel;
     juce::TextButton cancelButton{ "Cancel" };
     
     // Progress state
     double currentProgress = 0.0;
     juce::String currentStep = "Initializing...";
+    juce::String currentDetail;
+    double lastProgressSeconds = 0.0;
     
     // Animation
     float spinnerAngle = 0.0f;
     float fadeAlpha = 0.0f;
     bool fadingIn = false;
     bool fadingOut = false;
+    double startTimeSeconds = 0.0;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProgressOverlay)
 };

@@ -30,6 +30,13 @@ ProgressOverlay::ProgressOverlay(AppState& state)
     stepLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     stepLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(stepLabel);
+
+    // Detail label (secondary progress text)
+    detailLabel.setText("", juce::dontSendNotification);
+    detailLabel.setFont(juce::Font(12.0f));
+    detailLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    detailLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(detailLabel);
     
     // Percent label
     percentLabel.setText("0%", juce::dontSendNotification);
@@ -136,7 +143,8 @@ void ProgressOverlay::resized()
     percentLabel.setBounds(juce::Rectangle<int>(100, 60).withCentre({ centerX, centerY - 40 }));
     
     // Step label below ring
-    stepLabel.setBounds(juce::Rectangle<int>(260, 24).withCentre({ centerX, centerY + 40 }));
+    stepLabel.setBounds(juce::Rectangle<int>(260, 22).withCentre({ centerX, centerY + 32 }));
+    detailLabel.setBounds(juce::Rectangle<int>(260, 18).withCentre({ centerX, centerY + 56 }));
     
     // Cancel button at bottom
     cancelButton.setBounds(juce::Rectangle<int>(100, 32).withCentre({ centerX, cardBounds.getBottom() - 35 }));
@@ -147,16 +155,21 @@ void ProgressOverlay::show()
 {
     currentProgress = 0.0;
     currentStep = "Initializing...";
+    currentDetail = "";
+    lastProgressSeconds = 0.0;
     stepLabel.setText(currentStep, juce::dontSendNotification);
     stepLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    detailLabel.setText("", juce::dontSendNotification);
     percentLabel.setText("0%", juce::dontSendNotification);
     cancelButton.setEnabled(true);
+    startTimeSeconds = juce::Time::getCurrentTime().toMilliseconds() / 1000.0;
     
     fadeAlpha = 0.0f;
     fadingIn = true;
     fadingOut = false;
     
     setVisible(true);
+    toFront(true);
     startTimerHz(60);
 }
 
@@ -180,11 +193,14 @@ void ProgressOverlay::onGenerationProgress(const GenerationProgress& progress)
 {
     juce::MessageManager::callAsync([this, progress] {
         currentProgress = progress.progress;
-        currentStep = progress.stepName;
+        currentStep = progress.stepName.isNotEmpty() ? progress.stepName : "Working...";
+        currentDetail = progress.message;
+        lastProgressSeconds = juce::Time::getCurrentTime().toMilliseconds() / 1000.0;
         
         stepLabel.setText(currentStep, juce::dontSendNotification);
-        percentLabel.setText(juce::String((int)(currentProgress * 100)) + "%", 
-                            juce::dontSendNotification);
+        detailLabel.setText(currentDetail, juce::dontSendNotification);
+        const int pct = (int)(currentProgress * 100.0);
+        percentLabel.setText(juce::String(pct) + "%", juce::dontSendNotification);
         repaint();
     });
 }
@@ -194,6 +210,7 @@ void ProgressOverlay::onGenerationCompleted(const juce::File& /*outputFile*/)
     juce::MessageManager::callAsync([this] {
         currentProgress = 1.0;
         stepLabel.setText("Complete!", juce::dontSendNotification);
+        detailLabel.setText("", juce::dontSendNotification);
         percentLabel.setText("100%", juce::dontSendNotification);
         
         // Delay hide for visual feedback
@@ -207,6 +224,7 @@ void ProgressOverlay::onGenerationError(const juce::String& error)
 {
     juce::MessageManager::callAsync([this, error] {
         stepLabel.setText("Error: " + error, juce::dontSendNotification);
+        detailLabel.setText("", juce::dontSendNotification);
         stepLabel.setColour(juce::Label::textColourId, AppColours::error);
         
         // Delay hide for user to see error
@@ -251,7 +269,22 @@ void ProgressOverlay::timerCallback()
             stopTimer();
         }
     }
-    
+
+    if (isVisible() && !fadingOut)
+    {
+        const auto nowSeconds = juce::Time::getCurrentTime().toMilliseconds() / 1000.0;
+        const auto totalElapsed = (startTimeSeconds > 0.0) ? (nowSeconds - startTimeSeconds) : 0.0;
+        const auto sinceProgress = (lastProgressSeconds > 0.0) ? (nowSeconds - lastProgressSeconds) : totalElapsed;
+
+        if (currentStep.containsIgnoreCase("render") && sinceProgress > 5.0)
+        {
+            const int mins = (int)(totalElapsed / 60.0);
+            const int secs = (int)totalElapsed % 60;
+            juce::String elapsed = juce::String::formatted("%d:%02d", mins, secs);
+            detailLabel.setText(currentDetail + " (elapsed " + elapsed + ")", juce::dontSendNotification);
+        }
+    }
+
     repaint();
 }
 

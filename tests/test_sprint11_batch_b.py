@@ -398,6 +398,48 @@ class TestInstrumentManager:
         except (TypeError, Exception):
             pytest.skip("SonicProfile not constructable with these args")
 
+    def test_recommendations_include_melodic_categories(self):
+        """InstrumentMatcher.get_recommendations can include melodic categories when available."""
+        from multimodal_gen.instrument_manager import AnalyzedInstrument, InstrumentLibrary, InstrumentMatcher
+
+        lib = InstrumentLibrary(instruments_dir=None, auto_load_audio=False)
+        # Populate a few categories with minimal dummy profiles.
+        lib.by_category[InstrumentCategory.KICK].append(AnalyzedInstrument(
+            path="kick.wav",
+            name="kick",
+            category=InstrumentCategory.KICK,
+            profile=SonicProfile(category="kick", brightness=0.2, warmth=0.8, punch=0.9),
+            audio=None,
+        ))
+        lib.by_category[InstrumentCategory.PAD].append(AnalyzedInstrument(
+            path="pad.wav",
+            name="pad",
+            category=InstrumentCategory.PAD,
+            profile=SonicProfile(category="pad", brightness=0.5, warmth=0.7, punch=0.1),
+            audio=None,
+        ))
+        lib.by_category[InstrumentCategory.STRINGS].append(AnalyzedInstrument(
+            path="strings.wav",
+            name="strings",
+            category=InstrumentCategory.STRINGS,
+            profile=SonicProfile(category="strings", brightness=0.5, warmth=0.7, punch=0.1),
+            audio=None,
+        ))
+        lib.by_category[InstrumentCategory.KEYS].append(AnalyzedInstrument(
+            path="keys.wav",
+            name="keys",
+            category=InstrumentCategory.KEYS,
+            profile=SonicProfile(category="keys", brightness=0.6, warmth=0.6, punch=0.2),
+            audio=None,
+        ))
+
+        matcher = InstrumentMatcher(lib)
+        recs = matcher.get_recommendations("ambient", mood="chill")
+        assert "kick" in recs  # drum category still supported
+        assert "pad" in recs
+        assert "strings" in recs
+        assert "keys" in recs
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # GENRE INTELLIGENCE (genre_intelligence.py)
