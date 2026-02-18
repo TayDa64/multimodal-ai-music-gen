@@ -102,6 +102,10 @@ def auto_score_plan_v1(
     drone_inst = pick("drone", [i for i in insts if "drone" in i] or insts)
     keys_inst = pick("keys", [i for i in insts if "piano" in i or "keys" in i] or insts)
     bass_inst = pick("sub bass", [i for i in insts if "bass" in i] or insts)
+    prompt_lower = prompt.lower()
+    drum_keywords = ["drum", "kick", "snare", "hihat", "clap", "perc", "percussion"]
+    has_drum_keyword = any(k in prompt_lower for k in drum_keywords)
+    wants_drums = has_drum_keyword or (bool(drums) and genre not in ("ambient", "cinematic"))
     drums_inst = pick("drums", drums)
 
     tracks: List[Dict[str, Any]] = [
@@ -109,8 +113,15 @@ def auto_score_plan_v1(
         {"role": "fx", "instrument": drone_inst, "density": 0.35, "octave": 3},
         {"role": "keys", "instrument": keys_inst, "density": 0.4, "octave": 4},
         {"role": "bass", "instrument": bass_inst, "density": 0.35, "octave": 2},
-        {"role": "drums", "instrument": drums_inst, "density": 0.25},
     ]
+    if wants_drums:
+        tracks.append({"role": "drums", "instrument": drums_inst, "density": 0.25})
+
+    constraints: Dict[str, Any] = {
+        "max_polyphony": 8 if genre == "ambient" else 12,
+    }
+    if not wants_drums and (genre == "ambient" or "cinematic" in prompt_lower):
+        constraints["avoid_drums"] = ["drums", "kick", "snare", "hihat", "clap", "perc"]
 
     return {
         "schema_version": "score_plan_v1",
@@ -126,8 +137,5 @@ def auto_score_plan_v1(
         "sections": sections,
         "tension_curve": tension_curve,
         "tracks": tracks,
-        "constraints": {
-            "max_polyphony": 8 if genre == "ambient" else 12,
-        },
+        "constraints": constraints,
     }
-
