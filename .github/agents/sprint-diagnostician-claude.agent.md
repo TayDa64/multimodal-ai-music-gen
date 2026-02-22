@@ -2,6 +2,7 @@
 ---
 name: sprint-diagnostician-claude
 description: "Sprint Diagnostician (Claude). Precision fixes for reported bugs and test issues — surgical repairs with minimal diffs."
+disable-model-invocation: false
 model: claude-sonnet-4.5
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']

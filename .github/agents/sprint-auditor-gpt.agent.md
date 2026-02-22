@@ -2,6 +2,7 @@
 ---
 name: sprint-auditor-gpt
 description: "Sprint Auditor (GPT). Analytical audit with strong logical reasoning about correctness and completeness."
+disable-model-invocation: false
 model: gpt-5.3-codex
 target: vscode
 tools: ['vscode', 'read', 'search']

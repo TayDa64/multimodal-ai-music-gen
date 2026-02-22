@@ -2,6 +2,7 @@
 ---
 name: sprint-builder-claude
 description: "Sprint Builder (Claude). Precision code implementation — surgical diffs, guard patterns, regression-safe wiring."
+disable-model-invocation: false
 model: claude-sonnet-4.5
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']

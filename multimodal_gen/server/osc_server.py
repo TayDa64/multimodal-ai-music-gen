@@ -1544,7 +1544,7 @@ class MusicGenOSCServer:
             "old_value": round(old_value, 4),
             "new_value": round(new_value, 4),
         }))
-        self._log(f"📊 Preference pushed: {dimension} {old_value:.2f}→{new_value:.2f}")
+        self._log(f"📊 Preference pushed: {dimension} {old_value:.2f}->{new_value:.2f}")
 
     def notify_search_result(self, query: str, results: list):
         """Push embedding search results to JUCE display."""
@@ -1555,7 +1555,7 @@ class MusicGenOSCServer:
             "count": len(results),
             "top": summary,
         }))
-        self._log(f"🔍 Search pushed: '{query}' → {len(results)} results")
+        self._log(f"🔍 Search pushed: '{query}' -> {len(results)} results")
 
     def notify_session_compressed(self, level: str, token_budget: int):
         """Push session compression event to JUCE display."""

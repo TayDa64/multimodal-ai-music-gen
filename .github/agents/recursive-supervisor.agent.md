@@ -1,6 +1,7 @@
 ---
 name: recursive-supervisor
 description: "RLM-inspired Supervisor agent. Probes, decomposes tasks, orchestrates handoffs to Builder/Verifier, and enforces phased verification."
+disable-model-invocation: false
 target: vscode
 tools: ['vscode', 'execute', 'read', 'search', 'web', 'agent', 'todo']
 handoffs:

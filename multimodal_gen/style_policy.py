@@ -1116,6 +1116,6 @@ if __name__ == "__main__":
         for d in policy_ctx.decisions[:5]:  # Show first 5
             print(f"   [{d.source.value}] {d.category}.{d.name} = {d.value}")
             if d.reason:
-                print(f"      → {d.reason}")
+                print(f"      -> {d.reason}")
     
     print("\n✅ Style Policy test complete")

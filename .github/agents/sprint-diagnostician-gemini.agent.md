@@ -2,6 +2,7 @@
 ---
 name: sprint-diagnostician-gemini
 description: "Sprint Diagnostician (Gemini). Targeted fixes with deep cross-module context awareness and integration-safe repairs."
+disable-model-invocation: false
 model: gemini-3-pro
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']

@@ -1,6 +1,7 @@
 ---
 name: recursive-verifier
 description: "RLM-inspired Verifier. Runs phased verification on Builder changes and returns proofs plus a pass/fail verdict."
+disable-model-invocation: false
 target: vscode
 tools: ['vscode', 'execute', 'read', 'search', 'todo']
 handoffs:

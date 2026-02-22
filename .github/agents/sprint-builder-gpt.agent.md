@@ -2,6 +2,7 @@
 ---
 name: sprint-builder-gpt
 description: "Sprint Builder (GPT). Code implementation with strong reasoning about edge cases and error handling."
+disable-model-invocation: false
 model: gpt-5.3-codex
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']

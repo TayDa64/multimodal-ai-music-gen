@@ -1299,7 +1299,7 @@ if __name__ == "__main__":
     for v in result.violations:
         print(f"  ⚠️  {v.message}")
         if v.repair_suggestion:
-            print(f"     → Repair: {v.repair_suggestion}")
+            print(f"     -> Repair: {v.repair_suggestion}")
     
     # Test 2: Boom bap with 808 glide (should fail)
     print("\nTest 2: Boom bap with 808 glide")
@@ -1315,7 +1315,7 @@ if __name__ == "__main__":
     print(f"  Original: {elements}")
     print(f"  Repaired: {repaired}")
     for entry in log:
-        print(f"  📝 {entry['original']} → {entry.get('result', 'N/A')} ({entry['reason']})")
+        print(f"  📝 {entry['original']} -> {entry.get('result', 'N/A')} ({entry['reason']})")
     
     # Test 4: Lo-fi mix validation
     print("\nTest 4: Lo-fi mix rule validation")

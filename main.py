@@ -132,7 +132,7 @@ def print_banner():
 ╔════════════════════════════════════════════════════════════════╗
 ║           🎵 MULTIMODAL AI MUSIC GENERATOR 🎵                 ║
 ║                                                                ║
-║      Text → MIDI → Audio → MPC Project                        ║
+║      Text -> MIDI -> Audio -> MPC Project                     ║
 ║      Professional Humanization • CPU-Only • Offline-First     ║
 ╚════════════════════════════════════════════════════════════════╝
     """
@@ -918,7 +918,7 @@ def run_generation(
     # Log duration info
     estimated_duration = arrangement.total_bars * 4 * 60 / parsed.bpm  # bars * beats/bar * sec/min / bpm
     if parsed.target_duration_seconds:
-        print_info(f"Target duration: {parsed.target_duration_seconds/60:.1f} min → {arrangement.total_bars} bars (~{estimated_duration/60:.1f} min)")
+        print_info(f"Target duration: {parsed.target_duration_seconds/60:.1f} min -> {arrangement.total_bars} bars (~{estimated_duration/60:.1f} min)")
     else:
         print_info(f"Default duration: ~{estimated_duration/60:.1f} min ({arrangement.total_bars} bars)")
     

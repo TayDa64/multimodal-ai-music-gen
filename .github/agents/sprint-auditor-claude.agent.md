@@ -2,6 +2,7 @@
 ---
 name: sprint-auditor-claude
 description: "Sprint Auditor (Claude). Meticulous audit with precise pattern matching against established codebase conventions."
+disable-model-invocation: false
 model: claude-sonnet-4.5
 target: vscode
 tools: ['vscode', 'read', 'search']

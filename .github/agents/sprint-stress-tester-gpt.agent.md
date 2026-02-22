@@ -2,6 +2,7 @@
 ---
 name: sprint-stress-tester-gpt
 description: "Sprint Stress-Tester (GPT). Adversarial QA with strongest reasoning about breaking assumptions and finding logical flaws."
+disable-model-invocation: false
 model: gpt-5.3-codex
 target: vscode
 tools: ['vscode', 'read', 'search', 'execute']

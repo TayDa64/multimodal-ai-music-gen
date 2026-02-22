@@ -2,6 +2,7 @@
 ---
 name: sprint-stress-tester-claude
 description: "Sprint Stress-Tester (Claude). Adversarial QA with meticulous pattern analysis for finding convention violations and subtle inconsistencies."
+disable-model-invocation: false
 model: claude-sonnet-4.5
 target: vscode
 tools: ['vscode', 'read', 'search', 'execute']

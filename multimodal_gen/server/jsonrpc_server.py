@@ -31,6 +31,8 @@ import sys
 import threading
 import time
 import uuid
+import dataclasses
+from enum import Enum
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -266,6 +268,7 @@ class MusicGenJSONRPCServer:
             "produce_sync": self._handle_produce_sync,
             "get_status": self._handle_get_status,
             "cancel": self._handle_cancel,
+            "analyze_reference": self._handle_analyze_reference,
             "run_critics": self._handle_run_critics,
             "run_critics_midi": self._handle_run_critics_midi,
             "genre_dna_lookup": self._handle_genre_dna_lookup,
@@ -495,6 +498,19 @@ class MusicGenJSONRPCServer:
         if result_dict is not None:
             return result_dict
 
+        worker_result = self._worker.get_result(task_id)
+        if worker_result is not None:
+            result_from_worker = worker_result.to_dict()
+            with self._results_lock:
+                self._results[task_id] = result_from_worker
+            return result_from_worker
+
+        status = self._worker.get_status(task_id)
+        progress_snapshot: Dict[str, Any] = {}
+        with self._progress_lock:
+            if task_id in self._progress:
+                progress_snapshot = dict(self._progress.get(task_id, {}))
+
         # Fallback — shouldn't normally reach here
         return {
             "task_id": task_id,
@@ -502,6 +518,8 @@ class MusicGenJSONRPCServer:
             "success": False,
             "error_code": ErrorCode.UNKNOWN,
             "error_message": "Result not available",
+            "status": status.value if status is not None else None,
+            "progress": progress_snapshot,
         }
 
     def _handle_get_status(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -534,6 +552,12 @@ class MusicGenJSONRPCServer:
         ):
             with self._results_lock:
                 result_dict = self._results.get(task_id)
+            if result_dict is None:
+                worker_result = self._worker.get_result(task_id)
+                if worker_result is not None:
+                    result_dict = worker_result.to_dict()
+                    with self._results_lock:
+                        self._results[task_id] = result_dict
             if result_dict is not None:
                 resp["result"] = result_dict
 
@@ -596,6 +620,56 @@ class MusicGenJSONRPCServer:
                 }
                 for m in report.metrics
             ],
+        }
+
+    def _handle_analyze_reference(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze a reference URL/file and return a JSON-safe music profile.
+
+        Params:
+            url (str): Optional URL (YouTube/audio URL).
+            file_path (str): Optional local audio path.
+            path (str): Optional alias for file_path.
+            verbose (bool): Optional analyzer verbosity.
+            include_genre_in_hints (bool): Include estimated genre in prompt hints.
+
+        Returns:
+            Dict with compact profile fields and a raw nested analysis object.
+        """
+        from ..reference_analyzer import analyze_reference
+
+        source = params.get("url") or params.get("file_path") or params.get("path")
+        if not source or not isinstance(source, str):
+            raise TypeError("Missing required param: url or file_path")
+
+        verbose = bool(params.get("verbose", False))
+        include_genre_in_hints = bool(params.get("include_genre_in_hints", False))
+
+        analysis = analyze_reference(source, verbose=verbose)
+
+        def _json_safe(value: Any) -> Any:
+            if isinstance(value, Enum):
+                return value.value
+            if dataclasses.is_dataclass(value):
+                return {k: _json_safe(v) for k, v in dataclasses.asdict(value).items()}
+            if isinstance(value, dict):
+                return {k: _json_safe(v) for k, v in value.items()}
+            if isinstance(value, list):
+                return [_json_safe(v) for v in value]
+            if isinstance(value, tuple):
+                return [_json_safe(v) for v in value]
+            return value
+
+        return {
+            "source": source,
+            "title": analysis.title,
+            "bpm": analysis.bpm,
+            "key": analysis.key,
+            "mode": analysis.mode,
+            "estimated_genre": analysis.estimated_genre,
+            "style_tags": analysis.style_tags,
+            "prompt_hints": analysis.to_prompt_hints(include_genre=include_genre_in_hints),
+            "generation_params": analysis.to_generation_params(),
+            "raw": _json_safe(analysis),
         }
 
     def _handle_run_critics_midi(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -693,14 +767,29 @@ class MusicGenJSONRPCServer:
         from ..intelligence.auto_producer import auto_score_plan_v1
 
         runs: List[Dict[str, Any]] = []
+        status_updates: List[Dict[str, Any]] = []
         best: Optional[Dict[str, Any]] = None
         best_score = -1e9
+
+        status_updates.append({
+            "step": "producer_start",
+            "percent": 0.02,
+            "message": "Producer orchestration started",
+            "timestamp": time.time(),
+        })
 
         # Stable base seed for this request, then offset for each attempt.
         base_seed = int(params.get("seed", int(time.time() * 1000) % (2**31)))
 
         for i in range(attempts):
             seed = (base_seed + (i * 9973)) % (2**31)
+            attempt_num = i + 1
+            status_updates.append({
+                "step": f"attempt_{attempt_num}_start",
+                "percent": 0.1 + (0.7 * (i / max(1, attempts))),
+                "message": f"Attempt {attempt_num}/{attempts} started",
+                "timestamp": time.time(),
+            })
 
             score_plan = params.get("score_plan")
             if isinstance(score_plan, str):
@@ -721,6 +810,12 @@ class MusicGenJSONRPCServer:
                 score_plan.setdefault("seed", seed)
 
             # Generate
+            status_updates.append({
+                "step": f"attempt_{attempt_num}_generate",
+                "percent": 0.2 + (0.6 * (i / max(1, attempts))),
+                "message": f"Running generation for attempt {attempt_num}",
+                "timestamp": time.time(),
+            })
             gen = self._handle_generate_sync(
                 {
                     "prompt": str(prompt),
@@ -735,12 +830,24 @@ class MusicGenJSONRPCServer:
             score = 0.0
 
             if gen and gen.get("success") and gen.get("midi_path"):
+                status_updates.append({
+                    "step": f"attempt_{attempt_num}_critics",
+                    "percent": 0.55 + (0.3 * (i / max(1, attempts))),
+                    "message": f"Running critics for attempt {attempt_num}",
+                    "timestamp": time.time(),
+                })
                 try:
                     critics = self._handle_run_critics_midi({"midi_path": gen["midi_path"]})
                 except Exception:
                     critics = None
 
                 if gen.get("audio_path"):
+                    status_updates.append({
+                        "step": f"attempt_{attempt_num}_output_analysis",
+                        "percent": 0.7 + (0.2 * (i / max(1, attempts))),
+                        "message": f"Analyzing rendered output for attempt {attempt_num}",
+                        "timestamp": time.time(),
+                    })
                     try:
                         audio_analysis = self._handle_analyze_output(
                             {"audio_path": gen["audio_path"], "genre": genre_hint or "ambient"}
@@ -772,7 +879,14 @@ class MusicGenJSONRPCServer:
                 best_score = score
                 best = run
 
-        return {"best": best, "attempts": runs}
+        status_updates.append({
+            "step": "producer_complete",
+            "percent": 1.0,
+            "message": "Producer orchestration completed",
+            "timestamp": time.time(),
+        })
+
+        return {"best": best, "attempts": runs, "status_updates": status_updates}
 
     def _handle_genre_dna_lookup(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """Look up the 10-dimensional DNA vector for a genre.

@@ -2,7 +2,8 @@
 ---
 name: sprint-diagnostician-gpt
 description: "Sprint Diagnostician (GPT). Targeted fixes with strong reasoning about root causes and edge case handling."
-model: gpt-5.3-codex
+disable-model-invocation: false
+model: 'gpt-5.3-codex (copilot)'
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']
 ---

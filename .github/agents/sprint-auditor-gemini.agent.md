@@ -2,6 +2,7 @@
 ---
 name: sprint-auditor-gemini
 description: "Sprint Auditor (Gemini). Deep synthesis audit with superior long-context tracing across large codebases."
+disable-model-invocation: false
 model: gemini-3-pro
 target: vscode
 tools: ['vscode', 'read', 'search']

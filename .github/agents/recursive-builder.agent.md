@@ -1,6 +1,7 @@
 ---
 name: recursive-builder
 description: "RLM-inspired Builder. Implements Supervisor plans with minimal diffs, local proofs, and no full-suite verification."
+disable-model-invocation: false
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']
 handoffs:

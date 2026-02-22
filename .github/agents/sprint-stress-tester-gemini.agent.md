@@ -2,6 +2,7 @@
 ---
 name: sprint-stress-tester-gemini
 description: "Sprint Stress-Tester (Gemini). Adversarial QA with deep cross-file analysis for finding integration gaps and data flow breaks."
+disable-model-invocation: false
 model: gemini-3-pro
 target: vscode
 tools: ['vscode', 'read', 'search', 'execute']

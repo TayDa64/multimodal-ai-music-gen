@@ -2,6 +2,7 @@
 ---
 name: sprint-builder-gemini
 description: "Sprint Builder (Gemini). Code implementation with deep context awareness across large files and cross-module data flow."
+disable-model-invocation: false
 model: gemini-3-pro
 target: vscode
 tools: ['vscode', 'execute', 'read', 'edit', 'search', 'todo']

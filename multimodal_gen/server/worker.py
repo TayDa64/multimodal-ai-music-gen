@@ -423,6 +423,12 @@ class GenerationWorker:
                 cancelled = task.future.cancel()
                 if cancelled:
                     task.status = TaskStatus.CANCELLED
+                    task.result = self._create_cancelled_result(
+                        task.id,
+                        task.request_id,
+                        0.0,
+                    )
+                    task.completed_at = datetime.now()
                     return True
         
         return True
@@ -432,6 +438,12 @@ class GenerationWorker:
         with self._lock:
             task = self._tasks.get(task_id)
             return task.status if task else None
+
+    def get_result(self, task_id: str) -> Optional[GenerationResult]:
+        """Get the final result of a task if available."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            return task.result if task else None
     
     def is_busy(self) -> bool:
         """Check if worker is currently processing a task."""
@@ -486,7 +498,14 @@ class GenerationWorker:
             
             # Check for early cancellation
             if task.cancel_requested:
-                return self._create_cancelled_result(task.id, task.request_id, time.time() - start_time)
+                result = self._create_cancelled_result(
+                    task.id,
+                    task.request_id,
+                    time.time() - start_time,
+                )
+                task.status = TaskStatus.CANCELLED
+                task.result = result
+                return result
             
             # Import here to avoid circular imports
             from main import run_generation

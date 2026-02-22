@@ -264,7 +264,7 @@ class PreferenceTracker:
         prefs.last_updated = _now_iso()
 
         logger.debug(
-            "Preference %s: %.3f → %.3f (signal=%s, dir=%s, α=%.3f)",
+            "Preference %s: %.3f -> %.3f (signal=%s, dir=%s, α=%.3f)",
             dim_key,
             current,
             new_val,
