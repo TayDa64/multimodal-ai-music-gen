@@ -126,6 +126,125 @@
   ],
   "completed_tasks": [
     {
+      "id": "genre-consistency-wave-007",
+      "description": "Complete neo-soul runtime consistency and expand rendered-audio target coverage for adjacent genres",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\utils.py",
+          "multimodal_gen\\arranger.py",
+          "multimodal_gen\\audio_renderer.py",
+          "multimodal_gen\\auto_gain_staging.py",
+          "multimodal_gen\\output_analyzer.py",
+          "tests\\test_output_analyzer.py",
+          "tests\\test_genre_normalization.py",
+          "tests\\test_arranger_motifs.py",
+          "tests\\test_sprint11_batch_b.py"
+        ],
+        "changes": {
+          "neo_soul_runtime": "Added first-class neo_soul defaults, arrangement template/motif mapping, renderer routing, and gain-staging coverage so neo_soul no longer inherits trap-oriented fallbacks in the inspected runtime layers.",
+          "output_targets": "Added conservative rendered-audio targets for rnb, trap_soul, house, ambient, ethiopian, ethio_jazz, eskista, and ethiopian_traditional so those genres no longer rely on the neutral unknown-genre score path.",
+          "regressions": "Added focused tests proving neo_soul normalization/runtime coverage and proving the expanded genre set now uses explicit scorer targets instead of the 0.75 unknown-genre fallback."
+        },
+        "verification": "PASS - get_errors returned no diagnostics on the changed files, focused pytest passed (122 passed, 2 skipped), and post-verifier inspection confirmed explicit neo_soul runtime coverage plus explicit AUDIO_GENRE_TARGETS entries for the newly covered genres."
+      },
+      "created": "2026-03-18T20:40:00Z",
+      "updated": "2026-03-18T20:40:00Z"
+    },
+    {
+      "id": "genre-validation-roadmap-analysis-006",
+      "description": "Analyze broader genre realism, audio-validation best practices, and instrument-frequency awareness after neo-soul hardening",
+      "status": "completed",
+      "assigned_to": "verifier",
+      "phase": "aggregate",
+      "result": {
+        "files_read": [
+          "multimodal_gen\\output_analyzer.py",
+          "multimodal_gen\\genre_rules.py",
+          "multimodal_gen\\instrument_manager.py",
+          "multimodal_gen\\style_policy.py",
+          "multimodal_gen\\arranger.py",
+          "multimodal_gen\\utils.py",
+          "multimodal_gen\\performance_models.py",
+          "multimodal_gen\\prompt_parser.py",
+          "multimodal_gen\\audio_renderer.py",
+          "multimodal_gen\\midi_generator.py",
+          "multimodal_gen\\auto_gain_staging.py",
+          "multimodal_gen\\reference_matching.py",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\verifier.js"
+        ],
+        "findings": {
+          "core_gap": "The codebase already contains spectral rules, reference matching, sample sonic fingerprints, and register-aware MIDI validation, but those layers are not consistently wired into rendered-audio scoring, repair loops, or genre-wide coverage.",
+          "frequency_awareness": "Instrument-aware realism is strongest in MIDI note ranges and sample fingerprints, but there is no unified audio-stage role-band or masking validator connecting instrument identity to expected frequency occupancy.",
+          "genre_priorities": "After neo_soul, the highest-ROI genres to harden are rnb, trap_soul, house, ambient, and Ethiopian variants because they are parseable/generated but can still fall through output-analysis neutral scoring or inconsistent runtime mappings.",
+          "implementation_direction": "Best next step is to unify genre normalization and reuse existing OutputAnalyzer, GenreRulesEngine, ReferenceAnalyzer, InstrumentAnalyzer, and StylePolicy modules before inventing new analysis systems."
+        },
+        "verification": "PASS - supervisor plus parallel Explore subagents completed a code-grounded read-only audit and converged on the same architecture gaps and rollout priorities."
+      },
+      "created": "2026-03-18T20:25:00Z",
+      "updated": "2026-03-18T20:25:00Z"
+    },
+    {
+      "id": "neo-soul-validation-hardening-005",
+      "description": "Gate producer success on rendered-audio validation and normalize neo-soul runtime support",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "multimodal_gen\\output_analyzer.py",
+          "multimodal_gen\\microtiming.py",
+          "multimodal_gen\\performance_models.py",
+          "multimodal_gen\\prompt_parser.py",
+          "tests\\test_output_analyzer.py",
+          "tests\\test_prompt_parser_key.py"
+        ],
+        "changes": {
+          "producer.js": "Producer success now requires rendered-audio validation when audio exists; critic-gate bypass no longer accepts audio-validation failures.",
+          "output_analyzer.py": "Added explicit neo_soul and rnb_neosoul output-analysis targets plus onset-density scoring for rhythm-fit penalties.",
+          "runtime_normalization": "Prompt parsing, microtiming presets, and performance-model mappings now treat neo_soul as a first-class genre instead of falling back through generic rnb handling."
+        },
+        "verification": "PASS - focused pytest suite passed (38 output-analyzer tests, 3 prompt-parser tests) and a stubbed ProducerAgent smoke check proved critics-pass plus audio-fail now returns COMPLETED_WITH_CRITIC_FAIL while audio-pass returns COMPLETED_SUCCESS."
+      },
+      "created": "2026-03-18T20:12:00Z",
+      "updated": "2026-03-18T20:12:00Z"
+    },
+    {
+      "id": "neo-soul-audio-gap-analysis-004",
+      "description": "Investigate listened neo-soul quality complaints against generation and validation code paths",
+      "status": "completed",
+      "assigned_to": "verifier",
+      "phase": "aggregate",
+      "result": {
+        "files_read": [
+          "multimodal_gen\\output_analyzer.py",
+          "multimodal_gen\\quality_validator.py",
+          "multimodal_gen\\server\\jsonrpc_server.py",
+          "multimodal_gen\\midi_generator.py",
+          "multimodal_gen\\performance_models.py",
+          "multimodal_gen\\microtiming.py",
+          "multimodal_gen\\groove_templates.py",
+          "multimodal_gen\\agents\\performers\\drummer.py",
+          "configs\\presets\\rnb_neosoul.yaml",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\verifier.js"
+        ],
+        "findings": {
+          "validation_gap": "ProducerAgent accepts success on MIDI critics alone; rendered-audio analysis is recorded but does not gate success.",
+          "genre_gap": "OutputAnalyzer has no neo_soul target profile, so GenreMatchScorer returns the neutral fallback score 0.75 for neo_soul outputs.",
+          "rhythm_gap": "Rendered-audio analysis uses spectral/percussive heuristics only and does not measure groove pocket, beat stability, or microtiming feel.",
+          "generation_gap": "Performance-model and microtiming mappings are stronger for rnb than neo_soul, so neo_soul can fall back to generic role defaults in some timing paths."
+        },
+        "verification": "PASS - code inspection plus render reports showed neo_soul render reports repeatedly report genre_match_score=0.75 with passed=true, matching the unknown-genre fallback in output_analyzer.py."
+      },
+      "created": "2026-03-18T20:05:00Z",
+      "updated": "2026-03-18T20:05:00Z"
+    },
+    {
       "id": "liku-producer-hardening-003",
       "description": "Confirm real per-track subagent handoffs and explicit mastering propagation",
       "status": "completed",

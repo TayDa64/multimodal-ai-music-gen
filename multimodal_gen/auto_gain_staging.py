@@ -625,6 +625,16 @@ GENRE_TEMPLATES = {
         "master_lufs": -12,
         "headroom_db": 5.0,
     },
+    "neo_soul": {
+        "drums": {"target_rms_db": -15, "priority": 2},
+        "bass": {"target_rms_db": -13, "priority": 1},
+        "melodic": {"target_rms_db": -13, "priority": 1},
+        "vocal": {"target_rms_db": -10, "priority": 1},
+        "fx": {"target_rms_db": -20, "priority": 4},
+        "keys": {"target_rms_db": -13, "priority": 1},
+        "master_lufs": -13,
+        "headroom_db": 5.5,
+    },
     "pop": {
         "drums": {"target_rms_db": -12, "priority": 1},
         "bass": {"target_rms_db": -14, "priority": 2},
@@ -950,7 +960,9 @@ class MultiTrackStaging:
             genre: Genre template to use
             sample_rate: Audio sample rate
         """
-        self.genre = genre.lower()
+        self.genre = {
+            "rnb_neosoul": "neo_soul",
+        }.get(genre.lower(), genre.lower())
         self.sample_rate = sample_rate
         
         # Get template (fall back to trap if unknown)

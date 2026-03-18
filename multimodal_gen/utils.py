@@ -186,6 +186,8 @@ def normalize_genre(genre: str) -> str:
         "trapsoul": "trap_soul",
         "r&b": "rnb",
         "rnb": "rnb",
+        "neo_soul": "neo_soul",
+        "neosoul": "neo_soul",
 
         # Cinematic / Orchestral / Classical
         "cinematic": "cinematic",
@@ -661,6 +663,17 @@ GENRE_DEFAULTS = {
         'emphasis': 'chords',
         'groove': True,
         'smooth': True,
+    },
+    'neo_soul': {
+        'bpm_range': (68, 92),
+        'default_bpm': 82,
+        'scale': ScaleType.MINOR,
+        'swing': 0.10,
+        'hihat_rolls': False,
+        'emphasis': 'chords',
+        'groove': True,
+        'smooth': True,
+        'warm_keys': True,
     },
     'trap_soul': {
         'bpm_range': (80, 100),

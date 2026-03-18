@@ -213,7 +213,7 @@ class TestGenerateArrangementWithMotifs:
     
     def test_generate_with_different_genres(self):
         """Test generation with different genres."""
-        genres = ["trap", "jazz", "lofi", "boom_bap", "house", "rnb"]
+        genres = ["trap", "jazz", "lofi", "boom_bap", "house", "rnb", "neo_soul"]
         
         for genre in genres:
             parsed = ParsedPrompt(
@@ -431,7 +431,7 @@ class TestGetDefaultMotifMapping:
     
     def test_get_mapping_for_known_genres(self):
         """Test getting motif mappings for known genres."""
-        genres = ["pop", "hip_hop", "trap", "jazz", "classical", "lofi"]
+        genres = ["pop", "hip_hop", "trap", "jazz", "classical", "lofi", "neo_soul"]
         
         for genre in genres:
             mapping = get_default_motif_mapping(genre)
@@ -509,6 +509,28 @@ class TestGenreSpecificMappings:
         
         # Jazz should have variety
         assert len(transformations) >= 2
+
+    def test_neo_soul_mapping_does_not_use_trap_soul_intro(self):
+        """Test that neo_soul has its own motif mapping instead of trap_soul fallback."""
+        neo_soul = get_default_motif_mapping("neo_soul")
+        trap_soul = get_default_motif_mapping("trap_soul")
+
+        assert "neo_soul" in GENRE_MOTIF_MAPPINGS
+        assert neo_soul["intro"].transformation == "original"
+        assert neo_soul["intro"].transformation != trap_soul["intro"].transformation
+
+    def test_create_arrangement_neo_soul_uses_rnb_like_structure(self):
+        """Test that neo_soul arrangement no longer falls back to trap_soul sections."""
+        parsed = ParsedPrompt(
+            bpm=82.0,
+            genre="neo_soul",
+            key="C",
+            scale_type=ScaleType.MINOR,
+        )
+
+        arrangement = create_arrangement(parsed)
+
+        assert arrangement.sections[1].section_type.value == "verse"
 
 
 class TestEdgeCases:

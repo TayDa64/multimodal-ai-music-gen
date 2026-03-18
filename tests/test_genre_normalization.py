@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from multimodal_gen.utils import normalize_genre
+from multimodal_gen.utils import GENRE_DEFAULTS, normalize_genre
 from multimodal_gen.prompt_parser import PromptParser
 
 
@@ -26,3 +26,16 @@ def test_normalize_genre_gfunk_variants():
 def test_prompt_parser_detects_gfunk():
     parsed = PromptParser().parse("gfunk west coast beat at 92 bpm in C minor")
     assert parsed.genre == "g_funk"
+
+
+def test_normalize_genre_neo_soul_variants():
+    assert normalize_genre("neo_soul") == "neo_soul"
+    assert normalize_genre("neo-soul") == "neo_soul"
+    assert normalize_genre("neo soul") == "neo_soul"
+    assert normalize_genre("NeoSoul") == "neo_soul"
+
+
+def test_neo_soul_has_first_class_defaults():
+    assert "neo_soul" in GENRE_DEFAULTS
+    assert GENRE_DEFAULTS["neo_soul"]["hihat_rolls"] is False
+    assert GENRE_DEFAULTS["neo_soul"]["emphasis"] == "chords"

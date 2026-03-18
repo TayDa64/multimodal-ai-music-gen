@@ -381,6 +381,13 @@ GENRE_MOTIF_MAPPINGS: Dict[str, Dict[str, MotifAssignment]] = {
         "bridge": MotifAssignment(0, "invert", {}),
         "outro": MotifAssignment(0, "retrograde", {}),
     },
+    "neo_soul": {
+        "intro": MotifAssignment(0, "original", {}),
+        "verse": MotifAssignment(0, "original", {}),
+        "chorus": MotifAssignment(1, "original", {}),
+        "bridge": MotifAssignment(0, "invert", {}),
+        "outro": MotifAssignment(0, "retrograde", {}),
+    },
     "cinematic": {
         "intro": MotifAssignment(0, "diminish", {"factor": 2.0}),
         "verse": MotifAssignment(0, "original", {}),
@@ -416,6 +423,16 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
     ],
     'rnb': [
         # R&B arrangement - continuous, flowing sections without big gaps
+        (SectionType.INTRO, 4),
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.BRIDGE, 4),
+        (SectionType.CHORUS, 8),
+        (SectionType.OUTRO, 4),
+    ],
+    'neo_soul': [
         (SectionType.INTRO, 4),
         (SectionType.VERSE, 8),
         (SectionType.CHORUS, 8),

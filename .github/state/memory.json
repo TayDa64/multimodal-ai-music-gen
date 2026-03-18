@@ -3,6 +3,26 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Close genre realism gaps by fixing cross-layer asymmetry before adding deeper critics",
+        "context": "The highest-ROI improvement came from making the same genre exist consistently across defaults, arrangement, renderer routing, gain staging, and rendered-audio targets. This removed silent trap/unknown fallbacks without destabilizing the pipeline.",
+        "timestamp": "2026-03-18T20:40:00Z"
+      },
+      {
+        "pattern": "When genre realism is inconsistent, first inventory where the same genre exists across parser, defaults, arrangement, performance, rendering, and output analysis",
+        "context": "The highest-value fixes came from finding cross-layer asymmetry rather than writing deeper models immediately. Neo-soul exposed that one genre can be present in performance models but missing in defaults, per-stem rendering, or output-analyzer targets.",
+        "timestamp": "2026-03-18T20:25:00Z"
+      },
+      {
+        "pattern": "Rendered-audio validation should be a hard acceptance gate when a WAV exists",
+        "context": "For music tasks, symbolic critics alone can pass while the audio still sounds wrong. ProducerAgent now treats output-analysis failure as a real generation failure so refinement/acceptance follows what the song sounds like.",
+        "timestamp": "2026-03-18T20:12:00Z"
+      },
+      {
+        "pattern": "Unknown rendered-audio genres silently receive a neutral 0.75 match score and pass output analysis",
+        "context": "OutputAnalyzer.GenreMatchScorer falls back to 0.75 when the target genre is missing from AUDIO_GENRE_TARGETS. Neo-soul reports looked healthy only because neo_soul is currently unmodelled in the rendered-audio scorer.",
+        "timestamp": "2026-03-18T20:05:00Z"
+      },
+      {
         "pattern": "Reuse the existing Researcher agent as a structured track planner to get real handoff history without expanding the core agent roster",
         "context": "Producer needed true per-track subagent decomposition. A narrow Researcher track-planning mode gives actual Producer->Researcher handoffs while preserving the rest of the orchestration system.",
         "timestamp": "2026-03-18T19:15:00Z"
@@ -192,6 +212,30 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Ship the next quality wave as genre-consistency plus target-coverage, not a new listener stack",
+      "rationale": "neo_soul and adjacent genres were still failing because existing layers disagreed about what the genre was or whether it had explicit audio targets. Making those layers consistent produces immediate user-facing gains with low regression risk.",
+      "alternatives_considered": ["Skip runtime consistency and only add more output-analysis metrics", "Build role-band validation before fixing genre coverage", "Leave neo_soul runtime on rnb/trap fallbacks"],
+      "timestamp": "2026-03-18T20:40:00Z"
+    },
+    {
+      "decision": "Prioritize cross-layer consistency and reuse existing analyzers before building a new 'AI listener' stack",
+      "rationale": "The codebase already has OutputAnalyzer, ReferenceAnalyzer, GenreRulesEngine, sample sonic fingerprints, MIDI range validation, and style-policy conflict logic. The immediate weakness is uneven wiring and missing genre coverage, not total absence of analysis primitives.",
+      "alternatives_considered": ["Design a brand new end-to-end listening model first", "Focus only on generation and ignore rendered-audio scoring", "Add genre targets without fixing normalization or runtime asymmetry"],
+      "timestamp": "2026-03-18T20:25:00Z"
+    },
+    {
+      "decision": "Normalize neo_soul as a first-class runtime genre instead of letting prompt parsing and timing layers collapse it into generic rnb",
+      "rationale": "The validation fix would still be shallow if generation continued routing neo-soul prompts through inconsistent genre aliases. Matching the parser, performance models, microtiming presets, and output analyzer keeps generation and validation aligned.",
+      "alternatives_considered": ["Leave prompt parser on rnb and only patch output scoring", "Patch producer gate without changing timing/runtime mappings", "Add a completely separate neo-soul generator path"],
+      "timestamp": "2026-03-18T20:12:00Z"
+    },
+    {
+      "decision": "Add a rendered-audio listening gate before confirming genre match for neo-soul outputs",
+      "rationale": "User listening feedback exposed that symbolic critics and neutral rendered-audio scoring are insufficient. The next validation step must combine current MIDI critics with genre-specific audio analysis so acceptance reflects what the song actually sounds like.",
+      "alternatives_considered": ["Keep MIDI critics as the only success gate", "Rely on neutral output-analysis scores for unsupported genres", "Use LLM plan review alone for genre validation"],
+      "timestamp": "2026-03-18T20:05:00Z"
+    },
     {
       "decision": "Implement true per-track decomposition as Producer->Researcher handoffs instead of adding a brand new agent type",
       "rationale": "The existing agent framework already records session handoffs. Extending Researcher with a narrow structured planning mode delivered real handoff proofs with minimal framework churn.",

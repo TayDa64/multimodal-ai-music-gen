@@ -852,6 +852,7 @@ class ProceduralRenderer:
                     'g_funk': ['synth', 'bass', 'piano'],
                     'trap': ['808', 'piano', 'synth'],
                     'rnb': ['piano', 'guitar', 'bass', 'synth'],
+                    'neo_soul': ['rhodes', 'piano', 'guitar', 'bass', 'pad'],
                 }
                 
                 # Get instruments for current genre
@@ -1990,7 +1991,7 @@ class AudioRenderer:
                 audio = chain.process(audio, self.sample_rate)
 
             # Per-stem channel strip processing (Sprint 8)
-            _track_process_genres = {'trap', 'drill', 'boom_bap', 'house', 'phonk', 'edm', 'lofi', 'lo_fi', 'hip_hop', 'rnb', 'g_funk'}
+            _track_process_genres = {'trap', 'drill', 'boom_bap', 'house', 'phonk', 'edm', 'lofi', 'lo_fi', 'hip_hop', 'rnb', 'neo_soul', 'g_funk'}
             _genre_norm = self._normalize_genre()
             if self._track_processor and _HAS_TRACK_PROCESSOR and _genre_norm in _track_process_genres:
                 try:
@@ -2016,6 +2017,7 @@ class AudioRenderer:
                         else:
                             _stem_preset = {
                                 'lofi': 'lofi_keys', 'lo_fi': 'lofi_keys',
+                                'rnb': 'warm_pad', 'neo_soul': 'warm_pad',
                             }.get(_genre_norm, 'bright_synth')
                     
                     if _stem_preset in TRACK_PRESETS:

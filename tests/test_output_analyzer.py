@@ -205,6 +205,61 @@ class TestPianoTypeDetection:
 
 
 class TestGenreMatchScorer:
+    def test_neo_soul_supported_without_neutral_fallback(self):
+        assert "neo_soul" in AUDIO_GENRE_TARGETS
+
+        spectral = SpectralFeatures(
+            centroid_hz=4200.0,
+            rolloff_hz=12000.0,
+            flatness=0.16,
+            dynamic_range_db=5.0,
+        )
+        drums = DrumDetection(
+            drums_present=True,
+            percussive_ratio=0.42,
+            onset_density=6.5,
+        )
+
+        scorer = GenreMatchScorer()
+        score, issues = scorer.score("neo_soul", spectral, drums)
+
+        assert score < 0.75
+        assert any(issue.metric_name in {"spectral_centroid", "spectral_rolloff", "onset_density"} for issue in issues)
+
+    @pytest.mark.parametrize(
+        "genre",
+        [
+            "rnb",
+            "trap_soul",
+            "house",
+            "ambient",
+            "ethiopian",
+            "ethio_jazz",
+            "eskista",
+            "ethiopian_traditional",
+        ],
+    )
+    def test_supported_genres_no_longer_use_neutral_fallback(self, genre):
+        assert genre in AUDIO_GENRE_TARGETS
+
+        spectral = SpectralFeatures(
+            centroid_hz=5200.0,
+            rolloff_hz=15000.0,
+            flatness=0.24,
+            dynamic_range_db=2.5,
+        )
+        drums = DrumDetection(
+            drums_present=True,
+            percussive_ratio=0.82,
+            onset_density=8.5,
+        )
+
+        scorer = GenreMatchScorer()
+        score, issues = scorer.score(genre, spectral, drums)
+
+        assert score < 0.75
+        assert issues
+
     def test_classical_perfect_score(self):
         """Features within classical thresholds → high score."""
         spectral = SpectralFeatures(
@@ -508,6 +563,19 @@ class TestOutputAnalyzer:
 class TestAudioGenreTargets:
     def test_classical_target_exists(self):
         assert "classical" in AUDIO_GENRE_TARGETS
+
+    def test_expanded_targets_exist(self):
+        for genre in [
+            "rnb",
+            "trap_soul",
+            "house",
+            "ambient",
+            "ethiopian",
+            "ethio_jazz",
+            "eskista",
+            "ethiopian_traditional",
+        ]:
+            assert genre in AUDIO_GENRE_TARGETS
 
     def test_classical_has_required_keys(self):
         classical = AUDIO_GENRE_TARGETS["classical"]

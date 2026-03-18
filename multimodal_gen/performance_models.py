@@ -672,7 +672,7 @@ def create_funk_drummer() -> PlayerProfile:
         role="drums",
         profile_type=ProfileType.FUNK.value,
         description="Deep pocket, strong ghost notes, groove-focused",
-        genres=["g_funk", "funk", "rnb"],
+        genres=["g_funk", "funk", "rnb", "neo_soul", "rnb_neosoul"],
         timing=TimingModel(
             base_offset=8,  # Behind the beat
             variance=8,
@@ -746,7 +746,7 @@ def create_lazy_bassist() -> PlayerProfile:
         role="bass",
         profile_type=ProfileType.LOOSE.value,
         description="Slightly late, relaxed groovy feel",
-        genres=["lofi", "boom_bap", "jazz", "rnb"],
+        genres=["lofi", "boom_bap", "jazz", "rnb", "neo_soul", "rnb_neosoul"],
         timing=TimingModel(
             base_offset=12,  # Notably behind
             variance=10,
@@ -794,7 +794,7 @@ def create_funk_bassist() -> PlayerProfile:
         role="bass",
         profile_type=ProfileType.FUNK.value,
         description="Deep pocket, syncopated groove",
-        genres=["g_funk", "funk", "rnb"],
+        genres=["g_funk", "funk", "rnb", "neo_soul", "rnb_neosoul"],
         timing=TimingModel(
             base_offset=6,
             variance=7,
@@ -819,7 +819,7 @@ def create_jazz_pianist() -> PlayerProfile:
         role="chords",
         profile_type=ProfileType.LOOSE.value,
         description="Expressive dynamics, loose timing, jazz feel",
-        genres=["jazz", "lofi", "rnb"],
+        genres=["jazz", "lofi", "rnb", "neo_soul", "rnb_neosoul"],
         timing=TimingModel(
             base_offset=5,
             variance=15,
@@ -1006,6 +1006,20 @@ GENRE_PROFILE_MAP: Dict[str, Dict[str, str]] = {
         "pad": "pad_player",
     },
     "rnb": {
+        "drums": "funk_drummer",
+        "bass": "funk_bassist",
+        "chords": "jazz_pianist",
+        "lead": "lead_player",
+        "pad": "pad_player",
+    },
+    "neo_soul": {
+        "drums": "funk_drummer",
+        "bass": "funk_bassist",
+        "chords": "jazz_pianist",
+        "lead": "lead_player",
+        "pad": "pad_player",
+    },
+    "rnb_neosoul": {
         "drums": "funk_drummer",
         "bass": "funk_bassist",
         "chords": "jazz_pianist",

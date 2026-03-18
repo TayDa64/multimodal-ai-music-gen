@@ -52,7 +52,7 @@ except ImportError:
     DEFAULT_GENRE_INSTRUMENTS = {}  # type: ignore
 
 # Module-level instrument service (can be set by orchestrator)
-_instrument_service: 'InstrumentResolutionService' = None  # type: ignore
+_instrument_service: Any = None
 
 
 # ── Sprint 5: Preference-driven defaults ──
@@ -84,7 +84,7 @@ def _get_preferred_key():
     return None
 
 
-def set_instrument_service(service: 'InstrumentResolutionService') -> None:
+def set_instrument_service(service: Any) -> None:
     """
     Set the module-level InstrumentResolutionService.
     
@@ -436,8 +436,12 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'trap', 'atlanta', 'drill', 'uk drill', 'phonk', 'rage',
         'hard trap', 'dark trap'
     ],
+    'neo_soul': [
+        'neo soul', 'neo-soul', 'neosoul', 'dangelo', "d'angelo", 'erykah badu',
+        'maxwell', 'jill scott', 'bilal', 'india arie', 'soulquarians'
+    ],
     'rnb': [
-        'rnb', 'r&b', 'r and b', 'r n b', 'rhythm and blues', 'neo soul', 'neo-soul',
+        'rnb', 'r&b', 'r and b', 'r n b', 'rhythm and blues',
         'contemporary rnb', 'modern rnb', 'soul', 'soulful', 'usher',
         'the weeknd', 'frank ocean', 'daniel caesar', 'h.e.r', 'summer walker',
         'slow jam', 'slow jams', 'groove', 'groovy'
@@ -1126,7 +1130,7 @@ class PromptParser:
             return 3
 
         # Define priority order - more specific genres first
-        # IMPORTANT: trap_soul MUST come before rnb because 'soul' is in both
+        # IMPORTANT: more specific soul-derived genres MUST come before rnb
         priority_order = [
             'g_funk',  # G-Funk / West Coast - check before trap
             'eskista',  # Specific Ethiopian dance style
@@ -1134,6 +1138,7 @@ class PromptParser:
             'ethiopian_traditional',  # Traditional with instruments
             'ethiopian',  # General Ethiopian
             'trap_soul',  # MUST be before rnb (both have 'soul' keyword)
+            'neo_soul',  # MUST be before rnb so neo-soul gets first-class routing
             'house',
             'rnb',  # R&B
             'trap',

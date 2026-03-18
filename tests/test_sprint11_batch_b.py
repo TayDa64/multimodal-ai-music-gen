@@ -11,7 +11,7 @@ except ImportError:
 try:
     from multimodal_gen.auto_gain_staging import (
         LUFSMeter, AutoGainStaging, GainStagingParams,
-        MultiTrackStaging, apply_k_weighting,
+        MultiTrackStaging, GENRE_TEMPLATES, apply_k_weighting,
     )
     _HAS_AGS = True
 except ImportError:
@@ -139,6 +139,15 @@ class TestAutoGainStaging:
         p = GainStagingParams()
         assert hasattr(p, 'target_lufs')
         assert hasattr(p, 'target_true_peak')
+
+    def test_multi_track_staging_neo_soul_avoids_trap_fallback(self):
+        """neo_soul should use its own or an intentional R&B-like template, not trap."""
+        neo_soul = MultiTrackStaging(genre="neo_soul")
+        rnb = MultiTrackStaging(genre="rnb")
+
+        assert neo_soul.template != GENRE_TEMPLATES["trap"]
+        assert neo_soul.template == GENRE_TEMPLATES["neo_soul"]
+        assert neo_soul.template["keys"]["priority"] <= rnb.template["keys"]["priority"]
 
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -208,7 +208,19 @@ class MicrotimingEngine:
         Returns:
             MicrotimingConfig with appropriate settings
         """
-        return GENRE_PRESETS.get(genre.lower(), MicrotimingConfig())
+        if not genre:
+            return MicrotimingConfig()
+
+        genre_key = genre.lower().strip()
+        if genre_key in GENRE_PRESETS:
+            return GENRE_PRESETS[genre_key]
+
+        normalized_key = genre_key.replace(" ", "_").replace("-", "_")
+        alias = GENRE_PRESET_ALIASES.get(normalized_key)
+        if alias:
+            return GENRE_PRESETS.get(alias, MicrotimingConfig())
+
+        return MicrotimingConfig()
 
 
 # Genre presets
@@ -241,6 +253,13 @@ GENRE_PRESETS: Dict[str, MicrotimingConfig] = {
         groove_style=GrooveStyle.LAID_BACK,
         ticks_per_beat=480
     ),
+    "neo_soul": MicrotimingConfig(
+        swing_amount=0.32,
+        push_pull=-0.18,
+        randomness=0.10,
+        groove_style=GrooveStyle.LAID_BACK,
+        ticks_per_beat=480
+    ),
     "rock": MicrotimingConfig(
         swing_amount=0.0,
         push_pull=0.0,
@@ -255,6 +274,14 @@ GENRE_PRESETS: Dict[str, MicrotimingConfig] = {
         groove_style=GrooveStyle.SHUFFLE,
         ticks_per_beat=480
     ),
+}
+
+GENRE_PRESET_ALIASES: Dict[str, str] = {
+    "hip_hop": "hip-hop",
+    "rnb": "r&b",
+    "rhythm_and_blues": "r&b",
+    "neo_soul": "neo_soul",
+    "rnb_neosoul": "neo_soul",
 }
 
 

@@ -14,3 +14,9 @@ def test_drone_maps_to_pad_instrument():
     parser = PromptParser()
     parsed = parser.parse("ambient drone texture in C minor")
     assert "pad" in parsed.instruments
+
+
+def test_neo_soul_parses_as_first_class_genre():
+    parser = PromptParser()
+    parsed = parser.parse("neo soul groove in D minor with rhodes, bass, and laid back drums")
+    assert parsed.genre == "neo_soul"

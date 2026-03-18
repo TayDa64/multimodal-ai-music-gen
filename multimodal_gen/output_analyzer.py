@@ -47,6 +47,47 @@ from .utils import SAMPLE_RATE
 # =============================================================================
 
 AUDIO_GENRE_TARGETS: Dict[str, Dict[str, Any]] = {
+    "neo_soul": {
+        "spectral_centroid_range": (900, 3200),
+        "spectral_rolloff_max": 9500,
+        "spectral_flatness_max": 0.10,
+        "harmonic_ratio_min": 0.58,
+        "drum_presence_range": (0.08, 0.28),
+        "onset_density_range": (1.2, 4.0),
+        "dynamic_range_min_db": 8,
+        "expected_timbres": ["acoustic_piano", "piano"],
+        "forbidden_timbres": ["electronic_drums", "808"],
+    },
+    "rnb_neosoul": {
+        "spectral_centroid_range": (900, 3200),
+        "spectral_rolloff_max": 9500,
+        "spectral_flatness_max": 0.10,
+        "harmonic_ratio_min": 0.58,
+        "drum_presence_range": (0.08, 0.28),
+        "onset_density_range": (1.2, 4.0),
+        "dynamic_range_min_db": 8,
+        "expected_timbres": ["acoustic_piano", "piano"],
+        "forbidden_timbres": ["electronic_drums", "808"],
+    },
+    "rnb": {
+        "spectral_centroid_range": (900, 3600),
+        "spectral_rolloff_max": 10500,
+        "spectral_flatness_max": 0.12,
+        "harmonic_ratio_min": 0.52,
+        "drum_presence_range": (0.10, 0.35),
+        "onset_density_range": (1.4, 4.8),
+        "dynamic_range_min_db": 7,
+        "expected_timbres": ["acoustic_piano", "piano"],
+    },
+    "trap_soul": {
+        "spectral_centroid_range": (1000, 3600),
+        "spectral_rolloff_max": 11000,
+        "spectral_flatness_max": 0.14,
+        "harmonic_ratio_min": 0.45,
+        "drum_presence_range": (0.12, 0.40),
+        "onset_density_range": (1.8, 5.5),
+        "dynamic_range_min_db": 5,
+    },
     "classical": {
         "spectral_centroid_range": (600, 2500),
         "spectral_rolloff_max": 8000,
@@ -115,6 +156,61 @@ AUDIO_GENRE_TARGETS: Dict[str, Dict[str, Any]] = {
         "harmonic_ratio_min": 0.40,
         "drum_presence_range": (0.15, 0.50),
         "dynamic_range_min_db": 4,
+    },
+    "house": {
+        "spectral_centroid_range": (1200, 4200),
+        "spectral_rolloff_max": 13000,
+        "spectral_flatness_max": 0.18,
+        "harmonic_ratio_min": 0.35,
+        "drum_presence_range": (0.18, 0.55),
+        "onset_density_range": (2.5, 6.5),
+        "dynamic_range_min_db": 4,
+    },
+    "ambient": {
+        "spectral_centroid_range": (400, 2600),
+        "spectral_rolloff_max": 9000,
+        "spectral_flatness_max": 0.12,
+        "harmonic_ratio_min": 0.55,
+        "drum_presence_max": 0.18,
+        "onset_density_range": (0.0, 2.0),
+        "dynamic_range_min_db": 9,
+    },
+    "ethiopian": {
+        "spectral_centroid_range": (700, 3200),
+        "spectral_rolloff_max": 10500,
+        "spectral_flatness_max": 0.09,
+        "harmonic_ratio_min": 0.55,
+        "drum_presence_range": (0.08, 0.38),
+        "onset_density_range": (1.2, 5.0),
+        "dynamic_range_min_db": 8,
+    },
+    "ethio_jazz": {
+        "spectral_centroid_range": (800, 3400),
+        "spectral_rolloff_max": 11000,
+        "spectral_flatness_max": 0.10,
+        "harmonic_ratio_min": 0.52,
+        "drum_presence_range": (0.08, 0.35),
+        "onset_density_range": (1.4, 4.8),
+        "dynamic_range_min_db": 8,
+        "expected_timbres": ["piano", "brass"],
+    },
+    "eskista": {
+        "spectral_centroid_range": (900, 3600),
+        "spectral_rolloff_max": 11500,
+        "spectral_flatness_max": 0.12,
+        "harmonic_ratio_min": 0.45,
+        "drum_presence_range": (0.16, 0.45),
+        "onset_density_range": (2.2, 6.0),
+        "dynamic_range_min_db": 6,
+    },
+    "ethiopian_traditional": {
+        "spectral_centroid_range": (600, 2800),
+        "spectral_rolloff_max": 9500,
+        "spectral_flatness_max": 0.08,
+        "harmonic_ratio_min": 0.60,
+        "drum_presence_range": (0.10, 0.32),
+        "onset_density_range": (1.0, 4.2),
+        "dynamic_range_min_db": 8,
     },
 }
 
@@ -658,6 +754,32 @@ class GenreMatchScorer:
                     abs(drums.percussive_ratio - hi),
                 )
                 scores.append(max(0.0, 1.0 - dist / 0.3))
+
+        onset_density_range = target.get("onset_density_range")
+        if onset_density_range:
+            lo, hi = onset_density_range
+            if lo <= drums.onset_density <= hi:
+                scores.append(1.0)
+            else:
+                dist = min(
+                    abs(drums.onset_density - lo),
+                    abs(drums.onset_density - hi),
+                )
+                s = max(0.0, 1.0 - dist / max(hi - lo, 1.0))
+                scores.append(s)
+                issues.append(
+                    AnalysisIssue(
+                        severity="info",
+                        category="rhythm",
+                        message=(
+                            f"Onset density {drums.onset_density:.2f} outside expected "
+                            f"{lo:.1f}–{hi:.1f} for {genre}"
+                        ),
+                        metric_name="onset_density",
+                        actual_value=drums.onset_density,
+                        expected_range=f"{lo}-{hi}",
+                    )
+                )
 
         # --- Dynamic range ---
         dr_min = target.get("dynamic_range_min_db")
