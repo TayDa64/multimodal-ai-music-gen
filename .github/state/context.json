@@ -3,6 +3,48 @@
   "session_id": "session-2026-02-12-sprint75",
   "files_touched": [
     {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\researcher.js",
+      "action": "modified",
+      "timestamp": "2026-03-18T19:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added structured track-planning mode so Producer can use real Researcher handoffs for per-track decomposition"
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "action": "modified",
+      "timestamp": "2026-03-18T19:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Replaced synthetic per-track planning calls with Producer-to-Researcher handoffs and recorded handoff-backed telemetry"
+    },
+    {
+      "path": "tests\\test_render_report_schema.py",
+      "action": "modified",
+      "timestamp": "2026-03-18T19:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added render report regression coverage for mastering fields and limiter ceiling diagnostics"
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "action": "modified",
+      "timestamp": "2026-03-18T17:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Moved critic bypass to final attempt only and added heuristic score-plan refinement for BKAS, ADC, and VLC failures"
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "action": "modified",
+      "timestamp": "2026-03-18T17:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added supported model fallback selection, in-place score-plan repair, and render-safe duration fitting for producer plans"
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\verifier.js",
+      "action": "modified",
+      "timestamp": "2026-03-18T17:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added verifier-side model fallback selection for preflight score plan review"
+    },
+    {
       "path": "multimodal_gen/intelligence/critics.py",
       "action": "modified",
       "timestamp": "2026-02-11T00:00:00Z",
@@ -54,6 +96,42 @@
   ],
   "changes_made": [
     {
+      "file": "..\\copilot-Liku-cli\\src\\main\\agents\\researcher.js",
+      "description": "Enabled real per-track subagent decomposition through Researcher handoffs",
+      "diff_summary": "Researcher now supports a narrow structured track-planning mode, letting Producer record genuine handoffs for drums/bass/keys/lead/pad/fx instead of internal-only telemetry",
+      "timestamp": "2026-03-18T19:15:00Z"
+    },
+    {
+      "file": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "description": "Switched per-track decomposition to actual orchestration handoffs",
+      "diff_summary": "Producer now hands each track plan to Researcher with session-backed handoff history and merges the structured per-track plan back into the score plan before generation",
+      "timestamp": "2026-03-18T19:15:00Z"
+    },
+    {
+      "file": "tests\\test_render_report_schema.py",
+      "description": "Locked in mastering diagnostics report contract",
+      "diff_summary": "Regression test now asserts target_lufs, master_ceiling_db, stem_headroom_db, brightness_target, warmth_target, and the true_peak_limiter stage string are preserved in render reports",
+      "timestamp": "2026-03-18T19:15:00Z"
+    },
+    {
+      "file": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "description": "Made producer refinement loop real instead of bypassing on the first critic failure",
+      "diff_summary": "Critic-gate bypass now only happens on the final attempt, and failed critics trigger heuristic groove/arrangement/voice-leading adjustments before the model refines the score plan",
+      "timestamp": "2026-03-18T17:35:00Z"
+    },
+    {
+      "file": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "description": "Hardened producer planning to preserve user intent and fit within current server runtime limits",
+      "diff_summary": "Changed director/verifier defaults to supported Copilot models, added model fallback chain, repaired invalid optional plan fields, and compressed oversized arrangements to explicit/render-safe bar counts",
+      "timestamp": "2026-03-18T17:20:00Z"
+    },
+    {
+      "file": "..\\copilot-Liku-cli\\src\\main\\agents\\verifier.js",
+      "description": "Made score-plan preflight resilient to unsupported model defaults",
+      "diff_summary": "Added verifier model fallback chain so preflight review stays active when the preferred model is unavailable",
+      "timestamp": "2026-03-18T17:20:00Z"
+    },
+    {
       "file": "multimodal_gen/utils.py",
       "description": "Added get_ticks_per_bar() helper function for dynamic bar length calculation",
       "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8→1440, 12/8→2880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
@@ -79,6 +157,41 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "copilot-liku-cli producer per-track handoff decomposition plus mastering propagation",
+      "result": "PASS",
+      "details": "Bounded producer run completed through the shared PythonBridge with 6 real Producer->Researcher handoffs (drums, bass, keys, lead, pad, fx). The generated render report consumed mastering values target_lufs=-15, master_ceiling_db=-0.5, stem_headroom_db=-7, brightness_target=0, warmth_target=1 and reported true_peak_limiter=ceiling=-0.5dBTP.",
+      "timestamp": "2026-03-18T19:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "MUSE mastering regression tests",
+      "result": "PASS",
+      "details": "Focused pytest run passed for tests/test_score_plan_adapter.py and tests/test_render_report_schema.py (5 tests total), covering structured mastering extraction plus render report mastering diagnostics.",
+      "timestamp": "2026-03-18T19:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "copilot-liku-cli producer critic-refinement regression",
+      "result": "PASS",
+      "details": "With maxIterations=2 and allowQualityGateBypass=true, the producer executed attempt_1 and attempt_2 before bypass. attempt_2 plan changed drum and bass pattern guidance, reduced lead/fx activation in lower-energy sections, and refined tension/chord choices while preserving the requested 16-bar D minor neo-soul structure.",
+      "timestamp": "2026-03-18T17:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "copilot-liku-cli producer regression after model/fallback fixes",
+      "result": "PASS",
+      "details": "Producer preserved 88 BPM, D minor, and requested drums/bass/Rhodes/muted guitar/pad/fx track roles. Initial oversized plan timed out at 300s; after duration fitting, a 16-bar neo-soul plan rendered successfully in ~105s.",
+      "timestamp": "2026-03-18T17:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "copilot-liku-cli agent module syntax after hardening",
+      "result": "PASS",
+      "details": "Node module load check succeeded for producer.js and verifier.js with no syntax or runtime import errors.",
+      "timestamp": "2026-03-18T17:20:00Z"
+    },
     {
       "type": "post",
       "target": "Sprint 5 production code — Gemini synthesis audit",

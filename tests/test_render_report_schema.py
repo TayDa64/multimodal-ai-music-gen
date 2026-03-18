@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from multimodal_gen.audio_renderer import AudioRenderer
 from multimodal_gen.prompt_parser import PromptParser
+from multimodal_gen.style_policy import MixPolicy
 
 
 class TestRenderReportSchema:
@@ -72,3 +73,47 @@ class TestRenderReportSchema:
         assert "skip_reason" in data["fluidsynth"]
         assert "loaded" in data["instrument_library"]
         assert "loaded" in data["expansions"]
+
+    def test_render_report_includes_mastering_policy_fields(self):
+        parsed = PromptParser().parse("neo soul beat 88 bpm in D minor")
+
+        renderer = AudioRenderer(
+            sample_rate=44100,
+            use_fluidsynth=False,
+            soundfont_path=None,
+            require_soundfont=False,
+            instrument_library=None,
+            expansion_manager=None,
+            genre=parsed.genre,
+            mood=parsed.mood,
+            use_bwf=False,
+        )
+        renderer.set_mix_policy(
+            MixPolicy(
+                target_lufs=-15.0,
+                master_ceiling_db=-0.5,
+                stem_headroom_db=-7.0,
+                brightness_target=0.34,
+                warmth_target=0.78,
+            )
+        )
+        renderer._pipeline_stages["true_peak_limiter"] = "ceiling=-0.5dBTP"
+
+        report = renderer._build_render_report(
+            midi_path="dummy.mid",
+            output_path="dummy.wav",
+            parsed=parsed,
+            renderer_path="procedural",
+            fluidsynth_allowed=False,
+            fluidsynth_attempted=False,
+            fluidsynth_success=False,
+            fluidsynth_skip_reason="disabled",
+            warnings=[],
+        )
+
+        assert report["mix_policy"]["target_lufs"] == -15.0
+        assert report["mix_policy"]["master_ceiling_db"] == -0.5
+        assert report["mix_policy"]["stem_headroom_db"] == -7.0
+        assert report["mix_policy"]["brightness_target"] == 0.34
+        assert report["mix_policy"]["warmth_target"] == 0.78
+        assert report["pipeline_stages"]["true_peak_limiter"] == "ceiling=-0.5dBTP"

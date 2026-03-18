@@ -126,6 +126,73 @@
   ],
   "completed_tasks": [
     {
+      "id": "liku-producer-hardening-003",
+      "description": "Confirm real per-track subagent handoffs and explicit mastering propagation",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\researcher.js",
+          "docs\\muse-specs\\schemas\\score_plan.v1.schema.json",
+          "multimodal_gen\\score_plan_adapter.py",
+          "multimodal_gen\\__init__.py",
+          "main.py",
+          "multimodal_gen\\style_policy.py",
+          "multimodal_gen\\audio_renderer.py",
+          "tests\\test_score_plan_adapter.py",
+          "tests\\test_render_report_schema.py"
+        ],
+        "changes": {
+          "producer.js": "Producer now uses real Researcher handoffs for per-track planning and records handoff-backed track telemetry.",
+          "researcher.js": "Researcher now supports a structured track-planning mode for Producer handoffs.",
+          "MUSE": "Score-plan mastering overrides now flow into mix policy, render report diagnostics, and the true peak limiter ceiling path with focused regression coverage."
+        },
+        "verification": "PASS - bounded producer run recorded 6 Producer->Researcher handoffs and a live render report consuming target_lufs=-15, master_ceiling_db=-0.5, stem_headroom_db=-7, brightness_target=0, warmth_target=1 with true_peak_limiter=ceiling=-0.5dBTP; focused MUSE pytest regressions passed (5 tests)."
+      },
+      "created": "2026-03-18T18:30:00Z",
+      "updated": "2026-03-18T19:15:00Z"
+    },
+    {
+      "id": "liku-producer-hardening-002",
+      "description": "Enforce critic-driven second-pass refinement before producer bypass",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js"
+        ],
+        "changes": {
+          "producer.js": "Moved critic-gate bypass to final attempt only and added heuristic score-plan adjustments for BKAS, ADC, and VLC failures before LLM refinement."
+        },
+        "verification": "PASS - producer ran attempt_1 and attempt_2 before bypass; second plan changed drum/bass groove guidance, lead/fx activations, and tension shaping while preserving 16 bars at 88 BPM in D minor"
+      },
+      "created": "2026-03-18T17:25:00Z",
+      "updated": "2026-03-18T17:35:00Z"
+    },
+    {
+      "id": "liku-producer-hardening-001",
+      "description": "Harden copilot-liku-cli producer planning fidelity and renderability",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\verifier.js"
+        ],
+        "changes": {
+          "producer.js": "Switched producer/verifier defaults to supported Copilot models, added model fallback chain, repaired invalid score plans in place, and constrained score-plan duration to explicit/render-safe bar counts.",
+          "verifier.js": "Added verifier-side model fallback chain for preflight music plan review."
+        },
+        "verification": "PASS - producer regression kept 88 BPM / D minor / requested track roles and rendered a 16-bar plan successfully after duration clamping"
+      },
+      "created": "2026-03-18T17:00:00Z",
+      "updated": "2026-03-18T17:20:00Z"
+    },
+    {
       "id": "eth-time-sig-001",
       "description": "Fix Ethiopian 6/8 time signature to flow through entire generation pipeline",
       "status": "completed",
@@ -212,8 +279,8 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-02-14T12:00:00Z",
-    "total_tasks_completed": 57,
+    "last_updated": "2026-03-18T19:15:00Z",
+    "total_tasks_completed": 60,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",

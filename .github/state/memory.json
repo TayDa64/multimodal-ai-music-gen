@@ -3,6 +3,36 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Reuse the existing Researcher agent as a structured track planner to get real handoff history without expanding the core agent roster",
+        "context": "Producer needed true per-track subagent decomposition. A narrow Researcher track-planning mode gives actual Producer->Researcher handoffs while preserving the rest of the orchestration system.",
+        "timestamp": "2026-03-18T19:15:00Z"
+      },
+      {
+        "pattern": "Verify MUSE generation through the shared PythonBridge with an explicit finally-stop instead of manual background server launches",
+        "context": "Manual parallel gateway launches can freeze VS Code Insiders on this machine. Shared-bridge verification keeps a single owned server instance and shuts it down deterministically.",
+        "timestamp": "2026-03-18T19:15:00Z"
+      },
+      {
+        "pattern": "Critic-gate bypass must only be allowed after all planned refinement attempts are exhausted",
+        "context": "Allowing bypass on the first failed critic pass prevents the producer from using its own refinement loop. Keep bypass as a last-resort acceptance path only.",
+        "timestamp": "2026-03-18T17:35:00Z"
+      },
+      {
+        "pattern": "Heuristic score-plan edits give the second producer attempt concrete direction before LLM refinement",
+        "context": "BKAS/ADC/VLC failures are specific enough to mutate pattern hints, activations, densities, and tension before the model rewrites the plan. This makes second attempts materially different instead of cosmetic.",
+        "timestamp": "2026-03-18T17:35:00Z"
+      },
+      {
+        "pattern": "Repair invalid optional score-plan fields before falling back to a generic arrangement",
+        "context": "Producer plans often fail strict validation on optional fields like cue_points. Stripping invalid optional fields preserves requested BPM/key/tracks and avoids destroying user intent.",
+        "timestamp": "2026-03-18T17:20:00Z"
+      },
+      {
+        "pattern": "Constrain LLM-generated arrangement size to explicit bar requests or a render-safe cap",
+        "context": "Producer-generated 50+ bar arrangements can exceed the server's 300s generation timeout. Extract requested bar counts from prompt and fit sections to that target before generation.",
+        "timestamp": "2026-03-18T17:20:00Z"
+      },
+      {
         "pattern": "Ethiopian instruments follow: enum → DIR_TO_CATEGORY → KEYWORD_TO_CATEGORY → GENRE_PROFILES",
         "context": "When adding any new instrument category to instrument_manager.py",
         "timestamp": "2026-01-16T00:30:00Z"
@@ -86,7 +116,7 @@
         "pattern": "Clamp velocities 1-127 on ALL NoteEvent reconstruction paths",
         "context": "Sprint 7.5 had chord branch clamping but non-chord branch missing clamp. Defence-in-depth: always clamp when converting external module output to NoteEvent.",
         "timestamp": "2026-02-12T02:00:00Z"
-      }
+      },
       {
         "pattern": "Sidechain ducking wiring uses stereo_tracks[] post-pan but pre-mix, with kick track as trigger",
         "context": "Sprint 8: sidechain ducking is applied to stereo bass tracks using drum track as envelope trigger. Process per-channel for stereo, single pass for mono.",
@@ -162,6 +192,24 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Implement true per-track decomposition as Producer->Researcher handoffs instead of adding a brand new agent type",
+      "rationale": "The existing agent framework already records session handoffs. Extending Researcher with a narrow structured planning mode delivered real handoff proofs with minimal framework churn.",
+      "alternatives_considered": ["Keep synthetic internal per-track chats only", "Add a new dedicated track-planner agent role", "Route track planning through Builder or Verifier"],
+      "timestamp": "2026-03-18T19:15:00Z"
+    },
+    {
+      "decision": "Prioritize critic-driven refinement ahead of per-track subagents and explicit mastering schema",
+      "rationale": "Once planning fidelity was fixed, the next user-visible defect was early acceptance of critic-failing output. Refinement improves actual musical outcomes before expanding architecture.",
+      "alternatives_considered": ["Per-track subagent decomposition first", "Mastering schema first", "Keep critic bypass behavior unchanged"],
+      "timestamp": "2026-03-18T17:35:00Z"
+    },
+    {
+      "decision": "Use supported Copilot fallback models inside producer and verifier instead of unsupported Claude defaults",
+      "rationale": "The local Copilot backend rejected claude-sonnet-4.5 with model_not_supported, which caused planning/preflight degradation before music generation began.",
+      "alternatives_considered": ["Keep unsupported defaults and rely on prompt fallback", "Require user-selected model only", "Disable director/verifier model passes"],
+      "timestamp": "2026-03-18T17:20:00Z"
+    },
     {
       "decision": "Use multi-model cross-validation for Sprint 5 deliverables",
       "rationale": "Gemini excels at holistic synthesis (found all production code correct), GPT excels at adversarial stress-testing (found 12 trivially-passing tests and a latent bug). Combined coverage exceeds single-model review.",
@@ -305,5 +353,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-02-13T00:00:00Z"
+  "last_updated": "2026-03-18T19:15:00Z"
 }

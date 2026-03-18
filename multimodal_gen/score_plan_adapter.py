@@ -75,6 +75,14 @@ def score_plan_to_parsed_prompt(plan: Dict[str, Any], parser: Optional[PromptPar
     if plan.get("mood"):
         parsed.mood = str(plan["mood"])
 
+    mastering = extract_mastering_overrides(plan)
+    if mastering.get("production_preset"):
+        parsed.production_preset = str(mastering["production_preset"])
+    if mastering.get("brightness_target") is not None:
+        parsed.brightness = float(mastering["brightness_target"])
+    if mastering.get("warmth_target") is not None:
+        parsed.warmth = float(mastering["warmth_target"])
+
     # Instruments/drums from tracks
     instruments: List[str] = []
     drums: List[str] = []
@@ -210,4 +218,23 @@ def extract_seed(plan: Dict[str, Any]) -> Optional[int]:
         return int(seed) if seed is not None else None
     except Exception:
         return None
+
+
+def extract_mastering_overrides(plan: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract optional mastering overrides from a score plan."""
+    mastering = plan.get("mastering") if isinstance(plan, dict) else None
+    if not isinstance(mastering, dict):
+        return {}
+    return {
+        key: mastering[key]
+        for key in (
+            "production_preset",
+            "target_lufs",
+            "master_ceiling_db",
+            "stem_headroom_db",
+            "brightness_target",
+            "warmth_target",
+        )
+        if key in mastering and mastering[key] is not None
+    }
 

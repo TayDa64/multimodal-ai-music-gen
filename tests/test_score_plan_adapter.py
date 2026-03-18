@@ -1,4 +1,5 @@
 from multimodal_gen.score_plan_adapter import (
+    extract_mastering_overrides,
     score_plan_to_parsed_prompt,
     score_plan_to_performance_score,
 )
@@ -25,6 +26,13 @@ def _sample_plan():
         "chord_map": [{"bar": 1, "chord": "Cm"}],
         "cue_points": [{"bar": 5, "type": "build", "intensity": 0.6}],
         "constraints": {"avoid_instruments": ["brass"], "avoid_drums": ["snare"]},
+        "mastering": {
+            "production_preset": "ambient_ethereal",
+            "target_lufs": -16.0,
+            "master_ceiling_db": -1.5,
+            "brightness_target": 0.6,
+            "warmth_target": 0.7,
+        },
     }
 
 
@@ -39,6 +47,9 @@ def test_score_plan_overrides_parsed_prompt():
     assert "kick" in parsed.drum_elements
     assert "brass" in parsed.excluded_instruments
     assert "snare" in parsed.excluded_drums
+    assert parsed.production_preset == "ambient_ethereal"
+    assert parsed.brightness == 0.6
+    assert parsed.warmth == 0.7
 
 
 def test_score_plan_builds_performance_score():
@@ -52,3 +63,10 @@ def test_score_plan_builds_performance_score():
     build_tick = bars_to_ticks(4, (4, 4))
     cues = [c for c in score.cue_points if c.get("type") == "build"]
     assert cues and cues[0]["tick"] == build_tick
+
+
+def test_extract_mastering_overrides_returns_structured_block():
+    mastering = extract_mastering_overrides(_sample_plan())
+    assert mastering["production_preset"] == "ambient_ethereal"
+    assert mastering["target_lufs"] == -16.0
+    assert mastering["master_ceiling_db"] == -1.5

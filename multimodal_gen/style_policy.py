@@ -306,6 +306,7 @@ class MixPolicy:
     bass_pan: float = 0.0
     
     # Headroom
+    target_lufs: float = -14.0
     stem_headroom_db: float = -6.0
     master_ceiling_db: float = -1.0
     
@@ -327,6 +328,7 @@ class MixPolicy:
             "snare_pan": self.snare_pan,
             "hihat_pan": self.hihat_pan,
             "bass_pan": self.bass_pan,
+            "target_lufs": self.target_lufs,
             "stem_headroom_db": self.stem_headroom_db,
             "master_ceiling_db": self.master_ceiling_db,
             "master_fx_chain": self.master_fx_chain,

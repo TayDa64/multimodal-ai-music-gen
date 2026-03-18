@@ -121,6 +121,7 @@ from .score_plan_adapter import (
     score_plan_to_parsed_prompt,
     score_plan_to_performance_score,
     extract_seed,
+    extract_mastering_overrides,
     ScorePlanError,
 )
 
@@ -220,5 +221,6 @@ __all__ = [
     "score_plan_to_parsed_prompt",
     "score_plan_to_performance_score",
     "extract_seed",
+    "extract_mastering_overrides",
     "ScorePlanError",
 ]

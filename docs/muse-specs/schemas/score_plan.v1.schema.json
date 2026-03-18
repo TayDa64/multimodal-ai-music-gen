@@ -113,6 +113,18 @@
         "avoid_drums": { "type": "array", "items": { "type": "string" } },
         "max_polyphony": { "type": "integer", "minimum": 1 }
       }
+    },
+    "mastering": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "production_preset": { "type": "string" },
+        "target_lufs": { "type": "number", "minimum": -30, "maximum": -6 },
+        "master_ceiling_db": { "type": "number", "minimum": -6, "maximum": 0 },
+        "stem_headroom_db": { "type": "number", "minimum": -18, "maximum": 0 },
+        "brightness_target": { "type": "number", "minimum": 0, "maximum": 1 },
+        "warmth_target": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
     }
   }
 }

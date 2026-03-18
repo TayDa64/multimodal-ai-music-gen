@@ -1806,6 +1806,9 @@ class AudioRenderer:
                 "saturation_amount": getattr(self._mix_policy, 'saturation_amount', None) if getattr(self, '_mix_policy', None) else None,
                 "brightness_target": getattr(self._mix_policy, 'brightness_target', None) if getattr(self, '_mix_policy', None) else None,
                 "warmth_target": getattr(self._mix_policy, 'warmth_target', None) if getattr(self, '_mix_policy', None) else None,
+                "target_lufs": getattr(self._mix_policy, 'target_lufs', None) if getattr(self, '_mix_policy', None) else None,
+                "master_ceiling_db": getattr(self._mix_policy, 'master_ceiling_db', None) if getattr(self, '_mix_policy', None) else None,
+                "stem_headroom_db": getattr(self._mix_policy, 'stem_headroom_db', None) if getattr(self, '_mix_policy', None) else None,
                 "drum_bus_fx": getattr(self._mix_policy, 'drum_bus_fx', None) if getattr(self, '_mix_policy', None) else None,
                 "bass_fx": getattr(self._mix_policy, 'bass_fx', None) if getattr(self, '_mix_policy', None) else None,
                 "master_fx_chain": getattr(self._mix_policy, 'master_fx_chain', None) if getattr(self, '_mix_policy', None) else None,
@@ -2259,9 +2262,10 @@ class AudioRenderer:
         if _HAS_TPL:
             try:
                 from .true_peak_limiter import TruePeakLimiterParams as _TPLP
-                _tpl = _TPL(_TPLP(ceiling_dbtp=-1.0), sample_rate=self.sample_rate)
+                _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0) if self._mix_policy else -1.0
+                _tpl = _TPL(_TPLP(ceiling_dbtp=_ceil_db), sample_rate=self.sample_rate)
                 mix = _tpl.process(mix)
-                self._pipeline_stages['true_peak_limiter'] = 'ceiling=-1.0dBTP'
+                self._pipeline_stages['true_peak_limiter'] = f'ceiling={_ceil_db}dBTP'
             except Exception:
                 self._pipeline_stages['true_peak_limiter'] = 'error'
                 mix = limit_audio(mix, TARGET_TRUE_PEAK)

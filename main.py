@@ -58,6 +58,7 @@ from multimodal_gen import (
     score_plan_to_parsed_prompt,
     score_plan_to_performance_score,
     extract_seed,
+    extract_mastering_overrides,
     ScorePlanError,
 )
 from multimodal_gen.prompt_parser import set_instrument_service
@@ -458,6 +459,7 @@ def run_generation(
 
     score_plan_parsed = None
     score_plan_score = None
+    score_plan_mastering = {}
     if score_plan:
         try:
             validate_score_plan(score_plan)
@@ -477,6 +479,7 @@ def run_generation(
 
         score_plan_parsed = score_plan_to_parsed_prompt(score_plan)
         score_plan_score = score_plan_to_performance_score(score_plan)
+        score_plan_mastering = extract_mastering_overrides(score_plan)
     
     # Set random seed if provided
     if seed is not None:
@@ -695,7 +698,7 @@ def run_generation(
 
         requested_preset = (preset or getattr(parsed, 'preset', None))
         requested_style = (style_preset or getattr(parsed, 'style_preset', None))
-        requested_production = (production_preset or getattr(parsed, 'production_preset', None))
+        requested_production = (production_preset or score_plan_mastering.get('production_preset') or getattr(parsed, 'production_preset', None))
 
         if requested_preset or requested_style or requested_production:
             manager = PresetManager()
@@ -730,6 +733,11 @@ def run_generation(
     except Exception as e:
         if verbose:
             print_warning(f"Preset system skipped: {e}")
+
+    if score_plan_mastering:
+        for key in ('brightness_target', 'warmth_target', 'target_lufs', 'master_ceiling_db', 'stem_headroom_db'):
+            if key in score_plan_mastering:
+                preset_values[key] = score_plan_mastering[key]
 
     # Phase 5.2: apply explicit OSC/CLI overrides after presets, before arranging.
     if tension_arc_shape is not None:
@@ -1104,6 +1112,32 @@ def run_generation(
                         elif pi == 'intense':
                             policy_context.arrangement.fill_frequency_bars = 2
                             policy_context.arrangement.fill_intensity = max(policy_context.arrangement.fill_intensity, 0.75)
+                    except Exception:
+                        pass
+
+                if 'target_lufs' in preset_values:
+                    try:
+                        policy_context.mix.target_lufs = float(preset_values['target_lufs'])
+                    except Exception:
+                        pass
+                if 'brightness_target' in preset_values:
+                    try:
+                        policy_context.mix.brightness_target = max(0.0, min(1.0, float(preset_values['brightness_target'])))
+                    except Exception:
+                        pass
+                if 'warmth_target' in preset_values:
+                    try:
+                        policy_context.mix.warmth_target = max(0.0, min(1.0, float(preset_values['warmth_target'])))
+                    except Exception:
+                        pass
+                if 'stem_headroom_db' in preset_values:
+                    try:
+                        policy_context.mix.stem_headroom_db = float(preset_values['stem_headroom_db'])
+                    except Exception:
+                        pass
+                if 'master_ceiling_db' in preset_values:
+                    try:
+                        policy_context.mix.master_ceiling_db = float(preset_values['master_ceiling_db'])
                     except Exception:
                         pass
 
