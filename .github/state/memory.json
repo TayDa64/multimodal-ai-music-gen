@@ -3,6 +3,21 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For harmonic-track thematic reuse, contour shared chord onsets before attempting rhythm or voicing rewrites",
+        "context": "Milestone 1 Slice 3 proved motif identity can safely influence the primary chord track by reusing accent patterns as subtle onset-group velocity contours across both strategy and fallback chord paths, without changing harmony, timing, or arrangement defaults.",
+        "timestamp": "2026-04-02T02:20:00Z"
+      },
+      {
+        "pattern": "When adding safe cross-track thematic reuse, start with velocity contouring before pitch or timing reuse",
+        "context": "Milestone 1 Slice 2 proved that motif identity can influence bass expressivity safely by reusing accent patterns as subtle velocity contours for Ethiopian-family motif-aware arrangements, preserving pitch/timing stability and fail-open behavior.",
+        "timestamp": "2026-04-02T01:25:00Z"
+      },
+      {
+        "pattern": "Bounded motif-depth slices can deepen musicality safely when they extend the existing motif-aware path instead of replacing it",
+        "context": "Milestone 1 Slice 1 succeeded by combining genre-specific motif fallbacks, section-correct arrangement mappings, and melody-track counter alignment while preserving fail-open behavior and plain create_arrangement defaults.",
+        "timestamp": "2026-04-02T00:30:00Z"
+      },
+      {
         "pattern": "Close genre realism gaps by fixing cross-layer asymmetry before adding deeper critics",
         "context": "The highest-ROI improvement came from making the same genre exist consistently across defaults, arrangement, renderer routing, gain staging, and rendered-audio targets. This removed silent trap/unknown fallbacks without destabilizing the pipeline.",
         "timestamp": "2026-03-18T20:40:00Z"
@@ -213,6 +228,36 @@
   },
   "decisions": [
     {
+      "decision": "Close Milestone 1 after three bounded slices and move next to Milestone 2 tension-authority work",
+      "rationale": "The three-slice motif wave now covers genre-specific fallback depth, wider section participation, repeated-section alignment, Ethiopian-family depth, bass-side expressive reuse, and conservative chord-track reuse with focused proof. Additional motif changes would now have lower ROI and higher regression risk than promoting the tension arc to stronger arrangement authority.",
+      "alternatives_considered": ["Add a fourth Milestone 1 slice for countermelody generation", "Propagate motif intervals directly into chord voicings before tension work", "Keep Milestone 1 open indefinitely for incremental thematic polish"],
+      "timestamp": "2026-04-02T02:20:00Z"
+    },
+    {
+      "decision": "For Milestone 1 Slice 3, reuse motif accents on the primary chord track via onset-group velocity contouring instead of countermelody or harmonic rewrites",
+      "rationale": "Chord onset accenting extended motif influence beyond melody and bass while avoiding new track creation, chord rhythm rewrites, voicing changes, or harmony-selection regressions. The resulting behavior stayed easy to verify with deterministic focused tests.",
+      "alternatives_considered": ["Add a new countermelody track", "Rewrite chord rhythms from motif rhythm", "Inject motif intervals into chord voicing selection"],
+      "timestamp": "2026-04-02T02:20:00Z"
+    },
+    {
+      "decision": "For Milestone 1 Slice 2, limit cross-track motif reuse to Ethiopian-family bass velocity contouring instead of pitch or timing rewrites",
+      "rationale": "Velocity-only reuse provided a real cross-track thematic connection with low regression risk and strong focused-test proof, while broader bass/countermelody/chordal motif propagation would have widened scope too aggressively for a single bounded slice.",
+      "alternatives_considered": ["Rewrite Ethiopian-family bass pitches from motif intervals", "Add a new countermelody track immediately", "Propagate motif intervals into chord voicing generation in the same slice"],
+      "timestamp": "2026-04-02T01:25:00Z"
+    },
+    {
+      "decision": "Treat Milestone 1 as multiple bounded motif slices rather than a single broad thematic rewrite",
+      "rationale": "The first slice already delivered measurable gains by targeting genre-specific motif fallbacks and wider section participation with 95 focused tests passing. This keeps regressions low while leaving cross-track motif reuse and Ethiopian-specific motif depth for later slices inside the same milestone.",
+      "alternatives_considered": ["Implement all Milestone 1 subgoals in one pass", "Jump to tension-authority work before motif section coverage is stable", "Replace the current motif path with a new abstraction instead of extending it"],
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "decision": "Track the next MUSE work as milestone-based convergence of existing motif, tension, analyzer, and reference systems rather than as greenfield feature creation",
+      "rationale": "Current code already contains motif generation, tension arcs, expression, output analysis, and reference-analysis primitives. The highest-ROI next step is to deepen and connect those layers while preserving current production features.",
+      "alternatives_considered": ["Write a brand new motifs module from scratch", "Implement multiple musicality milestones in one sweep", "Treat analyzer, motif, and tension work as separate unrelated projects"],
+      "timestamp": "2026-04-02T00:00:00Z"
+    },
+    {
       "decision": "Ship the next quality wave as genre-consistency plus target-coverage, not a new listener stack",
       "rationale": "neo_soul and adjacent genres were still failing because existing layers disagreed about what the genre was or whether it had explicit audio targets. Making those layers consistent produces immediate user-facing gains with low regression risk.",
       "alternatives_considered": ["Skip runtime consistency and only add more output-analysis metrics", "Build role-band validation before fixing genre coverage", "Leave neo_soul runtime on rnb/trap fallbacks"],
@@ -397,5 +442,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-03-18T19:15:00Z"
+  "last_updated": "2026-04-02T02:20:00Z"
 }

@@ -520,7 +520,7 @@ class MotifGenerator:
         Args:
             library: Optional MotifLibrary to draw from. If None, uses built-in patterns.
         """
-        self.library = library or self._create_default_library()
+        self.library = library if library is not None else self._create_default_library()
     
     def generate_motif(
         self,
@@ -541,11 +541,12 @@ class MotifGenerator:
         Returns:
             Generated or selected Motif
         """
+        genre_key = self._normalize_genre_key(genre)
         chord_type = context.get('chord_type')
         
         # Try to get motif from library first
         motif = self.library.get_random_motif(
-            genre=genre,
+            genre=genre_key,
             chord_type=chord_type
         )
         
@@ -553,11 +554,27 @@ class MotifGenerator:
             return motif
         
         # Fallback: generate algorithmically based on genre
-        if genre == "jazz":
+        if genre_key == "jazz":
             return self._generate_jazz_motif(context)
-        else:
-            # Generic motif for unsupported genres
-            return self._generate_generic_motif(context)
+        elif genre_key == "ethiopian":
+            return self._generate_ethiopian_motif(context)
+        elif genre_key == "ethio_jazz":
+            return self._generate_ethio_jazz_motif(context)
+        elif genre_key == "eskista":
+            return self._generate_eskista_motif(context)
+        elif genre_key == "ethiopian_traditional":
+            return self._generate_ethiopian_traditional_motif(context)
+        elif genre_key == "cinematic":
+            return self._generate_cinematic_motif(context)
+        elif genre_key == "classical":
+            return self._generate_classical_motif(context)
+        elif genre_key == "rnb":
+            return self._generate_rnb_motif(context)
+        elif genre_key == "neo_soul":
+            return self._generate_neo_soul_motif(context)
+
+        # Generic motif for unsupported genres
+        return self._generate_generic_motif(context)
     
     def get_jazz_motifs(self) -> List[Motif]:
         """Get all jazz-specific motifs from the library."""
@@ -596,6 +613,130 @@ class MotifGenerator:
             genre_tags=["jazz"],
             chord_context=chord_type,
             description=f"Algorithmically generated jazz motif over {chord_type}"
+        )
+
+    def _generate_ethiopian_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate an Ethiopian-family pentatonic call motif."""
+        return Motif(
+            name="Ethiopian pentatonic call",
+            intervals=[0, 2, 5, 7, 9],
+            rhythm=[0.75, 0.25, 0.75, 0.5, 1.25],
+            accent_pattern=[1.0, 0.68, 0.9, 0.78, 0.86],
+            genre_tags=["ethiopian", "pentatonic", "call_response"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic Ethiopian-family motif with pentatonic call-and-response contour"
+        )
+
+    def _generate_ethio_jazz_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate an Ethio-jazz motif with Ethiopian contour and jazz color."""
+        is_minor = self._is_minor_context(context)
+        third = 3 if is_minor else 4
+        seventh = 10 if is_minor else 11
+        return Motif(
+            name="Ethio-jazz color phrase",
+            intervals=[0, third, 7, seventh, 12],
+            rhythm=[0.5, 0.5, 0.75, 0.25, 1.5],
+            accent_pattern=[1.0, 0.74, 0.88, 0.72, 0.94],
+            genre_tags=["ethio_jazz", "ethiopian", "jazz"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic Ethio-jazz motif combining Ethiopian contour with jazz-inflected color tones"
+        )
+
+    def _generate_eskista_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate a compact, dance-forward eskista pulse motif."""
+        return Motif(
+            name="Eskista pulse riff",
+            intervals=[0, 2, 0, 5, 7],
+            rhythm=[0.5, 0.5, 0.5, 0.5, 1.0],
+            accent_pattern=[1.0, 0.7, 0.92, 0.8, 0.9],
+            genre_tags=["eskista", "ethiopian", "dance"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic eskista motif with tight repeated pulses suited to dance phrasing"
+        )
+
+    def _generate_ethiopian_traditional_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate a restrained traditional Ethiopian fallback motif."""
+        return Motif(
+            name="Ethiopian traditional response",
+            intervals=[0, 2, 5, 7, 5],
+            rhythm=[1.0, 0.5, 0.5, 1.0, 1.0],
+            accent_pattern=[1.0, 0.72, 0.84, 0.9, 0.8],
+            genre_tags=["ethiopian_traditional", "ethiopian", "traditional"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic traditional Ethiopian motif with a balanced response contour"
+        )
+
+    def _normalize_genre_key(self, genre: str) -> str:
+        """Normalize genre keys for fallback dispatch and library lookup."""
+        genre_key = (genre or '').strip().lower().replace(' ', '_').replace('-', '_')
+        if genre_key in {'r&b', 'rnb', 'r_b'}:
+            return 'rnb'
+        return genre_key
+
+    def _is_minor_context(self, context: Dict[str, Any]) -> bool:
+        """Infer whether the supplied context implies a minor color."""
+        scale = str(context.get('scale', '')).lower()
+        chord_type = str(context.get('chord_type', '')).lower()
+        return 'minor' in scale or chord_type in {'minor7', 'm7', 'minor9', 'm9'}
+
+    def _generate_cinematic_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate a broad, theme-forward cinematic motif."""
+        is_minor = self._is_minor_context(context)
+        third = 3 if is_minor else 4
+        seventh = 10 if is_minor else 11
+        return Motif(
+            name="Cinematic rising theme",
+            intervals=[0, third, 7, 12, seventh],
+            rhythm=[1.5, 0.5, 1.0, 2.0, 1.0],
+            accent_pattern=[1.0, 0.72, 0.88, 0.96, 0.8],
+            genre_tags=["cinematic", "thematic", "orchestral"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic cinematic motif with wide-interval thematic contour"
+        )
+
+    def _generate_classical_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate a balanced classical theme suitable for development."""
+        is_minor = self._is_minor_context(context)
+        third = 3 if is_minor else 4
+        sixth = 8 if is_minor else 9
+        return Motif(
+            name="Classical period theme",
+            intervals=[0, 2, third, 5, sixth, 5],
+            rhythm=[1.0, 1.0, 1.0, 1.0, 0.5, 0.5],
+            accent_pattern=[1.0, 0.82, 0.9, 0.86, 0.74, 0.78],
+            genre_tags=["classical", "thematic", "development"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic classical motif with clear antecedent-consequent phrasing"
+        )
+
+    def _generate_rnb_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate a smooth R&B motif with gentle syncopation."""
+        is_minor = self._is_minor_context(context)
+        third = 3 if is_minor else 4
+        seventh = 10 if is_minor else 11
+        return Motif(
+            name="R&B pocket phrase",
+            intervals=[0, third, 5, 7, seventh],
+            rhythm=[0.75, 0.25, 1.0, 0.5, 1.5],
+            accent_pattern=[1.0, 0.65, 0.88, 0.74, 0.92],
+            genre_tags=["rnb", "smooth", "melodic"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic R&B motif built around a laid-back pocket"
+        )
+
+    def _generate_neo_soul_motif(self, context: Dict[str, Any]) -> Motif:
+        """Generate a richer neo-soul motif with color-tone emphasis."""
+        is_minor = self._is_minor_context(context)
+        third = 3 if is_minor else 4
+        seventh = 10 if is_minor else 11
+        return Motif(
+            name="Neo-soul color motif",
+            intervals=[0, third, 7, seventh, 14],
+            rhythm=[0.5, 0.75, 0.75, 1.0, 1.0],
+            accent_pattern=[0.96, 0.74, 0.86, 0.78, 1.0],
+            genre_tags=["neo_soul", "lush", "syncopated"],
+            chord_context=context.get('chord_type'),
+            description="Algorithmic neo-soul motif emphasizing extended chord color"
         )
     
     def _generate_generic_motif(self, context: Dict[str, Any]) -> Motif:

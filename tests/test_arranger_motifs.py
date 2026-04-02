@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from multimodal_gen.arranger import (
     Arrangement,
     MotifAssignment,
+    SectionType,
     generate_arrangement_with_motifs,
     get_section_motif,
     get_default_motif_mapping,
@@ -228,6 +229,76 @@ class TestGenerateArrangementWithMotifs:
             assert len(arrangement.motifs) > 0
             assert len(arrangement.motif_assignments) > 0
 
+    def test_motif_aware_arrangement_enables_thematic_non_chorus_melody_only(self):
+        """generate_arrangement_with_motifs can opt thematic sections into melody without changing create_arrangement defaults."""
+        parsed = ParsedPrompt(
+            bpm=82.0,
+            genre="rnb",
+            key="C",
+            scale_type=ScaleType.MINOR,
+        )
+
+        plain = create_arrangement(parsed)
+        motif_aware = generate_arrangement_with_motifs(parsed, num_motifs=2, seed=7)
+
+        def _melody_enabled(arrangement):
+            return {
+                section.section_type.value
+                for section in arrangement.sections
+                if section.config.enable_melody
+            }
+
+        plain_enabled = _melody_enabled(plain)
+        motif_enabled = _melody_enabled(motif_aware)
+
+        assert "intro" not in plain_enabled
+        assert "verse" not in plain_enabled
+        assert "bridge" not in plain_enabled
+        assert "outro" not in plain_enabled
+
+        assert "intro" in motif_enabled
+        assert "verse" in motif_enabled
+        assert "bridge" in motif_enabled
+        assert "outro" in motif_enabled
+
+    @pytest.mark.parametrize(
+        "genre, plain_missing, motif_expected",
+        [
+            ("ethiopian", {"intro", "verse", "breakdown", "outro"}, {"intro", "verse", "breakdown", "variation", "outro"}),
+            ("ethio_jazz", {"intro", "verse", "breakdown", "outro"}, {"intro", "verse", "variation", "breakdown", "outro"}),
+            ("eskista", {"intro", "buildup", "breakdown", "outro"}, {"intro", "buildup", "drop", "variation", "breakdown", "outro"}),
+        ],
+    )
+    def test_generate_arrangement_with_motifs_expands_ethiopian_family_melody_only_when_mapped(
+        self,
+        genre,
+        plain_missing,
+        motif_expected,
+    ):
+        """Ethiopian-family motif-aware arrangements can opt mapped sections into melody without altering create_arrangement defaults."""
+        parsed = ParsedPrompt(
+            bpm=96.0,
+            genre=genre,
+            key="C",
+            scale_type=ScaleType.MINOR,
+        )
+
+        plain = create_arrangement(parsed)
+        motif_aware = generate_arrangement_with_motifs(parsed, num_motifs=2, seed=11)
+
+        def _melody_enabled(arrangement):
+            return {
+                section.section_type.value
+                for section in arrangement.sections
+                if section.config.enable_melody
+            }
+
+        plain_enabled = _melody_enabled(plain)
+        motif_enabled = _melody_enabled(motif_aware)
+
+        assert plain_missing.isdisjoint(plain_enabled)
+        assert motif_expected.issubset(motif_enabled)
+
 
 class TestGetSectionMotif:
     """Tests for get_section_motif function."""
@@ -388,6 +459,30 @@ class TestGetSectionMotif:
         
         assert motif is not None
         assert "transposed" in motif.name.lower()
+
+    def test_get_section_motif_fragment(self):
+        """Test fragment transformation."""
+        parsed = ParsedPrompt(
+            bpm=87.0,
+            genre="trap_soul",
+            key="C"
+        )
+
+        arrangement = generate_arrangement_with_motifs(parsed, num_motifs=1)
+        base_motif = arrangement.motifs[0]
+
+        arrangement.motif_assignments["test_fragment"] = MotifAssignment(
+            motif_index=0,
+            transformation="fragment",
+            transform_params={"start": 1, "length": 2}
+        )
+
+        motif = get_section_motif(arrangement, "test_fragment")
+
+        assert motif is not None
+        assert motif.intervals == base_motif.intervals[1:3]
+        assert motif.rhythm == base_motif.rhythm[1:3]
+        assert "frag" in motif.name.lower()
     
     def test_get_section_motif_invalid_section(self):
         """Test retrieving motif for non-existent section."""
@@ -455,6 +550,17 @@ class TestGetDefaultMotifMapping:
         
         # Should have same keys
         assert set(mapping.keys()) == set(pop_mapping.keys())
+
+    def test_get_mapping_returns_isolated_assignment_copies(self):
+        """Returned mapping objects should not alias the shared module-level presets."""
+        mapping = get_default_motif_mapping("cinematic")
+        mapping["intro"].transformation = "original"
+        mapping["intro"].transform_params["length"] = 99
+
+        fresh_mapping = get_default_motif_mapping("cinematic")
+
+        assert fresh_mapping["intro"].transformation == "fragment"
+        assert fresh_mapping["intro"].transform_params["length"] == 2
     
     def test_genre_motif_mappings_structure(self):
         """Test that GENRE_MOTIF_MAPPINGS has correct structure."""
@@ -489,6 +595,50 @@ class TestGenreSpecificMappings:
         
         # Classical should use complex transformations
         assert "invert" in transformations or "retrograde" in transformations or "augment" in transformations
+
+    def test_classical_mapping_matches_actual_arrangement_section_names(self):
+        """Classical mapping should align with the current classical arrangement template names."""
+        parsed = ParsedPrompt(
+            bpm=76.0,
+            genre="classical",
+            key="C",
+            scale_type=ScaleType.MAJOR,
+        )
+        arrangement = create_arrangement(parsed)
+        mapping = get_default_motif_mapping("classical")
+
+        classical_section_names = {section.section_type.value for section in arrangement.sections}
+
+        assert classical_section_names == {"intro", "verse", "variation", "chorus", "outro"}
+        assert set(mapping.keys()) == classical_section_names
+        assert "exposition" not in mapping
+        assert "development" not in mapping
+        assert "recapitulation" not in mapping
+        assert "coda" not in mapping
+
+    @pytest.mark.parametrize(
+        "genre, expected_sections",
+        [
+            ("ethiopian", {"intro", "verse", "chorus", "breakdown", "variation", "outro"}),
+            ("ethio_jazz", {"intro", "verse", "variation", "chorus", "breakdown", "outro"}),
+            ("eskista", {"intro", "buildup", "drop", "variation", "breakdown", "outro"}),
+        ],
+    )
+    def test_ethiopian_family_mapping_matches_actual_arrangement_section_names(self, genre, expected_sections):
+        """Ethiopian-family mappings should align with the current arrangement templates."""
+        parsed = ParsedPrompt(
+            bpm=96.0,
+            genre=genre,
+            key="C",
+            scale_type=ScaleType.MINOR,
+        )
+
+        arrangement = create_arrangement(parsed)
+        mapping = get_default_motif_mapping(genre)
+        section_names = {section.section_type.value for section in arrangement.sections}
+
+        assert section_names == expected_sections
+        assert set(mapping.keys()) == expected_sections
     
     def test_pop_uses_simple_transformations(self):
         """Test that pop genre uses mostly original and sequence."""
@@ -516,7 +666,7 @@ class TestGenreSpecificMappings:
         trap_soul = get_default_motif_mapping("trap_soul")
 
         assert "neo_soul" in GENRE_MOTIF_MAPPINGS
-        assert neo_soul["intro"].transformation == "original"
+        assert neo_soul["intro"].transformation == "fragment"
         assert neo_soul["intro"].transformation != trap_soul["intro"].transformation
 
     def test_create_arrangement_neo_soul_uses_rnb_like_structure(self):

@@ -3,6 +3,132 @@
   "session_id": "session-2026-02-12-sprint75",
   "files_touched": [
     {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T02:10:00Z",
+      "by_agent": "builder",
+      "changes": "Added a primary chord-track motif accent hook that resolves section motif assignments and reuses accent patterns as subtle onset-group velocity contours in both strategy and fallback chord paths while failing open on lookup or accent issues."
+    },
+    {
+      "path": "tests\\test_motif_melody_integration.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T02:10:00Z",
+      "by_agent": "builder",
+      "changes": "Added deterministic integration proofs for chord-track onset-group motif accent contouring and fail-open behavior when section motif lookup is unusable."
+    },
+    {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "modified",
+      "timestamp": "2026-04-02T02:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Milestone 1 Slice 3 completion, marked Milestone 1 complete, and pointed follow-on work to Milestone 2 tension-authority changes."
+    },
+    {
+      "path": "multimodal_gen\\motif_engine.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added dedicated Ethiopian-family motif fallbacks for ethiopian, ethio_jazz, eskista, and ethiopian_traditional so those genres no longer collapse to the generic motif path when the motif library is empty or has no direct match."
+    },
+    {
+      "path": "multimodal_gen\\arranger.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added Ethiopian-family motif mappings aligned to the real arrangement templates and expanded motif-aware melody participation for mapped Ethiopian-family sections only inside generate_arrangement_with_motifs()."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added an Ethiopian-family-only bass velocity contour hook that reuses section motif accent patterns without changing bass pitch or timing and fails open when motif lookup is unavailable."
+    },
+    {
+      "path": "tests\\test_motif_engine.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:15:00Z",
+      "by_agent": "builder",
+      "changes": "Extended genre-specific motif fallback coverage to ethiopian, ethio_jazz, eskista, and ethiopian_traditional."
+    },
+    {
+      "path": "tests\\test_arranger_motifs.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added Ethiopian-family mapping alignment and motif-aware melody enablement coverage while preserving plain create_arrangement defaults."
+    },
+    {
+      "path": "tests\\test_motif_melody_integration.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added cinematic pre_chorus motif playback proof, Ethiopian bass accent-pattern wiring proof, and corrected the cinematic expectation to match scale-snapped melody output in C minor."
+    },
+    {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "modified",
+      "timestamp": "2026-04-02T01:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Milestone 1 Slice 2 completion, updated milestone status to slices 1-2 complete, and narrowed the remaining Milestone 1 follow-up work."
+    },
+    {
+      "path": "multimodal_gen\\motif_engine.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "builder",
+      "changes": "Added dedicated motif fallbacks for cinematic, classical, rnb, and neo_soul so those genres no longer collapse to the generic motif path when the library has no direct match."
+    },
+    {
+      "path": "multimodal_gen\\arranger.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "builder",
+      "changes": "Aligned classical motif mappings with real section names, added fragment transform support, cloned mapping assignments defensively, and enabled motif-aware melody participation for thematic non-chorus sections inside generate_arrangement_with_motifs()."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "builder",
+      "changes": "Generalized motif melody lookup to any melody-enabled section and moved section counters ahead of the melody gate so repeated sections like verse_2 stay aligned with arrangement motif assignments."
+    },
+    {
+      "path": "tests\\test_motif_engine.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "builder",
+      "changes": "Added regressions proving cinematic, classical, rnb, and neo_soul use dedicated motif fallbacks instead of the plain generic identity."
+    },
+    {
+      "path": "tests\\test_arranger_motifs.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "builder",
+      "changes": "Added fragment, classical mapping, isolated mapping copy, and motif-aware non-chorus melody enablement coverage for the motif-depth slice."
+    },
+    {
+      "path": "tests\\test_motif_melody_integration.py",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "builder",
+      "changes": "Added verse_2 integration coverage proving non-chorus repeated sections resolve the correct motif assignment in the melody track."
+    },
+    {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "modified",
+      "timestamp": "2026-04-02T00:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Updated Milestone 1 status/checklist and recorded the completed Slice 1 execution log with focused verification results and follow-up risks."
+    },
+    {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "created",
+      "timestamp": "2026-04-02T00:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created a durable implementation tracker capturing the current code-grounded musicality roadmap, milestone ordering, acceptance criteria, and preferred supervisor-builder-verifier execution model."
+    },
+    {
       "path": "multimodal_gen\\utils.py",
       "action": "modified",
       "timestamp": "2026-03-18T20:40:00Z",
@@ -222,6 +348,114 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen\\midi_generator.py",
+      "description": "Added conservative chord-track motif reuse for Milestone 1 Slice 3",
+      "diff_summary": "The primary Chords track now optionally resolves the section motif and applies a subtle shared onset-level velocity contour from the motif accent pattern across both strategy-generated and fallback chord notes, without changing harmony, timing, or voicing behavior.",
+      "timestamp": "2026-04-02T02:10:00Z"
+    },
+    {
+      "file": "tests\\test_motif_melody_integration.py",
+      "description": "Added chord-track motif contour and fail-open regressions",
+      "diff_summary": "New deterministic integration tests prove chord onset groups inherit motif accent contouring consistently across strategy and fallback chord paths and that unusable motif lookups leave chord generation unchanged.",
+      "timestamp": "2026-04-02T02:10:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Recorded Milestone 1 Slice 3 and closed Milestone 1",
+      "diff_summary": "Updated the tracker to mark Milestone 1 complete after the final low-risk chord-track reuse slice and documented the focused proof plus carry-forward risks.",
+      "timestamp": "2026-04-02T02:20:00Z"
+    },
+    {
+      "file": "multimodal_gen\\motif_engine.py",
+      "description": "Added Ethiopian-family motif fallbacks for Milestone 1 Slice 2",
+      "diff_summary": "MotifGenerator now dispatches dedicated fallback generators for ethiopian, ethio_jazz, eskista, and ethiopian_traditional before the generic motif path, with genre-specific names, tags, rhythms, and accent patterns.",
+      "timestamp": "2026-04-02T01:15:00Z"
+    },
+    {
+      "file": "multimodal_gen\\arranger.py",
+      "description": "Wired Ethiopian-family motif mappings and scoped melody broadening",
+      "diff_summary": "Added section-correct motif mappings for Ethiopian-family templates and extended motif-aware melody enablement only for mapped Ethiopian-family sections inside generate_arrangement_with_motifs(), leaving plain create_arrangement defaults unchanged.",
+      "timestamp": "2026-04-02T01:15:00Z"
+    },
+    {
+      "file": "multimodal_gen\\midi_generator.py",
+      "description": "Added conservative Ethiopian-family bass motif reuse",
+      "diff_summary": "Bass generation now optionally contours note velocities from section motif accent patterns for Ethiopian-family motif-aware arrangements while preserving pitch, timing, and fail-open behavior.",
+      "timestamp": "2026-04-02T01:15:00Z"
+    },
+    {
+      "file": "tests\\test_motif_engine.py",
+      "description": "Extended motif fallback regressions to Ethiopian-family genres",
+      "diff_summary": "The parametrized fallback test now proves Ethiopian-family genres return dedicated motif identities instead of the generic motif path and still convert cleanly to MIDI notes.",
+      "timestamp": "2026-04-02T01:15:00Z"
+    },
+    {
+      "file": "tests\\test_arranger_motifs.py",
+      "description": "Added Ethiopian-family arrangement wiring regressions",
+      "diff_summary": "New tests prove Ethiopian-family motif mappings match actual arrangement sections and that motif-aware melody enablement broadens only inside generate_arrangement_with_motifs().",
+      "timestamp": "2026-04-02T01:15:00Z"
+    },
+    {
+      "file": "tests\\test_motif_melody_integration.py",
+      "description": "Added cinematic and Ethiopian motif integration proofs",
+      "diff_summary": "New integration tests prove cinematic pre_chorus motif sequencing reaches the melody track with scale snapping and that Ethiopian motif accents shape bass velocities without changing bass pitch or timing.",
+      "timestamp": "2026-04-02T01:20:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Recorded Milestone 1 Slice 2 completion",
+      "diff_summary": "Updated Milestone 1 to slices 1-2 complete and added an execution log covering Ethiopian-family motif depth, conservative bass reuse, focused test proof, and residual risks.",
+      "timestamp": "2026-04-02T01:25:00Z"
+    },
+    {
+      "file": "multimodal_gen\\motif_engine.py",
+      "description": "Added dedicated fallback motifs for the first Milestone 1 genre slice",
+      "diff_summary": "MotifGenerator now normalizes genre keys and uses dedicated algorithmic motif generators for cinematic, classical, rnb, and neo_soul before falling back to the generic motif path.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "multimodal_gen\\arranger.py",
+      "description": "Expanded motif-aware section coverage and repaired classical mapping alignment",
+      "diff_summary": "Classical motif mappings now match intro/verse/variation/chorus/outro, fragment transform support was added, motif assignments are cloned defensively, and motif-aware arrangements can opt intro/verse/pre_chorus/bridge/outro into melody without changing create_arrangement defaults.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "multimodal_gen\\midi_generator.py",
+      "description": "Made motif playback available to any melody-enabled section",
+      "diff_summary": "The melody track now attempts motif lookup for any melody-enabled section and updates section counters before gating so repeated names like verse_2 remain aligned with arranger-generated motif assignments.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "tests\\test_motif_engine.py",
+      "description": "Locked in genre-specific motif fallback behavior",
+      "diff_summary": "Added parametrized coverage proving cinematic, classical, rnb, and neo_soul fallbacks are not the generic motif identity and still convert cleanly to MIDI notes.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "tests\\test_arranger_motifs.py",
+      "description": "Added focused regressions for motif-aware arrangement behavior",
+      "diff_summary": "New tests cover fragment retrieval, classical section-name alignment, defensive motif-mapping copies, and scoped non-chorus melody enablement in motif-aware arrangements.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "tests\\test_motif_melody_integration.py",
+      "description": "Added repeated non-chorus motif playback coverage",
+      "diff_summary": "A new integration test proves a melody-enabled second verse resolves motif_assignments['verse_2'] and emits the expected motif-derived pitches.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Recorded Milestone 1 Slice 1 completion",
+      "diff_summary": "Updated Milestone 1 to in-progress with slice-1-complete status, checked its verification boxes, and added an execution log covering scope, files, test proofs, and remaining work.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Added a new masterclass musicality tracker for future phased implementation",
+      "diff_summary": "Documented source-of-truth findings, milestone sequencing, acceptance criteria, and the recommended recursive-supervisor/recursive-builder/recursive-verifier execution pattern for autopilot-driven work.",
+      "timestamp": "2026-04-02T00:00:00Z"
+    },
+    {
       "file": "..\\copilot-Liku-cli\\src\\main\\agents\\researcher.js",
       "description": "Enabled real per-track subagent decomposition through Researcher handoffs",
       "diff_summary": "Researcher now supports a narrow structured track-planning mode, letting Producer record genuine handoffs for drums/bass/keys/lead/pad/fx instead of internal-only telemetry",
@@ -283,6 +517,27 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Milestone 1 motif-depth slice 3",
+      "result": "PASS",
+      "details": "Focused pytest passed for tests/test_motif_melody_integration.py (6 passed), tests/test_arranger_motifs.py (43 passed), tests/test_sprint7_wiring.py (10 passed), and the combined subset run (59 passed). A baseline-aware verifier pass confirmed the new Slice 3 behavior stayed bounded to primary chord-track onset-group velocity contouring plus fail-open wiring on top of the accepted Slice 1/2 baseline.",
+      "timestamp": "2026-04-02T02:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Milestone 1 motif-depth slice 2",
+      "result": "PASS",
+      "details": "Focused pytest passed for tests/test_motif_engine.py (60 passed), tests/test_arranger_motifs.py (43 passed), tests/test_motif_melody_integration.py (4 passed), and the combined subset run (107 passed). Post-verifier inspection confirmed dedicated Ethiopian-family motif fallbacks, section-correct Ethiopian-family motif mappings, scoped motif-aware melody broadening only inside generate_arrangement_with_motifs(), and velocity-only Ethiopian-family bass reuse with fail-open behavior.",
+      "timestamp": "2026-04-02T01:25:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Milestone 1 motif-depth slice 1",
+      "result": "PASS",
+      "details": "Focused pytest passed for tests/test_motif_engine.py (56 passed), tests/test_arranger_motifs.py (37 passed), tests/test_motif_melody_integration.py (2 passed), and the combined subset run (95 passed). Post-verifier inspection confirmed genre-specific motif fallbacks, classical section-name alignment, fragment transform support, scoped motif-aware non-chorus melody enablement, and repeated-section counter alignment without changing plain create_arrangement defaults.",
+      "timestamp": "2026-04-02T00:30:00Z"
+    },
     {
       "type": "post",
       "target": "genre consistency wave",

@@ -347,6 +347,46 @@ class TestMotifGenerator:
         for motif in jazz_motifs:
             assert "jazz" in motif.genre_tags
 
+    @pytest.mark.parametrize(
+        "genre, scale, expected_tag, expected_name_token",
+        [
+            ("cinematic", "minor", "cinematic", "cinematic"),
+            ("classical", "major", "classical", "classical"),
+            ("rnb", "minor", "rnb", "r&b"),
+            ("neo_soul", "minor", "neo_soul", "neo-soul"),
+            ("ethiopian", "minor", "ethiopian", "ethiopian"),
+            ("ethio_jazz", "minor", "ethio_jazz", "ethio-jazz"),
+            ("eskista", "minor", "eskista", "eskista"),
+            ("ethiopian_traditional", "minor", "ethiopian_traditional", "ethiopian traditional"),
+        ],
+    )
+    def test_generate_genre_specific_fallbacks_are_not_generic(
+        self,
+        genre,
+        scale,
+        expected_tag,
+        expected_name_token,
+    ):
+        """Dedicated fallbacks should return genre-specific motifs instead of the plain generic identity."""
+        generator = MotifGenerator(library=MotifLibrary())
+
+        motif = generator.generate_motif(
+            genre,
+            {"scale": scale, "chord_type": "minor7" if scale == "minor" else "major7"},
+        )
+
+        assert motif is not None
+        assert isinstance(motif, Motif)
+        assert expected_tag in motif.genre_tags
+        assert expected_name_token in motif.name.lower()
+        assert motif.name != "Generic motif"
+        assert motif.genre_tags != ["generic"]
+        assert (motif.intervals, motif.rhythm) != ([0, 2, 4, 5], [1.0, 0.5, 0.5, 1.0])
+        assert len(motif.intervals) == len(motif.rhythm) == len(motif.accent_pattern)
+
+        notes = motif.to_midi_notes(root_pitch=60, start_tick=0)
+        assert len(notes) == len(motif.intervals)
+
 
 class TestJazzMotifs:
     """Tests for jazz motif patterns."""

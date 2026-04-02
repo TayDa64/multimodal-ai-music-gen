@@ -25,6 +25,7 @@ Implements professional producer techniques:
    - Proper note-off handling
 """
 
+import math
 import random
 from dataclasses import dataclass, field
 from typing import Any, List, Dict, Optional, Tuple, Callable
@@ -1692,6 +1693,66 @@ class MidiGenerator:
             _midi_logger.debug("tension value lookup failed: %s", _e)
             return 0.5
 
+    def _get_normalized_section_motif_accents(
+        self,
+        arrangement: Arrangement,
+        section_name: str,
+    ) -> Optional[List[float]]:
+        """Resolve a section motif's accent pattern into normalized 0-1 values."""
+        if not getattr(arrangement, 'motifs', None) or not getattr(arrangement, 'motif_assignments', None):
+            return None
+
+        try:
+            section_motif = get_section_motif(arrangement, section_name)
+            accent_pattern = getattr(section_motif, 'accent_pattern', None) if section_motif is not None else None
+            if not accent_pattern:
+                return None
+
+            raw_accents: List[float] = []
+            for accent in accent_pattern:
+                value = float(accent)
+                if math.isfinite(value):
+                    raw_accents.append(value)
+
+            if not raw_accents:
+                return None
+
+            min_accent = min(raw_accents)
+            max_accent = max(raw_accents)
+            if max_accent <= min_accent:
+                return [0.5 for _ in raw_accents]
+
+            accent_range = max_accent - min_accent
+            return [
+                max(0.0, min(1.0, (accent - min_accent) / accent_range))
+                for accent in raw_accents
+            ]
+        except Exception:
+            return None
+
+    def _apply_motif_velocity_contour_to_onsets(
+        self,
+        notes: List[NoteEvent],
+        motif_accents: Optional[List[float]],
+    ) -> None:
+        """Apply a subtle shared velocity contour per onset group."""
+        if not notes or not motif_accents:
+            return
+
+        notes_by_onset: Dict[int, List[NoteEvent]] = {}
+        for note in notes:
+            notes_by_onset.setdefault(note.start_tick, []).append(note)
+
+        for idx, onset_tick in enumerate(sorted(notes_by_onset.keys())):
+            accent = motif_accents[idx % len(motif_accents)]
+            onset_notes = notes_by_onset[onset_tick]
+            onset_velocity = int(round(
+                sum(note.velocity for note in onset_notes) / max(1, len(onset_notes))
+            ))
+            scaled_velocity = max(1, min(127, int(round(onset_velocity * (0.94 + (0.12 * accent))))))
+            for note in onset_notes:
+                note.velocity = scaled_velocity
+
     def _get_section_complexity(self, arrangement: Arrangement, section: SongSection, genre: str) -> float:
         """Derive a 0-1 complexity target from tension + genre defaults."""
         base_by_genre = {
@@ -2094,10 +2155,31 @@ class MidiGenerator:
         track.append(Message('program_change', program=38, channel=1, time=0))
         
         all_notes = []
+        normalized_genre = normalize_genre(parsed.genre or '')
+        is_ethiopian_genre = normalized_genre in [
+            'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'
+        ]
+        section_counters: Dict[str, int] = {}
         
         for section in arrangement.sections:
+            section_type = section.section_type.value
+            section_counters[section_type] = section_counters.get(section_type, 0) + 1
+            section_name = f"{section_type}_{section_counters[section_type]}"
+
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.90, 1.12)
+            section_motif_accents = None
+            if is_ethiopian_genre and getattr(arrangement, 'motifs', None) and getattr(arrangement, 'motif_assignments', None):
+                try:
+                    section_motif = get_section_motif(arrangement, section_name)
+                    if section_motif is not None and getattr(section_motif, 'accent_pattern', None):
+                        section_motif_accents = [
+                            max(0.0, min(1.0, float(accent)))
+                            for accent in section_motif.accent_pattern
+                        ]
+                except Exception:
+                    section_motif_accents = None
+
             if section.config.enable_bass:
                 # Strategy delegation (Wave 2) — try genre strategy first
                 _strategy_bass: List[NoteEvent] = []
@@ -2107,6 +2189,10 @@ class MidiGenerator:
                 except Exception:
                     _strategy_bass = []
                 if _strategy_bass:
+                    if section_motif_accents:
+                        for idx, note in enumerate(_strategy_bass):
+                            accent = section_motif_accents[idx % len(section_motif_accents)]
+                            note.velocity = max(1, min(127, int(round(note.velocity * (0.94 + (0.12 * accent))))))
                     all_notes.extend(_strategy_bass)
                     continue  # strategy handled this section
                 # Fallback: existing inline bass generation
@@ -2131,7 +2217,10 @@ class MidiGenerator:
                         genre=parsed.genre
                     )
                 
-                for tick, dur, pitch, vel in bass_pattern:
+                for idx, (tick, dur, pitch, vel) in enumerate(bass_pattern):
+                    if section_motif_accents:
+                        accent = section_motif_accents[idx % len(section_motif_accents)]
+                        vel = max(1, min(127, int(round(vel * (0.94 + (0.12 * accent))))))
                     all_notes.append(NoteEvent(
                         pitch=pitch,
                         start_tick=section.start_tick + tick,
@@ -2273,6 +2362,8 @@ class MidiGenerator:
             # Track section occurrences for variation (Sprint 6)
             _st = section.section_type.value if hasattr(section.section_type, 'value') else str(section.section_type)
             _chord_section_counts[_st] = _chord_section_counts.get(_st, 0) + 1
+            section_name = f"{_st}_{_chord_section_counts[_st]}"
+            section_motif_accents = self._get_normalized_section_motif_accents(arrangement, section_name)
 
             # Apply voicing policy if available (Sprint 5)
             if hasattr(self, '_voicing_policy') and self._voicing_policy:
@@ -2288,6 +2379,7 @@ class MidiGenerator:
                 except Exception:
                     _strategy_chords = []
                 if _strategy_chords:
+                    self._apply_motif_velocity_contour_to_onsets(_strategy_chords, section_motif_accents)
                     all_notes.extend(_strategy_chords)
                     continue  # strategy handled this section
                 # Fallback: existing inline chord generation
@@ -2322,14 +2414,17 @@ class MidiGenerator:
                 # Apply section variation for repeated sections (Sprint 6)
                 chord_pattern = self._apply_section_variation(chord_pattern, _st, _chord_section_counts[_st])
 
+                section_notes = []
                 for tick, dur, pitch, vel in chord_pattern:
-                    all_notes.append(NoteEvent(
+                    section_notes.append(NoteEvent(
                         pitch=pitch,
                         start_tick=section.start_tick + tick,
                         duration_ticks=dur,
                         velocity=vel,
                         channel=2
                     ))
+                self._apply_motif_velocity_contour_to_onsets(section_notes, section_motif_accents)
+                all_notes.extend(section_notes)
         
         # Apply dynamics shaping (Sprint 6)
         if _HAS_DYNAMICS and all_notes:
@@ -2869,19 +2964,15 @@ class MidiGenerator:
         section_counters: Dict[str, int] = {}
 
         for section in arrangement.sections:
+            st = section.section_type.value
+            section_counters[st] = section_counters.get(st, 0) + 1
+            section_name = f"{st}_{section_counters[st]}"
+
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.90, 1.12)
             density_mult = self._tension_multiplier(tension, 0.85, 1.15)
             complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
-            if section.config.enable_melody and section.section_type in [
-                SectionType.CHORUS, SectionType.DROP, SectionType.VARIATION
-            ]:
-                # Section name convention matches arranger.generate_arrangement_with_motifs:
-                # "chorus_1", "drop_1", etc.
-                st = section.section_type.value
-                section_counters[st] = section_counters.get(st, 0) + 1
-                section_name = f"{st}_{section_counters[st]}"
-
+            if section.config.enable_melody:
                 motif = None
                 if getattr(arrangement, 'motifs', None) and getattr(arrangement, 'motif_assignments', None):
                     try:
