@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "When onset-density mismatches are explicit but only mute_drums is a proven deterministic sink, reuse that sink narrowly for current-target drum-light contexts instead of inventing generic density controls",
+        "context": "Milestone 3 Slice 4 closed another analyzer-to-repair gap by mapping only too-high onset_density issues with parsed high bounds <= 2.0 into mute_drums, preserving truthfulness and deduplication while avoiding unsupported score-plan density transport.",
+        "timestamp": "2026-04-03T05:50:00Z"
+      },
+      {
+        "pattern": "When the analyzer already emits a high-density rhythmic issue but only mute_drums is a proven deterministic downstream sink, prefer a narrow drum-light escalation reuse slice over inventing generic density controls",
+        "context": "Milestone 3 Slice 4 preparation identified onset-density-to-mute_drums escalation as the next truthful reuse step because producer mute_drums repair, deterministic retry routing, and adapter avoid_drums persistence are already proven, while generic density/activation transport is not yet an end-to-end deterministic repair path.",
+        "timestamp": "2026-04-03T05:35:00Z"
+      },
+      {
         "pattern": "Directional rendered-audio EQ repair stays safe when the analyzer emits explicit brightness direction and the producer only mutates mastering intent for those explicit cases",
         "context": "Milestone 3 Slice 3 kept generic adjust_eq guidance-only, but allowed deterministic EQ repair once centroid-driven analyzer detail explicitly said too bright/top-end too hot vs too dark/dull and the producer reused mastering normalization plus clamping for a small brightness/warmth nudge.",
         "timestamp": "2026-04-03T05:12:00Z"
@@ -506,5 +516,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-04-03T05:25:00Z"
+  "last_updated": "2026-04-03T05:50:00Z"
 }

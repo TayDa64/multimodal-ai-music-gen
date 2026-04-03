@@ -234,7 +234,7 @@ Turn motifs from a partially used melody feature into a **composition-wide thema
 
 ## Milestone 2 — Tension Arc as Arrangement Authority
 
-**Status**: IN PROGRESS (slices 1-3 complete)  
+**Status**: IN PROGRESS (slices 1-2 complete)  
 **Priority**: Very high  
 **Risk**: Medium
 
@@ -371,7 +371,7 @@ Promote tension arc from a note-level modifier to a **top-level arrangement and 
 
 ## Milestone 3 — Analyzer-to-Repair Closed Loop
 
-**Status**: IN PROGRESS (slices 1-2 complete)  
+**Status**: IN PROGRESS (slices 1-4 complete)  
 **Priority**: Very high  
 **Risk**: Medium-high
 
@@ -531,6 +531,47 @@ Convert rendered-audio analysis into **actionable regeneration/refinement instru
   - directional EQ repair is intentionally limited to centroid-derived bright/dark inference only; it does not yet attempt broader multi-band spectral repair
   - generic or unparseable `adjust_eq` detail still remains guidance-only by design
   - the next Milestone 3 slice should prefer another explicit, bounded rendered-audio repair lever rather than reopening protocol/regeneration surfaces prematurely
+
+## Preparation Log — Milestone 3 Slice 4 (high onset-density drum-light escalation)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor read-only decomposition + aggregation by supervisor
+- Recommended title: **High onset-density drum-light escalation via existing `mute_drums` repair**
+- Scope chosen: reuse the already-accepted deterministic `mute_drums` repair path by teaching `output_analyzer.py` to emit `mute_drums` when onset density is explicitly too high in contexts where the genre target is drum-light / low-density, while avoiding any generic arrangement-density or protocol expansion
+- Files planned:
+  - `multimodal_gen/output_analyzer.py`
+  - `tests/test_output_analyzer.py`
+- Why this slice:
+  - `output_analyzer.py` already emits structured onset-density issues, but the correction engine does not yet translate them into any concrete repair
+  - producer-side `mute_drums` handling, deterministic retry routing, and adapter-side `avoid_drums` preservation are already implemented and proven end-to-end
+  - this lets the next slice deepen analyzer-to-repair closure without inventing new correction actions or depending on unsupported track-density transport
+- Why nearby alternatives were rejected:
+  - generic onset-density reduction is riskier because track `density` / `activation` are not yet a proven deterministic downstream repair sink
+  - broader timbre swaps beyond piano lack equally explicit analyzer semantics and proven producer mappings
+  - tension-shape rebalance remains under-specified in analyzer outputs and would be less bounded than this reuse slice
+- Guardrails:
+  - no producer, adapter, regeneration, take-selection, or protocol changes unless proof shows they are strictly required
+  - emit `mute_drums` only for explicit too-high onset density in drum-light contexts; do not treat all onset-density mismatches as drum muting
+  - preserve deduplication behavior when other analyzer branches already suggest `mute_drums`
+- Planned proof focus:
+  - high onset-density issue in a drum-light context emits `mute_drums`
+  - low or in-range onset density does not emit `mute_drums`
+  - duplicate drum-muting cues do not create duplicate `mute_drums` corrections
+
+## Execution Log — Milestone 3 Slice 4 (high onset-density drum-light escalation)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + recursive-verifier post-check aggregation by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: extend the analyzer correction engine so explicit too-high onset-density issues escalate into the already-proven `mute_drums` repair path only when the parsed expected high bound indicates a drum-light context (`<= 2.0`), while preserving deduplication and avoiding any producer, adapter, or protocol changes
+- Files changed:
+  - `multimodal_gen/output_analyzer.py`
+  - `tests/test_output_analyzer.py`
+- Tests run:
+  - `python -m pytest tests/test_output_analyzer.py -q`
+- Result: PASS — focused analyzer regressions passed (49/49). Post-verifier confirmed the slice remained behaviorally bounded to onset-density issue translation only, reused the existing deterministic `mute_drums` downstream path truthfully, preserved deduplication, and kept the threshold conservative against current analyzer targets.
+- Follow-up risks:
+  - the `<= 2.0` drum-light cutoff is intentionally conservative for current targets but is still a literal boundary rather than metadata-derived intent
+  - broader over-busy arrangement repair still lacks a proven deterministic downstream density sink and should not be conflated with this narrow drum-light escalation slice
 
 ---
 

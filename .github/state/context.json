@@ -5,6 +5,34 @@
     {
       "path": "multimodal_gen\\output_analyzer.py",
       "action": "modified",
+      "timestamp": "2026-04-03T05:45:00Z",
+      "by_agent": "builder",
+      "changes": "Extended generate_corrections() so explicit too-high onset-density issues in conservative drum-light contexts reuse the existing mute_drums correction path without introducing new correction actions."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-04-03T05:45:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused regressions for onset-density-to-mute_drums escalation, low-density and non-drum-light negative cases, and duplicate mute_drums deduplication."
+    },
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "read",
+      "timestamp": "2026-04-03T05:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected onset-density issue generation and correction handling to select the next truthful analyzer-to-repair reuse slice after directional EQ repair."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "read",
+      "timestamp": "2026-04-03T05:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected current analyzer regression coverage to identify the safest proof boundary for onset-density-to-mute_drums escalation in drum-light contexts."
+    },
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "modified",
       "timestamp": "2026-04-03T05:12:00Z",
       "by_agent": "builder",
       "changes": "Updated centroid-driven adjust_eq correction generation to emit explicit too-bright vs too-dark detail from the existing expected centroid range, while keeping the change bounded to the centroid path."
@@ -601,6 +629,18 @@
   "changes_made": [
     {
       "file": "multimodal_gen\\output_analyzer.py",
+      "description": "Escalated explicit drum-light onset-density overloads into mute_drums repairs",
+      "diff_summary": "generate_corrections() now maps onset_density issues with parsed high bounds <= 2.0 and actual values above that bound into the existing mute_drums correction path, preserving downstream reuse and deduplication.",
+      "timestamp": "2026-04-03T05:45:00Z"
+    },
+    {
+      "file": "tests\\test_output_analyzer.py",
+      "description": "Added focused onset-density repair regressions",
+      "diff_summary": "New analyzer tests cover high drum-light onset-density mute escalation, low-density and high non-drum-light negative cases, and duplicate mute_drums deduplication.",
+      "timestamp": "2026-04-03T05:45:00Z"
+    },
+    {
+      "file": "multimodal_gen\\output_analyzer.py",
       "description": "Emit explicit directional adjust_eq detail for centroid mismatches.",
       "diff_summary": "Centroid-driven corrections now distinguish too bright/top-end too hot from too dark/dull using the existing expected_range field.",
       "timestamp": "2026-04-03T05:12:00Z"
@@ -865,6 +905,20 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Milestone 3 onset-density drum-light escalation",
+      "result": "PASS",
+      "details": "Focused proof passed: python -m pytest tests/test_output_analyzer.py -q => 49 passed, 7 warnings. Final verifier confirmed the slice remained bounded to onset-density correction translation, used a conservative current-target drum-light threshold, and preserved mute_drums deduplication.",
+      "timestamp": "2026-04-03T05:50:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "Milestone 3 analyzer-to-repair slice 4 decomposition",
+      "result": "PASS",
+      "details": "Read-only decomposition selected onset-density-to-mute_drums escalation as the safest next slice because onset-density issues already exist in the analyzer while mute_drums is the only fully proven deterministic downstream sink for an over-dense drum-light mismatch. Generic density reduction, broader timbre swaps, and tension-shape repair were rejected as less truthful under the current transport and analyzer surfaces.",
+      "timestamp": "2026-04-03T05:35:00Z"
+    },
     {
       "type": "post",
       "target": "Milestone 3 directional EQ repair",

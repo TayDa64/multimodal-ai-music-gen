@@ -7,6 +7,35 @@
   },
   "task_queue": [
     {
+      "id": "milestone-3-analyzer-slice-017",
+      "description": "Prepare and implement Milestone 3 Slice 4 as high onset-density drum-light escalation via existing mute_drums repair",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\output_analyzer.py",
+        "tests\\test_output_analyzer.py",
+        "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+      ],
+      "created": "2026-04-03T05:35:00Z",
+      "updated": "2026-04-03T05:50:00Z",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\output_analyzer.py",
+          "tests\\test_output_analyzer.py",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "analyzer_reuse": "generate_corrections() now escalates only explicit too-high onset-density issues in conservative drum-light contexts into the existing mute_drums correction path.",
+          "runtime_safety": "The new branch is limited to onset_density issues whose parsed expected high bound is <= 2.0, avoiding generic density rewrites and reusing the already-proven downstream mute_drums path.",
+          "proofs": "Focused analyzer regressions now cover the positive drum-light case, low-density negative case, high-density non-drum-light negative case, and duplicate mute_drums deduplication.",
+          "milestone_status": "Milestone 3 remains in progress with slices 1-4 complete."
+        },
+        "verification": "PASS - python -m pytest tests/test_output_analyzer.py -q passed (49/49). Final verifier confirmed the slice stayed bounded to onset-density translation, used a conservative current-target drum-light threshold, and preserved mute_drums deduplication."
+      }
+    },
+    {
       "id": "milestone-3-analyzer-slice-016",
       "description": "Prepare and implement Milestone 3 Slice 3 as analyzer-emitted directional EQ repair plus bounded producer mastering mutation",
       "status": "completed",
@@ -157,6 +186,29 @@
     },
   ],
   "completed_tasks": [
+    {
+      "id": "milestone-3-analyzer-slice-017",
+      "description": "Complete Milestone 3 Slice 4 as high onset-density drum-light escalation via existing mute_drums repair",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\output_analyzer.py",
+          "tests\\test_output_analyzer.py",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "analyzer_reuse": "The correction engine now reuses mute_drums for explicit too-high onset-density issues only in conservative drum-light contexts, closing another analyzer-to-repair gap without introducing new correction actions.",
+          "runtime_safety": "The slice avoids unsupported density transport by reusing the already-proven mute_drums path and limiting the trigger to parsed onset-density high bounds <= 2.0.",
+          "regressions": "Focused tests prove the positive drum-light case, low-density negative case, high-density non-drum-light negative case, and duplicate mute_drums deduplication.",
+          "milestone_status": "Milestone 3 remains in progress with slices 1-4 complete."
+        },
+        "verification": "PASS - python -m pytest tests/test_output_analyzer.py -q passed (49/49). Final verifier confirmed the slice remained bounded and truthful under current analyzer targets."
+      },
+      "created": "2026-04-03T05:35:00Z",
+      "updated": "2026-04-03T05:50:00Z"
+    },
     {
       "id": "milestone-3-analyzer-slice-016",
       "description": "Complete Milestone 3 Slice 3 as analyzer-emitted directional EQ repair plus bounded producer mastering mutation",
@@ -661,12 +713,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-04-03T05:25:00Z",
-    "total_tasks_completed": 69,
+    "last_updated": "2026-04-03T05:50:00Z",
+    "total_tasks_completed": 70,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "Milestone 3 Slice 4 — prepare the next explicit rendered-audio repair lever after directional EQ"
+    "next_phase": "Milestone 3 — reassess remaining deterministic repair levers before advancing to Milestone 4"
   },
   "sprint_11": {
     "status": "COMPLETE",

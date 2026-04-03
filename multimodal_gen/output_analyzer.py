@@ -853,6 +853,7 @@ def generate_corrections(
 ) -> List[CorrectionSuggestion]:
     """Map analysis issues to actionable corrections."""
     corrections: List[CorrectionSuggestion] = []
+    DRUM_LIGHT_ONSET_DENSITY_MAX = 2.0
 
     def _parse_expected_range(range_text: str) -> Optional[Tuple[float, float]]:
         if not range_text:
@@ -877,6 +878,24 @@ def generate_corrections(
                     priority=0,
                 )
             )
+
+        elif issue.metric_name == "onset_density":
+            expected_range = _parse_expected_range(issue.expected_range)
+            if expected_range is not None:
+                _, hi = expected_range
+                if (
+                    issue.actual_value > hi
+                    and hi <= DRUM_LIGHT_ONSET_DENSITY_MAX
+                ):
+                    corrections.append(
+                        CorrectionSuggestion(
+                            action="mute_drums",
+                            target="drums",
+                            detail="Onset density is too high for a drum-light render. "
+                            "Mute drum tracks and re-render.",
+                            priority=0,
+                        )
+                    )
 
         elif issue.category == "timbre" and "synthetic" in issue.message:
             corrections.append(

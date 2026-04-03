@@ -417,6 +417,79 @@ class TestCorrectionEngine:
         assert "too dark" in detail or "dull" in detail
         assert "increase brightness" in detail
 
+    def test_high_onset_density_in_drum_light_context_generates_mute_drums(self):
+        issues = [
+            AnalysisIssue(
+                severity="info",
+                category="rhythm",
+                message="Onset density 3.50 outside expected 0.0–2.0 for ambient",
+                metric_name="onset_density",
+                actual_value=3.5,
+                expected_range="0.0-2.0",
+            )
+        ]
+
+        corrections = generate_corrections(issues)
+
+        assert any(
+            c.action == "mute_drums" and c.target == "drums"
+            for c in corrections
+        )
+
+    def test_low_onset_density_does_not_generate_mute_drums(self):
+        issues = [
+            AnalysisIssue(
+                severity="info",
+                category="rhythm",
+                message="Onset density 0.20 outside expected 1.2–4.0 for neo_soul",
+                metric_name="onset_density",
+                actual_value=0.2,
+                expected_range="1.2-4.0",
+            )
+        ]
+
+        corrections = generate_corrections(issues)
+
+        assert not any(c.action == "mute_drums" for c in corrections)
+
+    def test_high_onset_density_in_non_drum_light_context_does_not_generate_mute_drums(self):
+        issues = [
+            AnalysisIssue(
+                severity="info",
+                category="rhythm",
+                message="Onset density 5.20 outside expected 1.2–4.0 for neo_soul",
+                metric_name="onset_density",
+                actual_value=5.2,
+                expected_range="1.2-4.0",
+            )
+        ]
+
+        corrections = generate_corrections(issues)
+
+        assert not any(c.action == "mute_drums" for c in corrections)
+
+    def test_duplicate_drum_muting_cues_still_dedupe_to_one_correction(self):
+        issues = [
+            AnalysisIssue(
+                severity="error",
+                category="drums",
+                message="Drum presence 0.35 exceeds max 0.10 for classical",
+            ),
+            AnalysisIssue(
+                severity="info",
+                category="rhythm",
+                message="Onset density 3.50 outside expected 0.0–2.0 for ambient",
+                metric_name="onset_density",
+                actual_value=3.5,
+                expected_range="0.0-2.0",
+            ),
+        ]
+
+        corrections = generate_corrections(issues)
+        mute_corrections = [c for c in corrections if c.action == "mute_drums"]
+
+        assert len(mute_corrections) == 1
+
     def test_no_duplicate_corrections(self):
         issues = [
             AnalysisIssue(
