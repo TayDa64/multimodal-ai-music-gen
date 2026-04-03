@@ -234,7 +234,7 @@ Turn motifs from a partially used melody feature into a **composition-wide thema
 
 ## Milestone 2 — Tension Arc as Arrangement Authority
 
-**Status**: QUEUED  
+**Status**: IN PROGRESS (slices 1-3 complete)  
 **Priority**: Very high  
 **Risk**: Medium
 
@@ -263,15 +263,115 @@ Promote tension arc from a note-level modifier to a **top-level arrangement and 
 - Existing tension tests remain green
 
 ### Verification checklist
-- [ ] Tension arc tests pass
-- [ ] Arrangement output shows section-aware tension-driven differences
-- [ ] Existing runtime remains fail-open if no arc exists
+- [x] Tension arc tests pass
+- [x] Arrangement output shows section-aware tension-driven differences
+- [x] Existing runtime remains fail-open if no arc exists
+
+### Slice 1 completed
+- Added explicit-arc-aware section gating for auxiliary orchestration layers in `multimodal_gen/midi_generator.py`
+- Secondary orchestral chord layers (`Brass` / `Choir`) now enter more strongly in moderate/high-tension sections and thin or skip low-tension sections when a real tension arc is present
+- `Texture` sections now favor low/mid-tension space, reduce to a sparser layer in mid tension, and suppress at high tension when a real tension arc is present
+- Preserved existing fail-open behavior by leaving baseline auxiliary generation unchanged when `arrangement.tension_arc` is missing or unusable
+- Added focused regressions proving higher tension increases auxiliary Brass/Choir activity, higher tension reduces Texture activity, and missing arcs fail open
+
+### Remaining work inside Milestone 2
+- Extend tension authority beyond auxiliary layer presence into safer section-level density / register / orchestration shaping on additional existing surfaces
+- Slice 3 should now target the next bounded tension-authority surface beyond auxiliary gating and primary chord register center, without broadening into arranger construction-order refactors
+
+### Slice 2 prepared
+- Recommended title: **Milestone 2 Slice 2 — Explicit-Arc-Aware Primary Chord Register Shaping**
+- Chosen because `_create_chord_track()` already centralizes section tension, complexity, motif accent reuse, and main harmonic-bed rendering, giving strong audible ROI with a single concentrated code surface
+- Safer than transition rewiring because transition authority is currently drum-boundary-focused and would require broader API changes
+- Safer than arranger-side section-config authority because arranger config currently precedes tension-arc creation and would require a wider construction-order refactor
+- Planned implementation boundary:
+  - modify `multimodal_gen/midi_generator.py`
+  - add focused regressions in `tests/test_tension_arc_integration.py`
+  - preserve fail-open behavior when no usable explicit tension arc exists
+  - keep changes limited to a deterministic primary chord register-center lift in higher-tension sections
+  - do **not** rewrite progression choice, harmony quality, note density, rhythm, timing, durations, bass, melody, motifs, transitions, or arranger templates
+- Planned verification set:
+  - `pytest tests/test_tension_arc.py -q`
+  - `pytest tests/test_tension_arc_integration.py -q`
+  - `pytest tests/test_motif_melody_integration.py -q`
+  - `pytest tests/test_sprint6_wiring.py -q`
+  - `pytest tests/test_sprint8_batch_c.py -q`
+  - combined subset run across the same files
+
+### Slice 2 completed
+- Added explicit-arc-aware primary chord register shaping in `multimodal_gen/midi_generator.py`
+- The primary `Chords` track now lifts by a deterministic section-wide octave in high-tension sections when a usable explicit tension arc exists
+- The lift applies to both chord paths inside `_create_chord_track()`:
+  - strategy-returned chord notes
+  - fallback inline chord generation
+- Missing or unusable explicit arcs fail open and do not trigger the new register lift
+- The lift is conservative: if a section-wide shift would not fit the chord instrument range cleanly, that section remains at the baseline register instead of being per-note clamped or distorted
+- Added focused regressions proving direct primary chord register lift, fail-open behavior for missing/unusable arcs, and strategy-path coverage
+
+## Execution Log — Milestone 2 Slice 1 (tension-controlled auxiliary layer orchestration)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + orchestration by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: use existing section tension values to add explicit-arc-aware gating for auxiliary orchestration layers only; keep changes bounded to secondary chord tracks (`Brass`/`Choir`) and the `Texture` track; preserve fail-open behavior and existing velocity scaling
+- Files changed:
+  - `multimodal_gen/midi_generator.py`
+  - `tests/test_tension_arc_integration.py`
+- Tests run:
+  - `pytest tests/test_tension_arc_integration.py -q`
+  - `pytest tests/test_motif_melody_integration.py -q`
+  - `pytest tests/test_sprint6_wiring.py -q`
+  - `pytest tests/test_tension_arc_integration.py tests/test_motif_melody_integration.py tests/test_sprint6_wiring.py -q`
+- Result: PASS — 20 focused tests passed combined; verifier confirmed the slice stayed bounded to auxiliary-layer orchestration, tied new gating only to explicit usable tension arcs, and preserved fail-open baseline behavior when no arc exists
+- Follow-up risks:
+  - Explicit malformed-but-present arc objects rely on the helper’s usability checks rather than dedicated regression fixtures
+  - This slice intentionally avoids primary chord, bass, melody, and arrangement-template authority changes, so further Milestone 2 slices are still needed for stronger top-level orchestration control
+
+## Preparation Log — Milestone 2 Slice 2 (primary chord register authority)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + aggregation by supervisor
+- Scope chosen: explicit-arc-aware register-center shaping on the primary `Chords` track only
+- Files planned:
+  - `multimodal_gen/midi_generator.py`
+  - `tests/test_tension_arc_integration.py`
+- Why this slice:
+  - uses an existing single high-leverage surface (`_create_chord_track`)
+  - increases audible arrangement authority beyond velocity-only shaping
+  - avoids broader arranger construction-order changes and transition API expansion
+- Guardrails:
+  - explicit usable arc required for any new behavior
+  - fail open to the current baseline when no usable arc exists
+  - no progression, density, duration, rhythm, motif, bass, melody, or arranger rewrites
+- Planned proof focus:
+  - high tension with explicit arc raises primary chord register center versus low tension
+  - missing arc preserves current primary chord baseline behavior
+  - adjacent chord-track and wiring regressions remain green
+
+## Execution Log — Milestone 2 Slice 2 (primary chord register authority)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + orchestration by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: primary `Chords` track only; add explicit-arc-aware section-wide register-center lifting in higher-tension sections; preserve fail-open behavior for missing/unusable arcs; avoid harmony, rhythm, duration, density, motif, arranger, transition, bass, melody, and auxiliary-layer rewrites
+- Files changed:
+  - `multimodal_gen/midi_generator.py`
+  - `tests/test_tension_arc_integration.py`
+- Tests run:
+  - `pytest tests/test_tension_arc.py -q`
+  - `pytest tests/test_tension_arc_integration.py -q`
+  - `pytest tests/test_motif_melody_integration.py -q`
+  - `pytest tests/test_sprint6_wiring.py -q`
+  - `pytest tests/test_sprint8_batch_c.py -q`
+  - `pytest tests/test_tension_arc.py tests/test_tension_arc_integration.py tests/test_motif_melody_integration.py tests/test_sprint6_wiring.py tests/test_sprint8_batch_c.py -q`
+- Result: PASS — 92 focused tests passed in the combined subset run; verifier confirmed Slice 2 stayed behaviorally bounded to primary chord register authority, applied only on explicit usable tension arcs, covered both chord paths, and preserved fail-open behavior for missing/unusable arcs
+- Follow-up risks:
+  - The current working tree still contains accepted Slice 1 auxiliary-layer hunks alongside Slice 2, so a future commit should checkpoint both accepted Milestone 2 slices together or be carefully staged
+  - Slice 2 intentionally changes register center only; it does not yet extend tension authority into broader primary-chord density, transition behavior, or arranger-side section authority
 
 ---
 
 ## Milestone 3 — Analyzer-to-Repair Closed Loop
 
-**Status**: QUEUED  
+**Status**: IN PROGRESS (slices 1-2 complete)  
 **Priority**: Very high  
 **Risk**: Medium-high
 
@@ -299,9 +399,138 @@ Convert rendered-audio analysis into **actionable regeneration/refinement instru
 - Existing acceptance gating remains preserved
 
 ### Verification checklist
-- [ ] Output analyzer tests pass
-- [ ] Producer/output-analysis behavior remains regression-safe
-- [ ] At least one repair pathway is covered by focused tests
+- [x] Output analyzer tests pass
+- [x] Producer/output-analysis behavior remains regression-safe
+- [x] At least one repair pathway is covered by focused tests
+
+## Preparation Log — Milestone 3 Slice 1 (producer-side correction translation)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + aggregation by supervisor
+- Scope chosen: translate structured `outputAnalysis.corrections` into concrete producer score-plan mutations, then prove those mutations survive the MUSE score-plan adaptation bridge
+- Files planned:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-output-analysis-repair.js`
+  - `multimodal_gen/score_plan_adapter.py` (only if downstream proof required it)
+  - `tests/test_score_plan_adapter.py` (only if downstream proof required it)
+- Why this slice:
+  - `multimodal_gen/output_analyzer.py` already contained a real correction engine
+  - the missing link was producer consumption of `outputAnalysis.corrections`
+  - the safest initial slice was to reuse existing correction semantics before attempting broader regeneration/take-selection rewiring
+- Guardrails:
+  - preserve existing acceptance-gating semantics
+  - keep the slice bounded to repair translation and downstream adapter proof
+  - prefer proven downstream levers over cosmetic plan hints
+  - keep `adjust_eq` conservative unless the correction direction is explicit
+- Planned proof focus:
+  - producer repair translations mutate score plans concretely for `mute_drums`, `swap_instrument`, and `adjust_dynamics`
+  - `_passesAudioValidation(...)` behavior remains unchanged
+  - adapter-side exclusions actually remove avoided drums/instruments after track adaptation
+
+## Execution Log — Milestone 3 Slice 1 (producer correction translation + downstream exclusion bridge)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + orchestration by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: producer-side translation of structured output-analysis corrections into concrete score-plan mutations for `mute_drums`, `swap_instrument -> piano`, and `adjust_dynamics`; preserve conservative `adjust_eq` guidance-only behavior; then re-apply adapter exclusions after track-derived instrument/drum overrides so those repair levers become effective downstream
+- Files changed:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-output-analysis-repair.js`
+  - `multimodal_gen/score_plan_adapter.py`
+  - `tests/test_score_plan_adapter.py`
+- Tests run:
+  - `node scripts/test-output-analysis-repair.js`
+  - `python -m pytest tests/test_output_analyzer.py tests/test_score_plan_adapter.py -q`
+- Result: PASS — producer repair proofs passed (5/5) and analyzer/adapter regressions passed (49/49). Post-verifier confirmed the slice stayed bounded, made the translated repair levers effective downstream through `score_plan_to_parsed_prompt(...)`, and preserved the existing critic/audio acceptance-gating semantics.
+- Follow-up risks:
+  - `adjust_eq` is still conservative guidance-only by design, so deterministic EQ repair remains a later slice
+  - the slice improved repair specificity and downstream leverage but did not yet add targeted retry routing
+
+## Preparation Log — Milestone 3 Slice 2 (deterministic structured-repair retry routing)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + aggregation by supervisor
+- Scope chosen: route the next retry deterministically through the already-accepted structured repair delta when output-analysis corrections are actionable and critics are otherwise green
+- Files planned:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-output-analysis-repair.js`
+- Why this slice:
+  - `builder.regenerateSection(...)` exists, but the current JSON-RPC request builder does not actually carry section/original-task semantics through the Copilot path yet
+  - take generation is real, but take-selection is not yet safe enough on the JSON-RPC/render path for the first Slice 2
+  - producer-side deterministic retry routing uses already-proven correction semantics without inventing broader protocol layers
+- Guardrails:
+  - preserve `_passesAudioValidation(...)` and critic-gate bypass behavior exactly
+  - keep the slice producer-only
+  - use the deterministic retry fast path only when structured corrections are actionable and critic metrics do not also require broader refinement
+  - preserve the broader `_refineScorePlan(...)` path in all other cases
+- Planned proof focus:
+  - actionable structured correction + critics passed uses deterministic retry routing
+  - no actionable corrections preserves the broader refinement path
+  - failed critic metrics preserve the broader refinement path even when structured corrections exist
+
+## Execution Log — Milestone 3 Slice 2 (deterministic structured-repair retry routing)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + orchestration by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: replace the retry-loop's unconditional broader refinement call with a bounded chooser that directly reuses the concretely mutated heuristic plan when output-analysis corrections are actionable (`mute_drums`, `swap_instrument -> piano`, `adjust_dynamics`) and no critic metrics failed; otherwise preserve the existing broader `_refineScorePlan(...)` path
+- Files changed:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-output-analysis-repair.js`
+- Tests run:
+  - `node scripts/test-output-analysis-repair.js`
+- Result: PASS — focused producer repair/routing proofs passed (8/8). Post-verifier confirmed the slice stayed bounded to the producer/test surfaces, made retry routing more specific in a real way, preserved the broader refine path when critics or missing corrections require it, and left acceptance/audio gating semantics unchanged.
+- Follow-up risks:
+  - true section-specific regeneration is still only an apparent surface on the Copilot JSON-RPC path and should not be treated as wired yet
+  - take generation exists, but take-selection remains unsafe as a first producer slice until the JSON-RPC/render path can prove per-take selection semantics
+  - `adjust_eq` remains guidance-only until correction detail can be translated into a safe directional plan mutation
+
+## Preparation Log — Milestone 3 Slice 3 (directional EQ repair)
+- Date: 2026-04-03
+- Supervisor: recursive-verifier pre-check + aggregation by supervisor
+- Recommended title: **Directional EQ repair: analyzer-emitted brightness direction + bounded producer mastering mutation**
+- Scope chosen: enrich `adjust_eq` corrections so they explicitly say whether the render is too bright or too dark, then let producer apply a small clamped mastering mutation to `brightness_target` (and only a conservative paired warmth move if the direction is explicit)
+- Files planned:
+  - `multimodal_gen/output_analyzer.py`
+  - `tests/test_output_analyzer.py`
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-output-analysis-repair.js`
+- Why this slice:
+  - downstream plumbing already exists: mastering `brightness_target` / `warmth_target` survive the score-plan path and are consumed at runtime
+  - the current blocker is upstream correction detail, not transport/runtime wiring
+  - current `adjust_eq` corrections are intentionally non-directional (`"Apply corrective EQ"`), so producer-only deterministic EQ mutation would still be guessing
+- Why alternatives were rejected:
+  - producer-only EQ mutation would duplicate Python target-threshold logic in JS or infer direction from generic failure state, both of which would drift and violate the bounded-slice rule
+  - using current correction detail strings without enriching them is unsafe because they do not distinguish too bright vs too dark
+  - section regeneration / take-selection remain riskier and not yet truthfully wired on the Copilot JSON-RPC path
+- Guardrails:
+  - no protocol, adapter, regeneration, or take-selection changes
+  - keep the slice centered on centroid-driven brightness direction only; do not broaden into generic multi-band EQ synthesis
+  - `adjust_eq` must remain guidance-only when direction is not explicit
+  - clamp any mastering mutation within the existing schema-safe `[0,1]` range
+- Planned proof focus:
+  - analyzer emits explicit directional `adjust_eq` detail for high-centroid and low-centroid issues
+  - producer lowers `brightness_target` for "too bright" and raises it for "too dark" using small bounded deltas
+  - non-directional `adjust_eq` remains guidance-only
+  - deterministic retry routing may include directional `adjust_eq` only when critics are otherwise green
+
+## Execution Log — Milestone 3 Slice 3 (directional EQ repair)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor orchestration + recursive-verifier post-check aggregation by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: enrich centroid-driven `adjust_eq` corrections so they explicitly distinguish too-bright versus too-dark renders, then let producer consume only that explicit direction as a small clamped mastering-intent mutation (`brightness_target` plus a conservative paired `warmth_target` counter-move) while preserving non-directional `adjust_eq` as guidance-only and keeping deterministic retry routing gated on clean critic metrics
+- Files changed:
+  - `multimodal_gen/output_analyzer.py`
+  - `tests/test_output_analyzer.py`
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-output-analysis-repair.js`
+- Tests run:
+  - `python -m pytest tests/test_output_analyzer.py -q`
+  - `node scripts/test-output-analysis-repair.js`
+- Result: PASS — focused analyzer regressions passed (45/45) and focused producer repair/routing proofs passed (11/11). Post-verifier confirmed the slice remained bounded to centroid-direction EQ repair only, kept non-directional `adjust_eq` guidance-only, made deterministic retry routing include directional EQ only when critic metrics are otherwise green, and preserved the existing acceptance/audio gating semantics.
+- Follow-up risks:
+  - directional EQ repair is intentionally limited to centroid-derived bright/dark inference only; it does not yet attempt broader multi-band spectral repair
+  - generic or unparseable `adjust_eq` detail still remains guidance-only by design
+  - the next Milestone 3 slice should prefer another explicit, bounded rendered-audio repair lever rather than reopening protocol/regeneration surfaces prematurely
 
 ---
 

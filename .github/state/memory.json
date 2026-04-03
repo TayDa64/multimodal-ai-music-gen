@@ -3,6 +3,46 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Directional rendered-audio EQ repair stays safe when the analyzer emits explicit brightness direction and the producer only mutates mastering intent for those explicit cases",
+        "context": "Milestone 3 Slice 3 kept generic adjust_eq guidance-only, but allowed deterministic EQ repair once centroid-driven analyzer detail explicitly said too bright/top-end too hot vs too dark/dull and the producer reused mastering normalization plus clamping for a small brightness/warmth nudge.",
+        "timestamp": "2026-04-03T05:12:00Z"
+      },
+      {
+        "pattern": "For deterministic EQ repair, enrich analyzer correction detail with explicit too-bright vs too-dark direction before mutating producer mastering intent",
+        "context": "The Milestone 3 Slice 3 pre-verifier showed the downstream brightness/warmth plumbing already exists, but producer-only EQ mutation would still be guessing because current adjust_eq corrections only say 'Apply corrective EQ.' The safe slice is analyzer detail first, then a small clamped producer mastering mutation.",
+        "timestamp": "2026-04-03T04:45:00Z"
+      },
+      {
+        "pattern": "When structured output-analysis corrections are actionable and critic metrics are otherwise green, prefer a deterministic producer retry on the concretely mutated heuristic plan before invoking broader LLM refinement",
+        "context": "Milestone 3 Slice 2 proved that producer retries can become materially more specific without protocol expansion by directly reusing the accepted Slice 1 repair delta for mute_drums, swap_instrument -> piano, and adjust_dynamics, while preserving the broader refinement path whenever critics still fail or no actionable corrections exist.",
+        "timestamp": "2026-04-03T04:20:00Z"
+      },
+      {
+        "pattern": "When score-plan exclusions are assigned after track adaptation, re-apply them immediately in the adapter or producer-side repair levers will be schema-valid but inert downstream",
+        "context": "Milestone 3 Slice 1 initially translated output-analysis corrections into concrete score-plan avoid lists, but verifier inspection showed those exclusions were being assigned after ParsedPrompt.__post_init__(). Re-filtering adapted instruments/drums inside score_plan_to_parsed_prompt() made mute_drums and avoid_instruments repairs effective end-to-end without broadening acceptance gates.",
+        "timestamp": "2026-04-03T03:20:00Z"
+      },
+      {
+        "pattern": "Use explicit-arc-only section-wide octave lifts on the primary chord bed before attempting broader chord-density or arranger refactors",
+        "context": "Milestone 2 Slice 2 proved tension authority can audibly reshape the main harmonic bed by lifting the primary chord register center in high-tension sections, while preserving fail-open behavior, strategy/fallback chord compatibility, and harmony/rhythm stability.",
+        "timestamp": "2026-04-03T02:35:00Z"
+      },
+      {
+        "pattern": "After auxiliary-layer gating, deepen tension authority on the primary chord bed through register-center control before broader arrangement refactors",
+        "context": "Slice 2 preparation showed `_create_chord_track()` is the highest-ROI next surface because it already concentrates tension, complexity, motif reuse, and harmonic rendering. A small explicit-arc-only octave-center lift gives audible arrangement authority without touching harmony, density, bass, melody, or arranger construction order.",
+        "timestamp": "2026-04-03T01:15:00Z"
+      },
+      {
+        "pattern": "Promote tension authority first on auxiliary layers before touching primary harmony or melody paths",
+        "context": "Milestone 2 Slice 1 succeeded by using existing section tension values to control auxiliary Brass/Choir entrances and Texture sparsity without destabilizing primary chord, bass, melody, or arrangement-template behavior.",
+        "timestamp": "2026-04-03T00:35:00Z"
+      },
+      {
+        "pattern": "Commit immediately at milestone boundaries before starting the next orchestration wave",
+        "context": "After Milestone 1 completed, creating git commit 811c256 before Milestone 2 eliminated stacked-diff ambiguity for verifiers and gave the next slice a clean baseline.",
+        "timestamp": "2026-04-02T02:40:00Z"
+      },
+      {
         "pattern": "For harmonic-track thematic reuse, contour shared chord onsets before attempting rhythm or voicing rewrites",
         "context": "Milestone 1 Slice 3 proved motif identity can safely influence the primary chord track by reusing accent patterns as subtle onset-group velocity contours across both strategy and fallback chord paths, without changing harmony, timing, or arrangement defaults.",
         "timestamp": "2026-04-02T02:20:00Z"
@@ -228,6 +268,30 @@
   },
   "decisions": [
     {
+      "decision": "For Milestone 2 Slice 2, implement a deterministic whole-section octave lift on the primary chord bed only when a usable explicit tension arc exists",
+      "rationale": "A section-wide register-center lift produced audible harmonic-bed escalation with a single concentrated runtime change and avoided broader progression, density, or arrangement-template refactors. Requiring the whole shifted section to fit the instrument range preserved voicing integrity and fail-open safety.",
+      "alternatives_considered": ["Rewrite chord density or complexity from tension in the same slice", "Use per-note clamping after register lift", "Refactor arranger section configs before proving primary chord runtime authority"],
+      "timestamp": "2026-04-03T02:35:00Z"
+    },
+    {
+      "decision": "Prepare Milestone 2 Slice 2 around explicit-arc-aware primary chord register shaping instead of transition rewiring or arranger-side section-config authority",
+      "rationale": "The primary chord track is a single high-leverage runtime surface that already consumes section tension, complexity, and motif accent reuse, so a small register-center policy can increase orchestration authority audibly without broadening into harmony rewrites or arrangement-construction refactors.",
+      "alternatives_considered": ["Make transitions tension-authoritative next", "Refactor arranger section config after arc creation", "Broaden Slice 2 across multiple track generators at once"],
+      "timestamp": "2026-04-03T01:15:00Z"
+    },
+    {
+      "decision": "For Milestone 2 Slice 1, gate auxiliary Brass/Choir and Texture only when an explicit usable tension arc exists",
+      "rationale": "This gave tension arc audible section-level authority over orchestration density while preserving fail-open baseline behavior for arrangements that lack a real tension arc. Applying new gating to fallback tension values would have silently changed existing no-arc songs.",
+      "alternatives_considered": ["Gate all auxiliary layers on the fallback 0.5 tension value", "Change primary chord generation first", "Rewrite arrangement templates before proving runtime auxiliary gating"],
+      "timestamp": "2026-04-03T00:35:00Z"
+    },
+    {
+      "decision": "Start Milestone 2 with tension-controlled auxiliary layer orchestration instead of core harmony or motif rewrites",
+      "rationale": "A first slice that gates texture and secondary orchestral layers from existing tension-arc signals increases arrangement authority audibly while keeping risk lower than changing primary chord, bass, melody, or harmonic-generation paths.",
+      "alternatives_considered": ["Rewrite primary chord voicing and register from tension curves immediately", "Inject tension authority into motif logic first", "Broaden Milestone 2 Slice 1 across all track generators at once"],
+      "timestamp": "2026-04-02T02:40:00Z"
+    },
+    {
       "decision": "Close Milestone 1 after three bounded slices and move next to Milestone 2 tension-authority work",
       "rationale": "The three-slice motif wave now covers genre-specific fallback depth, wider section participation, repeated-section alignment, Ethiopian-family depth, bass-side expressive reuse, and conservative chord-track reuse with focused proof. Additional motif changes would now have lower ROI and higher regression risk than promoting the tension arc to stronger arrangement authority.",
       "alternatives_considered": ["Add a fourth Milestone 1 slice for countermelody generation", "Propagate motif intervals directly into chord voicings before tension work", "Keep Milestone 1 open indefinitely for incremental thematic polish"],
@@ -442,5 +506,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-04-02T02:20:00Z"
+  "last_updated": "2026-04-03T05:25:00Z"
 }

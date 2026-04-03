@@ -109,8 +109,14 @@ def score_plan_to_parsed_prompt(plan: Dict[str, Any], parser: Optional[PromptPar
         avoid_drums = constraints.get("avoid_drums") or []
         if avoid_insts:
             parsed.excluded_instruments = [str(i) for i in avoid_insts]
+            parsed.instruments = [
+                instrument for instrument in parsed.instruments if instrument not in parsed.excluded_instruments
+            ]
         if avoid_drums:
             parsed.excluded_drums = [str(d) for d in avoid_drums]
+            parsed.drum_elements = [
+                drum for drum in parsed.drum_elements if drum not in parsed.excluded_drums
+            ]
 
     return parsed
 

@@ -386,17 +386,36 @@ class TestCorrectionEngine:
         corrections = generate_corrections(issues)
         assert any(c.action == "swap_instrument" for c in corrections)
 
-    def test_centroid_issue_generates_eq_correction(self):
+    def test_high_centroid_issue_generates_directional_eq_correction(self):
         issues = [
             AnalysisIssue(
                 severity="warning",
                 category="genre",
                 message="Spectral centroid 5000 Hz outside expected 600–2500 Hz",
                 actual_value=5000.0,
+                expected_range="600-2500",
             )
         ]
         corrections = generate_corrections(issues)
-        assert any(c.action == "adjust_eq" for c in corrections)
+        eq_correction = next(c for c in corrections if c.action == "adjust_eq")
+        assert "too bright" in eq_correction.detail.lower()
+        assert "reduce brightness" in eq_correction.detail.lower()
+
+    def test_low_centroid_issue_generates_directional_eq_correction(self):
+        issues = [
+            AnalysisIssue(
+                severity="warning",
+                category="genre",
+                message="Spectral centroid 400 Hz outside expected 900–3200 Hz",
+                actual_value=400.0,
+                expected_range="900-3200",
+            )
+        ]
+        corrections = generate_corrections(issues)
+        eq_correction = next(c for c in corrections if c.action == "adjust_eq")
+        detail = eq_correction.detail.lower()
+        assert "too dark" in detail or "dull" in detail
+        assert "increase brightness" in detail
 
     def test_no_duplicate_corrections(self):
         issues = [

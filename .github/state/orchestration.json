@@ -7,6 +7,38 @@
   },
   "task_queue": [
     {
+      "id": "milestone-3-analyzer-slice-016",
+      "description": "Prepare and implement Milestone 3 Slice 3 as analyzer-emitted directional EQ repair plus bounded producer mastering mutation",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\output_analyzer.py",
+        "tests\\test_output_analyzer.py",
+        "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+        "..\\copilot-Liku-cli\\scripts\\test-output-analysis-repair.js",
+        "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+      ],
+      "created": "2026-04-03T04:45:00Z",
+      "updated": "2026-04-03T05:12:00Z",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\output_analyzer.py",
+          "tests\\test_output_analyzer.py",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\scripts\\test-output-analysis-repair.js"
+        ],
+        "changes": {
+          "analyzer_directionality": "generate_corrections() now emits explicit too-bright vs too-dark adjust_eq detail for centroid-range mismatches only.",
+          "producer_directional_eq": "ProducerAgent now treats adjust_eq as actionable only when correction detail is explicitly directional, then applies a small clamped brightness/warmth mastering mutation via existing mastering normalization.",
+          "retry_routing": "Deterministic structured-repair retry now includes directional adjust_eq only when critic metrics are otherwise green, while non-directional adjust_eq remains guidance-only.",
+          "proofs": "Focused Python and JS regressions cover high/low centroid directionality, conservative mastering mutation, non-directional no-op EQ, and deterministic retry routing."
+        },
+        "verification": "PASS - pytest MUSE/tests/test_output_analyzer.py -q (45 passed) and node copilot-Liku-cli/scripts/test-output-analysis-repair.js (11 passed)."
+      }
+    },
+    {
       "id": "mc-001",
       "description": "Implement True Peak Limiter with ISP Detection",
       "status": "completed",
@@ -122,9 +154,144 @@
       "note": "Exists but [UNREFERENCED] — future spatial audio feature",
       "created": "2026-01-17T00:00:00Z",
       "updated": "2026-02-13T00:00:00Z"
-    }
+    },
   ],
   "completed_tasks": [
+    {
+      "id": "milestone-3-analyzer-slice-016",
+      "description": "Complete Milestone 3 Slice 3 as analyzer-emitted directional EQ repair plus bounded producer mastering mutation",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\output_analyzer.py",
+          "tests\\test_output_analyzer.py",
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\scripts\\test-output-analysis-repair.js",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "analyzer_directionality": "generate_corrections() now emits explicit too-bright vs too-dark adjust_eq detail for centroid-range mismatches only.",
+          "producer_directional_eq": "ProducerAgent now treats adjust_eq as actionable only when correction detail is explicitly directional, then applies a small clamped brightness/warmth mastering mutation via existing mastering normalization.",
+          "retry_routing": "Deterministic structured-repair retry now includes directional adjust_eq only when critic metrics are otherwise green, while non-directional adjust_eq remains guidance-only.",
+          "milestone_status": "Milestone 3 remains in progress with slices 1-3 complete."
+        },
+        "verification": "PASS - python -m pytest tests/test_output_analyzer.py -q passed (45/45) and node scripts/test-output-analysis-repair.js passed (11/11). Final verifier confirmed the slice stayed bounded to centroid-direction EQ repair only, avoided blind EQ mutation, preserved retry and acceptance/audio gating semantics, and kept non-directional adjust_eq guidance-only."
+      },
+      "created": "2026-04-03T05:12:00Z",
+      "updated": "2026-04-03T05:25:00Z"
+    },
+    {
+      "id": "milestone-3-analyzer-slice-015",
+      "description": "Complete Milestone 3 Slice 2 by routing actionable structured output-analysis repairs through a deterministic producer retry path",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\scripts\\test-output-analysis-repair.js",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "retry_routing": "Producer retry selection now prefers a deterministic structured-repair retry when output-analysis corrections are actionable and critic metrics are otherwise green, instead of always broadening immediately into the LLM refinement path.",
+          "runtime_safety": "The deterministic fast path is intentionally narrow and preserves the existing broader _refineScorePlan() path whenever corrections are missing/non-actionable or critic metrics also failed; acceptance/audio gating semantics remained unchanged.",
+          "regressions": "Extended the focused JS repair proof script to cover deterministic retry routing, broader-refinement fallback with no corrections, and broader-refinement fallback when critic metrics still fail.",
+          "milestone_status": "Milestone 3 remains in progress with slices 1-2 complete."
+        },
+        "verification": "PASS - node scripts/test-output-analysis-repair.js passed (8/8). Final verifier confirmed the slice remained bounded to producer/test surfaces, made retry routing more specific in a real way, preserved the broader refinement path when needed, and left acceptance/audio gating semantics intact."
+      },
+      "created": "2026-04-03T04:20:00Z",
+      "updated": "2026-04-03T04:20:00Z"
+    },
+    {
+      "id": "milestone-3-analyzer-slice-014",
+      "description": "Complete Milestone 3 Slice 1 by translating output-analysis corrections into concrete producer score-plan repairs and reapplying adapted exclusions downstream",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\scripts\\test-output-analysis-repair.js",
+          "multimodal_gen\\score_plan_adapter.py",
+          "tests\\test_score_plan_adapter.py",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "producer_repairs": "ProducerAgent now translates structured output-analysis corrections into concrete score-plan mutations for mute_drums, swap_instrument -> piano, and adjust_dynamics while keeping adjust_eq conservative guidance-only.",
+          "downstream_bridge": "score_plan_to_parsed_prompt() now re-applies avoid_instruments and avoid_drums after track-derived adaptation so producer-written repair exclusions become effective downstream instead of remaining schema-valid but inert.",
+          "runtime_safety": "_passesAudioValidation() and critic-gate bypass semantics stayed unchanged; the slice only deepens repair specificity and downstream leverage.",
+          "regressions": "Added focused JS producer repair proofs plus Python adapter regressions proving avoided drum/instrument exclusions are re-applied after track adaptation.",
+          "milestone_status": "Milestone 3 is now in progress with slices 1-2 complete."
+        },
+        "verification": "PASS - node scripts/test-output-analysis-repair.js passed (5/5) and python -m pytest tests/test_output_analyzer.py tests/test_score_plan_adapter.py -q passed (49/49). Final verifier confirmed the slice remained bounded, made translated repair levers effective downstream, and preserved acceptance-gating behavior."
+      },
+      "created": "2026-04-03T03:20:00Z",
+      "updated": "2026-04-03T03:20:00Z"
+    },
+    {
+      "id": "milestone-2-tension-slice-013",
+      "description": "Complete Milestone 2 Slice 2 as explicit-arc-aware primary chord register shaping",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\midi_generator.py",
+          "tests\\test_tension_arc_integration.py",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "orchestration_authority": "Added explicit-arc-aware section-wide register lifting on the primary `Chords` track so higher-tension sections can move the main harmonic bed upward by a deterministic octave without changing harmony or density.",
+          "runtime_safety": "The new register lift applies only when a usable explicit tension arc exists and only when the full shifted section fits the chord instrument range cleanly; missing or unusable arcs remain fail-open at the baseline register.",
+          "path_coverage": "The register lift is applied on both strategy-returned chords and fallback inline chord generation inside `_create_chord_track()`.",
+          "regressions": "Added focused tests proving direct register lift, fail-open behavior for missing/unusable arcs, and strategy-path coverage; all targeted adjacent chord/tension regressions remained green.",
+          "milestone_status": "Milestone 2 remains in progress with slices 1-2 complete."
+        },
+        "verification": "PASS - focused pytest subset passed (59 + 10 + 6 + 7 + 10 individual tests, 92 combined) and post-verifier inspection confirmed the slice remained bounded to primary chord register authority without changing harmony, rhythm, density, motif logic, arranger templates, bass, melody, transitions, or auxiliary layers."
+      },
+      "created": "2026-04-03T02:35:00Z",
+      "updated": "2026-04-03T02:35:00Z"
+    },
+    {
+      "id": "milestone-2-tension-slice-012",
+      "description": "Complete Milestone 2 Slice 1 as tension-controlled auxiliary layer orchestration",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "multimodal_gen\\midi_generator.py",
+          "tests\\test_tension_arc_integration.py",
+          "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+        ],
+        "changes": {
+          "orchestration_authority": "Added explicit-arc-aware section gating so secondary Brass/Choir layers enter more strongly in moderate/high tension and Texture sections thin or suppress as tension rises.",
+          "runtime_safety": "New gating applies only when a real usable tension arc exists, preserving fail-open baseline behavior for arrangements with missing or unusable arcs.",
+          "regressions": "Added focused tests proving auxiliary Brass/Choir activity rises with high tension, Texture activity falls with high tension, and missing arcs still allow baseline auxiliary generation.",
+          "milestone_status": "Milestone 2 is now in progress with Slice 1 complete."
+        },
+        "verification": "PASS - focused pytest subset passed (7 + 6 + 7 individual tests, 20 combined) and post-verifier inspection confirmed the slice remained bounded to auxiliary-layer orchestration without touching primary chord, bass, melody, motif, or arranger behavior."
+      },
+      "created": "2026-04-03T00:35:00Z",
+      "updated": "2026-04-03T00:35:00Z"
+    },
+    {
+      "id": "milestone-1-checkpoint-012",
+      "description": "Commit the completed Milestone 1 musicality wave before starting Milestone 2",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "result": {
+        "commit": "811c256",
+        "message": "feat(musicality): complete milestone 1 motif development",
+        "verification": "PASS - only the intended Milestone 1 files were staged, the commit was created successfully, and git status was clean afterward."
+      },
+      "created": "2026-04-02T02:35:00Z",
+      "updated": "2026-04-02T02:35:00Z"
+    },
     {
       "id": "milestone-1-motif-slice-011",
       "description": "Complete Milestone 1 Slice 3 by extending motif reuse into the primary chord track with a low-risk expressive contour hook",
@@ -494,12 +661,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-04-02T02:20:00Z",
-    "total_tasks_completed": 63,
+    "last_updated": "2026-04-03T05:25:00Z",
+    "total_tasks_completed": 69,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "Milestone 2 — Tension Arc as Arrangement Authority"
+    "next_phase": "Milestone 3 Slice 4 — prepare the next explicit rendered-audio repair lever after directional EQ"
   },
   "sprint_11": {
     "status": "COMPLETE",

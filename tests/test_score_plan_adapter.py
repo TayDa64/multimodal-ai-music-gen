@@ -52,6 +52,28 @@ def test_score_plan_overrides_parsed_prompt():
     assert parsed.warmth == 0.7
 
 
+def test_score_plan_reapplies_avoided_drums_after_track_adaptation():
+    plan = _sample_plan()
+    plan["tracks"] = [{"role": "drums", "instrument": "snare"}]
+    plan["constraints"] = {"avoid_drums": ["snare"]}
+
+    parsed = score_plan_to_parsed_prompt(plan)
+
+    assert "snare" in parsed.excluded_drums
+    assert "snare" not in parsed.drum_elements
+
+
+def test_score_plan_reapplies_avoided_instruments_after_track_adaptation():
+    plan = _sample_plan()
+    plan["tracks"] = [{"role": "strings", "instrument": "brass"}]
+    plan["constraints"] = {"avoid_instruments": ["brass"]}
+
+    parsed = score_plan_to_parsed_prompt(plan)
+
+    assert "brass" in parsed.excluded_instruments
+    assert "brass" not in parsed.instruments
+
+
 def test_score_plan_builds_performance_score():
     plan = _sample_plan()
     score = score_plan_to_performance_score(plan)

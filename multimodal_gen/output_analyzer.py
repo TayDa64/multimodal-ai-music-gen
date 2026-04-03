@@ -854,6 +854,18 @@ def generate_corrections(
     """Map analysis issues to actionable corrections."""
     corrections: List[CorrectionSuggestion] = []
 
+    def _parse_expected_range(range_text: str) -> Optional[Tuple[float, float]]:
+        if not range_text:
+            return None
+        try:
+            normalized = range_text.replace("–", "-")
+            if "-" not in normalized:
+                return None
+            lo_text, hi_text = normalized.split("-", 1)
+            return float(lo_text), float(hi_text)
+        except (TypeError, ValueError):
+            return None
+
     for issue in issues:
         if issue.category == "drums" and "exceeds" in issue.message:
             corrections.append(
@@ -879,12 +891,32 @@ def generate_corrections(
 
         elif issue.category == "genre" and "centroid" in issue.message.lower():
             if issue.actual_value > 0 and "outside" in issue.message:
+                detail = (
+                    f"Spectral centroid at {issue.actual_value:.0f} Hz "
+                    f"is outside genre range. Apply corrective EQ."
+                )
+                expected_range = _parse_expected_range(issue.expected_range)
+                if expected_range is not None:
+                    lo, hi = expected_range
+                    if issue.actual_value > hi:
+                        detail = (
+                            f"Spectral centroid at {issue.actual_value:.0f} Hz "
+                            f"is above genre range ({lo:.0f}-{hi:.0f} Hz): "
+                            "render is too bright / top-end too hot. "
+                            "Reduce brightness with gentle high-end EQ."
+                        )
+                    elif issue.actual_value < lo:
+                        detail = (
+                            f"Spectral centroid at {issue.actual_value:.0f} Hz "
+                            f"is below genre range ({lo:.0f}-{hi:.0f} Hz): "
+                            "render is too dark / dull. "
+                            "Increase brightness with gentle presence/air EQ."
+                        )
                 corrections.append(
                     CorrectionSuggestion(
                         action="adjust_eq",
                         target="master",
-                        detail=f"Spectral centroid at {issue.actual_value:.0f} Hz "
-                        f"is outside genre range. Apply corrective EQ.",
+                        detail=detail,
                         priority=2,
                     )
                 )

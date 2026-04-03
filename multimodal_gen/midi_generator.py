@@ -1693,6 +1693,96 @@ class MidiGenerator:
             _midi_logger.debug("tension value lookup failed: %s", _e)
             return 0.5
 
+    def _has_explicit_tension_arc(self, arrangement: Arrangement) -> bool:
+        """Return True only when the arrangement carries a usable explicit tension arc."""
+        arc = getattr(arrangement, "tension_arc", None)
+        if arc is None or getattr(arrangement, "total_ticks", 0) <= 0:
+            return False
+
+        points = getattr(arc, "points", None)
+        if not points:
+            return False
+
+        try:
+            return any(
+                math.isfinite(float(getattr(point, "tension")))
+                for point in points
+                if getattr(point, "tension", None) is not None
+            )
+        except Exception:
+            return False
+
+    def _get_primary_chord_register_lift(
+        self,
+        has_explicit_tension_arc: bool,
+        tension: float,
+    ) -> int:
+        """Return a deterministic section-wide register lift for higher-tension chord beds."""
+        if not has_explicit_tension_arc:
+            return 0
+        return 12 if tension >= 0.72 else 0
+
+    def _apply_section_register_lift(
+        self,
+        notes: List[NoteEvent],
+        instrument: str,
+        lift_semitones: int,
+    ) -> None:
+        """Apply a whole-section lift only when every note fits cleanly in-range."""
+        if lift_semitones == 0 or not notes:
+            return
+
+        lifted_pitches = [note.pitch + lift_semitones for note in notes]
+        if any(clamp_to_range(pitch, instrument) != pitch for pitch in lifted_pitches):
+            return
+
+        for note in notes:
+            note.pitch += lift_semitones
+
+    def _filter_pattern_onsets_by_stride(
+        self,
+        pattern: List[Tuple[int, int, int, int]],
+        onset_stride: int,
+    ) -> List[Tuple[int, int, int, int]]:
+        """Thin a note pattern by onset group while preserving emitted chord voicings."""
+        if onset_stride <= 1 or not pattern:
+            return pattern
+
+        onset_indices: Dict[int, int] = {}
+        filtered: List[Tuple[int, int, int, int]] = []
+        for tick, dur, pitch, vel in pattern:
+            onset_index = onset_indices.setdefault(tick, len(onset_indices))
+            if onset_index % onset_stride == 0:
+                filtered.append((tick, dur, pitch, vel))
+        return filtered
+
+    def _get_auxiliary_chord_onset_stride(
+        self,
+        section: SongSection,
+        tension: float,
+    ) -> int:
+        """Map section tension to a conservative auxiliary-layer emission density."""
+        if tension >= 0.60:
+            return 1
+
+        if tension >= 0.40:
+            if section.section_type in (SectionType.INTRO, SectionType.BREAKDOWN, SectionType.OUTRO):
+                return 0
+            if section.section_type in (SectionType.VERSE, SectionType.BRIDGE):
+                return 2
+            return 1
+
+        if section.section_type in (
+            SectionType.PRE_CHORUS,
+            SectionType.CHORUS,
+            SectionType.BUILDUP,
+            SectionType.VARIATION,
+            SectionType.DROP,
+        ):
+            return 2
+
+        return 0
+
     def _get_normalized_section_motif_accents(
         self,
         arrangement: Arrangement,
@@ -2354,10 +2444,16 @@ class MidiGenerator:
             rhythm_style = 'block'
 
         _chord_section_counts: Dict[str, int] = {}
+        has_explicit_tension_arc = self._has_explicit_tension_arc(arrangement)
         for section in arrangement.sections:
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
             complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
+            _chord_inst = (resolved_instrument or 'rhodes').lower()
+            register_lift = self._get_primary_chord_register_lift(
+                has_explicit_tension_arc,
+                tension,
+            )
 
             # Track section occurrences for variation (Sprint 6)
             _st = section.section_type.value if hasattr(section.section_type, 'value') else str(section.section_type)
@@ -2379,13 +2475,12 @@ class MidiGenerator:
                 except Exception:
                     _strategy_chords = []
                 if _strategy_chords:
+                    self._apply_section_register_lift(_strategy_chords, _chord_inst, register_lift)
                     self._apply_motif_velocity_contour_to_onsets(_strategy_chords, section_motif_accents)
                     all_notes.extend(_strategy_chords)
                     continue  # strategy handled this section
                 # Fallback: existing inline chord generation
-                # Use instrument-aware chord octave
-                _chord_inst = (resolved_instrument or 'rhodes').lower()
-                
+
                 # Score Plan: if chord_map is present, convert to scale-degree progression
                 _sp_progression = None
                 if getattr(arrangement, 'chord_map', None):
@@ -2423,6 +2518,7 @@ class MidiGenerator:
                         velocity=vel,
                         channel=2
                     ))
+                self._apply_section_register_lift(section_notes, _chord_inst, register_lift)
                 self._apply_motif_velocity_contour_to_onsets(section_notes, section_motif_accents)
                 all_notes.extend(section_notes)
         
@@ -2743,15 +2839,22 @@ class MidiGenerator:
         track.append(Message('program_change', program=program, channel=channel, time=0))
 
         all_notes = []
+        has_explicit_tension_arc = self._has_explicit_tension_arc(arrangement)
         for section in arrangement.sections:
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.85, 1.15)
 
-            # Only play in higher-energy sections
-            if section.section_type in (
-                SectionType.INTRO, SectionType.OUTRO
-            ) and tension < 0.4:
-                continue
+            if has_explicit_tension_arc:
+                onset_stride = self._get_auxiliary_chord_onset_stride(section, tension)
+                if onset_stride <= 0:
+                    continue
+            else:
+                onset_stride = 1
+                # Preserve the established fail-open baseline when no usable arc exists.
+                if section.section_type in (
+                    SectionType.INTRO, SectionType.OUTRO
+                ) and tension < 0.4:
+                    continue
 
             chord_pattern = generate_chord_progression_midi(
                 section.bars,
@@ -2765,6 +2868,9 @@ class MidiGenerator:
                 genre=parsed.genre,
                 section_type=section.section_type.value,
             )
+            if has_explicit_tension_arc:
+                chord_pattern = self._filter_pattern_onsets_by_stride(chord_pattern, onset_stride)
+
             for tick, dur, pitch, vel in chord_pattern:
                 all_notes.append(NoteEvent(
                     pitch=pitch,
@@ -3138,6 +3244,7 @@ class MidiGenerator:
         track.append(Message('program_change', program=89, channel=4, time=0))  # Pad 2 (warm)
 
         all_notes: List[NoteEvent] = []
+        has_explicit_tension_arc = self._has_explicit_tension_arc(arrangement)
         for section in arrangement.sections:
             if not section.config.enable_textures:
                 continue
@@ -3151,6 +3258,13 @@ class MidiGenerator:
             root_pitch = note_name_to_midi(parsed.key, 4)
             fifth_pitch = max(0, min(127, root_pitch + 7))
 
+            if has_explicit_tension_arc and tension >= 0.72:
+                continue
+
+            include_support_tone = True
+            if has_explicit_tension_arc and tension >= 0.52:
+                include_support_tone = False
+
             all_notes.append(NoteEvent(
                 pitch=root_pitch,
                 start_tick=section.start_tick,
@@ -3158,13 +3272,14 @@ class MidiGenerator:
                 velocity=base_vel,
                 channel=4,
             ))
-            all_notes.append(NoteEvent(
-                pitch=fifth_pitch,
-                start_tick=section.start_tick + TICKS_PER_BEAT * 2,
-                duration_ticks=max(1, section_ticks - TICKS_PER_BEAT * 2),
-                velocity=max(1, base_vel - 6),
-                channel=4,
-            ))
+            if include_support_tone:
+                all_notes.append(NoteEvent(
+                    pitch=fifth_pitch,
+                    start_tick=section.start_tick + TICKS_PER_BEAT * 2,
+                    duration_ticks=max(1, section_ticks - TICKS_PER_BEAT * 2),
+                    velocity=max(1, base_vel - 6),
+                    channel=4,
+                ))
 
         self._notes_to_track(all_notes, track, channel=4, groove_template=groove_template)
         return track
