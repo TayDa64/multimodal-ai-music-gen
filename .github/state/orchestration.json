@@ -7,6 +7,192 @@
   },
   "task_queue": [
     {
+      "id": "smoke-runtime-hardening-025",
+      "description": "Harden smoke-test runtime with explicit duration control and persisted Step 5 render diagnostics",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "main.py",
+        "multimodal_gen\\audio_renderer.py",
+        "tests\\test_render_report_schema.py",
+        "tests\\test_main_render_diagnostics.py",
+        "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+      ],
+      "created": "2026-04-04T10:40:00Z",
+      "updated": "2026-04-04T11:05:00Z",
+      "result": {
+        "runtime_fix": "Added a generation CLI flag (--duration-bars) that forwards into the existing run_generation duration_bars path so smoke tests can be bounded explicitly instead of relying on prompt phrasing.",
+        "diagnostics": "AudioRenderer now captures additive render_status failure metadata (success/current_stage/failure reason/exception/traceback), and main.py persists both *_render_report.json and *_render_error.txt on Step 5 no-audio or exception paths.",
+        "verification": "PASS - recursive-verifier confirmed bounded scope and backward-compatible additive report fields; .\\.venv\\Scripts\\python.exe -m pytest tests/test_render_report_schema.py tests/test_main_render_diagnostics.py -ra -vv passed 5/5; get_errors reported no issues in touched tests/audio_renderer and only a pre-existing unresolved import warning in main.py for multimodal_gen.instrument_index."
+      }
+    },
+    {
+      "id": "workspace-python-terminal-fix-024",
+      "description": "Disable Python extension terminal auto-activation for this workspace",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "MEDIUM",
+      "files_to_modify": [
+        "..\\.vscode\\settings.json"
+      ],
+      "created": "2026-04-04T09:45:00Z",
+      "updated": "2026-04-04T09:50:00Z",
+      "result": {
+        "workspace_fix": "Added python.terminal.activateEnvironment=false to .vscode/settings.json.",
+        "expected_effect": "New terminals should stop automatically running .venv\\Scripts\\Activate.ps1; previously restored terminals may still reflect earlier session state until closed/reopened.",
+        "verification": "get_errors reported no issues in ../.vscode/settings.json."
+      }
+    },
+    {
+      "id": "terminal-venv-activation-023",
+      "description": "Investigate why terminals reopen with the Python .venv activated after VS Code restart",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "MEDIUM",
+      "files_to_modify": [
+        "..\\.vscode\\settings.json"
+      ],
+      "created": "2026-04-04T09:30:00Z",
+      "updated": "2026-04-04T09:35:00Z",
+      "result": {
+        "finding": "No repo-local workspace setting was found that auto-runs Activate.ps1 on terminal open.",
+        "most_likely_source": "VS Code Python extension terminal environment activation and/or terminal session restore.",
+        "evidence": "terminal_last_command returned '& c:\\dev\\MUSE-ai\\MUSE\\.venv\\Scripts\\Activate.ps1', while workspace search found no matching startup hook settings in the repo."
+      }
+    },
+    {
+      "id": "workspace-cmake-safe-fix-022",
+      "description": "Apply a safe workspace-only fix to stop stale CMake/cpptools startup churn without altering JUCE project files",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "..\\.vscode\\settings.json",
+        "..\\.vscode\\c_cpp_properties.json"
+      ],
+      "created": "2026-04-04T08:50:00Z",
+      "updated": "2026-04-04T09:00:00Z",
+      "result": {
+        "workspace_fix": "Removed the stale cmake.sourceDirectory setting, added cmake.configureOnOpen=false, and replaced dead old-repo C/C++ include paths with current-workspace JUCE source/build paths.",
+        "safety": "No JUCE CMakeLists, package.json build scripts, or runtime files were modified.",
+        "verification": "get_errors reported no issues in ../.vscode/settings.json and ../.vscode/c_cpp_properties.json."
+      }
+    },
+    {
+      "id": "workspace-cmake-kit-prompt-021",
+      "description": "Investigate the VS Code 'Scan for a kit/compiler' prompt on workspace open and identify whether it originates from repo configuration",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "..\\.vscode\\settings.json",
+        "..\\.vscode\\c_cpp_properties.json",
+        "juce\\CMakeLists.txt"
+      ],
+      "created": "2026-04-04T08:20:00Z",
+      "updated": "2026-04-04T08:40:00Z",
+      "result": {
+        "root_cause": "The workspace contains a stale VS Code CMake Tools setting that points cmake.sourceDirectory at an old absolute path outside the current repo, which likely triggers CMake Tools startup and the 'Scan for a kit/compiler' prompt.",
+        "secondary_causes": [
+          "The workspace c_cpp_properties.json also points at removed multimodal-ai-music-gen paths and a hard-coded C:/JUCE/modules path.",
+          "The JUCE build folder contains a machine-specific CMake cache with absolute tool paths that can exacerbate reconfigure/toolchain discovery churn."
+        ],
+        "classification": "Workspace/extension configuration bug rather than a Python/Node/MUSE runtime bug.",
+        "recommended_resolution": [
+          "Remove or correct ../.vscode/settings.json cmake.sourceDirectory to ${workspaceFolder}/MUSE/juce or delete it if CMake Tools is not needed on workspace open.",
+          "Optionally disable CMake Tools for this workspace or set configure-on-open off.",
+          "Clean up stale IntelliSense paths in ../.vscode/c_cpp_properties.json and optionally delete MUSE/juce/build local cache."
+        ]
+      }
+    },
+    {
+      "id": "milestone-4-smoke-plan-020",
+      "description": "Define a pre-implementation three-prompt end-to-end smoke-test plan to run before Milestone 4 Slice 2",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+      ],
+      "created": "2026-04-04T00:20:00Z",
+      "updated": "2026-04-04T00:25:00Z",
+      "result": {
+        "plan": {
+          "scope": "A bounded 3-prompt smoke pass was defined to validate prompt-only generation, reference-backed harmonic reuse, and a pre-Slice-2 groove baseline before changing timing transport.",
+          "artifacts": "The plan uses fixed-seed full generations written to output/_smoke with verbose logging and inspection of generated wav/mid/render-report artifacts.",
+          "reference_candidates": [
+            "output/neo_soul_88bpm_Dminor_20260318_120935.wav",
+            "output/lofi_75.0bpm_Aminor_20260121_093316.wav"
+          ],
+          "next_action": "Run the three smoke commands, review artifacts, then proceed to Milestone 4 Slice 2 if the baseline and fail-open behavior hold."
+        }
+      }
+    },
+    {
+      "id": "milestone-4-reference-slice-019",
+      "description": "Prepare Milestone 4 Slice 2 as reference groove swing seeding via the existing ParsedPrompt timing path",
+      "status": "pending",
+      "assigned_to": "supervisor",
+      "phase": "decompose",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+        "docs\\muse-specs\\schemas\\score_plan.v1.schema.json",
+        "multimodal_gen\\score_plan_adapter.py",
+        "tests\\test_score_plan_adapter.py",
+        "..\\copilot-Liku-cli\\scripts\\test-reference-groove-seeding.js",
+        "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+      ],
+      "created": "2026-04-03T06:55:00Z",
+      "updated": "2026-04-04T00:25:00Z",
+      "result": {
+        "planned_changes": {
+          "producer_reuse": "Seed a minimal timing.swing_amount field from reference groove data only when the plan does not already define it.",
+          "transport_boundary": "Carry timing.swing_amount through the score-plan schema and adapter into ParsedPrompt.use_swing / swing_amount using the existing timing path.",
+          "bounded_scope": "Limit Slice 2 to swing reuse only and explicitly defer timing_humanization, humanization_profile, groove_template, contour reuse, and section-level timing semantics.",
+          "proof_plan": "Focused JS producer proofs plus adapter transport proofs, including authoritative explicit zero, fail-open handling, and confirmation that the adapted swing value reaches an existing downstream timing sink.",
+          "precondition": "Run the documented three-prompt smoke pass first so Prompt A/B/C artifacts can establish a pre-Slice-2 baseline for prompt health, harmonic reference reuse, and groove comparison."
+        }
+      }
+    },
+    {
+      "id": "milestone-4-reference-slice-018",
+      "description": "Prepare Milestone 4 Slice 1 as reference chord progression seeding via the existing chord_map path",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+        "..\\copilot-Liku-cli\\scripts\\test-reference-chord-seeding.js",
+        "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md"
+      ],
+      "created": "2026-04-03T06:05:00Z",
+      "updated": "2026-04-03T06:35:00Z",
+      "result": {
+        "readiness": "READY_FOR_M4",
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\scripts\\test-reference-chord-seeding.js"
+        ],
+        "changes": {
+          "producer_reuse": "ProducerAgent now seeds score-plan chord_map from referenceProfile.raw.chords when a created or refined plan does not already define chord_map and the reference timing/chord data is usable.",
+          "bounded_conversion": "Reference chord events are converted conservatively from start_time to plan bars using reference BPM/time signature, filtered by confidence and plan range, and collapsed to one deterministic chord per bar.",
+          "authority_and_fail_open": "Existing chord_map presence remains authoritative and the helper returns plans unchanged for malformed, sparse, low-confidence, or timing-unusable reference data.",
+          "proofs": "Focused producer reference-chord tests cover seeding, preserve-existing behavior, malformed/sparse fail-open handling, duplicate same-bar collapse, out-of-range dropping, and create/refine wiring."
+        }
+        ,
+        "verification": "PASS - node copilot-Liku-cli/scripts/test-reference-chord-seeding.js (8 passed, 0 failed); get_errors on producer.js and test-reference-chord-seeding.js returned no errors; post-verifier confirmed the slice remained producer-only and truthful via the existing chord_map runtime path."
+      }
+    },
+    {
       "id": "milestone-3-analyzer-slice-017",
       "description": "Prepare and implement Milestone 3 Slice 4 as high onset-density drum-light escalation via existing mute_drums repair",
       "status": "completed",
@@ -183,9 +369,28 @@
       "note": "Exists but [UNREFERENCED] — future spatial audio feature",
       "created": "2026-01-17T00:00:00Z",
       "updated": "2026-02-13T00:00:00Z"
-    },
+    }
   ],
   "completed_tasks": [
+    {
+      "id": "milestone-4-reference-slice-018",
+      "description": "Complete Milestone 4 Slice 1 as reference chord progression seeding via the existing chord_map path",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "result": {
+        "files_modified": [
+          "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+          "..\\copilot-Liku-cli\\scripts\\test-reference-chord-seeding.js"
+        ],
+        "changes": {
+          "producer_reuse": "Added producer-local chord_map seeding from referenceProfile.raw.chords in both create and refine plan paths.",
+          "bounded_conversion": "Mapped reference chord start times into arrangement bars using conservative BPM/time-signature conversion, confidence filtering, range checks, and one deterministic winner per bar.",
+          "safety": "Kept existing chord_map presence authoritative and failed open for malformed, sparse, low-confidence, or timing-unusable reference inputs."
+        },
+        "verification": "PASS - node copilot-Liku-cli/scripts/test-reference-chord-seeding.js (8 passed, 0 failed). Post-verifier confirmed no protocol/runtime expansion was introduced."
+      }
+    },
     {
       "id": "milestone-3-analyzer-slice-017",
       "description": "Complete Milestone 3 Slice 4 as high onset-density drum-light escalation via existing mute_drums repair",
@@ -713,12 +918,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-04-03T05:50:00Z",
-    "total_tasks_completed": 70,
+    "last_updated": "2026-04-03T06:55:00Z",
+    "total_tasks_completed": 71,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "Milestone 3 — reassess remaining deterministic repair levers before advancing to Milestone 4"
+    "next_phase": "Milestone 4 Slice 2 — reference groove swing seeding via existing ParsedPrompt timing path"
   },
   "sprint_11": {
     "status": "COMPLETE",
@@ -816,14 +1021,6 @@
         "9.8_render_report_diagnostics": "COMPLETE — _build_render_report gains production_preset, mix_policy, genre_normalized sections"
       },
       "test_count": "969 passed (+13 new tests)"
-    }
-  },
-  "sprint_8": {
-    "status": "BATCH_A_COMPLETE",
-    "test_baseline": "899 passed, 0 failed, 4 skipped",
-    "tasks": {
-      "8.1_sidechain_ducking_wiring": "COMPLETE — apply_sidechain_ducking wired into _render_procedural for bass tracks when genre in {trap,drill,house,edm,hip_hop,phonk}",
-      "8.2_track_processor_per_stem": "COMPLETE — TrackProcessor imported with _HAS_TRACK_PROCESSOR guard, instantiated in __init__, wired into per-track loop with genre→preset mapping"
     }
   },
   "sprint_8": {

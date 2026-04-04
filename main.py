@@ -25,8 +25,9 @@ import os
 import shutil
 import re
 import copy
+import traceback
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import random
 import numpy as np
@@ -188,6 +189,124 @@ def print_success(message: str):
         print(f"{Fore.GREEN}✓{Style.RESET_ALL}  {message}")
     except UnicodeEncodeError:
         print(f"{Fore.GREEN}[v]{Style.RESET_ALL}  {message}")
+
+
+def _get_render_failure_details(render_report: Optional[dict]) -> Optional[dict]:
+    """Extract the failure section from a render report if present."""
+    if not isinstance(render_report, dict):
+        return None
+
+    render_status = render_report.get("render_status")
+    if not isinstance(render_status, dict):
+        return None
+
+    failure = render_status.get("failure")
+    return failure if isinstance(failure, dict) else None
+
+
+def _write_render_error_artifact(
+    error_path: Path,
+    render_report: Optional[dict] = None,
+    error: Optional[BaseException] = None,
+) -> bool:
+    """Persist a human-readable render failure summary for troubleshooting."""
+    failure = _get_render_failure_details(render_report)
+    render_status = render_report.get("render_status") if isinstance(render_report, dict) else {}
+    current_stage = render_status.get("current_stage") if isinstance(render_status, dict) else None
+    warnings = render_report.get("warnings") if isinstance(render_report, dict) else None
+
+    lines = [
+        "MUSE render diagnostics",
+        f"generated_at: {datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')}",
+    ]
+
+    if isinstance(render_report, dict):
+        if render_report.get("renderer_path") is not None:
+            lines.append(f"renderer_path: {render_report.get('renderer_path')}")
+        if render_report.get("midi_path"):
+            lines.append(f"midi_path: {render_report.get('midi_path')}")
+        if render_report.get("output_path"):
+            lines.append(f"output_path: {render_report.get('output_path')}")
+
+    if failure:
+        lines.append(f"failure_reason: {failure.get('reason')}")
+        failure_stage = failure.get("stage") or current_stage
+        if failure_stage:
+            lines.append(f"failure_stage: {failure_stage}")
+        if failure.get("exception_type"):
+            lines.append(f"exception_type: {failure.get('exception_type')}")
+        if failure.get("exception_message"):
+            lines.append(f"exception_message: {failure.get('exception_message')}")
+    elif current_stage:
+        lines.append(f"failure_stage: {current_stage}")
+
+    if warnings:
+        lines.append("")
+        lines.append("warnings:")
+        for warning in warnings:
+            lines.append(f"- {warning}")
+
+    report_traceback = failure.get("traceback") if failure else None
+    error_traceback = None
+    if error is not None:
+        lines.append("")
+        lines.append(f"unhandled_exception: {type(error).__name__}: {error}")
+        error_traceback = "".join(traceback.format_exception(type(error), error, error.__traceback__))
+
+    trace_text = report_traceback or error_traceback
+    if trace_text:
+        lines.append("")
+        lines.append("traceback:")
+        lines.append(trace_text.rstrip())
+
+    try:
+        error_path.parent.mkdir(parents=True, exist_ok=True)
+        error_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+
+def _persist_render_diagnostics(
+    renderer,
+    output_dir: Path,
+    project_name: str,
+    *,
+    render_success: Optional[bool] = None,
+    error: Optional[BaseException] = None,
+) -> dict:
+    """Persist render diagnostics artifacts when available."""
+    artifacts = {}
+    render_report = None
+
+    if renderer is not None:
+        try:
+            if hasattr(renderer, "get_last_render_report"):
+                render_report = renderer.get_last_render_report()
+            else:
+                render_report = getattr(renderer, "_last_render_report", None)
+        except Exception:
+            render_report = getattr(renderer, "_last_render_report", None)
+
+        try:
+            render_report_path = output_dir / f"{project_name}_render_report.json"
+            if hasattr(renderer, "write_last_render_report") and renderer.write_last_render_report(str(render_report_path)):
+                artifacts["render_report"] = str(render_report_path)
+        except Exception:
+            pass
+
+    should_write_error = error is not None or render_success is False
+    if not should_write_error and isinstance(render_report, dict):
+        render_status = render_report.get("render_status")
+        if isinstance(render_status, dict):
+            should_write_error = not bool(render_status.get("success", True))
+
+    if should_write_error:
+        error_path = output_dir / f"{project_name}_render_error.txt"
+        if _write_render_error_artifact(error_path, render_report=render_report, error=error):
+            artifacts["render_error"] = str(error_path)
+
+    return artifacts
 
 
 def check_ffmpeg() -> bool:
@@ -1930,18 +2049,28 @@ def run_generation(
             results["audio"] = str(audio_path)
             print_success(f"Audio saved: {audio_path.name}")
         else:
-            if require_soundfont:
+            render_report = renderer.get_last_render_report() if hasattr(renderer, "get_last_render_report") else None
+            render_failure = _get_render_failure_details(render_report)
+            if render_failure:
+                failure_reason = render_failure.get("reason") or "render_failed"
+                failure_stage = render_failure.get("stage") or ((render_report or {}).get("render_status") or {}).get("current_stage")
+                if failure_stage:
+                    print_warning(f"Audio rendering returned no output ({failure_reason} @ {failure_stage})")
+                else:
+                    print_warning(f"Audio rendering returned no output ({failure_reason})")
+            elif require_soundfont:
                 print_warning("Audio rendering returned no output (SoundFont required)")
             else:
                 print_warning("Audio rendering returned no output (FluidSynth may not be available)")
 
-        # Always write a per-generation render report (diagnostics)
-        try:
-            render_report_path = output_dir / f"{project_name}_render_report.json"
-            if renderer.write_last_render_report(str(render_report_path)):
-                results["render_report"] = str(render_report_path)
-        except Exception:
-            pass
+        results.update(
+            _persist_render_diagnostics(
+                renderer,
+                output_dir,
+                project_name,
+                render_success=success,
+            )
+        )
         
         # Export stems if requested
         if export_stems:
@@ -1958,6 +2087,14 @@ def run_generation(
                     session_graph.stems_path = str(stems_dir)
             
     except Exception as e:
+        results.update(
+            _persist_render_diagnostics(
+                renderer,
+                output_dir,
+                project_name,
+                error=e,
+            )
+        )
         print_warning(f"Audio rendering issue: {e}")
         print_info("Audio rendering skipped - MIDI file still available")
 
@@ -2615,6 +2752,11 @@ Server Mode (for JUCE integration):
         type=str,
         help="Override key from prompt (e.g., 'Am', 'C', 'F#m')",
     )
+    parser.add_argument(
+        "--duration-bars",
+        type=int,
+        help="Override target generation length in bars (useful for smoke tests)",
+    )
 
     # Preset system (explicit opt-in)
     parser.add_argument(
@@ -3018,6 +3160,7 @@ Server Mode (for JUCE integration):
             output_dir=output_dir,
             bpm_override=args.bpm,
             key_override=args.key,
+            duration_bars=args.duration_bars,
             reference_url=args.reference,
             export_mpc=args.mpc,
             export_stems=args.stems,

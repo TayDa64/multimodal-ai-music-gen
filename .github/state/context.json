@@ -3,6 +3,202 @@
   "session_id": "session-2026-02-12-sprint75",
   "files_touched": [
     {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "modified",
+      "timestamp": "2026-04-04T11:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Updated the smoke-test plan to use the new explicit --duration-bars 16 override and documented the new Step 5 render diagnostics artifacts plus the recommendation to avoid inline reruns when editor responsiveness is a concern."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-04-04T11:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added --duration-bars CLI wiring plus bounded helpers that persist *_render_report.json and *_render_error.txt artifacts for Step 5 no-audio and exception outcomes."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-04-04T11:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added renderer-owned failure capture and current-stage diagnostics so render reports record additive render_status metadata for no-audio and exception paths."
+    },
+    {
+      "path": "tests\\test_render_report_schema.py",
+      "action": "modified",
+      "timestamp": "2026-04-04T11:00:00Z",
+      "by_agent": "builder",
+      "changes": "Extended render report schema coverage to assert the new additive render_status failure metadata round-trips through JSON persistence."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "created",
+      "timestamp": "2026-04-04T11:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused regressions covering CLI --duration-bars forwarding and persisted Step 5 render diagnostics on renderer exceptions without real audio rendering."
+    },
+    {
+      "path": "..\\.vscode\\settings.json",
+      "action": "modified",
+      "timestamp": "2026-04-04T09:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added python.terminal.activateEnvironment=false so new integrated terminals in this workspace no longer auto-activate the MUSE .venv."
+    },
+    {
+      "path": "..\\.vscode\\settings.json",
+      "action": "read",
+      "timestamp": "2026-04-04T09:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Verified the workspace settings file contains no python terminal activation or terminal startup hook settings that would explain automatic .venv activation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-04-04T09:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Removed the stale duplicate sprint_8 object so orchestration.json now has a single canonical sprint_8 entry."
+    },
+    {
+      "path": "..\\.vscode\\settings.json",
+      "action": "modified",
+      "timestamp": "2026-04-04T09:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Removed the stale cmake.sourceDirectory old-repo pointer and added cmake.configureOnOpen=false so CMake Tools no longer auto-configures the workspace on open."
+    },
+    {
+      "path": "..\\.vscode\\c_cpp_properties.json",
+      "action": "modified",
+      "timestamp": "2026-04-04T09:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Replaced dead multimodal-ai-music-gen include paths and hard-coded C:/JUCE/modules with current-workspace JUCE source/build include paths only."
+    },
+    {
+      "path": "..\\.vscode\\settings.json",
+      "action": "read",
+      "timestamp": "2026-04-04T08:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected workspace-level VS Code settings and found a stale absolute cmake.sourceDirectory pointing to an old repo path outside the current workspace."
+    },
+    {
+      "path": "..\\.vscode\\c_cpp_properties.json",
+      "action": "read",
+      "timestamp": "2026-04-04T08:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected workspace-level C/C++ properties and found stale include paths referencing the removed multimodal-ai-music-gen layout and a hard-coded C:/JUCE/modules path."
+    },
+    {
+      "path": "juce\\CMakeLists.txt",
+      "action": "read",
+      "timestamp": "2026-04-04T08:31:00Z",
+      "by_agent": "supervisor",
+      "changes": "Verified the repo contains a single JUCE CMake project at MUSE/juce, making CMake Tools the likely owner of the startup kit/compiler prompt."
+    },
+    {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "modified",
+      "timestamp": "2026-04-04T00:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added a runnable three-prompt pre-implementation smoke-test plan covering a no-reference control, an already-wired harmonic-reference case, and a pre-Slice-2 groove baseline capture with fixed seed and output/_smoke artifact collection."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-04-04T00:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed smoke-test planning task and made the pending Milestone 4 Slice 2 task explicitly reference the pre-implementation smoke pass as its next precondition."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-04-04T00:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Captured the new pattern and decision to use a fixed-seed three-prompt smoke pass before broadening reference reuse into a new transported sink."
+    },
+    {
+      "path": "README.md",
+      "action": "read",
+      "timestamp": "2026-04-04T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected documented CLI command examples and reference-generation usage so the smoke-test plan could use real supported main.py entrypoints."
+    },
+    {
+      "path": "output",
+      "action": "read",
+      "timestamp": "2026-04-04T00:22:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected existing generated output artifacts and selected concrete local WAV references for the harmonic and groove smoke-test runs."
+    },
+    {
+      "path": "docs\\muse-specs\\schemas\\score_plan.v1.schema.json",
+      "action": "read",
+      "timestamp": "2026-04-03T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected the current score-plan schema and confirmed it has no timing/groove field yet, making schema transport a required part of the next groove swing slice."
+    },
+    {
+      "path": "multimodal_gen\\score_plan_adapter.py",
+      "action": "read",
+      "timestamp": "2026-04-03T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected the adapter to confirm chord/mastering transport exists but score plans do not yet land any timing fields onto ParsedPrompt swing controls."
+    },
+    {
+      "path": "multimodal_gen\\prompt_parser.py",
+      "action": "read",
+      "timestamp": "2026-04-03T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Verified ParsedPrompt already exposes use_swing, swing_amount, timing_humanization, and humanization_profile, which narrows the safest next groove slice to swing reuse through existing parsed timing fields."
+    },
+    {
+      "path": "main.py",
+      "action": "read",
+      "timestamp": "2026-04-03T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Checked current reference merge behavior and confirmed main.py only applies drum_density, trap_hihats, and has_808 from generation_params, leaving reference swing unconsumed today."
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "action": "modified",
+      "timestamp": "2026-04-03T06:30:00Z",
+      "by_agent": "builder",
+      "changes": "Added producer-local reference chord_map seeding helpers and wired them into score-plan creation/refinement so referenceProfile.raw.chords can affect actual harmonic decisions when plans omit chord_map."
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\scripts\\test-reference-chord-seeding.js",
+      "action": "modified",
+      "timestamp": "2026-04-03T06:30:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused producer reference-chord proofs covering seeding, preserve-existing behavior, fail-open cases, duplicate same-bar collapse, out-of-range dropping, and create/refine wiring."
+    },
+    {
+      "path": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "action": "read",
+      "timestamp": "2026-04-03T06:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inspected producer score-plan creation/refinement and schema normalization to confirm chord_map seeding can be added locally without widening protocol or Python runtime surfaces."
+    },
+    {
+      "path": "multimodal_gen\\reference_analyzer.py",
+      "action": "read",
+      "timestamp": "2026-04-03T06:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Verified that reference analysis already exposes structured chord events and that the truthful Slice 1 source is referenceProfile.raw.chords rather than generation_params."
+    },
+    {
+      "path": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "action": "modified",
+      "timestamp": "2026-04-03T06:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Milestone 4 readiness verdict and the recommended first bounded Milestone 4 slice using the existing reference chord_map path."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-04-03T06:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Advanced next-phase metadata from Milestone 3 reassessment to Milestone 4 Slice 1 preparation and queued the chord-map seeding slice." 
+    },
+    {
       "path": "multimodal_gen\\output_analyzer.py",
       "action": "modified",
       "timestamp": "2026-04-03T05:45:00Z",
@@ -628,6 +824,66 @@
   ],
   "changes_made": [
     {
+      "file": "main.py",
+      "description": "Added explicit smoke-duration CLI wiring and persisted render failure artifacts.",
+      "diff_summary": "Exposed --duration-bars on the normal generation CLI path, forwarded it into the existing run_generation duration sink, and added helpers that always persist render_report/render_error artifacts for Step 5 no-audio or exception outcomes.",
+      "timestamp": "2026-04-04T11:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\audio_renderer.py",
+      "description": "Captured renderer-owned failure context and stage metadata.",
+      "diff_summary": "Added additive render_status failure metadata plus lightweight current-stage markers so procedural and exception render failures become inspectable without breaking existing report fields.",
+      "timestamp": "2026-04-04T11:00:00Z"
+    },
+    {
+      "file": "tests\\test_render_report_schema.py",
+      "description": "Expanded render-report schema proof for failure metadata.",
+      "diff_summary": "Added a round-trip regression asserting the new render_status success/current_stage/failure fields persist through write_last_render_report().",
+      "timestamp": "2026-04-04T11:00:00Z"
+    },
+    {
+      "file": "tests\\test_main_render_diagnostics.py",
+      "description": "Added focused runtime hardening regressions.",
+      "diff_summary": "New tests prove CLI --duration-bars forwarding and that Step 5 renderer exceptions still leave behind render_report and render_error artifacts.",
+      "timestamp": "2026-04-04T11:00:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Hardened the smoke plan to use the new explicit duration flag and diagnostic artifacts.",
+      "diff_summary": "Documented the 72-bar prompt-expansion finding, switched the smoke commands to --duration-bars 16, and noted that Step 5 failures now persist render diagnostics outside of server mode.",
+      "timestamp": "2026-04-04T11:05:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Recorded read-only preparation for Milestone 4 Slice 2",
+      "diff_summary": "Added the bounded groove/timing Slice 2 plan focused on reference swing reuse through the existing ParsedPrompt timing path, including exact file boundary, guardrails, and proof targets.",
+      "timestamp": "2026-04-03T06:55:00Z"
+    },
+    {
+      "file": "..\\copilot-Liku-cli\\src\\main\\agents\\producer.js",
+      "description": "Implemented producer-local reference chord progression seeding",
+      "diff_summary": "Added conservative chord_map seeding from referenceProfile.raw.chords on create/refine paths, preserving existing chord_map authority and fail-open behavior for unusable reference data.",
+      "timestamp": "2026-04-03T06:30:00Z"
+    },
+    {
+      "file": "..\\copilot-Liku-cli\\scripts\\test-reference-chord-seeding.js",
+      "description": "Added focused proof harness for Milestone 4 Slice 1",
+      "diff_summary": "Created bounded JS proofs for chord_map seeding, preserve-existing behavior, malformed/sparse fail-open cases, duplicate-bar collapse, out-of-range dropping, and create/refine path wiring.",
+      "timestamp": "2026-04-03T06:30:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Refined Milestone 4 Slice 1 preparation with verified source shape and producer-only boundary",
+      "diff_summary": "Clarified that Milestone 4 Slice 1 should consume referenceProfile.raw.chords, remain producer-local plus a focused JS proof file, and preserve existing chord_map authority/fail-open behavior.",
+      "timestamp": "2026-04-03T06:20:00Z"
+    },
+    {
+      "file": "docs\\MASTERCLASS_MUSICALITY_IMPLEMENTATION_TRACKER.md",
+      "description": "Recorded Milestone 4 readiness and Slice 1 preparation",
+      "diff_summary": "Added a readiness verdict that Milestone 3's strongest truthful deterministic repair slices are complete and prepared Milestone 4 Slice 1 as producer-side reference chord_map seeding.",
+      "timestamp": "2026-04-03T06:05:00Z"
+    },
+    {
       "file": "multimodal_gen\\output_analyzer.py",
       "description": "Escalated explicit drum-light onset-density overloads into mute_drums repairs",
       "diff_summary": "generate_corrections() now maps onset_density issues with parsed high bounds <= 2.0 and actual values above that bound into the existing mute_drums correction path, preserving downstream reuse and deduplication.",
@@ -905,6 +1161,83 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Smoke runtime hardening (duration-bars + render diagnostics)",
+      "result": "PASS",
+      "details": "recursive-verifier confirmed --duration-bars is wired into normal generation and that Step 5 now persists render_report/render_error artifacts with additive render_status failure metadata; .\\.venv\\Scripts\\python.exe -m pytest tests/test_render_report_schema.py tests/test_main_render_diagnostics.py -ra -vv passed 5/5; get_errors reported no issues in touched tests/audio_renderer and only a pre-existing unresolved import warning in main.py for multimodal_gen.instrument_index.",
+      "timestamp": "2026-04-04T11:10:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Workspace Python terminal auto-activation fix",
+      "result": "PASS",
+      "details": "Added python.terminal.activateEnvironment=false to ../.vscode/settings.json; get_errors reported no issues in the edited file.",
+      "timestamp": "2026-04-04T09:50:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Automatic .venv terminal activation investigation",
+      "result": "PASS",
+      "details": "No repo-local terminal startup hook or python.terminal.activateEnvironment workspace setting was found; terminal_last_command showed an explicit Activate.ps1 invocation, which is consistent with VS Code Python extension activation or terminal session restore.",
+      "timestamp": "2026-04-04T09:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Orchestration state normalization",
+      "result": "PASS",
+      "details": "Removed the duplicate sprint_8 block; get_errors now reports no issues in .github/state/orchestration.json and only one sprint_8 key remains.",
+      "timestamp": "2026-04-04T09:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Safe workspace-only CMake/cpptools fix",
+      "result": "PASS",
+      "details": "Workspace .vscode/settings.json and .vscode/c_cpp_properties.json were updated without touching JUCE project files; get_errors reported no issues in either edited config file.",
+      "timestamp": "2026-04-04T09:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "VS Code startup 'Scan for a kit/compiler' prompt investigation",
+      "result": "PASS",
+      "details": "Workspace inspection found a stale cmake.sourceDirectory absolute path in ../.vscode/settings.json and stale cpptools include paths in ../.vscode/c_cpp_properties.json. Combined with the JUCE CMake project under MUSE/juce, this strongly indicates a workspace/extension configuration bug rather than a MUSE runtime bug.",
+      "timestamp": "2026-04-04T08:40:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Pre-implementation smoke-test plan recording",
+      "result": "PASS",
+      "details": "Tracker now contains three concrete fixed-seed smoke commands using supported main.py CLI entrypoints plus real local reference WAVs; orchestration and memory were updated to make the smoke pass the next pre-Slice-2 baseline step.",
+      "timestamp": "2026-04-04T00:25:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "Milestone 4 Slice 2 groove swing preparation",
+      "result": "PASS",
+      "details": "Read-only decomposition confirmed the safest truthful next Milestone 4 slice is reference groove swing seeding through a minimal timing.swing_amount field carried by the score-plan schema and adapter into existing ParsedPrompt swing controls, while deferring broader groove semantics and contour transport.",
+      "timestamp": "2026-04-03T06:55:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Milestone 4 Slice 1 reference chord progression seeding",
+      "result": "PASS",
+      "details": "Focused JS proof node scripts/test-reference-chord-seeding.js passed 8/8, get_errors reported no issues, and post-verifier confirmed the slice stayed bounded to producer-only chord_map seeding from referenceProfile.raw.chords without protocol/runtime expansion.",
+      "timestamp": "2026-04-03T06:35:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "Milestone 4 Slice 1 chord_map seeding decomposition",
+      "result": "PASS",
+      "details": "Pre-verifier confirmed the safest truthful first Milestone 4 slice is producer-only seeding of chord_map from referenceProfile.raw.chords with a focused JS proof file, because the reference analysis shape already exists and downstream chord_map transport/runtime consumption are already wired.",
+      "timestamp": "2026-04-03T06:20:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "Milestone 4 readiness assessment",
+      "result": "PASS",
+      "details": "Read-only assessment concluded that Milestone 3 slices 1-4 now cover the strongest already-wired deterministic repair sinks, while remaining ideas are weaker or less truthful than starting Milestone 4 through the existing referenceProfile.raw.chords -> chord_map path.",
+      "timestamp": "2026-04-03T06:05:00Z"
+    },
     {
       "type": "post",
       "target": "Milestone 3 onset-density drum-light escalation",

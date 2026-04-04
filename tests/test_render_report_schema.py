@@ -63,6 +63,7 @@ class TestRenderReportSchema:
         assert "instrument_library" in data
         assert "expansions" in data
         assert "warnings" in data
+        assert "render_status" in data
 
         # Nested shapes
         assert "available" in data["fluidsynth"]
@@ -73,6 +74,9 @@ class TestRenderReportSchema:
         assert "skip_reason" in data["fluidsynth"]
         assert "loaded" in data["instrument_library"]
         assert "loaded" in data["expansions"]
+        assert "success" in data["render_status"]
+        assert "current_stage" in data["render_status"]
+        assert "failure" in data["render_status"]
 
     def test_render_report_includes_mastering_policy_fields(self):
         parsed = PromptParser().parse("neo soul beat 88 bpm in D minor")
@@ -117,3 +121,41 @@ class TestRenderReportSchema:
         assert report["mix_policy"]["brightness_target"] == 0.34
         assert report["mix_policy"]["warmth_target"] == 0.78
         assert report["pipeline_stages"]["true_peak_limiter"] == "ceiling=-0.5dBTP"
+
+    def test_render_report_round_trips_failure_metadata(self, monkeypatch):
+        parsed = PromptParser().parse("neo soul beat 88 bpm in D minor")
+
+        renderer = AudioRenderer(
+            sample_rate=44100,
+            use_fluidsynth=False,
+            soundfont_path=None,
+            require_soundfont=False,
+            instrument_library=None,
+            expansion_manager=None,
+            genre=parsed.genre,
+            mood=parsed.mood,
+            use_bwf=False,
+        )
+
+        def boom(*_args, **_kwargs):
+            raise RuntimeError("synthetic render failure")
+
+        monkeypatch.setattr(renderer, "_render_procedural", boom)
+
+        with tempfile.TemporaryDirectory() as td:
+            report_path = Path(td) / "render_report_failure.json"
+            success = renderer.render_midi_file("dummy.mid", str(Path(td) / "dummy.wav"), parsed)
+
+            assert success is False
+            assert renderer.write_last_render_report(str(report_path))
+
+            data = json.loads(report_path.read_text(encoding="utf-8"))
+
+        failure = data["render_status"]["failure"]
+        assert data["render_status"]["success"] is False
+        assert data["render_status"]["current_stage"] == "procedural_render"
+        assert failure["reason"] == "render_exception"
+        assert failure["stage"] == "procedural_render"
+        assert failure["exception_type"] == "RuntimeError"
+        assert "synthetic render failure" in failure["exception_message"]
+        assert "Traceback" in failure["traceback"]

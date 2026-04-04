@@ -577,7 +577,7 @@ Convert rendered-audio analysis into **actionable regeneration/refinement instru
 
 ## Milestone 4 — Reference-to-Motif / Narrative Reuse
 
-**Status**: QUEUED  
+**Status**: IN PROGRESS (slice 1 complete)  
 **Priority**: High  
 **Risk**: Medium
 
@@ -596,6 +596,168 @@ Use existing reference analysis outputs to seed better composition decisions.
 ### Acceptance criteria
 - Reference-derived fields affect actual generation decisions, not only metadata
 - Behavior remains optional and no-reference flow stays unchanged
+
+## Readiness Assessment — Milestone 4
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor read-only readiness assessment
+- Verdict: **READY FOR M4**
+- Why now:
+  - Milestone 3 has reached the edge of the currently truthful deterministic repair surface under the present constraints
+  - accepted analyzer-to-repair slices now cover the strongest already-wired sinks: `mute_drums`, `swap_instrument -> piano`, `adjust_dynamics`, explicit-direction `adjust_eq`, and the narrow onset-density drum-light escalation reuse path
+  - remaining Milestone 3 ideas would be weaker or less truthful without reopening unsupported protocol/regeneration/take-selection or generic density-control surfaces
+- Why not continue Milestone 3 first:
+  - generic density reduction still lacks a proven deterministic downstream sink
+  - section regeneration and take-selection remain only partially or apparently wired on the current Copilot JSON-RPC path
+  - broader rolloff/flatness-to-EQ mappings would be less directly grounded in the current mastering sinks than the accepted centroid-direction slice
+
+## Preparation Log — Milestone 4 Slice 1 (reference chord progression seeding)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor decomposition + aggregation by supervisor
+- Recommended title: **Reference chord progression seeding via existing `chord_map` path**
+- Scope chosen: reuse the already-existing `referenceProfile.raw.chords` -> score-plan `chord_map` -> adapter/runtime chord consumption path so reference-derived harmonic information affects actual generation decisions without protocol expansion
+- Files planned:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-reference-chord-seeding.js`
+- Why this slice:
+  - `ReferenceAnalyzer` already extracts chord information
+  - producer already receives the reference profile
+  - score plans already support `chord_map`
+  - `score_plan_adapter.py` and downstream runtime surfaces already transport and consume `chord_map`
+- Guardrails:
+  - no protocol changes
+  - no Python runtime changes unless proof shows they are strictly required
+  - do not overwrite an existing model-authored `chord_map`
+  - fail open when reference chord data is sparse, malformed, or low-confidence
+  - keep Slice 1 focused on harmonic reuse only; defer melodic contour and groove-trait reuse to later Milestone 4 slices
+- Verified source-of-truth boundary:
+  - consume `referenceProfile.raw.chords` only
+  - do **not** treat `generation_params` as the chord source because it does not currently carry chord content
+  - keep the implementation producer-local unless proof reveals a real downstream gap
+- Planned proof focus:
+  - reference chords seed `chord_map` when the plan lacks one
+  - an existing `chord_map` remains authoritative
+  - missing or unusable reference chord data leaves the plan unchanged
+  - duplicate reference chords mapping to the same bar collapse deterministically to one bar-level chord entry
+
+## Execution Log — Milestone 4 Slice 1 (reference chord progression seeding)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor orchestration + recursive-verifier post-check aggregation by supervisor
+- Builder: recursive-builder
+- Verifier: recursive-verifier
+- Scope: add a producer-local reference chord reuse helper that seeds score-plan `chord_map` from `referenceProfile.raw.chords` only when a plan does not already define `chord_map`, the reference timing metadata is usable, the reference chord events survive conservative confidence/sparsity checks, and the mapped bars fit inside the planned arrangement; preserve fail-open behavior and avoid any protocol, Python runtime, or broader score-plan mutations
+- Files changed:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `copilot-Liku-cli/scripts/test-reference-chord-seeding.js`
+- Tests run:
+  - `node scripts/test-reference-chord-seeding.js`
+- Result: PASS — focused producer reference-chord proofs passed (8/8), diagnostics reported no file errors, and post-verifier confirmed the slice stayed bounded to producer-side `chord_map` seeding via `referenceProfile.raw.chords`, preserved existing `chord_map` authority, collapsed duplicate same-bar candidates deterministically, and failed open for malformed, sparse, low-confidence, or timing-unusable reference data.
+- Follow-up risks:
+  - equal-confidence same-bar ties currently preserve source ordering rather than explicitly preferring earliest start time
+  - create-path seeding occurs only after successful JSON extraction; if score-plan creation fully falls back to `{}`, this slice intentionally does not broaden into seeded fallback-plan synthesis
+
+## Preparation Log — Milestone 4 Slice 2 (reference groove swing seeding)
+- Date: 2026-04-03
+- Supervisor: recursive-supervisor read-only decomposition + aggregation by supervisor
+- Recommended title: **Reference groove swing seeding via existing `ParsedPrompt` timing path**
+- Scope chosen: reuse only the already-extracted reference swing signal to seed a minimal score-plan timing field that lands on existing parsed timing controls, so reference groove affects actual generation timing feel without inventing broader groove-template, contour, or section-level timing transport
+- Files planned:
+  - `copilot-Liku-cli/src/main/agents/producer.js`
+  - `docs/muse-specs/schemas/score_plan.v1.schema.json`
+  - `multimodal_gen/score_plan_adapter.py`
+  - `tests/test_score_plan_adapter.py`
+  - `copilot-Liku-cli/scripts/test-reference-groove-seeding.js`
+- Why this slice:
+  - reference analysis already exposes groove data and `generation_params.swing`
+  - `ParsedPrompt` already has `use_swing` and `swing_amount`
+  - downstream timing consumers already exist, so swing has a truthful runtime sink today
+  - this is safer than contour reuse because melodic contour still lacks a comparably clean transported runtime control surface
+- Guardrails:
+  - keep the slice limited to swing reuse only; do not broaden into full groove-template, section-level timing, or contour transport
+  - do not overwrite a model-authored `timing.swing_amount` (including explicit `0.0`)
+  - fail open when reference swing data is missing, malformed, or below a conservative audibility threshold
+  - prefer `referenceProfile.raw.groove.swing_amount` and only fall back to `referenceProfile.generation_params.swing`
+  - do not add `timing_humanization`, `humanization_profile`, or inferred groove-template mappings in this slice
+  - avoid runtime generator/policy edits unless proof shows the existing parsed timing sink is not actually reached
+- Planned proof focus:
+  - producer seeds `timing.swing_amount` only when absent and the reference swing signal is usable
+  - adapter maps `timing.swing_amount` to `parsed.swing_amount` and toggles `parsed.use_swing` consistently
+  - explicit `timing.swing_amount = 0.0` remains authoritative and does not get overwritten
+  - missing or low-signal reference swing leaves the plan unchanged
+  - the adapted swing value reaches an already-existing downstream timing sink without requiring broader runtime changes
+
+## Pre-Implementation Prompt Smoke Test Plan — before Milestone 4 Slice 2
+- Date: 2026-04-04
+- Purpose: run a small end-to-end prompt smoke pass now so Milestone 3 repairs and Milestone 4 Slice 1 harmonic reuse are validated on the real prompting path before more timing realism work is stacked on top.
+- Why now:
+  - Milestone 3 and Milestone 4 Slice 1 changed behavior that should be audible or structurally visible in actual generations, not only in focused tests.
+  - Milestone 4 Slice 2 will change groove timing transport, so we want a clean pre-change baseline for comparison.
+- Run mode:
+  - use full generation, not `--midi-only`, so rendered-audio analysis and audible outcome are both exercised
+  - keep prompts short and bounded with an explicit CLI override (`--duration-bars 16`) instead of relying on prompt text alone
+  - use a fixed seed for all three runs to reduce variance when comparing pre/post Slice 2 behavior
+  - write all outputs to `output/_smoke/` for easy before/after inspection
+
+### Smoke-path stabilization update — 2026-04-04
+- The first inline retry proved that prompt text alone was not sufficient to keep the run small: a request that said `16 bars` still expanded to a 72-bar arrangement in the saved manifest.
+- `main.py` now exposes `--duration-bars` for bounded smoke runs, so the smoke commands below should use that flag as the authoritative duration control.
+- Step 5 render failures now persist both `*_render_report.json` and a human-readable `*_render_error.txt` artifact with additive `render_status` failure metadata, so no-audio / exception outcomes can be inspected without confusing them with server mode.
+- Because the remaining instability is tied to inline VS Code render-time UI pressure rather than Python `--server` mode, prefer a non-inline terminal or execution wrapper for the next smoke rerun if editor responsiveness is a concern.
+
+### Smoke Prompt A — baseline no-reference control
+- Goal: verify ordinary prompt-only generation is still healthy and fail-open behavior remains intact.
+- Command:
+  - `python main.py "authentic neo-soul groove with drums, bass, rhodes, muted guitar lead, warm pad, and FX swells at 88 BPM in D minor. warm, controlled transients, vinyl softness, no harsh top-end." --duration-bars 16 --seed 4242 --output "./output/_smoke" -v`
+- Expected signal:
+  - generation succeeds end-to-end
+  - parsed prompt and output remain musically coherent without any reference input
+  - no accidental dependence on reference-only fields
+
+### Smoke Prompt B — harmonic reference reuse check
+- Goal: validate that existing reference-derived chord information can influence actual generation decisions through the accepted `chord_map` path.
+- Reference candidate:
+  - `output/neo_soul_88bpm_Dminor_20260318_120935.wav`
+- Command:
+  - `python main.py "create an authentic neo-soul song with distinct tracks for drums, bass, rhodes, muted guitar lead, warm pad, and FX swells. Target 88 BPM in D minor. Mastering target: warm, controlled transients, vinyl softness, no harsh top-end, conservative loudness." --reference "./output/neo_soul_88bpm_Dminor_20260318_120935.wav" --duration-bars 16 --seed 4242 --output "./output/_smoke" -v`
+- Expected signal:
+  - reference analysis succeeds and reports chord/groove metadata
+  - generation still succeeds if reference-derived data is sparse or partially unusable (fail-open)
+  - compared with Prompt A, harmonic bed / bar-level progression choices should look more anchored rather than purely prompt-derived
+
+### Smoke Prompt C — pre-Slice-2 groove baseline capture
+- Goal: establish a before-state for groove/timing reuse using a reference run that should contain feel/pocket information, so the same test can be repeated after Slice 2.
+- Reference candidate:
+  - `output/lofi_75.0bpm_Aminor_20260121_093316.wav`
+- Command:
+  - `python main.py "lofi hip hop groove with dusty rhodes, warm bass, light drums, and relaxed pocket at 75 BPM in A minor. gentle swing feel, soft top-end, intimate room." --reference "./output/lofi_75.0bpm_Aminor_20260121_093316.wav" --duration-bars 16 --seed 4242 --output "./output/_smoke" -v`
+- Expected signal before Slice 2:
+  - generation succeeds end-to-end
+  - reference analysis may report groove information, but swing influence is not yet expected to land truthfully through the score-plan path
+  - this run becomes the pre-change baseline to compare against the same command after Slice 2 lands
+
+### What to inspect for each run
+- Console / verbose output:
+  - whether reference analysis succeeded
+  - parsed prompt summary
+  - any printed reference-info hints
+- Artifacts:
+  - generated `.wav`
+  - generated `.mid`
+  - generated `*_render_report.json`
+- Musical questions:
+  - Prompt A: is baseline prompting still stable and coherent?
+  - Prompt B: does the reference-backed result feel more harmonically grounded than Prompt A?
+  - Prompt C: what is the current pre-Slice-2 timing feel, so we can compare after swing transport is added?
+
+### Pass / hold criteria
+- PASS if:
+  - all three runs complete successfully
+  - Prompt A confirms baseline no-reference prompting still works
+  - Prompt B shows no regression and at least plausibly benefits from reference-derived harmonic structure
+  - Prompt C completes and gives us a clean pre-Slice-2 baseline artifact set
+- HOLD Slice 2 implementation briefly if:
+  - any run fails end-to-end
+  - reference analysis errors break generation instead of failing open
+  - Prompt B shows obvious regressions in harmonic coherence versus the no-reference control
 
 ---
 

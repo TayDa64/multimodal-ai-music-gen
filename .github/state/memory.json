@@ -3,6 +3,56 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For bounded smoke runs, force length with --duration-bars and persist render diagnostics as artifacts instead of trusting prompt-only bar requests or exit code alone",
+        "context": "The first neo-soul inline smoke retry asked for 16 bars in natural language but still expanded to a 72-bar arrangement and exited with code 0 while audio remained null. Wiring --duration-bars into the CLI and persisting both render_report and render_error artifacts makes smoke failures inspectable and keeps runtime size under explicit control without involving --server mode.",
+        "timestamp": "2026-04-04T11:05:00Z"
+      },
+      {
+        "pattern": "If terminals reopen with '.venv' activated after restart, add python.terminal.activateEnvironment=false at the workspace level and remember that existing restored terminals may still reflect the previous session state",
+        "context": "This workspace was still opening PowerShell terminals with the Python venv active after restart because the Python extension/session restore behavior had not yet been disabled. The workspace-level setting prevents future auto-activation for newly created terminals.",
+        "timestamp": "2026-04-04T09:50:00Z"
+      },
+      {
+        "pattern": "If a PowerShell terminal opens with an explicit '& ...\\.venv\\Scripts\\Activate.ps1' command and no workspace setting references it, treat it as Python extension terminal environment activation or terminal session restore rather than a repo startup hook",
+        "context": "This workspace had no repo-local terminal.integrated or python.terminal.activateEnvironment setting that injected activation, and terminal_last_command showed an explicit Activate.ps1 invocation. That points more strongly to VS Code/Python extension behavior than project code.",
+        "timestamp": "2026-04-04T09:35:00Z"
+      },
+      {
+        "pattern": "For JUCE repos that are not actively doing C++ work, disable CMake auto-configure on open and remove stale old-repo IntelliSense paths instead of changing JUCE project files",
+        "context": "This safely stopped workspace startup churn by editing only ../.vscode/settings.json and ../.vscode/c_cpp_properties.json. The JUCE CMakeLists and package.json build scripts remained untouched, preserving future JUCE buildability while reducing VS Code instability.",
+        "timestamp": "2026-04-04T09:00:00Z"
+      },
+      {
+        "pattern": "When VS Code shows 'Scan for a kit/compiler' on workspace open, inspect workspace-level .vscode CMake and C/C++ settings before blaming the app runtime",
+        "context": "This workspace contains a stale cmake.sourceDirectory absolute path in ../.vscode/settings.json plus stale IntelliSense include paths in ../.vscode/c_cpp_properties.json. That combination is a far stronger explanation for startup kit/compiler prompts than any Python or Node generation code.",
+        "timestamp": "2026-04-04T08:40:00Z"
+      },
+      {
+        "pattern": "Before broadening reference reuse into a new transported sink, define a tiny fixed-seed prompt smoke pass with one no-reference control, one already-wired reference reuse case, and one pre-change baseline capture for the next sink",
+        "context": "Before Milestone 4 Slice 2, the safest validation plan is a three-prompt end-to-end smoke run: Prompt A proves baseline fail-open prompt health, Prompt B exercises the already-accepted chord_map harmonic reuse path, and Prompt C captures a pre-swing-transport groove baseline for direct before/after comparison.",
+        "timestamp": "2026-04-04T00:25:00Z"
+      },
+      {
+        "pattern": "When only one reference groove trait has a proven runtime sink, narrow the next slice to swing reuse instead of inventing broader groove transport",
+        "context": "Milestone 4 Slice 2 preparation found that reference groove analysis already exposes swing while ParsedPrompt and downstream timing consumers already honor swing_amount, making swing the safest truthful groove slice and leaving timing_humanization, humanization_profile, and groove-template inference for later if needed.",
+        "timestamp": "2026-04-03T06:55:00Z"
+      },
+      {
+        "pattern": "For first reference-reuse slices, seed only score-plan chord_map from referenceProfile.raw.chords and leave every other plan surface untouched",
+        "context": "Milestone 4 Slice 1 succeeded by adding a producer-local helper that converts structured reference chord events into bar-level chord_map entries on create/refine paths only when the plan lacks chord_map, while preserving fail-open behavior and reusing existing downstream chord_map transport/runtime consumers.",
+        "timestamp": "2026-04-03T06:35:00Z"
+      },
+      {
+        "pattern": "For first-reference-reuse slices, prefer producer-only chord_map seeding when raw reference chords already exist and downstream runtime consumption is already wired",
+        "context": "Milestone 4 Slice 1 pre-verifier confirmed the cleanest first reference-reuse step is consuming referenceProfile.raw.chords in producer.js, because score plans, adapter transport, and runtime harmonic consumers already support chord_map without protocol or Python expansion.",
+        "timestamp": "2026-04-03T06:20:00Z"
+      },
+      {
+        "pattern": "Advance from analyzer-to-repair to reference reuse once the remaining repair ideas are weaker than an already-wired reference-to-generation path",
+        "context": "After Milestone 3 slices 1-4, the strongest truthful next move was Milestone 4 chord-map seeding because reference chords already have a real downstream sink, while remaining repair ideas would require weaker semantics or unsupported transport surfaces.",
+        "timestamp": "2026-04-03T06:05:00Z"
+      },
+      {
         "pattern": "When onset-density mismatches are explicit but only mute_drums is a proven deterministic sink, reuse that sink narrowly for current-target drum-light contexts instead of inventing generic density controls",
         "context": "Milestone 3 Slice 4 closed another analyzer-to-repair gap by mapping only too-high onset_density issues with parsed high bounds <= 2.0 into mute_drums, preserving truthfulness and deduplication while avoiding unsupported score-plan density transport.",
         "timestamp": "2026-04-03T05:50:00Z"
@@ -278,6 +328,42 @@
   },
   "decisions": [
     {
+      "decision": "Before rerunning prompt smoke tests, harden main.py/audio_renderer.py with an explicit --duration-bars CLI override and persisted Step 5 render diagnostics rather than treating the freeze as a Python server problem.",
+      "rationale": "The failing inline run did not use --server, the output manifest proved the prompt-only 16-bar request still expanded to 72 bars, and audio remained null despite exit code 0. The most truthful next move was to bound runtime explicitly and make render failures durable/inspectable.",
+      "alternatives_considered": ["Keep rerunning inline prompts and infer failures only from terminal output", "Focus on the Python server path even though the command did not use --server", "Implement Milestone 4 Slice 2 before hardening the smoke path"],
+      "timestamp": "2026-04-04T11:05:00Z"
+    },
+    {
+      "decision": "Add python.terminal.activateEnvironment=false to the workspace settings so new integrated terminals stop auto-activating the MUSE virtual environment.",
+      "rationale": "The user wants more stable, less intrusive terminal startup behavior, and terminal_last_command plus config inspection pointed to Python extension/session restore behavior rather than a repo hook.",
+      "alternatives_considered": ["Leave auto-activation on and activate manually only when needed", "Disable Python extension entirely", "Only explain the cause without applying the workspace setting"],
+      "timestamp": "2026-04-04T09:50:00Z"
+    },
+    {
+      "decision": "Classify the automatic .venv activation on terminal open as external editor behavior (Python extension or terminal restore) rather than a repo-defined startup hook.",
+      "rationale": "Searches found no workspace setting or script in this repo that auto-runs Activate.ps1 on terminal open, while terminal_last_command showed the exact explicit activation command the Python extension typically sends to new PowerShell terminals.",
+      "alternatives_considered": ["A hidden repo-local terminal startup script is running", "The CMake workspace fix caused activation indirectly", "The JUCE project itself opens terminals and activates the venv"],
+      "timestamp": "2026-04-04T09:35:00Z"
+    },
+    {
+      "decision": "Apply the safe workspace-only fix by removing the stale cmake.sourceDirectory trigger, turning off CMake configure-on-open, and replacing dead old-repo IntelliSense paths with current-workspace JUCE paths.",
+      "rationale": "The user wants to defer JUCE UI/C++ work for now, so the lowest-risk fix is to reduce VS Code startup extension churn without touching JUCE build files or removing CMake from the actual project.",
+      "alternatives_considered": ["Remove CMake from the JUCE project", "Leave the stale workspace settings in place and only avoid opening the repo in VS Code", "Disable all C/C++ related workspace configuration entirely"],
+      "timestamp": "2026-04-04T09:00:00Z"
+    },
+    {
+      "decision": "Classify the startup 'Scan for a kit/compiler' prompt as a workspace/extension configuration issue rooted in stale CMake Tools and cpptools settings, not as a core MUSE runtime bug.",
+      "rationale": "The workspace root contains a stale absolute cmake.sourceDirectory pointing to an old repo path, while the workspace-level C/C++ config also references removed paths. The only CMake project in the repo is MUSE/juce/CMakeLists.txt, which makes CMake Tools activation the most credible source of the prompt.",
+      "alternatives_considered": ["A Python server or prompt-generation process triggers the prompt", "The JUCE CMakeLists alone is sufficient without any workspace settings issue", "A random VS Code palette bug unrelated to repo configuration"],
+      "timestamp": "2026-04-04T08:40:00Z"
+    },
+    {
+      "decision": "Run a bounded pre-implementation prompt smoke pass before starting Milestone 4 Slice 2 rather than waiting until Milestone 5 completion.",
+      "rationale": "Milestone 3 repairs and Milestone 4 Slice 1 chord reuse should be validated on the real prompting path now, and Slice 2 needs a pre-change groove baseline for comparison.",
+      "alternatives_considered": ["Defer prompting tests until Milestone 5 is complete", "Skip prompt smoke testing and rely only on focused unit/integration proofs", "Run only a single prompt instead of a control/reference/baseline trio"],
+      "timestamp": "2026-04-04T00:25:00Z"
+    },
+    {
       "decision": "For Milestone 2 Slice 2, implement a deterministic whole-section octave lift on the primary chord bed only when a usable explicit tension arc exists",
       "rationale": "A section-wide register-center lift produced audible harmonic-bed escalation with a single concentrated runtime change and avoided broader progression, density, or arrangement-template refactors. Requiring the whole shifted section to fit the instrument range preserved voicing integrity and fail-open safety.",
       "alternatives_considered": ["Rewrite chord density or complexity from tension in the same slice", "Use per-note clamping after register lift", "Refactor arranger section configs before proving primary chord runtime authority"],
@@ -516,5 +602,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-04-03T05:50:00Z"
+  "last_updated": "2026-04-04T00:25:00Z"
 }

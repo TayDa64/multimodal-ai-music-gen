@@ -18,6 +18,7 @@ Features:
 import os
 import subprocess
 import logging
+import traceback
 import numpy as np
 import json
 from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
@@ -1307,6 +1308,8 @@ class AudioRenderer:
         self._parsed_instruments = set(parsed_instruments) if parsed_instruments else set()
 
         self._last_render_report: Optional[Dict] = None
+        self._render_failure_context: Optional[Dict] = None
+        self._current_render_stage: Optional[str] = None
         self._pipeline_stages: Dict[str, str] = {}  # Sprint 10.5: Track which DSP stages fired
 
         # Convolution reverb for master bus (Sprint 7)
@@ -1548,6 +1551,38 @@ class AudioRenderer:
                 return getattr(self._mix_policy, 'hihat_pan', 0.0)
             return 0.2 if index % 2 == 0 else -0.2
         return 0.2 if index % 2 == 0 else -0.2
+
+    def _reset_render_diagnostics(self) -> None:
+        """Reset per-render diagnostics state."""
+        self._last_render_report = None
+        self._render_failure_context = None
+        self._current_render_stage = None
+
+    def _set_render_stage(self, stage: Optional[str]) -> None:
+        """Record the current render stage for diagnostics."""
+        self._current_render_stage = stage
+
+    def _capture_render_failure(
+        self,
+        reason: str,
+        stage: Optional[str] = None,
+        exception: Optional[BaseException] = None,
+    ) -> Dict:
+        """Capture actionable failure context for the current render."""
+        active_stage = stage or self._current_render_stage
+        failure = {
+            "reason": reason,
+            "stage": active_stage,
+            "exception_type": type(exception).__name__ if exception else None,
+            "exception_message": str(exception) if exception else None,
+            "traceback": None,
+        }
+        if exception is not None:
+            failure["traceback"] = "".join(
+                traceback.format_exception(type(exception), exception, exception.__traceback__)
+            )
+        self._render_failure_context = failure
+        return failure
     
     def render_midi_file(
         self,
@@ -1566,6 +1601,8 @@ class AudioRenderer:
         Returns:
             True if successful
         """
+        self._reset_render_diagnostics()
+
         # Update genre/mood from parsed prompt if available
         if parsed:
             new_genre = parsed.genre if parsed.genre else self.genre
@@ -1575,26 +1612,7 @@ class AudioRenderer:
                 self.procedural.set_genre_mood(new_genre, new_mood)
         
         warnings: List[str] = []
-
-        if self.require_soundfont:
-            if not self.fluidsynth_available:
-                warnings.append("FluidSynth not available but --require-soundfont enabled")
-            if not self.soundfont_path:
-                warnings.append("No SoundFont (.sf2) found but --require-soundfont enabled")
-
-            if warnings:
-                self._last_render_report = self._build_render_report(
-                    midi_path=midi_path,
-                    output_path=output_path,
-                    parsed=parsed,
-                    renderer_path="none",
-                    fluidsynth_allowed=bool(self.use_fluidsynth and self.soundfont_path),
-                    fluidsynth_attempted=False,
-                    fluidsynth_success=False,
-                    fluidsynth_skip_reason="require_soundfont",
-                    warnings=warnings,
-                )
-                return False
+        renderer_path_used = "none"
 
         custom_drums_loaded = len(getattr(self.procedural, '_custom_drum_cache', {}) or {})
         has_ethiopian = getattr(self.procedural, '_has_ethiopian_instruments', False)
@@ -1604,70 +1622,120 @@ class AudioRenderer:
         fluidsynth_attempted = False
         fluidsynth_success = False
 
-        # Try FluidSynth first (only if no custom drums loaded AND no Ethiopian instruments)
-        if fluidsynth_allowed and custom_drums_loaded == 0 and not has_ethiopian:
-            fluidsynth_attempted = True
-            fluidsynth_success = render_midi_with_fluidsynth(
-                midi_path,
-                output_path,
-                self.soundfont_path,
-                self.sample_rate
-            )
+        try:
+            self._set_render_stage("preflight")
+            if self.require_soundfont:
+                if not self.fluidsynth_available:
+                    warnings.append("FluidSynth not available but --require-soundfont enabled")
+                if not self.soundfont_path:
+                    warnings.append("No SoundFont (.sf2) found but --require-soundfont enabled")
 
-            if fluidsynth_success:
-                if parsed:
-                    self._post_process(output_path, parsed)
+                if warnings:
+                    self._capture_render_failure("require_soundfont", stage="preflight")
+                    self._last_render_report = self._build_render_report(
+                        midi_path=midi_path,
+                        output_path=output_path,
+                        parsed=parsed,
+                        renderer_path="none",
+                        fluidsynth_allowed=bool(self.use_fluidsynth and self.soundfont_path),
+                        fluidsynth_attempted=False,
+                        fluidsynth_success=False,
+                        fluidsynth_skip_reason="require_soundfont",
+                        warnings=warnings,
+                    )
+                    return False
 
-                self._last_render_report = self._build_render_report(
-                    midi_path=midi_path,
-                    output_path=output_path,
-                    parsed=parsed,
-                    renderer_path="fluidsynth",
-                    fluidsynth_allowed=fluidsynth_allowed,
-                    fluidsynth_attempted=True,
-                    fluidsynth_success=True,
-                    fluidsynth_skip_reason=fluidsynth_skip_reason,
-                    warnings=warnings,
+            # Try FluidSynth first (only if no custom drums loaded AND no Ethiopian instruments)
+            if fluidsynth_allowed and custom_drums_loaded == 0 and not has_ethiopian:
+                self._set_render_stage("fluidsynth_render")
+                renderer_path_used = "fluidsynth"
+                fluidsynth_attempted = True
+                fluidsynth_success = render_midi_with_fluidsynth(
+                    midi_path,
+                    output_path,
+                    self.soundfont_path,
+                    self.sample_rate
                 )
+
+                if fluidsynth_success:
+                    if parsed:
+                        self._set_render_stage("post_process")
+                        self._post_process(output_path, parsed)
+
+                    self._last_render_report = self._build_render_report(
+                        midi_path=midi_path,
+                        output_path=output_path,
+                        parsed=parsed,
+                        renderer_path="fluidsynth",
+                        fluidsynth_allowed=fluidsynth_allowed,
+                        fluidsynth_attempted=True,
+                        fluidsynth_success=True,
+                        fluidsynth_skip_reason=fluidsynth_skip_reason,
+                        warnings=warnings,
+                    )
+                    self._set_render_stage("output_analysis")
+                    self._run_output_analysis(output_path, parsed)
+                    return True
+
+                warnings.append("FluidSynth render failed; falling back to procedural")
+            elif fluidsynth_allowed and has_ethiopian:
+                warnings.append(
+                    "FluidSynth skipped because Ethiopian instruments requested - using procedural synthesis"
+                )
+                fluidsynth_skip_reason = "ethiopian_instruments"
+            elif fluidsynth_allowed and custom_drums_loaded > 0:
+                warnings.append(
+                    f"FluidSynth skipped because custom drum samples are loaded (count={custom_drums_loaded})"
+                )
+                fluidsynth_skip_reason = f"custom_drums_loaded:{custom_drums_loaded}"
+            elif self.use_fluidsynth and not self.soundfont_path:
+                warnings.append("FluidSynth available but no SoundFont (.sf2) found; using procedural")
+                fluidsynth_skip_reason = "no_soundfont"
+            elif not self.fluidsynth_available:
+                warnings.append("FluidSynth not available; using procedural")
+                fluidsynth_skip_reason = "not_available"
+            elif not self.use_fluidsynth:
+                fluidsynth_skip_reason = "disabled"
+
+            # Fall back to procedural rendering (uses custom instruments if available)
+            self._set_render_stage("procedural_render")
+            renderer_path_used = "procedural"
+            procedural_success = self._render_procedural(midi_path, output_path, parsed)
+            if not procedural_success and not self._render_failure_context:
+                self._capture_render_failure("procedural_render_failed")
+
+            self._last_render_report = self._build_render_report(
+                midi_path=midi_path,
+                output_path=output_path,
+                parsed=parsed,
+                renderer_path="procedural" if procedural_success else "none",
+                fluidsynth_allowed=fluidsynth_allowed,
+                fluidsynth_attempted=fluidsynth_attempted,
+                fluidsynth_success=fluidsynth_success,
+                fluidsynth_skip_reason=fluidsynth_skip_reason,
+                warnings=warnings,
+            )
+            if procedural_success:
+                self._set_render_stage("output_analysis")
                 self._run_output_analysis(output_path, parsed)
-                return True
-
-            warnings.append("FluidSynth render failed; falling back to procedural")
-        elif fluidsynth_allowed and has_ethiopian:
-            warnings.append(
-                "FluidSynth skipped because Ethiopian instruments requested - using procedural synthesis"
+            return procedural_success
+        except Exception as e:
+            logger.exception("Audio render failed")
+            warnings_with_exception = list(warnings)
+            warnings_with_exception.append(f"Render exception: {type(e).__name__}: {e}")
+            self._capture_render_failure("render_exception", exception=e)
+            self._last_render_report = self._build_render_report(
+                midi_path=midi_path,
+                output_path=output_path,
+                parsed=parsed,
+                renderer_path=renderer_path_used,
+                fluidsynth_allowed=fluidsynth_allowed,
+                fluidsynth_attempted=fluidsynth_attempted,
+                fluidsynth_success=fluidsynth_success,
+                fluidsynth_skip_reason=fluidsynth_skip_reason,
+                warnings=warnings_with_exception,
             )
-            fluidsynth_skip_reason = "ethiopian_instruments"
-        elif fluidsynth_allowed and custom_drums_loaded > 0:
-            warnings.append(
-                f"FluidSynth skipped because custom drum samples are loaded (count={custom_drums_loaded})"
-            )
-            fluidsynth_skip_reason = f"custom_drums_loaded:{custom_drums_loaded}"
-        elif self.use_fluidsynth and not self.soundfont_path:
-            warnings.append("FluidSynth available but no SoundFont (.sf2) found; using procedural")
-            fluidsynth_skip_reason = "no_soundfont"
-        elif not self.fluidsynth_available:
-            warnings.append("FluidSynth not available; using procedural")
-            fluidsynth_skip_reason = "not_available"
-        elif not self.use_fluidsynth:
-            fluidsynth_skip_reason = "disabled"
-
-        # Fall back to procedural rendering (uses custom instruments if available)
-        procedural_success = self._render_procedural(midi_path, output_path, parsed)
-        self._last_render_report = self._build_render_report(
-            midi_path=midi_path,
-            output_path=output_path,
-            parsed=parsed,
-            renderer_path="procedural" if procedural_success else "none",
-            fluidsynth_allowed=fluidsynth_allowed,
-            fluidsynth_attempted=fluidsynth_attempted,
-            fluidsynth_success=fluidsynth_success,
-            fluidsynth_skip_reason=fluidsynth_skip_reason,
-            warnings=warnings,
-        )
-        if procedural_success:
-            self._run_output_analysis(output_path, parsed)
-        return procedural_success
+            return False
 
     def _run_output_analysis(
         self, output_path: str, parsed: Optional[ParsedPrompt]
@@ -1816,6 +1884,11 @@ class AudioRenderer:
             },
             "genre_normalized": self._normalize_genre() if hasattr(self, '_normalize_genre') else None,
             "pipeline_stages": dict(getattr(self, '_pipeline_stages', {})),
+            "render_status": {
+                "success": renderer_path != "none" and self._render_failure_context is None,
+                "current_stage": self._current_render_stage,
+                "failure": dict(self._render_failure_context) if self._render_failure_context else None,
+            },
         }
 
         # Sprint 10.4: Add LUFS estimate from rendered audio (if available)
@@ -1942,9 +2015,11 @@ class AudioRenderer:
         """Render MIDI using procedural synthesis."""
         import mido
         
+        self._set_render_stage("load_midi")
         try:
             midi = mido.MidiFile(midi_path)
-        except Exception:
+        except Exception as e:
+            self._capture_render_failure("midi_load_failed", exception=e)
             return False
         
         # Calculate total duration
@@ -1954,6 +2029,7 @@ class AudioRenderer:
         # Render each track
         tracks_audio = []
         track_infos = []  # (name, is_drums) for each track
+        self._set_render_stage("render_tracks")
         
         for track in midi.tracks:
             # Detect if drum track
@@ -1972,6 +2048,7 @@ class AudioRenderer:
                 track_infos.append((track.name, is_drums))
         
         if not tracks_audio:
+            self._capture_render_failure("no_tracks_rendered")
             return False
         
         # RMS-based mixing for balanced sound
@@ -1984,6 +2061,7 @@ class AudioRenderer:
         target_rms = self._get_preset_target_rms()
         
         stereo_tracks = []
+        self._set_render_stage("mix_tracks")
         for i, (audio, (name, is_drums)) in enumerate(zip(tracks_audio, track_infos)):
             # Apply track FX chain
             chain = self._get_chain_for_track(name, is_drums)
@@ -2074,6 +2152,7 @@ class AudioRenderer:
         # Sidechain ducking for bass tracks (Sprint 8)
         # Duck bass when kick/808 hits for that pumping effect
         _sidechain_genres = {'trap', 'drill', 'house', 'edm', 'hip_hop', 'phonk'}
+        self._set_render_stage("sidechain")
         if self._normalize_genre() in _sidechain_genres:
             try:
                 kick_idx = None
@@ -2117,6 +2196,7 @@ class AudioRenderer:
 
         # Sprint 10.5: Reset pipeline stage tracking for this render
         self._pipeline_stages = {}
+        self._set_render_stage("master_bus")
         
         # Apply master bus processing
         master_chain = self.mix_chains.get('master')
@@ -2276,6 +2356,7 @@ class AudioRenderer:
         
         # Save with BWF format if enabled
         # Master bit-depth policy: 16-bit with TPDF dither for delivery
+        self._set_render_stage("save_output")
         if self.use_bwf:
             try:
                 from .bwf_writer import save_wav_with_ai_provenance
@@ -2310,6 +2391,7 @@ class AudioRenderer:
         
         # Post-process
         if parsed:
+            self._set_render_stage("post_process")
             self._post_process(output_path, parsed)
         
         return True
@@ -2382,7 +2464,7 @@ class AudioRenderer:
         if not notes:
             return None
         
-        return self.procedural.render_notes(notes, total_samples, is_drum_track)
+        return self.procedural.render_notes(notes, total_samples, is_drums=is_drum_track)
     
     def _post_process(self, audio_path: str, parsed: ParsedPrompt):
         """Apply post-processing based on prompt parameters."""
