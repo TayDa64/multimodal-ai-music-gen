@@ -71,3 +71,31 @@ def test_smoke_1990s_rock_summary_reports_renderer_diagnostics_contract():
     assert "fluidsynth_skip_reason" in script_text
     assert "$rendererPath = if ($renderReportData -and $renderReportData.renderer_path)" in script_text
     assert "$fluidsynth = if ($renderReportData -and $renderReportData.fluidsynth)" in script_text
+
+
+def test_smoke_1990s_rock_fluidsynth_isolation_contract():
+    script_text = SCRIPT_PATH.read_text(encoding="utf-8")
+
+    strict_line = next(
+        line
+        for line in script_text.splitlines()
+        if "$strictAudioFailed =" in line and "-or" in line
+    )
+
+    assert "[switch]$FluidSynthIsolation" in script_text
+    assert "[string]$SoundFont" in script_text
+    assert "$FluidSynthIsolation.IsPresent" in script_text
+    assert "--skip-default-instruments" in script_text
+    assert "--skip-expansions" in script_text
+    assert "--require-soundfont" in script_text
+    assert "--soundfont" in script_text
+    assert "$fluidsynthIsolationFailed =" in script_text
+    assert '$rendererPath -ne "fluidsynth"' in script_text
+    assert "$fluidsynthAttempted -ne $true" in script_text
+    assert "$fluidsynthSuccess -ne $true" in script_text
+    assert "[string]::IsNullOrWhiteSpace($fluidsynthSkipReason)" in script_text
+    assert "[string]::IsNullOrWhiteSpace($soundfontPath)" in script_text
+    assert "fluidsynth_isolation = [bool]$FluidSynthIsolation.IsPresent" in script_text
+    assert "fluidsynth_isolation_failed = $fluidsynthIsolationFailed" in script_text
+    assert "rendererPath" not in strict_line
+    assert "fluidsynth" not in strict_line.lower()

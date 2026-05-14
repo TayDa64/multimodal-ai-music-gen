@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Exact FluidSynth smoke proofs can pass renderer-path isolation while still failing strict audio quality",
+        "context": "For exact-rock-fluidsynth-smoke-isolation-046, -FluidSynthIsolation proved renderer_path=fluidsynth with attempted/success true, skip_reason null, custom_drums_loaded=0, instrument_library.loaded=false, expansions.loaded=false, and file mastering applied. The same -StrictAudio run still failed audio analysis because the SoundFont render was too bright and snare_or_clap was not detected, so renderer proof and quality proof must be tracked separately.",
+        "timestamp": "2026-05-14T23:15:00Z"
+      },
+      {
+        "pattern": "Exact FluidSynth smoke proofs should isolate default samples/expansions at the CLI/runtime boundary and gate renderer diagnostics",
+        "context": "For exact-rock-fluidsynth-smoke-isolation-046, custom default instruments and expansion samples could load custom drums and make AudioRenderer skip FluidSynth even with a SoundFont. A default-off isolation path now skips ./instruments auto-load and ../expansions registration only for the smoke proof, while the PowerShell harness requires renderer_path=fluidsynth, attempted=true, success=true, empty skip_reason, and a non-null soundfont_path.",
+        "timestamp": "2026-05-14T22:55:49Z"
+      },
+      {
         "pattern": "Procedural MIDI renderers must share a global tempo map across tracks",
         "context": "For render-silence-gap-analysis-045, generated rock MIDI stored 100 BPM tempo only on track 0/meta while note tracks had no set_tempo. Procedural note rendering had been using the per-track default 120 BPM, creating early note collapse and a long low-level tail. MidiTempoMap now collects tempo events across all tracks and is shared by full-mix and stem rendering.",
         "timestamp": "2026-05-14T22:40:00Z"
@@ -420,6 +430,12 @@
     ],
     "failed": [
       {
+        "pattern": "Do not treat exact FluidSynth renderer-path proof as full rock quality acceptance",
+        "reason": "The exact isolated SoundFont smoke can render successfully through FluidSynth and file-level mastering but still fail rock audio analysis for high spectral centroid and missing snare_or_clap detection.",
+        "avoid_when": "Reporting full strict rock-quality readiness; require audio_analysis.passed=true separately from renderer_diagnostics.fluidsynth_success=true.",
+        "timestamp": "2026-05-14T23:15:00Z"
+      },
+      {
         "pattern": "Skipping pre-verification leads to wasted effort",
         "reason": "Attempted to implement washint without checking if it existed first",
         "avoid_when": "Any implementation task - always verify existing state first",
@@ -434,6 +450,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Do not change AudioRenderer FluidSynth/procedural fallback selection for the exact smoke proof; add opt-in generation and smoke-script isolation instead.",
+      "rationale": "Default users still need expansion instruments, default sample loading, custom drums, and procedural fallback. The proof needed a way to prevent those opt-in assets from masking FluidSynth renderer selection, so the safest boundary was CLI/runtime bootstrap plus strict smoke diagnostics.",
+      "alternatives_considered": [
+        "Force AudioRenderer to try FluidSynth even with custom drums loaded",
+        "Make --require-soundfont globally imply renderer_path=fluidsynth",
+        "Disable default instruments or expansions by default"
+      ],
+      "timestamp": "2026-05-14T22:55:49Z"
+    },
     {
       "decision": "Add a dedicated file-level mastering pass for FluidSynth output rather than refactoring the procedural renderer in this slice.",
       "rationale": "This gives FluidSynth-rendered WAVs LUFS/limiting/spectral parity while preserving the battle-tested procedural render path and keeping the diff bounded.",
@@ -1004,5 +1030,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T21:19:17Z"
+  "last_updated": "2026-05-14T23:15:00Z"
 }

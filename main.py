@@ -550,6 +550,8 @@ def run_generation(
     soundfont_path: str = None,
     template_path: str = None,
     instruments_paths: list = None,
+    skip_default_instruments: bool = False,
+    skip_expansions: bool = False,
     verbose: bool = False,
     progress_callback: Optional[ProgressCallback] = None,
     seed: Optional[int] = None,
@@ -583,6 +585,8 @@ def run_generation(
         soundfont_path: Path to SoundFont file for audio rendering
         template_path: Path to MPC template file
         instruments_paths: List of paths to instrument folders for intelligent sample selection
+        skip_default_instruments: Do not auto-load ./instruments when instruments_paths is omitted
+        skip_expansions: Do not scan/register ../expansions for this generation
         verbose: Enable verbose output
         progress_callback: Optional callback for progress reporting (step, percent, message)
         seed: Random seed for reproducibility (enables iterative refinement)
@@ -598,6 +602,11 @@ def run_generation(
     """
     # Ensure output_dir is a Path object
     output_dir = Path(output_dir) if isinstance(output_dir, str) else output_dir
+
+    if skip_expansions:
+        # Isolation mode: prevent stale module-level expansion-backed services from
+        # influencing prompt parsing or later default instrument resolution.
+        set_instrument_service(None)
 
     score_plan_parsed = None
     score_plan_score = None
@@ -1106,7 +1115,7 @@ def run_generation(
     expansion_manager = None
     instrument_service = None
     expansions_dir = Path(__file__).parent.parent / "expansions"
-    if expansions_dir.exists():
+    if not skip_expansions and expansions_dir.exists():
         try:
             from multimodal_gen import ExpansionManager
             expansion_manager = ExpansionManager()
@@ -1116,26 +1125,29 @@ def run_generation(
         except Exception as e:
             if verbose:
                 print_warning(f"Expansion loading: {e}")
+    elif skip_expansions and verbose:
+        print_info("Skipping expansion pack scan (--skip-expansions)")
     
     # Step 2.6.1: Create InstrumentResolutionService to bridge expansions to MIDI generation
     # CRITICAL: This must happen BEFORE MidiGenerator is created so expansion instruments
     # (Ethiopian, Funk o Rama, etc.) get proper MIDI program assignments
-    try:
-        from multimodal_gen.instrument_resolution import InstrumentResolutionService
-        instrument_service = InstrumentResolutionService(
-            expansion_manager=expansion_manager,
-            auto_register_expansions=True
-        )
-        # Set the module-level service for prompt_parser to use
-        set_instrument_service(instrument_service)
-        if verbose and expansion_manager:
-            stats = instrument_service.get_registry_stats()
-            print_info(f"InstrumentResolutionService: {stats['total_instruments']} instruments, "
-                      f"{stats['expansion_programs_allocated']} expansion programs allocated")
-    except Exception as e:
-        if verbose:
-            print_warning(f"InstrumentResolutionService setup: {e}")
-        instrument_service = None
+    if not skip_expansions:
+        try:
+            from multimodal_gen.instrument_resolution import InstrumentResolutionService
+            instrument_service = InstrumentResolutionService(
+                expansion_manager=expansion_manager,
+                auto_register_expansions=True
+            )
+            # Set the module-level service for prompt_parser to use
+            set_instrument_service(instrument_service)
+            if verbose and expansion_manager:
+                stats = instrument_service.get_registry_stats()
+                print_info(f"InstrumentResolutionService: {stats['total_instruments']} instruments, "
+                          f"{stats['expansion_programs_allocated']} expansion programs allocated")
+        except Exception as e:
+            if verbose:
+                print_warning(f"InstrumentResolutionService setup: {e}")
+            instrument_service = None
 
     # Step 3: Generate MIDI
     print_step("3/6", "Generating MIDI with humanization...")
@@ -1825,9 +1837,11 @@ def run_generation(
     default_instruments = Path(__file__).parent / "instruments"
     
     # Auto-load from default instruments directory if no explicit path provided
-    if not instruments_paths and default_instruments.exists() and any(default_instruments.iterdir()):
+    if not skip_default_instruments and not instruments_paths and default_instruments.exists() and any(default_instruments.iterdir()):
         instruments_paths = [str(default_instruments)]
         print_info(f"Auto-loading instruments from {default_instruments}")
+    elif skip_default_instruments and not instruments_paths and verbose:
+        print_info("Skipping default instruments auto-load (--skip-default-instruments)")
     
     if instruments_paths:
         print_step("4.5/6", "Discovering and analyzing instruments...")
@@ -2836,6 +2850,16 @@ Server Mode (for JUCE integration):
         help="Fail if generation does not produce an audio artifact or render diagnostics report failure",
     )
     parser.add_argument(
+        "--skip-default-instruments",
+        action="store_true",
+        help="Do not auto-load ./instruments when --instruments is omitted (useful for isolated FluidSynth smoke tests)",
+    )
+    parser.add_argument(
+        "--skip-expansions",
+        action="store_true",
+        help="Do not scan ../expansions or register expansion-backed instruments for this run (useful for isolated FluidSynth smoke tests)",
+    )
+    parser.add_argument(
         "--diagnose-audio",
         action="store_true",
         help="Print audio renderer diagnostics (FluidSynth + SoundFont + instrument folders) and exit",
@@ -3097,6 +3121,8 @@ Server Mode (for JUCE integration):
                 export_stems=args.stems,
                 soundfont_path=args.soundfont,
                 instruments_paths=args.instruments,
+                skip_default_instruments=args.skip_default_instruments,
+                skip_expansions=args.skip_expansions,
                 verbose=args.verbose,
             )
             
@@ -3196,6 +3222,8 @@ Server Mode (for JUCE integration):
             soundfont_path=args.soundfont,
             template_path=args.template,
             instruments_paths=args.instruments,
+            skip_default_instruments=args.skip_default_instruments,
+            skip_expansions=args.skip_expansions,
             verbose=args.verbose,
             seed=args.seed,
             use_bwf=not args.no_bwf,

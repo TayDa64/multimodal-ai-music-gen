@@ -18,6 +18,43 @@ Document a source-grounded investigation plan for the 1990s rock quality regress
 1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor
 ```
 
+### Exact FluidSynth smoke isolation implementation
+
+Task `exact-rock-fluidsynth-smoke-isolation-046` adds a default-off proof path for the exact prompt without changing normal generation behavior:
+
+- `main.py` now accepts `--skip-default-instruments` and `--skip-expansions` (also available as `run_generation(..., skip_default_instruments=True, skip_expansions=True)`). These switches prevent automatic `./instruments` loading and `../expansions` scanning/registration only when explicitly requested.
+- `scripts/smoke_1990s_rock.ps1 -FluidSynthIsolation` passes those two skips plus `--require-soundfont`; `-SoundFont <path>` forwards an explicit SoundFont to `main.py`.
+- Normal `-StrictAudio` still gates audio/render-analysis success only. The extra FluidSynth renderer proof is gated only when `-FluidSynthIsolation` is present and requires `renderer_diagnostics.renderer_path == "fluidsynth"`, `fluidsynth_attempted == true`, `fluidsynth_success == true`, empty `fluidsynth_skip_reason`, and a non-null `soundfont_path`.
+
+Expected exact FluidSynth smoke command:
+
+```powershell
+Set-Location c:\dev\MUSE-ai\MUSE
+.\scripts\smoke_1990s_rock.ps1 -StrictAudio -FluidSynthIsolation -SoundFont assets\soundfonts\FluidR3Mono_GM.sf3 -OutputRoot output\_diagnostics -DurationBars 16 -Seed 199001
+```
+
+The SoundFont is a local ignored artifact; do not stage or vendor it. A successful renderer-path proof writes `smoke_summary.json` with `fluidsynth_isolation_failed: false` and renderer diagnostics confirming the FluidSynth path.
+
+Runtime proof from the first exact isolated smoke:
+
+- Artifact directory: `output\_diagnostics\rock_1990s_20260514_160450`
+- Summary: `smoke_summary.json`
+- Render report: `rock_100.0bpm_Eminor_20260514_160452_render_report.json`
+- Renderer diagnostics:
+  - `renderer_path="fluidsynth"`
+  - `require_soundfont=true`
+  - `fluidsynth.available=true`
+  - `fluidsynth.attempted=true`
+  - `fluidsynth.success=true`
+  - `fluidsynth.skip_reason=null`
+  - `soundfont_path="C:\dev\MUSE-ai\MUSE\assets\soundfonts\FluidR3Mono_GM.sf3"`
+  - `custom_audio.custom_drums_loaded=0`
+  - `instrument_library.loaded=false`
+  - `expansions.loaded=false`
+  - `pipeline_stages.fluidsynth_file_mastering.status="applied"`
+
+Important quality follow-up: the isolation proof succeeded, but the combined `-StrictAudio` quality gate still reported `strict_audio_failed=true` because the full SoundFont render failed rock audio analysis (`genre_match_score=0.58`, spectral centroid `5649 Hz` above the 1000–4500 Hz target, and `snare_or_clap` not detected). That is no longer a renderer-selection/bootstrap problem; it becomes the next mastering/analyzer/instrument-balance priority.
+
 ### Failed runner attempt
 
 - Artifact directory: `output/_diagnostics/rock_1990s_20260514_044251`

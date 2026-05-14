@@ -3,7 +3,9 @@ param(
     [string]$OutputRoot = "output\_diagnostics",
     [int]$DurationBars = 16,
     [int]$Seed = 199001,
-    [switch]$StrictAudio
+    [switch]$StrictAudio,
+    [switch]$FluidSynthIsolation,
+    [string]$SoundFont
 )
 
 $ErrorActionPreference = "Stop"
@@ -92,6 +94,15 @@ $childArgs = @(
 if ($StrictAudio.IsPresent) {
     $childArgs += "--require-audio"
 }
+if ($FluidSynthIsolation.IsPresent) {
+    $childArgs += "--skip-default-instruments"
+    $childArgs += "--skip-expansions"
+    $childArgs += "--require-soundfont"
+    if (-not [string]::IsNullOrWhiteSpace($SoundFont)) {
+        $childArgs += "--soundfont"
+        $childArgs += (Resolve-SmokePath $SoundFont)
+    }
+}
 
 $psi = [System.Diagnostics.ProcessStartInfo]::new()
 $psi.FileName = $pythonPath
@@ -163,6 +174,13 @@ $rendererPath = if ($renderReportData -and $renderReportData.renderer_path) { [s
 $soundfontPath = if ($renderReportData -and $renderReportData.soundfont_path) { [string]$renderReportData.soundfont_path } else { $null }
 $requireSoundfont = if ($renderReportData -and $null -ne $renderReportData.require_soundfont) { [bool]$renderReportData.require_soundfont } else { $null }
 $fluidsynth = if ($renderReportData -and $renderReportData.fluidsynth) { $renderReportData.fluidsynth } else { $null }
+$fluidsynthAvailable = if ($fluidsynth -and $null -ne $fluidsynth.available) { [bool]$fluidsynth.available } else { $null }
+$fluidsynthVersion = if ($fluidsynth -and $fluidsynth.version) { [string]$fluidsynth.version } else { $null }
+$fluidsynthEnabled = if ($fluidsynth -and $null -ne $fluidsynth.enabled) { [bool]$fluidsynth.enabled } else { $null }
+$fluidsynthAllowed = if ($fluidsynth -and $null -ne $fluidsynth.allowed) { [bool]$fluidsynth.allowed } else { $null }
+$fluidsynthAttempted = if ($fluidsynth -and $null -ne $fluidsynth.attempted) { [bool]$fluidsynth.attempted } else { $null }
+$fluidsynthSuccess = if ($fluidsynth -and $null -ne $fluidsynth.success) { [bool]$fluidsynth.success } else { $null }
+$fluidsynthSkipReason = if ($fluidsynth -and $fluidsynth.skip_reason) { [string]$fluidsynth.skip_reason } else { $null }
 $analysisPresent = $null -ne $audioAnalysis
 $analysisPassed = if ($analysisPresent -and $null -ne $audioAnalysis.passed) { [bool]$audioAnalysis.passed } else { $null }
 $analysisScore = if ($analysisPresent -and $null -ne $audioAnalysis.genre_match_score) { [double]$audioAnalysis.genre_match_score } else { $null }
@@ -186,6 +204,11 @@ if ($StrictAudio.IsPresent) {
     $strictAudioFailed = ($childExitCode -ne 0) -or (-not $metadata) -or (-not $hasMetadataAudio) -or ($renderSuccess -eq $false) -or $analysisExplicitFailure
 }
 
+$fluidsynthIsolationFailed = $false
+if ($FluidSynthIsolation.IsPresent) {
+    $fluidsynthIsolationFailed = ($rendererPath -ne "fluidsynth") -or ($fluidsynthAttempted -ne $true) -or ($fluidsynthSuccess -ne $true) -or (-not [string]::IsNullOrWhiteSpace($fluidsynthSkipReason)) -or ([string]::IsNullOrWhiteSpace($soundfontPath))
+}
+
 $summary = [ordered]@{
     prompt = $Prompt
     pid = $pidValue
@@ -193,6 +216,8 @@ $summary = [ordered]@{
     timed_out = $timedOut
     strict_audio = [bool]$StrictAudio.IsPresent
     strict_audio_failed = $strictAudioFailed
+    fluidsynth_isolation = [bool]$FluidSynthIsolation.IsPresent
+    fluidsynth_isolation_failed = $fluidsynthIsolationFailed
     stdout_path = $stdoutPath
     stderr_path = $stderrPath
     output_dir = $outputDir
@@ -224,13 +249,13 @@ $summary = [ordered]@{
         renderer_path = $rendererPath
         soundfont_path = $soundfontPath
         require_soundfont = $requireSoundfont
-        fluidsynth_available = if ($fluidsynth -and $null -ne $fluidsynth.available) { [bool]$fluidsynth.available } else { $null }
-        fluidsynth_version = if ($fluidsynth -and $fluidsynth.version) { [string]$fluidsynth.version } else { $null }
-        fluidsynth_enabled = if ($fluidsynth -and $null -ne $fluidsynth.enabled) { [bool]$fluidsynth.enabled } else { $null }
-        fluidsynth_allowed = if ($fluidsynth -and $null -ne $fluidsynth.allowed) { [bool]$fluidsynth.allowed } else { $null }
-        fluidsynth_attempted = if ($fluidsynth -and $null -ne $fluidsynth.attempted) { [bool]$fluidsynth.attempted } else { $null }
-        fluidsynth_success = if ($fluidsynth -and $null -ne $fluidsynth.success) { [bool]$fluidsynth.success } else { $null }
-        fluidsynth_skip_reason = if ($fluidsynth -and $fluidsynth.skip_reason) { [string]$fluidsynth.skip_reason } else { $null }
+        fluidsynth_available = $fluidsynthAvailable
+        fluidsynth_version = $fluidsynthVersion
+        fluidsynth_enabled = $fluidsynthEnabled
+        fluidsynth_allowed = $fluidsynthAllowed
+        fluidsynth_attempted = $fluidsynthAttempted
+        fluidsynth_success = $fluidsynthSuccess
+        fluidsynth_skip_reason = $fluidsynthSkipReason
     }
     command = [ordered]@{
         python = $pythonPath
@@ -238,6 +263,8 @@ $summary = [ordered]@{
         duration_bars = $DurationBars
         seed = $Seed
         require_audio = [bool]$StrictAudio.IsPresent
+        fluidsynth_isolation = [bool]$FluidSynthIsolation.IsPresent
+        soundfont = if (-not [string]::IsNullOrWhiteSpace($SoundFont)) { (Resolve-SmokePath $SoundFont) } else { $null }
     }
     generated_at = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
 }
@@ -248,7 +275,17 @@ if ($StrictAudio.IsPresent -and $strictAudioFailed) {
     if ($childExitCode -ne 0) {
         exit $childExitCode
     }
+    if ($FluidSynthIsolation.IsPresent -and $fluidsynthIsolationFailed) {
+        exit 3
+    }
     exit 2
+}
+
+if ($FluidSynthIsolation.IsPresent -and $fluidsynthIsolationFailed) {
+    if ($childExitCode -ne 0) {
+        exit $childExitCode
+    }
+    exit 3
 }
 
 exit $childExitCode

@@ -1,11 +1,72 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-render-silence-gap-analysis-045",
-    "started": "2026-05-14T22:05:00Z",
-    "user_request": "Investigate whether rendered test songs should have silent gaps every roughly 7 beats / 2 bars, identify source, and continue quality upgrades."
+    "id": "session-2026-05-14-exact-rock-fluidsynth-smoke-isolation-046",
+    "started": "2026-05-14T23:00:00Z",
+    "user_request": "Continue with next highest priorities after fixing procedural tempo gaps; focus on a safe exact-prompt FluidSynth rock smoke isolation path."
   },
   "task_queue": [
+    {
+      "id": "exact-rock-fluidsynth-smoke-isolation-046",
+      "description": "Add a safe CLI/runtime isolation path for exact 1990s rock FluidSynth smoke proof that bypasses heavy expansion/custom-sample bootstrap while preserving default behavior.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "main.py",
+        "multimodal_gen/audio_renderer.py",
+        "scripts/smoke_1990s_rock.ps1",
+        "tests/test_smoke_1990s_rock_contract.py",
+        "tests/test_render_report_schema.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/memory.json",
+        ".github/state/context.json"
+      ],
+      "created": "2026-05-14T23:00:00Z",
+      "updated": "2026-05-14T23:15:00Z",
+      "result": {
+        "summary": "Implemented and runtime-proved a default-off exact-prompt FluidSynth smoke isolation path that bypasses default instruments and expansion bootstrap only when requested, while preserving default generation and AudioRenderer fallback behavior.",
+        "files_changed": [
+          "main.py",
+          "scripts\\smoke_1990s_rock.ps1",
+          "tests\\test_main_render_diagnostics.py",
+          "tests\\test_smoke_1990s_rock_contract.py",
+          "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+        ],
+        "implementation": {
+          "main.py": "Added run_generation skip_default_instruments/skip_expansions kwargs, CLI flags, stale service clearing in isolation, expansion scan/service skip, default instrument auto-load skip, and forwarding through normal/refine CLI paths.",
+          "smoke_script": "Added -FluidSynthIsolation and -SoundFont params; isolation passes --skip-default-instruments, --skip-expansions, --require-soundfont, optional --soundfont; summary records isolation status and diagnostics; isolation exits nonzero when renderer diagnostics do not prove FluidSynth.",
+          "tests_docs": "Added CLI forwarding and run_generation skip tests, smoke-script static contract coverage, and documented the exact smoke command plus runtime proof."
+        },
+        "runtime_proof": {
+          "artifact_dir": "output\\_diagnostics\\rock_1990s_20260514_160450",
+          "summary": "output\\_diagnostics\\rock_1990s_20260514_160450\\smoke_summary.json",
+          "render_report": "output\\_diagnostics\\rock_1990s_20260514_160450\\rock_100.0bpm_Eminor_20260514_160452_render_report.json",
+          "renderer_path": "fluidsynth",
+          "fluidsynth_attempted": true,
+          "fluidsynth_success": true,
+          "fluidsynth_skip_reason": null,
+          "soundfont_path": "C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3",
+          "custom_drums_loaded": 0,
+          "instrument_library_loaded": false,
+          "expansions_loaded": false,
+          "file_mastering_status": "applied",
+          "strict_audio_failed": true,
+          "strict_audio_failure_reason": "Full SoundFont render still failed rock audio analysis: centroid 5649 Hz above target and snare_or_clap not detected."
+        },
+        "verification": {
+          "post_verifier": "PASS after test collection fix; FluidSynth isolation contract test is module-scope and collected.",
+          "git_diff_check": "PASS",
+          "focused_pytest": "PASS - tests/test_main_render_diagnostics.py tests/test_smoke_1990s_rock_contract.py tests/test_render_report_schema.py -> 17 passed.",
+          "collect_only": "PASS - tests/test_smoke_1990s_rock_contract.py collected 6 tests including test_smoke_1990s_rock_fluidsynth_isolation_contract.",
+          "diagnostics": "PASS - no VS Code diagnostics for touched Python files.",
+          "powershell_parse": "PASS - smoke script parses."
+        },
+        "next_recommendation": "Fix FluidSynth exact-prompt rock quality: reduce over-bright SoundFont master output and/or improve snare/live-drum evidence so strict audio can pass after renderer path is proven."
+      }
+    },
     {
       "id": "render-silence-gap-analysis-045",
       "description": "Measure recent rendered WAV/MIDI artifacts for periodic near-silence gaps around every ~7 beats/2 bars, determine whether intentional arrangement rests or a rendering/timing/playback bug, and implement a minimal fix if proven.",
@@ -1697,7 +1758,7 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-14T22:40:00Z",
+    "last_updated": "2026-05-14T23:15:00Z",
     "total_tasks_completed": 71,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",

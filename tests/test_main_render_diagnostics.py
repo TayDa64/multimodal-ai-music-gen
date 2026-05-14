@@ -174,6 +174,47 @@ def test_cli_duration_bars_reaches_run_generation(monkeypatch, tmp_path):
     assert captured["duration_bars"] == 8
 
 
+def test_cli_fluidsynth_isolation_flags_reach_run_generation(monkeypatch, tmp_path):
+    captured = {}
+
+    def fake_run_generation(**kwargs):
+        captured.update(kwargs)
+        return {
+            "midi": None,
+            "audio": str(tmp_path / "dummy.wav"),
+            "mpc": None,
+            "stems": [],
+            "samples": [],
+            "takes": {},
+            "comps": {},
+            "seed": 123,
+            "synthesis_params": {},
+            "project_metadata": str(tmp_path / "project_metadata.json"),
+        }
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "smoke prompt",
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--skip-default-instruments",
+        "--skip-expansions",
+        "--require-soundfont",
+        "--soundfont",
+        "assets/soundfonts/test.sf3",
+    ])
+
+    exit_code = main_module.main()
+
+    assert exit_code == 0
+    assert captured["skip_default_instruments"] is True
+    assert captured["skip_expansions"] is True
+    assert captured["require_soundfont"] is True
+    assert captured["soundfont_path"] == "assets/soundfonts/test.sf3"
+
+
 def test_run_generation_persists_render_diagnostics_on_step5_exception(monkeypatch, tmp_path):
     output_dir = tmp_path / "out"
     output_dir.mkdir()
@@ -237,6 +278,83 @@ def test_run_generation_persists_render_diagnostics_on_step5_exception(monkeypat
     assert "synthetic step 5 failure" in error_text
     assert "RuntimeError" in error_text
     assert "traceback:" in error_text
+
+
+def test_run_generation_skip_isolation_avoids_default_instruments_and_expansions(monkeypatch, tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+    default_instruments = sandbox_main.parent / "instruments"
+    default_instruments.mkdir()
+    (default_instruments / "placeholder.wav").write_bytes(b"RIFF")
+    expansions_dir = sandbox_main.parent.parent / "expansions"
+    expansions_dir.mkdir()
+
+    cleared_services = []
+
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(main_module, "print_step", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_info", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_success", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_parsed_prompt", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "validate_generation", lambda *args, **kwargs: SimpleNamespace(valid=True, violations=[]))
+    monkeypatch.setattr(main_module, "Arranger", DummyArranger)
+    monkeypatch.setattr(main_module, "SessionGraphBuilder", FailingGraphBuilder)
+    monkeypatch.setattr(main_module, "MidiGenerator", DummyMidiGenerator)
+    monkeypatch.setattr(main_module, "AssetsGenerator", DummyAssetsGenerator)
+    monkeypatch.setattr(main_module, "AudioRenderer", ExplodingRenderer)
+    monkeypatch.setattr(main_module, "generate_project_name", lambda _parsed: "test_project")
+    monkeypatch.setattr(main_module, "set_instrument_service", lambda service: cleared_services.append(service))
+    monkeypatch.setattr(main_module, "_run_quality_gate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "HAS_STYLE_POLICY", False)
+    monkeypatch.setattr(main_module, "compile_policy", None)
+    monkeypatch.setattr(main_module, "HAS_AGENT_SYSTEM", False)
+    monkeypatch.setattr(main_module, "_HAS_QUALITY_VALIDATOR", False)
+    monkeypatch.setattr(main_module, "_HAS_FILE_ANALYSIS", False)
+    monkeypatch.setattr(main_module, "_HAS_STEM_SEPARATION", False)
+
+    import multimodal_gen as multimodal_gen_module
+    import multimodal_gen.instrument_resolution as instrument_resolution_module
+
+    class ForbiddenExpansionManager:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("expansions should not load in isolation")
+
+    class ForbiddenInstrumentLibrary:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("default instruments should not auto-load in isolation")
+
+    class ForbiddenInstrumentResolutionService:
+        def __init__(self, *args, **kwargs):
+            raise AssertionError("instrument service should not auto-register expansions in isolation")
+
+    def forbidden_load_multiple_libraries(*args, **kwargs):
+        raise AssertionError("default instruments should not auto-load in isolation")
+
+    monkeypatch.setattr(multimodal_gen_module, "ExpansionManager", ForbiddenExpansionManager, raising=False)
+    monkeypatch.setattr(multimodal_gen_module, "InstrumentLibrary", ForbiddenInstrumentLibrary, raising=False)
+    monkeypatch.setattr(multimodal_gen_module, "load_multiple_libraries", forbidden_load_multiple_libraries, raising=False)
+    monkeypatch.setattr(
+        instrument_resolution_module,
+        "InstrumentResolutionService",
+        ForbiddenInstrumentResolutionService,
+    )
+
+    results = main_module.run_generation(
+        prompt="neo soul smoke test 88 bpm in D minor",
+        output_dir=output_dir,
+        verbose=False,
+        use_bwf=False,
+        skip_default_instruments=True,
+        skip_expansions=True,
+    )
+
+    assert cleared_services == [None]
+    assert results["audio"] is None
+    assert results["render_report"] == str(output_dir / "test_project_render_report.json")
 
 
 def _missing_audio_results(tmp_path):
