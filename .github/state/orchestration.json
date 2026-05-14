@@ -7,6 +7,27 @@
   },
   "task_queue": [
     {
+      "id": "upgrade-rock-output-analyzer-032",
+      "description": "Implement first-class rock-family rendered-output analyzer targets with measurable sub-bass and live-drum checks",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\output_analyzer.py",
+        "tests\\test_output_analyzer.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T17:00:00Z",
+      "updated": "2026-05-14T18:00:00Z",
+      "result": {
+        "summary": "Added rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock output-analysis targets with conservative measurable ranges, sub_bass_energy_max ceilings, and required kick/snare_or_clap/hihats metadata. OutputSpectralAnalyzer reports sub_bass_energy_ratio; GenreMatchScorer rejects sub-heavy/808 rock renders and missing live drum parts while preserving unknown-genre neutral fallback. Regression fix: Missing/low live drum presence and the <0.60 score cap are now emitted only for targets that define required_drum_parts; ordinary non-required low drum_presence_range targets such as trap_soul emit generic low drum presence and do not trigger live-drum re_render corrections.",
+        "verification": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_output_analyzer.py -q passed 69 tests; state JSON validity and git diff --check passed."
+      }
+    },
+    {
       "id": "upgrade-rock-guitar-render-routing-031",
       "description": "Implement first-class guitar render/cache category, GM guitar routing, procedural fallback, and rock guitar chord-track MIDI routing",
       "status": "completed",

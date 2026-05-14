@@ -96,6 +96,7 @@ class TestSpectralFeatures:
     def test_default_values(self):
         sf = SpectralFeatures()
         assert sf.centroid_hz == 0.0
+        assert sf.sub_bass_energy_ratio == 0.0
         assert sf.mfcc_mean == []
 
     def test_fields(self):
@@ -128,6 +129,16 @@ class TestOutputSpectralAnalyzer:
 
         # Noise has higher spectral flatness than a sine
         assert features.flatness > 0.1
+
+    def test_analyze_sub_bass_energy_ratio_and_silence(self):
+        analyzer = OutputSpectralAnalyzer(sr=SR)
+
+        sub = analyzer.analyze(_sine(55.0, duration=2.0), SR)
+        assert sub.sub_bass_energy_ratio > 0.8
+
+        silence = np.zeros(SR * 2, dtype=np.float32)
+        silent_features = analyzer.analyze(silence, SR)
+        assert silent_features.sub_bass_energy_ratio == 0.0
 
     def test_stereo_input(self):
         mono = _sine(440.0, duration=1.0)
@@ -237,6 +248,12 @@ class TestGenreMatchScorer:
             "ethio_jazz",
             "eskista",
             "ethiopian_traditional",
+            "rock",
+            "classic_rock",
+            "alternative_rock",
+            "grunge",
+            "punk_rock",
+            "indie_rock",
         ],
     )
     def test_supported_genres_no_longer_use_neutral_fallback(self, genre):
@@ -327,6 +344,132 @@ class TestGenreMatchScorer:
         score, issues = scorer.score("unknown_genre_xyz", spectral, drums)
         assert score == 0.75
         assert issues == []
+
+    def test_rock_supported_without_neutral_fallback(self):
+        spectral = SpectralFeatures(
+            centroid_hz=5200.0,
+            rolloff_hz=16000.0,
+            flatness=0.28,
+            dynamic_range_db=2.0,
+            sub_bass_energy_ratio=0.42,
+        )
+        drums = DrumDetection(
+            percussive_ratio=0.04,
+            onset_density=0.4,
+            has_kick=False,
+            has_snare_or_clap=False,
+            has_hihats=False,
+        )
+
+        score, issues = GenreMatchScorer().score("rock", spectral, drums)
+
+        assert score < 0.75
+        assert issues
+
+    def test_sub_heavy_trap_like_features_fail_rock_with_bass_correction(self):
+        spectral = SpectralFeatures(
+            centroid_hz=2600.0,
+            rolloff_hz=10000.0,
+            flatness=0.10,
+            dynamic_range_db=7.0,
+            sub_bass_energy_ratio=0.45,
+        )
+        drums = DrumDetection(
+            drums_present=True,
+            percussive_ratio=0.28,
+            has_kick=True,
+            has_snare_or_clap=True,
+            has_hihats=True,
+            onset_density=3.2,
+        )
+
+        score, issues = GenreMatchScorer().score("rock", spectral, drums)
+        corrections = generate_corrections(issues)
+
+        assert score < 0.60
+        assert any(i.metric_name == "sub_bass_energy_ratio" for i in issues)
+        assert any(
+            c.action == "swap_instrument" and c.target == "bass"
+            for c in corrections
+        )
+
+    def test_missing_live_drums_fail_rock_with_drum_correction(self):
+        spectral = SpectralFeatures(
+            centroid_hz=2400.0,
+            rolloff_hz=9000.0,
+            flatness=0.09,
+            dynamic_range_db=8.0,
+            sub_bass_energy_ratio=0.08,
+        )
+        drums = DrumDetection(
+            drums_present=False,
+            percussive_ratio=0.03,
+            has_kick=False,
+            has_snare_or_clap=False,
+            has_hihats=False,
+            onset_density=0.5,
+        )
+
+        score, issues = GenreMatchScorer().score("rock", spectral, drums)
+        corrections = generate_corrections(issues)
+
+        assert score < 0.60
+        assert any(i.category == "drums" for i in issues)
+        assert any(c.target == "drums" for c in corrections)
+
+    def test_low_drum_trap_soul_does_not_trigger_live_drum_rerender(self):
+        spectral = SpectralFeatures(
+            centroid_hz=2400.0,
+            rolloff_hz=9000.0,
+            flatness=0.08,
+            dynamic_range_db=7.0,
+            sub_bass_energy_ratio=0.08,
+        )
+        drums = DrumDetection(
+            drums_present=False,
+            percussive_ratio=0.03,
+            has_kick=False,
+            has_snare_or_clap=False,
+            has_hihats=False,
+            onset_density=0.5,
+        )
+
+        score, issues = GenreMatchScorer().score("trap_soul", spectral, drums)
+        corrections = generate_corrections(issues)
+
+        assert score >= 0.60
+        assert any(i.metric_name == "percussive_ratio" for i in issues)
+        assert not any(
+            "missing/low live drum presence" in i.message.lower()
+            for i in issues
+        )
+        assert not any(
+            c.action == "re_render" and c.target == "drums"
+            for c in corrections
+        )
+        assert not any("live drum" in c.detail.lower() for c in corrections)
+
+    def test_conservative_measurable_rock_band_features_pass(self):
+        spectral = SpectralFeatures(
+            centroid_hz=2300.0,
+            rolloff_hz=9500.0,
+            flatness=0.08,
+            dynamic_range_db=9.0,
+            sub_bass_energy_ratio=0.09,
+        )
+        drums = DrumDetection(
+            drums_present=True,
+            percussive_ratio=0.24,
+            has_kick=True,
+            has_snare_or_clap=True,
+            has_hihats=True,
+            onset_density=3.0,
+        )
+
+        score, issues = GenreMatchScorer().score("rock", spectral, drums)
+
+        assert score >= 0.70
+        assert not any(issue.severity == "error" for issue in issues)
 
     def test_trap_with_drums_acceptable(self):
         """Trap expects drums — high percussive ratio is OK."""
@@ -527,6 +670,41 @@ class TestCorrectionEngine:
         if len(corrections) >= 2:
             assert corrections[0].priority <= corrections[1].priority
 
+    def test_sub_bass_issue_generates_bass_swap_correction(self):
+        issues = [
+            AnalysisIssue(
+                severity="error",
+                category="bass",
+                message="Sub-bass/808 energy 0.450 exceeds max 0.16 for rock",
+                metric_name="sub_bass_energy_ratio",
+                actual_value=0.45,
+                expected_range="<0.16",
+            )
+        ]
+
+        corrections = generate_corrections(issues)
+
+        assert any(
+            c.action == "swap_instrument" and c.target == "bass"
+            for c in corrections
+        )
+
+    def test_low_live_drum_issue_generates_drum_rerender_correction(self):
+        issues = [
+            AnalysisIssue(
+                severity="error",
+                category="drums",
+                message="Missing/low live drum presence: percussive ratio 0.030 below expected 0.12 for rock",
+                metric_name="percussive_ratio",
+                actual_value=0.03,
+                expected_range="0.12-0.50",
+            )
+        ]
+
+        corrections = generate_corrections(issues)
+
+        assert any(c.action == "re_render" and c.target == "drums" for c in corrections)
+
 
 # ---------------------------------------------------------------------------
 # Tests: OutputAnalysisReport
@@ -553,7 +731,11 @@ class TestOutputAnalysisReport:
             target_genre="classical",
             genre_match_score=0.45,
             passed=False,
-            spectral=SpectralFeatures(centroid_hz=3000.0, rolloff_hz=8000.0),
+            spectral=SpectralFeatures(
+                centroid_hz=3000.0,
+                rolloff_hz=8000.0,
+                sub_bass_energy_ratio=0.12,
+            ),
             drums=DrumDetection(drums_present=True, percussive_ratio=0.3),
             piano=PianoTypeDetection(
                 piano_detected=True,
@@ -578,6 +760,7 @@ class TestOutputAnalysisReport:
         )
         d = report.to_dict()
         assert "spectral" in d
+        assert d["spectral"]["sub_bass_energy_ratio"] == 0.12
         assert "drums" in d
         assert "piano" in d
         assert len(d["issues"]) == 1
@@ -666,8 +849,35 @@ class TestAudioGenreTargets:
             "ethio_jazz",
             "eskista",
             "ethiopian_traditional",
+            "rock",
+            "classic_rock",
+            "alternative_rock",
+            "grunge",
+            "punk_rock",
+            "indie_rock",
         ]:
             assert genre in AUDIO_GENRE_TARGETS
+
+    @pytest.mark.parametrize(
+        "genre, sub_bass_max",
+        [
+            ("rock", 0.16),
+            ("classic_rock", 0.12),
+            ("alternative_rock", 0.16),
+            ("grunge", 0.18),
+            ("punk_rock", 0.15),
+            ("indie_rock", 0.14),
+        ],
+    )
+    def test_rock_family_targets_have_measurable_schema(self, genre, sub_bass_max):
+        target = AUDIO_GENRE_TARGETS[genre]
+        assert "spectral_centroid_range" in target
+        assert target["sub_bass_energy_max"] == sub_bass_max
+        assert target["required_drum_parts"] == [
+            "kick",
+            "snare_or_clap",
+            "hihats",
+        ]
 
     def test_classical_has_required_keys(self):
         classical = AUDIO_GENRE_TARGETS["classical"]

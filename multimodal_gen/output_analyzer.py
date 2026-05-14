@@ -157,6 +157,84 @@ AUDIO_GENRE_TARGETS: Dict[str, Dict[str, Any]] = {
         "drum_presence_range": (0.15, 0.50),
         "dynamic_range_min_db": 4,
     },
+    "rock": {
+        "spectral_centroid_range": (1000, 4500),
+        "spectral_rolloff_max": 14000,
+        "spectral_flatness_max": 0.18,
+        "harmonic_ratio_min": 0.42,
+        "drum_presence_range": (0.12, 0.50),
+        "onset_density_range": (1.5, 6.5),
+        "dynamic_range_min_db": 5,
+        "expected_timbres": ["electric_guitar", "bass_guitar", "live_drums"],
+        "forbidden_timbres": ["808", "sub_bass", "trap_kit"],
+        "sub_bass_energy_max": 0.16,
+        "required_drum_parts": ["kick", "snare_or_clap", "hihats"],
+    },
+    "classic_rock": {
+        "spectral_centroid_range": (800, 3800),
+        "spectral_rolloff_max": 12500,
+        "spectral_flatness_max": 0.14,
+        "harmonic_ratio_min": 0.50,
+        "drum_presence_range": (0.10, 0.42),
+        "onset_density_range": (1.2, 5.2),
+        "dynamic_range_min_db": 8,
+        "expected_timbres": ["electric_guitar", "bass_guitar", "live_drums"],
+        "forbidden_timbres": ["808", "sub_bass", "trap_kit"],
+        "sub_bass_energy_max": 0.12,
+        "required_drum_parts": ["kick", "snare_or_clap", "hihats"],
+    },
+    "alternative_rock": {
+        "spectral_centroid_range": (1000, 4600),
+        "spectral_rolloff_max": 14500,
+        "spectral_flatness_max": 0.18,
+        "harmonic_ratio_min": 0.42,
+        "drum_presence_range": (0.12, 0.50),
+        "onset_density_range": (1.4, 6.2),
+        "dynamic_range_min_db": 6,
+        "expected_timbres": ["electric_guitar", "bass_guitar", "live_drums"],
+        "forbidden_timbres": ["808", "sub_bass", "trap_kit"],
+        "sub_bass_energy_max": 0.16,
+        "required_drum_parts": ["kick", "snare_or_clap", "hihats"],
+    },
+    "grunge": {
+        "spectral_centroid_range": (900, 4400),
+        "spectral_rolloff_max": 14000,
+        "spectral_flatness_max": 0.20,
+        "harmonic_ratio_min": 0.38,
+        "drum_presence_range": (0.12, 0.55),
+        "onset_density_range": (1.4, 6.0),
+        "dynamic_range_min_db": 6,
+        "expected_timbres": ["electric_guitar", "bass_guitar", "live_drums"],
+        "forbidden_timbres": ["808", "sub_bass", "trap_kit"],
+        "sub_bass_energy_max": 0.18,
+        "required_drum_parts": ["kick", "snare_or_clap", "hihats"],
+    },
+    "punk_rock": {
+        "spectral_centroid_range": (1200, 5000),
+        "spectral_rolloff_max": 15000,
+        "spectral_flatness_max": 0.20,
+        "harmonic_ratio_min": 0.35,
+        "drum_presence_range": (0.15, 0.60),
+        "onset_density_range": (2.0, 8.0),
+        "dynamic_range_min_db": 5,
+        "expected_timbres": ["electric_guitar", "bass_guitar", "live_drums"],
+        "forbidden_timbres": ["808", "sub_bass", "trap_kit"],
+        "sub_bass_energy_max": 0.15,
+        "required_drum_parts": ["kick", "snare_or_clap", "hihats"],
+    },
+    "indie_rock": {
+        "spectral_centroid_range": (800, 4200),
+        "spectral_rolloff_max": 13000,
+        "spectral_flatness_max": 0.16,
+        "harmonic_ratio_min": 0.45,
+        "drum_presence_range": (0.10, 0.45),
+        "onset_density_range": (1.2, 5.5),
+        "dynamic_range_min_db": 7,
+        "expected_timbres": ["electric_guitar", "bass_guitar", "live_drums"],
+        "forbidden_timbres": ["808", "sub_bass", "trap_kit"],
+        "sub_bass_energy_max": 0.14,
+        "required_drum_parts": ["kick", "snare_or_clap", "hihats"],
+    },
     "house": {
         "spectral_centroid_range": (1200, 4200),
         "spectral_rolloff_max": 13000,
@@ -235,6 +313,7 @@ class SpectralFeatures:
     rms_mean: float = 0.0
     rms_max: float = 0.0
     dynamic_range_db: float = 0.0
+    sub_bass_energy_ratio: float = 0.0
 
 
 @dataclass
@@ -313,6 +392,9 @@ class OutputAnalysisReport:
                 "bandwidth_hz": round(self.spectral.bandwidth_hz, 1),
                 "flatness": round(self.spectral.flatness, 4),
                 "dynamic_range_db": round(self.spectral.dynamic_range_db, 1),
+                "sub_bass_energy_ratio": round(
+                    self.spectral.sub_bass_energy_ratio, 4
+                ),
                 "mfcc_variance": round(self.spectral.mfcc_variance, 2),
             }
         if self.drums:
@@ -420,6 +502,20 @@ class OutputSpectralAnalyzer:
             features.dynamic_range_db = float(
                 20.0 * np.log10(np.max(rms_nonzero) / np.min(rms_nonzero))
             )
+
+        # Sub-bass / 808 energy ratio: frequency-domain energy below ~90 Hz
+        # divided by total spectral energy. Silence and near-silence fail open.
+        audio_energy = float(np.sum(np.asarray(audio, dtype=np.float64) ** 2))
+        if audio_energy > 1e-12 and len(audio) > 0:
+            spectrum = np.fft.rfft(audio)
+            power = np.abs(spectrum) ** 2
+            total_power = float(np.sum(power))
+            if total_power > 1e-12:
+                freqs = np.fft.rfftfreq(len(audio), d=1.0 / sr)
+                sub_power = float(np.sum(power[freqs < 90.0]))
+                features.sub_bass_energy_ratio = float(
+                    np.clip(sub_power / total_power, 0.0, 1.0)
+                )
 
         return features
 
@@ -644,6 +740,7 @@ class GenreMatchScorer:
             return 0.75, []
 
         scores: List[float] = []
+        score_caps: List[float] = []
         issues: List[AnalysisIssue] = []
 
         # --- Spectral centroid ---
@@ -754,6 +851,110 @@ class GenreMatchScorer:
                     abs(drums.percussive_ratio - hi),
                 )
                 scores.append(max(0.0, 1.0 - dist / 0.3))
+                if drums.percussive_ratio < lo:
+                    if target.get("required_drum_parts"):
+                        score_caps.append(0.58)
+                        issues.append(
+                            AnalysisIssue(
+                                severity="error",
+                                category="drums",
+                                message=(
+                                    f"Missing/low live drum presence: "
+                                    f"percussive ratio {drums.percussive_ratio:.3f} "
+                                    f"below expected {lo:.2f} for {genre}"
+                                ),
+                                metric_name="percussive_ratio",
+                                actual_value=drums.percussive_ratio,
+                                expected_range=f"{lo}-{hi}",
+                            )
+                        )
+                    else:
+                        issues.append(
+                            AnalysisIssue(
+                                severity="warning",
+                                category="drums",
+                                message=(
+                                    f"Drum presence {drums.percussive_ratio:.3f} "
+                                    f"below expected {lo:.2f} for {genre}"
+                                ),
+                                metric_name="percussive_ratio",
+                                actual_value=drums.percussive_ratio,
+                                expected_range=f"{lo}-{hi}",
+                            )
+                        )
+                else:
+                    issues.append(
+                        AnalysisIssue(
+                            severity="warning",
+                            category="drums",
+                            message=(
+                                f"Live drum presence {drums.percussive_ratio:.3f} "
+                                f"above expected {hi:.2f} for {genre}"
+                            ),
+                            metric_name="percussive_ratio",
+                            actual_value=drums.percussive_ratio,
+                            expected_range=f"{lo}-{hi}",
+                        )
+                    )
+
+        # --- Sub-bass / 808 energy ceiling for guitar/live-band genres ---
+        sub_bass_max = target.get("sub_bass_energy_max")
+        if sub_bass_max is not None:
+            actual_sub = spectral.sub_bass_energy_ratio
+            if actual_sub <= sub_bass_max:
+                scores.append(1.0)
+            else:
+                excess = actual_sub - sub_bass_max
+                scores.append(
+                    max(0.0, 1.0 - (excess / max(sub_bass_max, 0.05)) * 2.0)
+                )
+                score_caps.append(0.55 if actual_sub >= sub_bass_max * 1.5 else 0.68)
+                issues.append(
+                    AnalysisIssue(
+                        severity="error",
+                        category="bass",
+                        message=(
+                            f"Sub-bass/808 energy {actual_sub:.3f} exceeds max "
+                            f"{sub_bass_max:.2f} for {genre}"
+                        ),
+                        metric_name="sub_bass_energy_ratio",
+                        actual_value=actual_sub,
+                        expected_range=f"<{sub_bass_max}",
+                    )
+                )
+
+        # --- Required live drum parts for rock-family targets ---
+        required_parts = target.get("required_drum_parts", [])
+        if required_parts:
+            part_flags = {
+                "kick": drums.has_kick,
+                "snare_or_clap": drums.has_snare_or_clap,
+                "hihats": drums.has_hihats,
+            }
+            missing_parts = [
+                part for part in required_parts if not part_flags.get(part, False)
+            ]
+            if missing_parts:
+                present_ratio = (
+                    (len(required_parts) - len(missing_parts)) / len(required_parts)
+                )
+                scores.append(max(0.0, present_ratio))
+                score_caps.append(0.58)
+                issues.append(
+                    AnalysisIssue(
+                        severity="error",
+                        category="drums",
+                        message=(
+                            "Missing required live drum parts for "
+                            f"{genre}: {', '.join(missing_parts)}"
+                        ),
+                        metric_name="required_drum_parts",
+                        actual_value=present_ratio,
+                        expected_range=",".join(required_parts),
+                    )
+                )
+            else:
+                scores.append(1.0)
 
         onset_density_range = target.get("onset_density_range")
         if onset_density_range:
@@ -840,7 +1041,11 @@ class GenreMatchScorer:
         if not scores:
             return 0.75, issues
 
-        return float(np.mean(scores)), issues
+        score = float(np.mean(scores))
+        if score_caps:
+            score = min(score, min(score_caps))
+
+        return score, issues
 
 
 # =============================================================================
@@ -868,7 +1073,32 @@ def generate_corrections(
             return None
 
     for issue in issues:
-        if issue.category == "drums" and "exceeds" in issue.message:
+        if issue.category == "bass" and issue.metric_name == "sub_bass_energy_ratio":
+            corrections.append(
+                CorrectionSuggestion(
+                    action="swap_instrument",
+                    target="bass",
+                    detail="Sub-bass/808 energy is too high for this genre. "
+                    "Replace 808/sub-bass with bass guitar or reduce sub-90 Hz energy.",
+                    priority=0,
+                )
+            )
+
+        elif issue.category == "drums" and (
+            issue.metric_name == "required_drum_parts"
+            or "missing/low live drum presence" in issue.message.lower()
+        ):
+            corrections.append(
+                CorrectionSuggestion(
+                    action="re_render",
+                    target="drums",
+                    detail="Re-render with a live drum performance including kick, snare/clap, "
+                    "and hihat parts.",
+                    priority=0,
+                )
+            )
+
+        elif issue.category == "drums" and "exceeds" in issue.message:
             corrections.append(
                 CorrectionSuggestion(
                     action="mute_drums",

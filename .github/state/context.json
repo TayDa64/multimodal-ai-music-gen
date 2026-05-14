@@ -1,7 +1,77 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-02-12-sprint75",
+  "session_id": "session-2026-01-17-masterclass",
   "files_touched": [
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T18:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded regression-fix files touched, changes made, and verification proof."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T18:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded required_drum_parts gating pattern and decision for live-drum analyzer corrections."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T18:00:00Z",
+      "by_agent": "builder",
+      "changes": "Updated upgrade-rock-output-analyzer-032 summary and focused test count to 69."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T18:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added trap_soul low-drum regression proving generic low drum presence does not create live-drum re_render correction."
+    },
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T18:00:00Z",
+      "by_agent": "builder",
+      "changes": "Gated low live-drum presence issue/cap to required_drum_parts targets and used generic low drum-presence wording for non-required targets."
+    },
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T17:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added rock-family output-analysis targets, sub_bass_energy_ratio extraction/reporting, measurable sub-bass and live-drum scoring, and measurable-only bass/drum corrections."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T17:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused rock analyzer target, no-neutral-fallback, sub-heavy, missing-live-drums, passing rock-band, sub-bass analysis, and correction regressions."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T17:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed upgrade-rock-output-analyzer-032 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T17:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded rock analyzer no-neutral-fallback and measurable-only correction pattern/decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T17:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded files touched, changes made, and verification for upgrade-rock-output-analyzer-032."
+    },
     {
       "path": "multimodal_gen\\instrument_manager.py",
       "action": "modified",
@@ -1104,6 +1174,36 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen\\output_analyzer.py",
+      "description": "Gated Missing/low live drum presence behavior to required_drum_parts targets.",
+      "diff_summary": "Non-required low drum_presence_range targets now emit generic Drum presence below expected warnings; required-drum targets keep the error phrase and score cap.",
+      "timestamp": "2026-05-14T18:00:00Z"
+    },
+    {
+      "file": "tests\\test_output_analyzer.py",
+      "description": "Added non-rock low-drum regression coverage.",
+      "diff_summary": "trap_soul low percussive_ratio is asserted not to produce Missing/low live drum presence wording or drums re_render/live-drum correction.",
+      "timestamp": "2026-05-14T18:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\output_analyzer.py",
+      "description": "Added rock-family rendered-output analyzer targets and measurable live-band scoring.",
+      "diff_summary": "Added rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock AUDIO_GENRE_TARGETS with conservative ranges, sub_bass_energy_max ceilings, and required kick/snare_or_clap/hihats; added SpectralFeatures.sub_bass_energy_ratio extraction/reporting; extended GenreMatchScorer with sub-bass caps, drum_presence_range issues, and required DrumDetection part checks while unknown genres still return 0.75/[]; mapped measurable bass and live-drum issues to corrections only.",
+      "timestamp": "2026-05-14T17:00:00Z"
+    },
+    {
+      "file": "tests\\test_output_analyzer.py",
+      "description": "Added focused output-analyzer regressions for rock-family no-neutral-fallback behavior.",
+      "diff_summary": "Covers rock-family target schema, sub_bass_energy_ratio analysis and report serialization, rock bad/trap-like features scoring below neutral/pass threshold with bass correction, missing live drums scoring below pass threshold with drum correction, conservative rock-band features passing, and unknown genre neutral fallback preservation.",
+      "timestamp": "2026-05-14T17:00:00Z"
+    },
+    {
+      "file": ".github\\state\\*.json",
+      "description": "Recorded upgrade-rock-output-analyzer-032 completion and continuity notes.",
+      "diff_summary": "orchestration.json now has completed task upgrade-rock-output-analyzer-032; memory.json notes rock analyzer no-neutral-fallback and measurable-only corrections; context.json records touched files, changes, and focused verification.",
+      "timestamp": "2026-05-14T17:00:00Z"
+    },
+    {
       "file": "multimodal_gen/render+midi guitar routing",
       "description": "Completed upgrade-rock-guitar-render-routing-031 across category detection, audio render/cache routing, procedural guitar fallback, MIDI chord-track guitar programs, and focused regressions.",
       "diff_summary": "GUITAR category and aliases; GM 24-31 guitar cache/expansion/procedural routing; generate_guitar_tone; guitar aliases in chord_instruments; rock guitar Chords program 30 and Rhodes guard tests.",
@@ -1555,6 +1655,20 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "upgrade-rock-output-analyzer-032 regression fix",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_output_analyzer.py -q passed 69 tests with 7 librosa warnings.",
+      "timestamp": "2026-05-14T18:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "upgrade-rock-output-analyzer-032 focused analyzer tests and hygiene",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_output_analyzer.py -q passed 68 tests; .github/state/orchestration.json, .github/state/memory.json, and .github/state/context.json passed JSON validity; git diff --check passed.",
+      "timestamp": "2026-05-14T17:00:00Z"
+    },
     {
       "type": "post",
       "target": "upgrade-rock-guitar-render-routing-031 focused tests",

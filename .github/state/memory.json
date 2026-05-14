@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Live-drum rendered-output corrections must be gated by required_drum_parts metadata",
+        "context": "For upgrade-rock-output-analyzer-032, low percussive_ratio in rock-family targets with required_drum_parts keeps the Missing/low live drum presence error, score cap, and drum re_render correction. Non-required drum_presence_range targets such as trap_soul use a generic low drum-presence warning so R&B/trap/lofi/house behavior does not inherit live kick/snare/hihat correction semantics.",
+        "timestamp": "2026-05-14T18:00:00Z"
+      },
+      {
+        "pattern": "Rock-family rendered-output analysis must use measurable audio features before issuing correction advice",
+        "context": "upgrade-rock-output-analyzer-032 added rock-family AUDIO_GENRE_TARGETS so rock no longer receives the neutral unknown-genre 0.75 fallback, but kept expected_timbres/forbidden_timbres as metadata only. Scored gates are measurable: sub_bass_energy_ratio for sub-90 Hz/808 excess, percussive_ratio/onset_density, and DrumDetection kick/snare_or_clap/hihats flags; corrections are limited to those measurable bass and live-drum issues.",
+        "timestamp": "2026-05-14T17:00:00Z"
+      },
+      {
         "pattern": "First-class melodic instruments need enum/category detection, renderer cache routing, GM program routing, procedural fallback, and MIDI track inclusion together",
         "context": "The rock guitar render-routing slice added GUITAR as an InstrumentCategory, classified guitar-named strings/funk samples before directory fallback, loaded guitar into custom melodic cache, routed GM 24-31 to guitar/expansion/procedural fallback, and added guitar aliases to chord-track MIDI generation so rock guitar prompts no longer render as Rhodes/keys.",
         "timestamp": "2026-05-14T16:00:00Z"
@@ -359,6 +369,25 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Split low drum_presence_range scoring by target.required_drum_parts instead of emitting the live-drum phrase for every low percussive_ratio target.",
+      "rationale": "The live-drum phrase is intentionally correction-producing; keeping it only on required-drum rock-family targets preserves rock failure behavior while avoiding live drum re-render corrections for trap_soul/rnb/lofi/house-style targets.",
+      "alternatives_considered": [
+        "Remove low drum-presence issues for non-required targets entirely",
+        "Keep the message phrase and try to infer genre inside generate_corrections"
+      ],
+      "timestamp": "2026-05-14T18:00:00Z"
+    },
+    {
+      "decision": "Keep rock analyzer corrections measurable-only and leave rock timbre lists as future metadata until render metadata is available.",
+      "rationale": "The approved slice asked not to claim expected_timbres/forbidden_timbres are scored unless measurable logic exists. Sub-bass energy, percussive ratio, onset density, and existing DrumDetection flags provide concrete signals for rejecting trap-like sub-heavy or missing-live-drum rock renders without inventing missing-guitar/pad corrections.",
+      "alternatives_considered": [
+        "Score expected_timbres/forbidden_timbres directly without a render metadata source",
+        "Add missing-guitar or pad corrections based on genre labels instead of measured audio",
+        "Leave rock-family output analysis on the unknown-genre neutral fallback"
+      ],
+      "timestamp": "2026-05-14T17:00:00Z"
+    },
     {
       "decision": "Keep Ethiopian melodic guardrail ahead of generic guitar/custom melodic loading",
       "rationale": "Ethiopian instruments intentionally use procedural krar/masenqo/washint/begena synthesis; adding guitar cache loading must not cause mixed Ethiopian prompts to load generic melodic samples and bypass that guardrail.",
@@ -807,5 +836,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T16:00:00Z"
+  "last_updated": "2026-05-14T18:00:00Z"
 }
