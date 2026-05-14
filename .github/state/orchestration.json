@@ -1,11 +1,44 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-upgrade-rock-golden-regression-matrix-035",
-    "started": "2026-05-14T21:00:00Z",
-    "user_request": "Implement milestone upgrade-rock-golden-regression-matrix-035: Phase 6 regression/golden prompt lock after the 1990s rock fixes."
+    "id": "session-2026-05-14-upgrade-ui-theme-panel-polish-036",
+    "started": "2026-05-14T16:40:51Z",
+    "user_request": "Implement milestone upgrade-ui-theme-panel-polish-036: additive UI theme/layout tokens and semantics-preserving polish for InstrumentBrowser, GenreSelector, and ControlsPanel."
   },
   "task_queue": [
+    {
+      "id": "upgrade-ui-theme-panel-polish-036",
+      "description": "Additive JUCE theme/layout token unification and visual polish for InstrumentBrowser, GenreSelector, and ControlsPanel without changing backend request semantics",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "MEDIUM",
+      "files_to_modify": [
+        "juce\\Source\\UI\\Theme\\ColourScheme.h",
+        "juce\\Source\\UI\\Theme\\ThemeManager.h",
+        "juce\\Source\\UI\\Theme\\LayoutConstants.h",
+        "juce\\Source\\UI\\InstrumentBrowserPanel.h",
+        "juce\\Source\\UI\\InstrumentBrowserPanel.cpp",
+        "juce\\Source\\UI\\GenreSelector.cpp",
+        "juce\\Source\\UI\\ControlsPanel.h",
+        "juce\\Source\\UI\\ControlsPanel.cpp",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T16:40:51Z",
+      "updated": "2026-05-14T16:40:51Z",
+      "result": {
+        "summary": "Added semantic AppColours/Layout tokens for elevated surfaces, selected/hover rows, focus/badge/category colours, compact panel rows, and badge/card dimensions. InstrumentBrowser cards/tabs/search/preview now use tokens, selected/hover contrast is stronger, category/source badges are drawn from existing InstrumentInfo fields, empty states distinguish unloaded vs filtered results, and default guitar/other category handling was added. GenreSelector now has a subtle themed panel treatment and fallback rock-family choices appended after existing defaults while preserving auto as default and setSelectedGenre non-notifying behavior. ControlsPanel now uses themed inputs/buttons/status tint and clearer Global/Next request labels while preserving buildOverrides property names and NextScope callbacks.",
+        "verification": {
+          "git_diff_check": "PASS after whitespace cleanup",
+          "npm_run_build_debug": "PASS; produced Debug AI Music Generator.exe with existing warning noise",
+          "npm_run_build": "PASS; produced Release AI Music Generator.exe with existing warning noise",
+          "focused_pytest": "PASS - 26 passed in 3.45s for tests/test_golden_prompts_smoke.py and tests/test_smoke_1990s_rock_contract.py",
+          "state_json_validity": "Validated after state write in final verification step"
+        }
+      }
+    },
     {
       "id": "upgrade-rock-golden-regression-matrix-035",
       "description": "Add Phase 6 golden prompt regression matrix and optional smoke assertions for 1990s rock and neighboring genre guardrails",
@@ -668,7 +701,7 @@
         "multimodal_gen/mix_engine.py"
       ],
       "wired_in_renderer": false,
-      "note": "Exists but [UNREFERENCED] — future spatial audio feature",
+      "note": "Exists but [UNREFERENCED] \u2014 future spatial audio feature",
       "created": "2026-01-17T00:00:00Z",
       "updated": "2026-02-13T00:00:00Z"
     }
@@ -1152,7 +1185,7 @@
           "midi_generator.py": "Updated generate_ethiopian_drum_pattern() to accept time_signature parameter, calculate dynamic ticks_per_bar",
           "ethiopian_strategy.py": "All 4 strategy classes now pass time_signature to generate_ethiopian_drum_pattern()"
         },
-        "verification": "PASS - all tests pass: get_ticks_per_bar returns correct values (4/4→1920, 6/8→1440, 12/8→2880), Ethiopian genres have correct time signatures, drum patterns generate correctly"
+        "verification": "PASS - all tests pass: get_ticks_per_bar returns correct values (4/4\u21921920, 6/8\u21921440, 12/8\u21922880), Ethiopian genres have correct time signatures, drum patterns generate correctly"
       },
       "created": "2026-01-21T12:00:00Z",
       "updated": "2026-01-21T12:30:00Z"
@@ -1233,7 +1266,8 @@
         ],
         "changes": "Added KRAR, MASENQO, WASHINT, BEGENA, KEBERO to enum, mappings, and genre profiles"
       }
-    }
+    },
+    "upgrade-ui-theme-panel-polish-036"
   ],
   "blocked_tasks": [],
   "current_phase": "aggregate",
@@ -1245,7 +1279,7 @@
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "Milestone 4 Slice 2 — reference groove swing seeding via existing ParsedPrompt timing path"
+    "next_phase": "Milestone 4 Slice 2 \u2014 reference groove swing seeding via existing ParsedPrompt timing path"
   },
   "sprint_11": {
     "status": "COMPLETE",
@@ -1255,26 +1289,26 @@
     "batch_a": {
       "status": "COMPLETE",
       "tasks": {
-        "11.1_sonic_adjectives_bias": "COMPLETE — sonic_adjectives (bright/dark/warm/vintage/crisp/clean/heavy) bias brightness_target and warmth_target by ±0.15/0.1 in _compile_mix_policy",
-        "11.2_fx_chain_in_report": "COMPLETE — drum_bus_fx, bass_fx, master_fx_chain added to render report mix_policy section",
-        "11.3_genre_constraints_bridge": "COMPLETE — _get_genre_constraints() now bridges to GenreRulesEngine (forbidden signatures → FORBIDDEN, mandatory patterns → MANDATORY), with hardcoded fallback"
+        "11.1_sonic_adjectives_bias": "COMPLETE \u2014 sonic_adjectives (bright/dark/warm/vintage/crisp/clean/heavy) bias brightness_target and warmth_target by \u00b10.15/0.1 in _compile_mix_policy",
+        "11.2_fx_chain_in_report": "COMPLETE \u2014 drum_bus_fx, bass_fx, master_fx_chain added to render report mix_policy section",
+        "11.3_genre_constraints_bridge": "COMPLETE \u2014 _get_genre_constraints() now bridges to GenreRulesEngine (forbidden signatures \u2192 FORBIDDEN, mandatory patterns \u2192 MANDATORY), with hardcoded fallback"
       },
       "test_count": "1031 passed (+10 new tests)"
     },
     "batch_b": {
       "status": "COMPLETE",
       "tasks": {
-        "11.4_dsp_skeleton_tests": "COMPLETE — auto_gain_staging (7), true_peak_limiter (7), transient_shaper (5) skeleton tests",
-        "11.5_genre_skeleton_tests": "COMPLETE — groove_templates (4), genre_rules (5), parametric_eq (4) skeleton tests",
-        "11.6_core_skeleton_tests": "COMPLETE — instrument_manager (4), genre_intelligence (3), assets_gen (2) skeleton tests"
+        "11.4_dsp_skeleton_tests": "COMPLETE \u2014 auto_gain_staging (7), true_peak_limiter (7), transient_shaper (5) skeleton tests",
+        "11.5_genre_skeleton_tests": "COMPLETE \u2014 groove_templates (4), genre_rules (5), parametric_eq (4) skeleton tests",
+        "11.6_core_skeleton_tests": "COMPLETE \u2014 instrument_manager (4), genre_intelligence (3), assets_gen (2) skeleton tests"
       },
       "test_count": "1070 passed (+39 new tests, +2 skipped)"
     },
     "batch_c": {
       "status": "COMPLETE",
       "tasks": {
-        "11.7_dead_module_flags": "COMPLETE — spatial_audio.py, instrument_registry.py, instrument_index.py flagged with [UNREFERENCED] deprecation notices",
-        "11.8_midi_generator_logging": "COMPLETE — Added _midi_logger + converted 10 bare except blocks to logged debug statements"
+        "11.7_dead_module_flags": "COMPLETE \u2014 spatial_audio.py, instrument_registry.py, instrument_index.py flagged with [UNREFERENCED] deprecation notices",
+        "11.8_midi_generator_logging": "COMPLETE \u2014 Added _midi_logger + converted 10 bare except blocks to logged debug statements"
       },
       "test_count": "1075 passed (+5 new tests)"
     }
@@ -1284,30 +1318,30 @@
     "theme": "Polish the Pipeline",
     "test_baseline": "969 passed, 0 failed, 4 skipped",
     "test_final": "1021 passed, 0 failed, 4 skipped",
-    "token_strategy": "Supervisor pre-digests all code → edit manifests → builders",
+    "token_strategy": "Supervisor pre-digests all code \u2192 edit manifests \u2192 builders",
     "batch_a": {
       "status": "COMPLETE",
       "tasks": {
-        "10.1_arranger_genre_norm": "COMPLETE — genre normalization in _get_template() and _get_section_config(), lofi/lo_fi match",
-        "10.2_drum_panning": "COMPLETE — MixPolicy kick_pan/snare_pan/hihat_pan wired into _compute_pan(), hihat_pan ×0.3 offset for drum bus",
-        "10.3_sub_bass_target": "COMPLETE — sub_bass_target modulates 60Hz EQ band in bass chain (0.2→0dB, 0.5→2dB, 0.8→4dB)"
+        "10.1_arranger_genre_norm": "COMPLETE \u2014 genre normalization in _get_template() and _get_section_config(), lofi/lo_fi match",
+        "10.2_drum_panning": "COMPLETE \u2014 MixPolicy kick_pan/snare_pan/hihat_pan wired into _compute_pan(), hihat_pan \u00d70.3 offset for drum bus",
+        "10.3_sub_bass_target": "COMPLETE \u2014 sub_bass_target modulates 60Hz EQ band in bass chain (0.2\u21920dB, 0.5\u21922dB, 0.8\u21924dB)"
       },
       "test_count": "983 passed (+14 new tests)"
     },
     "batch_b": {
       "status": "COMPLETE",
       "tasks": {
-        "10.4_wire_estimate_lufs": "COMPLETE — estimate_lufs() wired into render report, adds estimated_lufs and peak_dbfs when output WAV exists",
-        "10.5_pipeline_stage_diagnostics": "COMPLETE — _pipeline_stages dict tracks reverb/multiband/spectral/reference_matching/sidechain with preset names or 'error', included in render report",
-        "10.6_pipeline_logging": "COMPLETE — logging import + logger added, pipeline except blocks now populate _pipeline_stages with error tracking"
+        "10.4_wire_estimate_lufs": "COMPLETE \u2014 estimate_lufs() wired into render report, adds estimated_lufs and peak_dbfs when output WAV exists",
+        "10.5_pipeline_stage_diagnostics": "COMPLETE \u2014 _pipeline_stages dict tracks reverb/multiband/spectral/reference_matching/sidechain with preset names or 'error', included in render report",
+        "10.6_pipeline_logging": "COMPLETE \u2014 logging import + logger added, pipeline except blocks now populate _pipeline_stages with error tracking"
       },
       "test_count": "990 passed (+7 new tests)"
     },
     "batch_c": {
       "status": "COMPLETE",
       "tasks": {
-        "10.7_skeleton_tests": "COMPLETE — 31 new tests: BWFWriter (7), InstrumentResolution (7), ExpansionManager (4), HumanizePhysics (10), MixChainCleanup (3)",
-        "10.8_mix_chain_cleanup": "COMPLETE — Deleted 4 unused factories (create_wide_stereo_chain, create_vocal_chain, create_mastering_chain, create_clean_eq_chain). Kept create_bass_chain."
+        "10.7_skeleton_tests": "COMPLETE \u2014 31 new tests: BWFWriter (7), InstrumentResolution (7), ExpansionManager (4), HumanizePhysics (10), MixChainCleanup (3)",
+        "10.8_mix_chain_cleanup": "COMPLETE \u2014 Deleted 4 unused factories (create_wide_stereo_chain, create_vocal_chain, create_mastering_chain, create_clean_eq_chain). Kept create_bass_chain."
       },
       "test_count": "1021 passed (+31 new tests)"
     }
@@ -1317,30 +1351,30 @@
     "theme": "Seal the Cracks",
     "test_baseline": "934 passed, 0 failed, 4 skipped",
     "test_final": "969 passed, 0 failed, 4 skipped",
-    "token_strategy": "Supervisor pre-digests all code → edit manifests → merged validator → conditional diagnostician",
+    "token_strategy": "Supervisor pre-digests all code \u2192 edit manifests \u2192 merged validator \u2192 conditional diagnostician",
     "batch_a": {
       "status": "COMPLETE",
       "tasks": {
-        "9.1_normalize_genre_helper": "COMPLETE — _normalize_genre() extracted, 5 inline sites unified to underscores, 3 lookup maps updated (reverb/multiband/exciter hip-hop→hip_hop, lo-fi→lo_fi)",
-        "9.2_saturation_exciter_bridge": "COMPLETE — MixPolicy.saturation_type/amount consumed in exciter preset selection (tube>0.3→analog_warmth, tape>0.3→tape_warmth, digital<0.15→master_air)",
-        "9.3_bass_chain_activation": "COMPLETE — create_bass_chain imported, added to mix_chains dict, _get_chain_for_track pass→return + 808 match + None guards"
+        "9.1_normalize_genre_helper": "COMPLETE \u2014 _normalize_genre() extracted, 5 inline sites unified to underscores, 3 lookup maps updated (reverb/multiband/exciter hip-hop\u2192hip_hop, lo-fi\u2192lo_fi)",
+        "9.2_saturation_exciter_bridge": "COMPLETE \u2014 MixPolicy.saturation_type/amount consumed in exciter preset selection (tube>0.3\u2192analog_warmth, tape>0.3\u2192tape_warmth, digital<0.15\u2192master_air)",
+        "9.3_bass_chain_activation": "COMPLETE \u2014 create_bass_chain imported, added to mix_chains dict, _get_chain_for_track pass\u2192return + 808 match + None guards"
       },
       "test_count": "950 passed (+16 new tests)"
     },
     "batch_b": {
       "status": "COMPLETE",
       "tasks": {
-        "9.4_cli_rerender_bridges": "COMPLETE — MixPolicy+preset_values stashed in results dict, forwarded to re-render AudioRenderer via set_reference_profile/set_mix_policy/set_preset_values",
-        "9.5_flaky_variation_test": "COMPLETE — Replaced flaky assertion with engine-wired check + pytest.skip for identical-output edge case",
-        "9.6_none_genre_guard": "COMPLETED_IN_BATCH_A — _normalize_genre() handles None throughout"
+        "9.4_cli_rerender_bridges": "COMPLETE \u2014 MixPolicy+preset_values stashed in results dict, forwarded to re-render AudioRenderer via set_reference_profile/set_mix_policy/set_preset_values",
+        "9.5_flaky_variation_test": "COMPLETE \u2014 Replaced flaky assertion with engine-wired check + pytest.skip for identical-output edge case",
+        "9.6_none_genre_guard": "COMPLETED_IN_BATCH_A \u2014 _normalize_genre() handles None throughout"
       },
       "test_count": "956 passed (+6 new tests)"
     },
     "batch_c": {
       "status": "COMPLETE",
       "tasks": {
-        "9.7_brightness_warmth_consumption": "COMPLETE — warmth_target modulates reverb send (0.8+0.4*warmth), brightness_target biases exciter preset (>0.7→master_air, <0.3→tape_warmth)",
-        "9.8_render_report_diagnostics": "COMPLETE — _build_render_report gains production_preset, mix_policy, genre_normalized sections"
+        "9.7_brightness_warmth_consumption": "COMPLETE \u2014 warmth_target modulates reverb send (0.8+0.4*warmth), brightness_target biases exciter preset (>0.7\u2192master_air, <0.3\u2192tape_warmth)",
+        "9.8_render_report_diagnostics": "COMPLETE \u2014 _build_render_report gains production_preset, mix_policy, genre_normalized sections"
       },
       "test_count": "969 passed (+13 new tests)"
     }
@@ -1351,42 +1385,42 @@
     "batch_a": {
       "status": "COMPLETE",
       "tasks": {
-        "8.1_sidechain_ducking_wiring": "COMPLETE — apply_sidechain_ducking wired into _render_procedural pre-mix for trap/drill/house/edm/hip_hop/phonk genres",
-        "8.2_track_processor_wiring": "COMPLETE — TrackProcessor per-stem channel strip wired into render loop with genre-gated preset selection"
+        "8.1_sidechain_ducking_wiring": "COMPLETE \u2014 apply_sidechain_ducking wired into _render_procedural pre-mix for trap/drill/house/edm/hip_hop/phonk genres",
+        "8.2_track_processor_wiring": "COMPLETE \u2014 TrackProcessor per-stem channel strip wired into render loop with genre-gated preset selection"
       },
       "validation": {
-        "builder": "sprint-builder-claude (Claude Sonnet 4.5) — 899 passed",
-        "auditor": "sprint-auditor-gemini (Gemini 3 Pro) — 2/2 wiring CORRECT, 1 MEDIUM preservation risk, 1 LOW normalization inconsistency, 1 MINOR missing try/except",
-        "stress_tester": "sprint-stress-tester-gpt (GPT 5.3 Codex) — 3 BUGS (2 HIGH, 1 MEDIUM), 2 FLAWS (1 MEDIUM, 1 LOW), 3 VACUOUS TESTS",
-        "diagnostician": "sprint-diagnostician-claude (Claude Sonnet 4.5) — ALL 7 findings fixed, 899 passed"
+        "builder": "sprint-builder-claude (Claude Sonnet 4.5) \u2014 899 passed",
+        "auditor": "sprint-auditor-gemini (Gemini 3 Pro) \u2014 2/2 wiring CORRECT, 1 MEDIUM preservation risk, 1 LOW normalization inconsistency, 1 MINOR missing try/except",
+        "stress_tester": "sprint-stress-tester-gpt (GPT 5.3 Codex) \u2014 3 BUGS (2 HIGH, 1 MEDIUM), 2 FLAWS (1 MEDIUM, 1 LOW), 3 VACUOUS TESTS",
+        "diagnostician": "sprint-diagnostician-claude (Claude Sonnet 4.5) \u2014 ALL 7 findings fixed, 899 passed"
       },
       "fixes_applied": {
-        "BUG-1": "Sidechain genre normalization unified with hyphen→underscore replacement",
+        "BUG-1": "Sidechain genre normalization unified with hyphen\u2192underscore replacement",
         "BUG-2": "Sidechain block wrapped in try/except for graceful degradation",
         "BUG-3": "TrackProcessor genre-gated to 11 production genres (classical/jazz/ambient skip it)",
         "FLAW-2": "EDM added to drum (punchy_kick) and bass (trap_808) preset mappings",
-        "VACUOUS-1": "test_track_processor_preset_selection → monkeypatch spy on production mapping",
-        "VACUOUS-2": "test_track_processor_flag → test_track_processor_initialized with instance check",
-        "VACUOUS-3": "test_sidechain_not_called_for_jazz → render success assertion added"
+        "VACUOUS-1": "test_track_processor_preset_selection \u2192 monkeypatch spy on production mapping",
+        "VACUOUS-2": "test_track_processor_flag \u2192 test_track_processor_initialized with instance check",
+        "VACUOUS-3": "test_sidechain_not_called_for_jazz \u2192 render success assertion added"
       }
     },
     "batch_b": {
       "status": "COMPLETE",
       "tasks": {
-        "8.3_reference_profile_bridge": "COMPLETE — ReferenceProfile (correct type) created from analysis spectral data, stored in results, forwarded to renderer.set_reference_profile() after renderer instantiation",
-        "8.4_mix_policy_panning": "COMPLETE — set_mix_policy() added to AudioRenderer, _compute_pan() extracted as testable method, policy_context.mix forwarded from main.py to renderer"
+        "8.3_reference_profile_bridge": "COMPLETE \u2014 ReferenceProfile (correct type) created from analysis spectral data, stored in results, forwarded to renderer.set_reference_profile() after renderer instantiation",
+        "8.4_mix_policy_panning": "COMPLETE \u2014 set_mix_policy() added to AudioRenderer, _compute_pan() extracted as testable method, policy_context.mix forwarded from main.py to renderer"
       },
       "test_count": "908 passed"
     },
     "batch_c": {
       "status": "COMPLETE",
       "tasks": {
-        "8.5_drum_pattern_transcription": "COMPLETE — kick/snare patterns populated via beat-aligned onset detection in _analyze_drums(), quantized to 16th-note grid, cached librosa.beat.beat_track() for performance",
-        "8.6_musicality_test_expansion": "COMPLETE — 6 new musicality tests: trap hihat activity, chord polyphony, scale adherence, bass register, cross-genre velocity, verse-vs-drop density"
+        "8.5_drum_pattern_transcription": "COMPLETE \u2014 kick/snare patterns populated via beat-aligned onset detection in _analyze_drums(), quantized to 16th-note grid, cached librosa.beat.beat_track() for performance",
+        "8.6_musicality_test_expansion": "COMPLETE \u2014 6 new musicality tests: trap hihat activity, chord polyphony, scale adherence, bass register, cross-genre velocity, verse-vs-drop density"
       },
       "validation": {
-        "auditor_stress_tester": "recursive-verifier — PASS verdict, 2 MEDIUM findings (triple beat_track call, vacuous fallback test)",
-        "diagnostician": "recursive-builder — both MEDIUMs fixed, 918 passed"
+        "auditor_stress_tester": "recursive-verifier \u2014 PASS verdict, 2 MEDIUM findings (triple beat_track call, vacuous fallback test)",
+        "diagnostician": "recursive-builder \u2014 both MEDIUMs fixed, 918 passed"
       },
       "fixes_applied": {
         "PERF_TRIPLE_BEAT_TRACK": "Cached librosa.beat.beat_track() result, reused across 3 call sites (~400ms saved)",
@@ -1397,19 +1431,19 @@
     "batch_d": {
       "status": "COMPLETE",
       "tasks": {
-        "8.7_preset_render_propagation": "COMPLETE — set_preset_values() method added to AudioRenderer, _get_preset_target_rms() and _get_preset_reverb_send() extracted as testable helpers, MixPolicy stem_headroom_db and master_ceiling_db consumed in render pipeline, preset_values forwarded from main.py to renderer"
+        "8.7_preset_render_propagation": "COMPLETE \u2014 set_preset_values() method added to AudioRenderer, _get_preset_target_rms() and _get_preset_reverb_send() extracted as testable helpers, MixPolicy stem_headroom_db and master_ceiling_db consumed in render pipeline, preset_values forwarded from main.py to renderer"
       },
       "validation": {
-        "builder": "recursive-builder — 933 passed (+15 new tests)",
-        "auditor": "recursive-verifier — CONDITIONAL PASS, 4 MEDIUM (vacuous tests, no wiring test, arithmetic-only MixPolicy tests, optional reverb dependency), 2 LOW",
-        "stress_tester": "recursive-verifier — 3 BUGs (polished degenerate formula, wrong test ha value, headroom gain cap blocks boosting), 4 FLAWs (ceiling clamp narrow, preset/MixPolicy conflict, comment mismatch, bare except)",
-        "diagnostician": "recursive-builder — ALL 7 findings fixed, 934 passed"
+        "builder": "recursive-builder \u2014 933 passed (+15 new tests)",
+        "auditor": "recursive-verifier \u2014 CONDITIONAL PASS, 4 MEDIUM (vacuous tests, no wiring test, arithmetic-only MixPolicy tests, optional reverb dependency), 2 LOW",
+        "stress_tester": "recursive-verifier \u2014 3 BUGs (polished degenerate formula, wrong test ha value, headroom gain cap blocks boosting), 4 FLAWs (ceiling clamp narrow, preset/MixPolicy conflict, comment mismatch, bare except)",
+        "diagnostician": "recursive-builder \u2014 ALL 7 findings fixed, 934 passed"
       },
       "fixes_applied": {
-        "BUG-1": "target_rms formula shifted from 0.28-0.12*ha to 0.30-0.14*ha — polished ha=0.25 now gives 0.265 (meaningful bump from 0.25 default)",
+        "BUG-1": "target_rms formula shifted from 0.28-0.12*ha to 0.30-0.14*ha \u2014 polished ha=0.25 now gives 0.265 (meaningful bump from 0.25 default)",
         "BUG-2": "Test corrected to use actual polished ha=0.25 (was wrong 0.2), formula mirrors replaced with production code calls to _get_preset_target_rms() and _get_preset_reverb_send()",
-        "BUG-3": "Headroom cap changed from 10^(db/20)*2.0 to 10^(-db/20) — at -6dB max gain is 2.0x (was ~1.0x blocking all boosting)",
-        "FLAW-1": "master_ceiling_db clamp floor widened from 0.8 to 0.5 — allows -6dB ceiling",
+        "BUG-3": "Headroom cap changed from 10^(db/20)*2.0 to 10^(-db/20) \u2014 at -6dB max gain is 2.0x (was ~1.0x blocking all boosting)",
+        "FLAW-1": "master_ceiling_db clamp floor widened from 0.8 to 0.5 \u2014 allows -6dB ceiling",
         "FLAW-2": "Interaction comment added documenting preset vs headroom tradeoff",
         "FLAW-3": "Comment range updated to match actual formula range [0.16, 0.30]"
       },
@@ -1420,17 +1454,17 @@
     "status": "COMPLETE",
     "test_baseline": "893 passed, 0 failed, 4 skipped",
     "tasks": {
-      "7.5.1_file_analysis_wiring": "COMPLETE — analyze_path wired into main.py verbose output after audio render",
-      "7.5.2_multiband_dynamics_wiring": "COMPLETE — multiband_compress wired into audio_renderer._render_procedural with genre preset map",
-      "7.5.3_spectral_processing_wiring": "COMPLETE — ResonanceSuppressor + apply_spectral_preset wired into audio_renderer after multiband",
-      "7.5.4_reference_matching_wiring": "COMPLETE — ReferenceMatcher wired as dormant capability with set_reference_profile() activation",
-      "7.5.5_performance_models_wiring": "COMPLETE — _apply_performance_humanization helper in all 4 track methods with microtiming fallback",
-      "7.5.6_stem_separation_wiring": "COMPLETE — dormant in main.py, optional stem analysis in reference_analyzer.py",
-      "7.5.7_test_suite": "COMPLETE — 13 wiring tests in test_sprint75_wiring.py"
+      "7.5.1_file_analysis_wiring": "COMPLETE \u2014 analyze_path wired into main.py verbose output after audio render",
+      "7.5.2_multiband_dynamics_wiring": "COMPLETE \u2014 multiband_compress wired into audio_renderer._render_procedural with genre preset map",
+      "7.5.3_spectral_processing_wiring": "COMPLETE \u2014 ResonanceSuppressor + apply_spectral_preset wired into audio_renderer after multiband",
+      "7.5.4_reference_matching_wiring": "COMPLETE \u2014 ReferenceMatcher wired as dormant capability with set_reference_profile() activation",
+      "7.5.5_performance_models_wiring": "COMPLETE \u2014 _apply_performance_humanization helper in all 4 track methods with microtiming fallback",
+      "7.5.6_stem_separation_wiring": "COMPLETE \u2014 dormant in main.py, optional stem analysis in reference_analyzer.py",
+      "7.5.7_test_suite": "COMPLETE \u2014 13 wiring tests in test_sprint75_wiring.py"
     },
     "validation": {
-      "gemini_synthesis_audit": "6/6 CORRECT, 1 MEDIUM issue (dead harmonic_exciter instance) — FIXED",
-      "gpt_stress_test": "3 bugs (dead instances x2, genre normalization mismatch), 1 design flaw (velocity clamp), 4 vacuous tests — ALL FIXED",
+      "gemini_synthesis_audit": "6/6 CORRECT, 1 MEDIUM issue (dead harmonic_exciter instance) \u2014 FIXED",
+      "gpt_stress_test": "3 bugs (dead instances x2, genre normalization mismatch), 1 design flaw (velocity clamp), 4 vacuous tests \u2014 ALL FIXED",
       "diagnostician_fixes": "3 production bugs fixed, 1 velocity clamp added, 4 test categories upgraded to wiring proofs"
     }
   },
@@ -1438,17 +1472,17 @@
     "status": "COMPLETE",
     "test_baseline": "880 passed, 0 failed, 4 skipped",
     "tasks": {
-      "7.1_pattern_library_wiring": "COMPLETE — PatternLibrary wired into _create_drum_track with per-section offset",
-      "7.2_cc_expression": "COMPLETE — CC11/CC1/CC74 injected via _inject_cc_expression, genre intensity scaling",
-      "7.3_reverb_wiring": "COMPLETE — ConvolutionReverb wired into audio_renderer._render_procedural as send",
-      "7.4_chord_extractor_wiring": "COMPLETE — ChordExtractor wired into reference_analyzer analyze_url/analyze_file",
-      "7.5_quality_validator_wiring": "COMPLETE — QualityValidator wired as post-gen gate in main.py with proper note_on/off pairing",
-      "7.6_drum_humanizer_wiring": "COMPLETE — DrumHumanizer ghost notes wired into _create_drum_track",
-      "7.7_test_suite": "COMPLETE — 10 wiring tests in test_sprint7_wiring.py"
+      "7.1_pattern_library_wiring": "COMPLETE \u2014 PatternLibrary wired into _create_drum_track with per-section offset",
+      "7.2_cc_expression": "COMPLETE \u2014 CC11/CC1/CC74 injected via _inject_cc_expression, genre intensity scaling",
+      "7.3_reverb_wiring": "COMPLETE \u2014 ConvolutionReverb wired into audio_renderer._render_procedural as send",
+      "7.4_chord_extractor_wiring": "COMPLETE \u2014 ChordExtractor wired into reference_analyzer analyze_url/analyze_file",
+      "7.5_quality_validator_wiring": "COMPLETE \u2014 QualityValidator wired as post-gen gate in main.py with proper note_on/off pairing",
+      "7.6_drum_humanizer_wiring": "COMPLETE \u2014 DrumHumanizer ghost notes wired into _create_drum_track",
+      "7.7_test_suite": "COMPLETE \u2014 10 wiring tests in test_sprint7_wiring.py"
     },
     "validation": {
-      "gemini_synthesis_audit": "5/6 CORRECT, 1 MEDIUM issue (note duration hardcoded) — FIXED",
-      "gpt_stress_test": "2 production bugs (pattern tick offset, note duration), 4 vacuous tests — ALL FIXED",
+      "gemini_synthesis_audit": "5/6 CORRECT, 1 MEDIUM issue (note duration hardcoded) \u2014 FIXED",
+      "gpt_stress_test": "2 production bugs (pattern tick offset, note duration), 4 vacuous tests \u2014 ALL FIXED",
       "diagnostician_fixes": "2 production bugs fixed, 4 tests upgraded to real wiring proofs"
     }
   },
@@ -1456,17 +1490,17 @@
     "status": "COMPLETE",
     "test_baseline": "870 passed, 0 failed, 4 skipped",
     "tasks": {
-      "6.1_motif_transforms": "COMPLETE — 5 new Motif methods: retrograde_inversion, fragment, ornament, displace, get_related_motifs",
-      "6.2_dynamics_wiring": "COMPLETE — apply_dynamics wired into _create_chord_track and _create_melody_track",
-      "6.3_section_variation_wiring": "COMPLETE — SectionVariationEngine wired with occurrence tracking per section type",
-      "6.4_transition_generator": "COMPLETE — TransitionGenerator (280 LOC) with 5 types wired into _create_drum_track",
-      "6.5_adc_quality_gate": "COMPLETE — Arrangement.get_tension_curve() added, dead code fixed",
-      "6.6_genre_dynamics_presets": "COMPLETE — 12 new genre presets in GENRE_DYNAMICS (17 total)",
-      "6.7_test_suite": "COMPLETE — 3 test files, wiring proofs via disable-compare pattern"
+      "6.1_motif_transforms": "COMPLETE \u2014 5 new Motif methods: retrograde_inversion, fragment, ornament, displace, get_related_motifs",
+      "6.2_dynamics_wiring": "COMPLETE \u2014 apply_dynamics wired into _create_chord_track and _create_melody_track",
+      "6.3_section_variation_wiring": "COMPLETE \u2014 SectionVariationEngine wired with occurrence tracking per section type",
+      "6.4_transition_generator": "COMPLETE \u2014 TransitionGenerator (280 LOC) with 5 types wired into _create_drum_track",
+      "6.5_adc_quality_gate": "COMPLETE \u2014 Arrangement.get_tension_curve() added, dead code fixed",
+      "6.6_genre_dynamics_presets": "COMPLETE \u2014 12 new genre presets in GENRE_DYNAMICS (17 total)",
+      "6.7_test_suite": "COMPLETE \u2014 3 test files, wiring proofs via disable-compare pattern"
     },
     "validation": {
-      "gemini_synthesis_audit": "6/6 tasks CORRECT/ROBUST, 1 MODERATE issue (displace negative offset) — FIXED",
-      "gpt_stress_test": "Found 3 production bugs (displace negative, fragment length=0, tension_curve negative), 7 trivially-passing assertions — ALL FIXED",
+      "gemini_synthesis_audit": "6/6 tasks CORRECT/ROBUST, 1 MODERATE issue (displace negative offset) \u2014 FIXED",
+      "gpt_stress_test": "Found 3 production bugs (displace negative, fragment length=0, tension_curve negative), 7 trivially-passing assertions \u2014 ALL FIXED",
       "diagnostician_fixes": "3 production bugs fixed, 7 trivial tests replaced with monkeypatch wiring proofs, 4 edge-case tests added"
     }
   },
@@ -1474,16 +1508,16 @@
     "status": "COMPLETE",
     "test_baseline": "831 passed, 0 failed, 4 skipped",
     "tasks": {
-      "5.1_harmonic_brain": "COMPLETE — voice leading wired into chord generation",
-      "5.2_policy_context": "COMPLETE — 12 PolicyContext fields now consumed",
-      "5.3_genre_dna": "COMPLETE — GenreDNA overlays StylePolicy",
-      "5.4_quality_gate": "COMPLETE — VLC/BKAS/ADC critics post-generation",
-      "5.5_scale_safe_takes": "COMPLETE — snap to nearest scale tone",
-      "5.6_preference_defaults": "COMPLETE — BPM/key from PreferenceTracker",
-      "5.7_intelligence_tests": "COMPLETE — 48 tests covering 5 wiring points"
+      "5.1_harmonic_brain": "COMPLETE \u2014 voice leading wired into chord generation",
+      "5.2_policy_context": "COMPLETE \u2014 12 PolicyContext fields now consumed",
+      "5.3_genre_dna": "COMPLETE \u2014 GenreDNA overlays StylePolicy",
+      "5.4_quality_gate": "COMPLETE \u2014 VLC/BKAS/ADC critics post-generation",
+      "5.5_scale_safe_takes": "COMPLETE \u2014 snap to nearest scale tone",
+      "5.6_preference_defaults": "COMPLETE \u2014 BPM/key from PreferenceTracker",
+      "5.7_intelligence_tests": "COMPLETE \u2014 48 tests covering 5 wiring points"
     },
     "validation": {
-      "gemini_synthesis_audit": "ALL 7 DELIVERABLES PASS — no dead code, no crash paths, all guards present",
+      "gemini_synthesis_audit": "ALL 7 DELIVERABLES PASS \u2014 no dead code, no crash paths, all guards present",
       "gpt_stress_test": "Identified 12 trivial-pass assertions, 0/5 wiring points tested, latent IndexError bug",
       "diagnostician_fixes": "1 production bug fixed (compute_vlc empty voicing), 48 tests strengthened/added, 5/5 wiring points now tested"
     }
@@ -1581,10 +1615,10 @@
     "status": "COMPLETE",
     "theme": "ROADMAP Gap Closure",
     "tasks": {
-      "gap_1_midi_cc_injection": "COMPLETE — CC_INTENSITY_PRESETS (21 genre entries) + generate_phrase_cc_events() added to dynamics.py; CC11/CC1/CC74 aligned to phrase boundaries",
-      "gap_2_extract_drum_pattern": "COMPLETE — extract_drum_pattern(audio_path, quantize_grid) public wrapper added to reference_analyzer.py",
-      "gap_3_masterclass_guide": "COMPLETE — docs/MASTERCLASS_GUIDE.md comprehensive user-facing guide (8 feature sections, architecture, API reference)",
-      "gap_4_orchestration_update": "COMPLETE — builder_4_instrument_plugin_system status changed from deferred to completed"
+      "gap_1_midi_cc_injection": "COMPLETE \u2014 CC_INTENSITY_PRESETS (21 genre entries) + generate_phrase_cc_events() added to dynamics.py; CC11/CC1/CC74 aligned to phrase boundaries",
+      "gap_2_extract_drum_pattern": "COMPLETE \u2014 extract_drum_pattern(audio_path, quantize_grid) public wrapper added to reference_analyzer.py",
+      "gap_3_masterclass_guide": "COMPLETE \u2014 docs/MASTERCLASS_GUIDE.md comprehensive user-facing guide (8 feature sections, architecture, API reference)",
+      "gap_4_orchestration_update": "COMPLETE \u2014 builder_4_instrument_plugin_system status changed from deferred to completed"
     },
     "files_created": [
       "docs/MASTERCLASS_GUIDE.md",

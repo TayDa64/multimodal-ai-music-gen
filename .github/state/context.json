@@ -1,7 +1,84 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-upgrade-rock-golden-regression-matrix-035",
+  "session_id": "session-2026-05-14-upgrade-ui-theme-panel-polish-036",
   "files_touched": [
+    {
+      "path": "juce\\Source\\UI\\Theme\\ColourScheme.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\Theme\\ThemeManager.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\Theme\\LayoutConstants.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\InstrumentBrowserPanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\InstrumentBrowserPanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\GenreSelector.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\ControlsPanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": "juce\\Source\\UI\\ControlsPanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:40:51Z",
+      "by_agent": "builder",
+      "changes": "Updated for upgrade-ui-theme-panel-polish-036."
+    },
     {
       "path": "tests\\fixtures\\golden_prompts.json",
       "action": "modified",
@@ -1307,6 +1384,36 @@
   ],
   "changes_made": [
     {
+      "file": "juce\\Source\\UI\\Theme\\ColourScheme.h; juce\\Source\\UI\\Theme\\ThemeManager.h; juce\\Source\\UI\\Theme\\LayoutConstants.h",
+      "description": "Added additive semantic colours and layout constants for elevated surfaces, row states, focus rings, badges, category accents, compact rows, and card/badge sizing.",
+      "diff_summary": "No runtime theme switching added; existing AppColours/ThemeManager access remains compatible.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "file": "juce\\Source\\UI\\InstrumentBrowserPanel.h/.cpp",
+      "description": "Tokenized browser card/tab/search/preview colours, improved selected/hover contrast, added category/source badges, added empty-state messaging, and added guitar/other default categories plus fallback category colours.",
+      "diff_summary": "Selection, scan request, filtering, preview loading/playback, and double-click activation callbacks preserved.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "file": "juce\\Source\\UI\\GenreSelector.cpp",
+      "description": "Added themed panel background/border/input styling and appended rock-family fallback genre choices after existing defaults.",
+      "diff_summary": "Preserved genre IDs/order for existing choices, auto default, setSelectedGenre dontSendNotification, and genreChanged listener flow.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "file": "juce\\Source\\UI\\ControlsPanel.h/.cpp",
+      "description": "Added themed background/grouping, styled controls/buttons/status tint, and clearer Global Defaults vs Next Request button labels.",
+      "diff_summary": "buildOverrides property names and NextScope selected-id mapping/callbacks unchanged.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "file": ".github\\state\\orchestration.json; .github\\state\\memory.json; .github\\state\\context.json",
+      "description": "Recorded completed upgrade-ui-theme-panel-polish-036 task, memory decision, context changes, and verification evidence.",
+      "diff_summary": "State-only continuity update for the UI polish milestone.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
       "file": "tests\\fixtures\\golden_prompts.json",
       "description": "Expanded fixture matrix with exact 1990s rock lock plus boom_bap, trap_soul, neo_soul, and cinematic/classical guardrails; disambiguated the existing R&B prompt away from neo-soul wording.",
       "diff_summary": "Added optional expected_bpm/key/scale, instrument/drum include/exclude, target_bars/sections, MIDI program, and drum pitch exclusion metadata.",
@@ -1783,7 +1890,7 @@
     {
       "file": "multimodal_gen/utils.py",
       "description": "Added get_ticks_per_bar() helper function for dynamic bar length calculation",
-      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8→1440, 12/8→2880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
+      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8\u21921440, 12/8\u21922880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
       "timestamp": "2026-01-21T12:10:00Z"
     },
     {
@@ -1836,6 +1943,34 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "git diff --check",
+      "result": "PASS",
+      "details": "Passed after removing two trailing-whitespace lines from InstrumentBrowserPanel.cpp.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "type": "post",
+      "target": "npm run build:debug",
+      "result": "PASS",
+      "details": "Debug build completed and produced juce/build/MultimodalMusicGen_artefacts/Debug/AI Music Generator.exe; build log contains pre-existing warning noise.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "type": "post",
+      "target": "npm run build",
+      "result": "PASS",
+      "details": "Release build completed and produced juce/build/MultimodalMusicGen_artefacts/Release/AI Music Generator.exe; build log contains pre-existing warning noise.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
+    {
+      "type": "post",
+      "target": "focused pytest",
+      "result": "PASS",
+      "details": "26 passed in 3.45s for tests/test_golden_prompts_smoke.py and tests/test_smoke_1990s_rock_contract.py.",
+      "timestamp": "2026-05-14T16:40:51Z"
+    },
     {
       "timestamp": "2026-05-14T21:20:00Z",
       "type": "post",
@@ -2216,21 +2351,21 @@
     },
     {
       "type": "post",
-      "target": "Sprint 5 production code — Gemini synthesis audit",
+      "target": "Sprint 5 production code \u2014 Gemini synthesis audit",
       "result": "PASS",
       "details": "All 7 deliverables CORRECT. No dead code, no crash paths, all guard clauses present. HarmonicBrain wiring verified, PolicyContext consumption verified, GenreDNA overlay verified, quality gate verified, scale-snap verified, preference defaults verified.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 test suite — GPT adversarial stress-test",
+      "target": "Sprint 5 test suite \u2014 GPT adversarial stress-test",
       "result": "FAIL",
       "details": "0/5 wiring points tested, 12 trivially-passing assertions, latent IndexError in compute_vlc([[]]). test_intelligence_integration.py could pass with all Sprint 5 features deleted.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 diagnostician fixes — production bug + test hardening",
+      "target": "Sprint 5 diagnostician fixes \u2014 production bug + test hardening",
       "result": "PASS",
       "details": "1 production bug fixed (compute_vlc empty voicing guard). 48 tests total: 12 trivial assertions tightened, 11 edge-case tests added, 5 wiring tests added. All 5 Sprint 5 wiring points now verified.",
       "timestamp": "2026-02-11T00:00:00Z"
@@ -2295,12 +2430,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 CORRECT, 1 MEDIUM dead instance — FIXED"
+      "details": "6/6 CORRECT, 1 MEDIUM dead instance \u2014 FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL→FIXED",
-      "details": "3 bugs + 1 flaw + 4 vacuous tests — all fixed by diagnostician"
+      "result": "FAIL\u2192FIXED",
+      "details": "3 bugs + 1 flaw + 4 vacuous tests \u2014 all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -2339,12 +2474,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "5/6 CORRECT, 1 MEDIUM bug — FIXED"
+      "details": "5/6 CORRECT, 1 MEDIUM bug \u2014 FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL→FIXED",
-      "details": "2 bugs + 4 vacuous tests — all fixed by diagnostician"
+      "result": "FAIL\u2192FIXED",
+      "details": "2 bugs + 4 vacuous tests \u2014 all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -2403,12 +2538,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue — FIXED"
+      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue \u2014 FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL→FIXED",
-      "details": "3 production bugs + 7 trivial tests → all fixed by diagnostician"
+      "result": "FAIL\u2192FIXED",
+      "details": "3 production bugs + 7 trivial tests \u2192 all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -2418,7 +2553,7 @@
   ],
   "wave_1": {
     "status": "COMPLETE",
-    "test_progression": "1075 → 1133 (+58)",
+    "test_progression": "1075 \u2192 1133 (+58)",
     "categories": [
       "C2 Masterclass Reconciliation (+30)",
       "C4 Analysis & Narrative (+15)",
@@ -2427,7 +2562,7 @@
   },
   "wave_2": {
     "status": "COMPLETE",
-    "test_progression": "1133 → 1197 (+64)",
+    "test_progression": "1133 \u2192 1197 (+64)",
     "categories": [
       "C1 Architecture Refactoring (+29)",
       "C3 Groove & Expression (+35)"
@@ -2435,7 +2570,7 @@
   },
   "wave_3": {
     "status": "COMPLETE",
-    "test_progression": "1197 → 1223 (+26)",
+    "test_progression": "1197 \u2192 1223 (+26)",
     "gaps_closed": [
       "MIDI CC injection (Task 2.1)",
       "extract_drum_pattern() API (Task 4.3)",

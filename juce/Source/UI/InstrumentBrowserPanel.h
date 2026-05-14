@@ -163,10 +163,13 @@ public:
     InstrumentListComponent();
     ~InstrumentListComponent() override;
     
+    void paint(juce::Graphics& g) override;
+    void paintOverChildren(juce::Graphics& g) override;
     void resized() override;
     
     void setInstruments(const juce::Array<InstrumentInfo>& instruments);
     void clearInstruments();
+    void setEmptyStateMessage(const juce::String& message);
     
     const InstrumentInfo* getSelectedInstrument() const;
     void clearSelection();
@@ -191,6 +194,7 @@ private:
     juce::OwnedArray<InstrumentCard> cards;
     InstrumentCard* selectedCard = nullptr;
     juce::ListenerList<Listener> listeners;
+    juce::String emptyStateMessage { "No instruments loaded. Click Scan to refresh the library." };
     
     juce::Viewport viewport;
     juce::Component contentComponent;

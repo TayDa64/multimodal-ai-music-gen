@@ -45,6 +45,7 @@ public:
     /** Update the UI to reflect which apply-once overrides are currently armed. */
     void setNextOverridesIndicator(bool forGenerate, bool forRegenerate);
 
+    void paint(juce::Graphics& g) override;
     void resized() override;
 
 private:

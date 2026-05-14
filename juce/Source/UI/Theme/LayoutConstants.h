@@ -40,6 +40,7 @@ namespace Layout
     constexpr int componentGapSM = 4;
     constexpr int componentGapMD = 8;
     constexpr int componentGapLG = 16;
+    constexpr int sectionGap = 12;
     
     //==============================================================================
     // Typography Scale
@@ -68,6 +69,7 @@ namespace Layout
     
     constexpr int sliderHeightHorizontal = 24;
     constexpr int sliderThumbSize = 16;
+    constexpr int focusRingThickness = 2;
     
     //==============================================================================
     // Panel Dimensions
@@ -108,9 +110,16 @@ namespace Layout
     constexpr int cardHeightSM = 50;
     constexpr int cardHeightMD = 70;
     constexpr int cardHeightLG = 90;
+    constexpr int instrumentCardHeight = 74;
     
     constexpr int listItemHeight = 44;
     constexpr int listItemSpacing = 4;
+    constexpr int panelHeaderHeight = 28;
+    constexpr int panelRowHeight = 24;
+    constexpr int panelSectionGap = 8;
+    constexpr int badgeHeight = 18;
+    constexpr int badgeMinWidth = 44;
+    constexpr int badgePaddingX = 8;
     
     //==============================================================================
     // Border Radii

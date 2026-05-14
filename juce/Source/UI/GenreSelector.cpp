@@ -10,31 +10,39 @@
 */
 
 #include "GenreSelector.h"
+#include "Theme/ColourScheme.h"
+#include "Theme/LayoutConstants.h"
 
 //==============================================================================
 GenreSelector::GenreSelector()
 {
     // Setup genre combo box
     genreCombo.setTextWhenNothingSelected("Select Genre...");
+    genreCombo.setColour(juce::ComboBox::backgroundColourId, AppColours::inputBg);
+    genreCombo.setColour(juce::ComboBox::outlineColourId, AppColours::inputBorder);
+    genreCombo.setColour(juce::ComboBox::focusedOutlineColourId, AppColours::focusRing);
+    genreCombo.setColour(juce::ComboBox::textColourId, AppColours::textPrimary);
+    genreCombo.setColour(juce::ComboBox::arrowColourId, AppColours::primaryLight);
     genreCombo.addListener(this);
     addAndMakeVisible(genreCombo);
     
     // Setup label
     genreLabel.setJustificationType(juce::Justification::right);
-    genreLabel.setFont(juce::Font(14.0f));
+    genreLabel.setFont(juce::Font(Layout::fontSizeMD, juce::Font::bold));
+    genreLabel.setColour(juce::Label::textColourId, AppColours::textPrimary);
     addAndMakeVisible(genreLabel);
     
     // Setup info labels
-    bpmRangeLabel.setFont(juce::Font(11.0f));
-    bpmRangeLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
+    bpmRangeLabel.setFont(juce::Font(Layout::fontSizeSM));
+    bpmRangeLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     addAndMakeVisible(bpmRangeLabel);
     
-    swingLabel.setFont(juce::Font(11.0f));
-    swingLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
+    swingLabel.setFont(juce::Font(Layout::fontSizeSM));
+    swingLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     addAndMakeVisible(swingLabel);
     
-    hihatLabel.setFont(juce::Font(11.0f));
-    hihatLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
+    hihatLabel.setFont(juce::Font(Layout::fontSizeSM));
+    hihatLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     addAndMakeVisible(hihatLabel);
     
     // Color indicator (small colored rectangle)
@@ -52,42 +60,48 @@ GenreSelector::~GenreSelector()
 //==============================================================================
 void GenreSelector::paint(juce::Graphics& g)
 {
+    auto panelBounds = getLocalBounds().toFloat().reduced(1.0f);
+    g.setColour(AppColours::surface.withAlpha(0.78f));
+    g.fillRoundedRectangle(panelBounds, Layout::borderRadiusMD);
+    g.setColour(AppColours::borderSubtle);
+    g.drawRoundedRectangle(panelBounds, Layout::borderRadiusMD, 1.0f);
+
     // Draw color indicator for current genre
     auto indicatorBounds = colorIndicator.getBounds().toFloat();
     if (!indicatorBounds.isEmpty())
     {
         auto color = getThemeColor();
         g.setColour(color);
-        g.fillRoundedRectangle(indicatorBounds, 4.0f);
+        g.fillRoundedRectangle(indicatorBounds, Layout::borderRadiusSM);
         
-        g.setColour(color.brighter(0.3f));
-        g.drawRoundedRectangle(indicatorBounds, 4.0f, 1.0f);
+        g.setColour(color.brighter(0.3f).withAlpha(0.85f));
+        g.drawRoundedRectangle(indicatorBounds, Layout::borderRadiusSM, 1.0f);
     }
 }
 
 void GenreSelector::resized()
 {
-    auto bounds = getLocalBounds().reduced(4);
+    auto bounds = getLocalBounds().reduced(Layout::paddingMD, Layout::paddingSM);
     
     // Layout: [Label][ColorIndicator][ComboBox] on top row
     // [BPM Range][Swing][HiHat] on bottom row (info)
     
-    auto topRow = bounds.removeFromTop(24);
+    auto topRow = bounds.removeFromTop(Layout::inputHeightMD);
     auto bottomRow = bounds;
     
     // Top row
-    genreLabel.setBounds(topRow.removeFromLeft(50));
-    topRow.removeFromLeft(4);
+    genreLabel.setBounds(topRow.removeFromLeft(58));
+    topRow.removeFromLeft(Layout::componentGapSM);
     
-    colorIndicator.setBounds(topRow.removeFromLeft(16).reduced(2));
-    topRow.removeFromLeft(4);
+    colorIndicator.setBounds(topRow.removeFromLeft(18).reduced(2));
+    topRow.removeFromLeft(Layout::componentGapSM);
     
     genreCombo.setBounds(topRow);
     
     // Bottom row - info labels
     if (bottomRow.getHeight() > 0)
     {
-        bottomRow.removeFromTop(4);
+        bottomRow.removeFromTop(Layout::componentGapSM);
         auto infoHeight = juce::jmin(16, bottomRow.getHeight());
         auto infoRow = bottomRow.removeFromTop(infoHeight);
         
@@ -170,6 +184,12 @@ void GenreSelector::loadDefaults()
         { "drill",       "Drill",                "#263238", 138, 145, 140, 0.00f, true  },
         { "ethiopian_traditional", "Ethiopian Traditional", "#4CAF50", 90, 130, 110, 0.15f, false },
         { "eskista",     "Eskista",              "#8BC34A", 110, 160, 130, 0.18f, false },
+        { "rock",        "Rock",                 "#FF7043", 90,  130, 100, 0.02f, false },
+        { "classic_rock", "Classic Rock",         "#FFA726", 92,  128, 104, 0.03f, false },
+        { "alternative_rock", "Alternative Rock", "#EF5350", 88,  126, 100, 0.02f, false },
+        { "grunge",      "Grunge",               "#795548", 82,  118, 96,  0.01f, false },
+        { "punk_rock",   "Punk Rock",            "#FFCA28", 150, 190, 168, 0.00f, false },
+        { "indie_rock",  "Indie Rock",           "#26A69A", 90,  130, 104, 0.04f, false },
     };
     
     int itemId = 1;
