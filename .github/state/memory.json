@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Modular genre aliases must have defaults in every parser/default lookup layer before the parser returns them",
+        "context": "The 1990s rock parser/defaults slice returns distinct rock-family keys (rock, classic_rock, alternative_rock, grunge, punk_rock, indie_rock). Each returned key also needs normalize_genre aliases, GENRE_DEFAULTS, ParsedPrompt default instruments/drums, and instrument_resolution DEFAULT_GENRE_INSTRUMENTS entries; otherwise service-backed parsing or downstream defaults silently fall back to unrelated trap_soul/piano-bass behavior.",
+        "timestamp": "2026-05-14T14:00:00Z"
+      },
+      {
         "pattern": "Strict audio smoke must gate on metadata audio and render_report render_status, not process exit code alone",
         "context": "The 1990s rock runtime-hardening slice added --require-audio and scripts/smoke_1990s_rock.ps1 because previous smokes could exit 0 while project_metadata.current.outputs.audio was null and *_render_report.json recorded render_status.success=false. CI smoke checks should inspect project_metadata.json plus render_report/render_error artifacts and only treat a run as audio-successful when an audio path exists and render_status is not failed.",
         "timestamp": "2026-05-14T13:00:00Z"
@@ -601,6 +606,15 @@
         "No role separation"
       ],
       "timestamp": "2026-01-16T00:00:00Z"
+    },
+    {
+      "decision": "Keep rock-family styles as modular canonical genre keys for parser/defaults work",
+      "rationale": "The user prefers future/cross-genre prompts to use distinct rock-family styles, so parser/defaults now distinguish rock, classic_rock, alternative_rock, grunge, punk_rock, and indie_rock where safe instead of collapsing all rock prompts to one generic key.",
+      "alternatives_considered": [
+        "Collapse classic/alternative/grunge/punk/indie rock to rock",
+        "Add parser keywords without adding defaults in every lookup layer"
+      ],
+      "timestamp": "2026-05-14T14:00:00Z"
     }
   ],
   "learnings": {
@@ -758,5 +772,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T13:00:00Z"
+  "last_updated": "2026-05-14T14:00:00Z"
 }

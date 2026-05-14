@@ -918,6 +918,62 @@
       "timestamp": "2026-02-11T00:00:00Z",
       "by_agent": "diagnostician",
       "changes": "Tightened embed dimension to == 384, similarity to > 0.1"
+    },
+    {
+      "path": "multimodal_gen\\prompt_parser.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added rock-family GENRE_KEYWORDS, parser priority entries, band/live-kit defaults, guitar plural/distorted/crunchy keywords, boom-bap 90s hip-hop protection, and removed chorus from choir instrument keywords."
+    },
+    {
+      "path": "multimodal_gen\\utils.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added rock-family normalize_genre aliases and GENRE_DEFAULTS for rock, classic_rock, alternative_rock, grunge, punk_rock, and indie_rock."
+    },
+    {
+      "path": "multimodal_gen\\instrument_resolution.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added matching DEFAULT_GENRE_INSTRUMENTS rock-family entries for service-backed parsing."
+    },
+    {
+      "path": "tests\\test_prompt_parser_key.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added exact 1990s rock parser contract plus boom-bap, soul-priority, choir/chorus, and unknown fail-open regressions."
+    },
+    {
+      "path": "tests\\test_genre_normalization.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added rock-family normalization/defaults and modular parser routing regressions."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed upgrade-rock-parser-defaults-029 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded modular genre alias/default lookup-layer pattern and rock-family key decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T14:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded files touched, changes made, and focused verification for upgrade-rock-parser-defaults-029."
     }
   ],
   "changes_made": [
@@ -1304,6 +1360,36 @@
       "description": "Pass time_signature to generate_ethiopian_drum_pattern() from parsed prompt",
       "diff_summary": "Modified 4 generate_drums() methods to pass parsed.time_signature parameter",
       "timestamp": "2026-01-21T12:25:00Z"
+    },
+    {
+      "file": "multimodal_gen\\prompt_parser.py",
+      "description": "Rock-family parsing and defaults now route 1990s rock prompts to rock with guitar/bass/live-kit defaults while keeping boom_bap and soul-family priority intact.",
+      "diff_summary": "Added modular rock genre keywords/priority/defaults; protected 90s hip-hop boom_bap keywords; removed chorus->choir false positive.",
+      "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\utils.py",
+      "description": "Genre normalization and GENRE_DEFAULTS now cover modular rock-family keys returned by the parser.",
+      "diff_summary": "Added aliases and live band/hihat_rolls=False defaults for rock, classic_rock, alternative_rock, grunge, punk_rock, and indie_rock.",
+      "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\instrument_resolution.py",
+      "description": "Service-backed genre instrument lookup now has matching rock-family defaults.",
+      "diff_summary": "Added rock-family DEFAULT_GENRE_INSTRUMENTS entries using guitar/bass-oriented band instrumentation.",
+      "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "file": "tests\\test_prompt_parser_key.py",
+      "description": "Focused parser regressions cover exact 1990s rock prompt, boom-bap preservation, soul priority, chorus/choir split, and fail-open unknowns.",
+      "diff_summary": "Added six parser assertions/regressions around the parser/defaults milestone.",
+      "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "file": "tests\\test_genre_normalization.py",
+      "description": "Focused normalization regressions cover rock-family aliases, modular parse keys, and GENRE_DEFAULTS presence.",
+      "diff_summary": "Added normalization and parser/defaults tests for rock-family variants.",
+      "timestamp": "2026-05-14T14:00:00Z"
     }
   ],
   "verifications": [
@@ -1614,6 +1700,27 @@
       "result": "PASS",
       "details": "831 passed, 0 failed, 4 skipped in 26.25s",
       "timestamp": "2026-02-11T00:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "parser/defaults focused tests",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_genre_normalization.py -q => 14 passed in 2.01s.",
+      "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "state JSON validation",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -c \"import json, pathlib; [json.load(open(p, encoding='utf-8')) for p in ['.github/state/orchestration.json', '.github/state/memory.json', '.github/state/context.json']]; print('state json ok')\" => state json ok.",
+      "timestamp": "2026-05-14T14:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "git diff whitespace check",
+      "result": "PASS",
+      "details": "git diff --check => PASS; emitted Git line-ending notice for tests/test_prompt_parser_key.py only (LF will be replaced by CRLF), with no whitespace errors.",
+      "timestamp": "2026-05-14T14:05:00Z"
     }
   ],
   "sprint_75_files_touched": [

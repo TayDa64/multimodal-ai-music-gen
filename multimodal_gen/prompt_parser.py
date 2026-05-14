@@ -249,6 +249,12 @@ class ParsedPrompt:
             'trap': ['808', 'synth_lead'],
             'trap_soul': ['808', 'piano', 'rhodes', 'strings'],
             'rnb': ['piano', 'rhodes', 'bass', 'strings', 'pad'],
+            'rock': ['guitar', 'bass', 'piano'],
+            'classic_rock': ['guitar', 'bass', 'piano', 'organ'],
+            'alternative_rock': ['guitar', 'bass', 'synth', 'pad'],
+            'grunge': ['guitar', 'bass'],
+            'punk_rock': ['guitar', 'bass'],
+            'indie_rock': ['guitar', 'bass', 'synth'],
             'g_funk': ['synth', 'bass', 'piano', 'pad', 'brass'],  # G-Funk: synths, bass, keys
             'lofi': ['piano', 'rhodes', 'guitar'],
             'boom_bap': ['piano', 'bass', 'brass'],
@@ -271,6 +277,12 @@ class ParsedPrompt:
             'trap': ['kick', '808', 'snare', 'clap', 'hihat', 'hihat_roll'],
             'trap_soul': ['kick', '808', 'snare', 'clap', 'hihat'],
             'rnb': ['kick', 'snare', 'hihat', 'rim'],  # Smoother, no hi-hat rolls
+            'rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
+            'classic_rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
+            'alternative_rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
+            'grunge': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
+            'punk_rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
+            'indie_rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
             'g_funk': ['kick', 'snare', 'hihat', 'clap'],  # G-Funk: clean, groovy drums
             'lofi': ['kick', 'snare', 'hihat'],
             'boom_bap': ['kick', 'snare', 'hihat', 'crash'],
@@ -450,6 +462,30 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'trap soul', 'trap-soul', 'trapsoul', 'rnb trap', 'r&b trap', 'soul trap',
         'emotional trap', 'melodic trap', 'bryson', 'sza', '6lack'
     ],
+    'rock': [
+        'rock', 'rock song', 'rock band', 'hard rock', '90s rock', "90's rock",
+        '1990s rock', "1990's rock", 'electric guitar', 'electric guitars',
+        'crunchy guitar', 'crunchy guitars', 'crunchy electric guitar',
+        'distorted guitar', 'distorted guitars', 'rock guitar', 'rock guitars',
+        'live drums', 'band performance'
+    ],
+    'classic_rock': [
+        'classic rock', 'classic-rock', '70s rock', '1970s rock',
+        'arena rock', 'southern rock'
+    ],
+    'alternative_rock': [
+        'alternative rock', 'alternative-rock', 'alternative_rock',
+        'alt rock', 'alt-rock', 'alt_rock'
+    ],
+    'grunge': [
+        'grunge', 'seattle rock', 'seattle sound'
+    ],
+    'punk_rock': [
+        'punk rock', 'punk-rock', 'punk_rock', 'punk band', 'punk song'
+    ],
+    'indie_rock': [
+        'indie rock', 'indie-rock', 'indie_rock', 'indie band'
+    ],
     'g_funk': [
         'g_funk', 'g-funk', 'g funk', 'gfunk', 'west coast', 'west-coast', 'westcoast', 'dr dre',
         'snoop', 'snoop dogg', 'warren g', 'nate dogg', 'death row',
@@ -461,8 +497,9 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
         'chill beats', 'nujabes', 'lofi hip hop', 'lofi hiphop'
     ],
     'boom_bap': [
-        'boom bap', 'boom-bap', 'boombap', '90s', 'golden era', 'old school',
-        'classic hip hop', 'east coast', 'ny', 'pete rock', 'dilla'
+        'boom bap', 'boom-bap', 'boombap', '90s', '90s hip hop', '90s hip-hop',
+        '1990s hip hop', '1990s hip-hop', 'golden era', 'old school',
+        'classic hip hop', 'classic hip-hop', 'east coast', 'ny', 'pete rock', 'dilla'
     ],
     'house': [
         'house',
@@ -536,11 +573,13 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
         'brass', 'horns', 'trumpet', 'sax', 'saxophone', 'trombone'
     ],
     'guitar': [
-        'guitar', 'acoustic guitar', 'electric guitar', 'nylon',
-        'fingerpick'
+        'guitar', 'guitars', 'acoustic guitar', 'acoustic guitars',
+        'electric guitar', 'electric guitars', 'rock guitar', 'rock guitars',
+        'crunchy guitar', 'crunchy guitars', 'crunchy electric guitar',
+        'distorted guitar', 'distorted guitars', 'nylon', 'fingerpick'
     ],
     'bass': [
-        'bass', 'bass guitar', 'electric bass', 'upright bass',
+        'bass', 'bass guitar', 'bass guitars', 'electric bass', 'upright bass',
         'standup bass'
     ],
     'vocal': [
@@ -587,7 +626,7 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
         'tuba', 'sousaphone'
     ],
     'choir': [
-        'choir', 'chorus', 'choral', 'voices', 'soprano',
+        'choir', 'choral', 'voices', 'soprano',
         'alto', 'tenor', 'baritone'
     ],
     'woodwinds': [
@@ -1109,14 +1148,17 @@ class PromptParser:
                 genre_name.replace('_', ' '),
                 genre_name.replace('_', '-'),
             }
-            if kw in genre_variants:
-                return 10
-
+            if genre_name == 'alternative_rock' and kw in {'alt rock', 'alt-rock', 'alt_rock'}:
+                return 11
             # Strong signal: multi-token genre phrase is explicitly present.
             # Example: genre_name='ethiopian_traditional', kw='traditional ethiopian'
             genre_tokens = [t for t in genre_name.replace('_', ' ').split() if t]
             if len(genre_tokens) >= 2 and all(t in kw for t in genre_tokens):
                 return 11
+            if genre_name == 'alternative_rock':
+                genre_variants.update({'alt rock', 'alt-rock', 'alt_rock'})
+            if kw in genre_variants:
+                return 10
             # Generic words that appear in many prompts/genres.
             generic = {
                 'groove', 'groovy', 'vibe', 'vibes', 'smooth', 'chill', 'club',
@@ -1143,6 +1185,12 @@ class PromptParser:
             'rnb',  # R&B
             'trap',
             'lofi',
+            'classic_rock',
+            'alternative_rock',
+            'grunge',
+            'punk_rock',
+            'indie_rock',
+            'rock',
             'boom_bap',
             'ambient',
             'cinematic',  # After ambient: when both match, count tiebreaker decides

@@ -7,6 +7,30 @@
   },
   "task_queue": [
     {
+      "id": "upgrade-rock-parser-defaults-029",
+      "description": "Implement 1990s rock-family parser keywords, modular genre defaults, instrument-resolution defaults, and focused parser/default regressions",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\prompt_parser.py",
+        "multimodal_gen\\utils.py",
+        "multimodal_gen\\instrument_resolution.py",
+        "tests\\test_prompt_parser_key.py",
+        "tests\\test_genre_normalization.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T14:00:00Z",
+      "updated": "2026-05-14T14:00:00Z",
+      "result": {
+        "summary": "Added modular rock-family parser keys (rock, classic_rock, alternative_rock, grunge, punk_rock, indie_rock), band/live-kit defaults, matching normalize_genre aliases and GENRE_DEFAULTS, and instrument-resolution defaults so rock parsing does not fall back to trap_soul/piano-bass. Removed chorus as a choir keyword while preserving chorus as a section/drop hint.",
+        "verification": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_genre_normalization.py -q passed 14 tests in 2.01s."
+      }
+    },
+    {
       "id": "upgrade-rock-runtime-hardening-028",
       "description": "Implement 1990s rock smoke harness, organ short-note render fix, and strict audio CI semantics",
       "status": "completed",
