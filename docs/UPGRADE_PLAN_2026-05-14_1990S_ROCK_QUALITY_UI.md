@@ -610,3 +610,90 @@ The 1990s rock prompt should not be judged musically until all of these are true
 7. Render report is successful and includes expected guitar/bass/drum loading where available.
 8. Output analyzer evaluates rock with real targets and passes conservatively.
 9. Existing trap_soul/rnb/neo_soul/boom_bap/Ethiopian/JUCE workflows still pass their focused proofs.
+
+## Implementation and validation results — 2026-05-14
+
+This plan has now been implemented through the generation, analyzer, golden-regression, UI-polish, and app-validation milestones. The final validation used the running JUCE Release app plus the JSON-RPC gateway to exercise the same backend workflow from an opened desktop session.
+
+### Source-control state observed during app validation
+
+- Initial Source Control concern: VS Code showed pending/outgoing activity, but `git status --short --untracked-files=all` in `c:\dev\MUSE-ai\MUSE` was clean before the app-validation milestone.
+- Branch state before this validation milestone: `master...origin/master [ahead 10]`; no local working-tree diff in the MUSE repo.
+- After the final app-validation proof, one backend transport bug was fixed and documented in this milestone: JSON-RPC/OSC requests can send `key` and `mode` separately, but the worker previously forwarded only `key="E"`, which forced E major. `build_run_generation_kwargs()` now compacts `key="E", mode="minor"` into the `Em` key override expected by `main.run_generation()`.
+
+### Backend/app launch validation
+
+- Release app launched from:
+  `juce\build\MultimodalMusicGen_artefacts\Release\AI Music Generator.exe`
+- Gateway launched with:
+  `.\.venv\Scripts\python.exe -m multimodal_gen.server --gateway --verbose`
+- Stale hidden gateway PIDs were identified and stopped before the final E-minor validation so the running JSON-RPC server loaded the latest worker code.
+- Final gateway health proof: JSON-RPC `ping` returned `status: ok` from the fresh backend process.
+
+### Final rock request proof
+
+Prompt:
+
+```text
+1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor
+```
+
+Final artifact directory:
+
+```text
+output\ui_validation\rock_app_validation_20260514_eminor_fixed
+```
+
+Key proof from `generate_sync` request `ui-rock-eminor-fixed-20260514`:
+
+- JSON-RPC success: `true`
+- Task ID: `ff861647`
+- MIDI: `output\ui_validation\rock_app_validation_20260514_eminor_fixed\rock_100bpm_Eminor_20260514_101946.mid` (`5151` bytes)
+- WAV: `output\ui_validation\rock_app_validation_20260514_eminor_fixed\rock_100bpm_Eminor_20260514_101946.wav` (`7183920` bytes)
+- The final WAV was opened in the default Windows audio player for listening review.
+
+Metadata proof:
+
+- Genre: `rock`
+- BPM: `100`
+- Key/scale: `E minor`
+- Sections: `verse` 4 bars, `chorus` 4 bars, `bridge` 4 bars, `chorus` 4 bars (`16` bars total)
+
+Render/audio-analysis proof:
+
+- `render_status.success: true`
+- `audio_analysis.target_genre: rock`
+- `audio_analysis.passed: true`
+- `genre_match_score: 0.997`
+- `spectral.sub_bass_energy_ratio: 0.1245`
+- `drums.percussive_ratio: 0.112`
+- Required drum parts detected: `has_kick=true`, `has_snare_or_clap=true`, `has_hihats=true`
+- `onset_density: 4.69`
+- Remaining analyzer note is a warning, not a failure: live drum presence is slightly below the strict rock target but required drum parts are present, so the tolerance gate passes as intended.
+
+MIDI proof:
+
+- Bass track uses GM electric bass program `34` (0-based), not Synth Bass/808 routing.
+- Chords track uses GM guitar program `25` (0-based), not Rhodes/keys.
+- Clap pitch `39` is absent.
+
+### Verification commands after the transport fix
+
+```powershell
+Set-Location c:\dev\MUSE-ai\MUSE
+.\.venv\Scripts\python.exe -m pytest tests/test_protocol.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_golden_prompts_smoke.py tests/test_smoke_1990s_rock_contract.py -q
+git diff --check
+```
+
+Results:
+
+- `tests/test_protocol.py`: `39 passed`
+- Golden/rock smoke contracts: `26 passed`
+- `git diff --check`: `PASS`
+
+### Remaining caveats
+
+- FluidSynth remains unavailable in this environment; final validation used the procedural renderer, which is the supported fallback path.
+- Generated output directories under `output\ui_validation\...` are validation artifacts and are intentionally not staged.
+- Source-control outgoing commits still need to be pushed separately if remote synchronization is desired; this validation milestone only stages/commits local repo progress.

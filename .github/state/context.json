@@ -1,7 +1,49 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-upgrade-ui-theme-panel-polish-036",
+  "session_id": "session-2026-05-14-upgrade-rock-app-validation-docs-037",
   "files_touched": [
+    {
+      "path": "multimodal_gen\\server\\worker.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T22:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added key/mode compaction in build_run_generation_kwargs so transported key=E and mode=minor forwards Em to main.run_generation."
+    },
+    {
+      "path": "tests\\test_protocol.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T22:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added regression tests proving separate minor mode maps to Em and explicit major mode strips an m suffix."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-14T22:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded launched-app/backend validation results, final E-minor artifact paths, analyzer/MIDI proof, source-control clarification, and caveats."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T22:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded completed upgrade-rock-app-validation-docs-037 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T22:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded transported key/mode compaction pattern."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T22:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded files touched and validation proof for upgrade-rock-app-validation-docs-037."
+    },
     {
       "path": "juce\\Source\\UI\\Theme\\ColourScheme.h",
       "action": "modified",
@@ -1890,7 +1932,7 @@
     {
       "file": "multimodal_gen/utils.py",
       "description": "Added get_ticks_per_bar() helper function for dynamic bar length calculation",
-      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8\u21921440, 12/8\u21922880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
+      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8→1440, 12/8→2880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
       "timestamp": "2026-01-21T12:10:00Z"
     },
     {
@@ -2351,21 +2393,21 @@
     },
     {
       "type": "post",
-      "target": "Sprint 5 production code \u2014 Gemini synthesis audit",
+      "target": "Sprint 5 production code — Gemini synthesis audit",
       "result": "PASS",
       "details": "All 7 deliverables CORRECT. No dead code, no crash paths, all guard clauses present. HarmonicBrain wiring verified, PolicyContext consumption verified, GenreDNA overlay verified, quality gate verified, scale-snap verified, preference defaults verified.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 test suite \u2014 GPT adversarial stress-test",
+      "target": "Sprint 5 test suite — GPT adversarial stress-test",
       "result": "FAIL",
       "details": "0/5 wiring points tested, 12 trivially-passing assertions, latent IndexError in compute_vlc([[]]). test_intelligence_integration.py could pass with all Sprint 5 features deleted.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 diagnostician fixes \u2014 production bug + test hardening",
+      "target": "Sprint 5 diagnostician fixes — production bug + test hardening",
       "result": "PASS",
       "details": "1 production bug fixed (compute_vlc empty voicing guard). 48 tests total: 12 trivial assertions tightened, 11 edge-case tests added, 5 wiring tests added. All 5 Sprint 5 wiring points now verified.",
       "timestamp": "2026-02-11T00:00:00Z"
@@ -2430,12 +2472,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 CORRECT, 1 MEDIUM dead instance \u2014 FIXED"
+      "details": "6/6 CORRECT, 1 MEDIUM dead instance — FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL\u2192FIXED",
-      "details": "3 bugs + 1 flaw + 4 vacuous tests \u2014 all fixed by diagnostician"
+      "result": "FAIL→FIXED",
+      "details": "3 bugs + 1 flaw + 4 vacuous tests — all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -2474,12 +2516,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "5/6 CORRECT, 1 MEDIUM bug \u2014 FIXED"
+      "details": "5/6 CORRECT, 1 MEDIUM bug — FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL\u2192FIXED",
-      "details": "2 bugs + 4 vacuous tests \u2014 all fixed by diagnostician"
+      "result": "FAIL→FIXED",
+      "details": "2 bugs + 4 vacuous tests — all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -2538,12 +2580,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue \u2014 FIXED"
+      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue — FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL\u2192FIXED",
-      "details": "3 production bugs + 7 trivial tests \u2192 all fixed by diagnostician"
+      "result": "FAIL→FIXED",
+      "details": "3 production bugs + 7 trivial tests → all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -2553,7 +2595,7 @@
   ],
   "wave_1": {
     "status": "COMPLETE",
-    "test_progression": "1075 \u2192 1133 (+58)",
+    "test_progression": "1075 → 1133 (+58)",
     "categories": [
       "C2 Masterclass Reconciliation (+30)",
       "C4 Analysis & Narrative (+15)",
@@ -2562,7 +2604,7 @@
   },
   "wave_2": {
     "status": "COMPLETE",
-    "test_progression": "1133 \u2192 1197 (+64)",
+    "test_progression": "1133 → 1197 (+64)",
     "categories": [
       "C1 Architecture Refactoring (+29)",
       "C3 Groove & Expression (+35)"
@@ -2570,7 +2612,7 @@
   },
   "wave_3": {
     "status": "COMPLETE",
-    "test_progression": "1197 \u2192 1223 (+26)",
+    "test_progression": "1197 → 1223 (+26)",
     "gaps_closed": [
       "MIDI CC injection (Task 2.1)",
       "extract_drum_pattern() API (Task 4.3)",
@@ -2592,5 +2634,18 @@
       "git_ref": "HEAD~1",
       "timestamp": "2026-01-21T12:00:00Z"
     }
-  ]
+  ],
+  "last_validation": {
+    "milestone": "upgrade-rock-app-validation-docs-037",
+    "timestamp": "2026-05-14T22:30:00Z",
+    "summary": "Fresh backend JSON-RPC generate_sync for the exact 1990s rock prompt passed after key/mode compaction fix; final WAV opened for listening.",
+    "artifact_dir": "output\\ui_validation\\rock_app_validation_20260514_eminor_fixed",
+    "wav": "output\\ui_validation\\rock_app_validation_20260514_eminor_fixed\\rock_100bpm_Eminor_20260514_101946.wav",
+    "midi": "output\\ui_validation\\rock_app_validation_20260514_eminor_fixed\\rock_100bpm_Eminor_20260514_101946.mid",
+    "tests": [
+      "tests/test_protocol.py - 39 passed",
+      "tests/test_golden_prompts_smoke.py tests/test_smoke_1990s_rock_contract.py - 26 passed",
+      "git diff --check - PASS"
+    ]
+  }
 }

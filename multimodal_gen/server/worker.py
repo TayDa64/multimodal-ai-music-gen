@@ -212,6 +212,36 @@ def build_run_generation_kwargs(
         except Exception:
             return None
 
+    def _key_with_mode_suffix(key: Any, mode: Any = "") -> Optional[str]:
+        """Return the compact key string expected by ``main.run_generation``.
+
+        ``run_generation`` receives a single key override where minor keys are
+        represented with an ``m`` suffix (for example, ``Em``).  Frontend
+        transports, however, can send the root key and mode as separate fields
+        (``key=E``, ``mode=minor``).  Preserve already-compact keys while
+        honoring the explicit mode when it is present.
+        """
+        key_text = _as_str(key)
+        if not key_text:
+            return None
+
+        key_text = key_text.strip()
+        if not key_text:
+            return None
+
+        lowered_key = key_text.lower()
+        if lowered_key.endswith(" minor"):
+            return f"{key_text[:-6].strip()}m"
+        if lowered_key.endswith(" major"):
+            return key_text[:-6].strip()
+
+        mode_text = (_as_str(mode) or "").strip().lower()
+        if mode_text in {"minor", "min", "m"}:
+            return key_text if key_text.lower().endswith("m") else f"{key_text}m"
+        if mode_text in {"major", "maj"}:
+            return key_text[:-1] if key_text.lower().endswith("m") else key_text
+        return key_text
+
     seed_opt = _as_int(_opt("seed"))
     if seed_opt is None and request.score_plan:
         try:
@@ -243,10 +273,10 @@ def build_run_generation_kwargs(
     # TASK 3: Determine key override - prefer explicit request.key, then pre-analyzed reference_key
     key_override = None
     if request.key:
-        key_override = request.key
+        key_override = _key_with_mode_suffix(request.key, request.mode)
     elif request.reference_key:
         # Use pre-analyzed key from JUCE frontend (avoids re-downloading YouTube)
-        key_override = request.reference_key
+        key_override = _key_with_mode_suffix(request.reference_key)
     
     # TASK 3: Determine genre override - prefer explicit request.genre, then pre-analyzed reference_genre
     # Treat "auto" from JUCE as no override so prompt parsing can infer the genre.

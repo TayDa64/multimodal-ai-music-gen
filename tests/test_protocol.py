@@ -298,6 +298,48 @@ class TestPhase52OptionForwarding:
         assert kwargs["num_motifs"] == 3
         assert kwargs["seed"] == 123
         assert kwargs["score_plan"] == request.score_plan
+
+    def test_build_run_generation_kwargs_honors_separate_minor_mode(self):
+        request = GenerationRequest(
+            prompt="1990s rock in E minor",
+            genre="rock",
+            bpm=100,
+            key="E",
+            mode="minor",
+            duration_bars=16,
+        )
+
+        def _progress(step: str, pct: float, msg: str):
+            pass
+
+        kwargs = build_run_generation_kwargs(
+            request,
+            output_dir="out",
+            progress_callback=_progress,
+        )
+
+        assert kwargs["key_override"] == "Em"
+
+    def test_build_run_generation_kwargs_honors_separate_major_mode(self):
+        request = GenerationRequest(
+            prompt="bright rock in E major",
+            genre="rock",
+            bpm=100,
+            key="Em",
+            mode="major",
+            duration_bars=16,
+        )
+
+        def _progress(step: str, pct: float, msg: str):
+            pass
+
+        kwargs = build_run_generation_kwargs(
+            request,
+            output_dir="out",
+            progress_callback=_progress,
+        )
+
+        assert kwargs["key_override"] == "E"
     
     def test_error_message_format(self):
         """Test that error messages include request_id."""
