@@ -95,6 +95,10 @@ audio_test.py
 # SoundFont files (too large for repo)
 *.sf2
 *.SF2
+*.sf3
+*.SF3
+*.sfz
+*.SFZ
 
 # Audio files in root (test outputs)
 *.wav

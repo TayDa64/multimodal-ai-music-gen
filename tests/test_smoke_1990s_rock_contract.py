@@ -53,3 +53,21 @@ def test_smoke_1990s_rock_strict_audio_fails_explicit_analysis_false_only():
     assert "-or $analysisExplicitFailure" in strict_line
     assert "-or (-not $analysisPresent)" not in strict_line
     assert "-or ($analysisPassed -eq $null)" not in strict_line
+
+
+def test_smoke_1990s_rock_summary_reports_renderer_diagnostics_contract():
+    script_text = SCRIPT_PATH.read_text(encoding="utf-8")
+
+    assert "renderer_diagnostics" in script_text
+    assert "renderer_path = $rendererPath" in script_text
+    assert "soundfont_path = $soundfontPath" in script_text
+    assert "require_soundfont = $requireSoundfont" in script_text
+    assert "fluidsynth_available" in script_text
+    assert "fluidsynth_version" in script_text
+    assert "fluidsynth_enabled" in script_text
+    assert "fluidsynth_allowed" in script_text
+    assert "fluidsynth_attempted" in script_text
+    assert "fluidsynth_success" in script_text
+    assert "fluidsynth_skip_reason" in script_text
+    assert "$rendererPath = if ($renderReportData -and $renderReportData.renderer_path)" in script_text
+    assert "$fluidsynth = if ($renderReportData -and $renderReportData.fluidsynth)" in script_text

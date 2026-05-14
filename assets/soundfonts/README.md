@@ -5,41 +5,173 @@ This project can render MIDI to audio in two ways:
 - **FluidSynth + SoundFont (.sf2)** (recommended): higher-quality, realistic timbres
 - **Procedural fallback**: offline-first, no external assets, but noticeably less realistic
 
-## Where to put SoundFonts
+---
 
-Place your `.sf2` file(s) in this folder:
+## Installation
 
-- `assets/soundfonts/`
+### 1. Install FluidSynth
 
-The renderer auto-searches common names such as:
+#### Windows
+
+**Option A: Chocolatey** (recommended)
+```powershell
+choco install fluidsynth
+```
+
+**Option B: Official release**
+- Download from [FluidSynth GitHub Releases](https://github.com/FluidSynth/fluidsynth/releases)
+- Extract to a folder (e.g., `C:\Program Files\FluidSynth`)
+- Add the `bin` directory to your system PATH
+
+#### macOS
+
+```bash
+brew install fluid-synth
+```
+
+#### Linux (Ubuntu/Debian)
+
+```bash
+sudo apt update
+sudo apt install fluidsynth
+```
+
+#### Linux (Fedora/RHEL)
+
+```bash
+sudo dnf install fluidsynth
+```
+
+### 2. Verify FluidSynth Installation
+
+Run:
+
+```bash
+fluidsynth --version
+```
+
+Expected output:
+```
+FluidSynth runtime version X.X.X
+```
+
+---
+
+## SoundFont Setup
+
+### No Bundled SoundFonts
+
+This repo intentionally does **not** ship any SoundFont binaries.
+Download a SoundFont you have rights to use, then place it in this folder.
+
+### Where to Place SoundFonts
+
+Place your `.sf2` file(s) in:
+
+```
+assets/soundfonts/
+```
+
+The renderer auto-searches common names:
 - `FluidR3_GM.sf2`
 - `GeneralUser_GS.sf2`
 - `default.sf2`
 
-Or you can pass an explicit path:
+Or pass an explicit path:
 
-- `python main.py "g_funk at 94 bpm" --soundfont "C:\\Path\\To\\Your.sf2"`
+```bash
+python main.py "g_funk at 94 bpm" --soundfont "C:\Path\To\Your.sf2"
+```
 
-## No bundled SoundFonts
+### Recommended SoundFonts
 
-This repo intentionally does **not** ship any SoundFont binaries.
-Download a SoundFont you have rights to use, then place it here.
+#### FluidR3_GM (free, MIT license)
+- **Source**: [MuseScore SoundFont Repository](https://github.com/musescore/MuseScore/tree/master/share/sound)
+- **License**: MIT
+- **Size**: ~148 MB
+- **Quality**: Balanced, general-purpose
 
-## Diagnose your setup
+#### GeneralUser GS (free, custom license)
+- **Source**: [GeneralUser GS Official Site](http://schristiancollins.com/generaluser.php)
+- **License**: GeneralUser GS License (free for most uses, read terms)
+- **Size**: ~30 MB
+- **Quality**: Lightweight, good coverage
+
+#### Timbres Of Heaven (free, custom license)
+- **Source**: [Timbres Of Heaven on SourceForge](https://sourceforge.net/projects/timbres-of-heaven/)
+- **License**: Read license.txt in archive
+- **Size**: ~369 MB (full version)
+- **Quality**: High-quality, expressive
+
+**Important**: Always verify the license of any SoundFont you download. The above are commonly used for personal/educational projects.
+
+---
+
+## Verification
+
+### Diagnose Your Setup
 
 Run:
 
-- `python main.py --diagnose-audio`
+```bash
+python main.py --diagnose-audio
+```
 
-That prints a JSON report showing:
-- whether `fluidsynth` is available
-- which `.sf2` was discovered (if any)
-- whether instrument/sample folders are present
+Expected output (FluidSynth + SoundFont installed):
 
-## Strict studio mode (optional)
+```json
+{
+  "schema_version": 1,
+  "fluidsynth": {
+    "available": true,
+    "version": "FluidSynth 2.3.3"
+  },
+  "soundfont": {
+    "cli_arg": null,
+    "discovered": "assets\\soundfonts\\FluidR3_GM.sf2",
+    "soundfonts_dir": "C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts",
+    "soundfonts_dir_exists": true
+  },
+  "instruments": {
+    "default_dir": "C:\\dev\\MUSE-ai\\MUSE\\instruments",
+    "default_dir_exists": true,
+    "default_audio_file_count": 42,
+    "cli_paths": []
+  },
+  "expansions": {
+    "default_dir": "C:\\dev\\MUSE-ai\\expansions",
+    "default_dir_exists": true
+  }
+}
+```
 
-If you want to **fail** when a SoundFont render isn’t possible:
+**If FluidSynth is not found**:
+- `fluidsynth.available` will be `false`
+- Audio will fall back to procedural synthesis (lower quality)
 
-- `python main.py "ethiopian groove" --require-soundfont`
+**If SoundFont is not found**:
+- `soundfont.discovered` will be `null`
+- FluidSynth will be skipped even if installed
+
+---
+
+## Strict Studio Mode (Optional)
+
+If you want to **fail** when a SoundFont render isn't possible:
+
+```bash
+python main.py "ethiopian groove" --require-soundfont
+```
 
 This disables procedural fallback for the final WAV render (MIDI will still be generated).
+
+**Use cases**:
+- CI/CD quality gates
+- Production environments where procedural synthesis quality is unacceptable
+- Debugging FluidSynth/SoundFont configuration issues
+
+**When `--require-soundfont` is set**:
+- Render fails immediately if FluidSynth is unavailable
+- Render fails immediately if no SoundFont is discovered
+- Exit code is non-zero
+- `render_report.json` shows `renderer_path: "none"` and `skip_reason: "require_soundfont"`

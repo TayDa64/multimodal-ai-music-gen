@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "FluidSynth proof should capture renderer path and skip reason even when FluidSynth/SoundFonts are absent",
+        "context": "For fluidsynth-soundfont-proof-042, the local machine lacked a fluidsynth binary and SoundFont assets. The safe slice added smoke_summary renderer_diagnostics, no-install render-report tests, accurate setup docs, and SoundFont git ignores without vendoring binaries or breaking procedural fallback.",
+        "timestamp": "2026-05-14T20:47:37Z"
+      },
+      {
         "pattern": "Rock-family app preview should prefer guitar samples by genre while keeping backend WAV playback as the mastered reference",
         "context": "For rock-app-instrument-preview-parity-041, JUCE preferredCategoriesForTrack became genre-aware and prepends guitar for rock chord/lead tracks, while InstrumentMatcher recommendations include guitar so instruments_used can expose it when available. Non-rock category ordering and WAV playback parity are preserved.",
         "timestamp": "2026-05-14T20:24:33Z"
@@ -409,6 +414,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Do not install or vendor FluidSynth/SoundFont binaries in the repo task; add proof guardrails and user setup documentation instead.",
+      "rationale": "FluidSynth is an external binary and SoundFonts are large third-party licensed assets. The codebase should prove renderer selection and preserve procedural fallback without committing large or potentially unlicensed files.",
+      "alternatives_considered": [
+        "Install FluidSynth via package manager from the agent",
+        "Download FluidR3_GM.sf2 into assets/soundfonts",
+        "Block all progress until FluidSynth is installed"
+      ],
+      "timestamp": "2026-05-14T20:47:37Z"
+    },
     {
       "decision": "Implement guitar parity through JUCE category preferences and backend recommendation metadata, not through audio-renderer changes.",
       "rationale": "audio_renderer.py already maps GM guitar programs and custom guitar samples; the remaining parity gaps were app preview selection and instruments_used metadata.",
@@ -959,5 +974,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T20:24:33Z"
+  "last_updated": "2026-05-14T20:47:37Z"
 }

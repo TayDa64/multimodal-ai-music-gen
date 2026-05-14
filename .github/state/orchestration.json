@@ -1,11 +1,58 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-rock-app-instrument-preview-parity-041",
-    "started": "2026-05-14T20:06:50Z",
-    "user_request": "Continue with rock app instrument preview parity / guitar category mapping, FluidSynth + SoundFont proof slice, and post-FluidSynth mastering parity."
+    "id": "session-2026-05-14-fluidsynth-soundfont-proof-042",
+    "started": "2026-05-14T20:25:04Z",
+    "user_request": "Continue with FluidSynth + SoundFont proof slice and post-FluidSynth mastering parity after rock app instrument preview parity."
   },
   "task_queue": [
+    {
+      "id": "fluidsynth-soundfont-proof-042",
+      "description": "Verify/install FluidSynth and a licensed SoundFont path, run audio diagnostics, regenerate or smoke-check rock prompt renderer selection, and add guardrail coverage for selected renderer path when feasible",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\audio_renderer.py",
+        "main.py",
+        "assets\\soundfonts\\README.md",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_smoke_1990s_rock_contract.py",
+        "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T20:25:04Z",
+      "updated": "2026-05-14T20:47:37Z",
+      "result": {
+        "summary": "Implemented FluidSynth/SoundFont proof guardrails without installing or vendoring binaries: smoke summaries now expose renderer diagnostics, render-report tests cover no-install fail-fast behavior, SoundFont setup docs are accurate to diagnose-audio output, and SoundFont variants are ignored by git.",
+        "environment": {
+          "fluidsynth_binary": "not found in PATH",
+          "soundfont_assets": "assets/soundfonts exists but contains no .sf2/.sf3/.sfz assets",
+          "diagnose_audio": "fluidsynth.available=false, soundfont.discovered=null, default_audio_file_count=1485"
+        },
+        "files_changed": [
+          "scripts/smoke_1990s_rock.ps1",
+          "tests/test_smoke_1990s_rock_contract.py",
+          "tests/test_render_report_schema.py",
+          "assets/soundfonts/README.md",
+          ".gitignore",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+        ],
+        "verification": {
+          "pre_verifier": "PARTIAL - FluidSynth infrastructure and diagnostics exist, but runtime binary and SoundFont are absent; post-FluidSynth mastering parity is still missing.",
+          "post_verifier_initial": "FAIL - README diagnose-audio example used wrong fields and fail-fast test could pass vacuously when FluidSynth is installed.",
+          "post_verifier_final": "PASS - README and deterministic test fixed; all task requirements met.",
+          "git_diff_check": "PASS",
+          "focused_pytest": "PASS - 10 passed for tests/test_render_report_schema.py tests/test_smoke_1990s_rock_contract.py -q.",
+          "diagnose_audio": "PASS - command prints schema_version=1, fluidsynth.available=false, soundfont.discovered=null, soundfonts_dir_exists=true.",
+          "diagnostics": "PASS - no VS Code diagnostics for touched files."
+        },
+        "next_recommendation": "Implement post-FluidSynth mastering parity by sharing/extracting the file-level master chain for FluidSynth-rendered WAVs."
+      }
+    },
     {
       "id": "rock-app-instrument-preview-parity-041",
       "description": "Fix rock app instrument preview parity so generated rock chord/lead tracks prefer guitar samples/categories and backend instruments_used exposes guitar when renderer used guitar",

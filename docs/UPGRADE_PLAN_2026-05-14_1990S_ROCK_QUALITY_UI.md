@@ -912,3 +912,69 @@ Results:
 ### Remaining follow-up
 
 Recommendation 3 is now covered for the app preview/category-mapping surface and backend recommendation metadata. The next highest-priority slice is the FluidSynth/SoundFont proof: verify/install FluidSynth and a licensed SoundFont, run audio diagnostics, regenerate the exact rock prompt, and assert the selected renderer path in render diagnostics before moving to post-FluidSynth mastering parity.
+
+## FluidSynth/SoundFont proof guardrails — 2026-05-14
+
+Status: **implemented and verified** for the code/documentation half of recommendation 4. The local runtime proof shows FluidSynth and a SoundFont are still **not installed** on this machine, so this slice intentionally did not vendor or download third-party binaries.
+
+### Environment proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+Get-Command fluidsynth
+where.exe fluidsynth
+.\.venv\Scripts\python.exe main.py --diagnose-audio
+```
+
+Results:
+
+- `fluidsynth` executable: not found in PATH.
+- `assets/soundfonts/`: exists, but contains only `README.md`.
+- `main.py --diagnose-audio` reports:
+  - `fluidsynth.available=false`
+  - `fluidsynth.version=null`
+  - `soundfont.discovered=null`
+  - `soundfonts_dir_exists=true`
+  - `default_audio_file_count=1485`
+
+### What changed
+
+- `scripts/smoke_1990s_rock.ps1`
+  - `smoke_summary.json` now includes a `renderer_diagnostics` object derived from the render report.
+  - Captured fields include `renderer_path`, `soundfont_path`, `require_soundfont`, and FluidSynth `available`, `version`, `enabled`, `allowed`, `attempted`, `success`, and `skip_reason`.
+  - Existing strict-audio semantics are unchanged.
+- `tests/test_smoke_1990s_rock_contract.py`
+  - Added static contract coverage that the smoke script writes the renderer/SoundFont/FluidSynth diagnostic fields.
+- `tests/test_render_report_schema.py`
+  - Added no-install FluidSynth diagnostics coverage.
+  - Added deterministic `require_soundfont=True` fail-fast coverage proving a no-FluidSynth/no-SoundFont render returns `False`, reports `renderer_path="none"`, `skip_reason="require_soundfont"`, and preserves the structured render failure.
+- `assets/soundfonts/README.md`
+  - Expanded the setup guide with Windows/macOS/Linux FluidSynth installation options, no-bundled-SoundFonts policy, expected SoundFont names, explicit `--soundfont` usage, `--diagnose-audio` verification, and strict studio mode.
+  - The documented JSON example now matches the actual `main.py --diagnose-audio` schema.
+- `.gitignore`
+  - Added `.sf3`/`.sfz` SoundFont variants to the existing SoundFont binary ignore rules.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+.\.venv\Scripts\python.exe -m pytest tests/test_render_report_schema.py tests/test_smoke_1990s_rock_contract.py -q
+.\.venv\Scripts\python.exe main.py --diagnose-audio
+```
+
+Results:
+
+- `git diff --check`: `PASS`.
+- Focused tests: `10 passed`.
+- Diagnostics command: `PASS`, with FluidSynth unavailable and no SoundFont discovered as expected for the current environment.
+- Post-verifier: initial `FAIL` caught the stale README field names and an environment-dependent test; after fixes, second post-verifier returned `PASS`.
+- VS Code diagnostics for touched files: no errors.
+
+### Remaining follow-up
+
+Recommendation 4 is now proof-ready: future smoke artifacts can prove whether a run used FluidSynth, skipped it, or fell back to procedural rendering. To actually make local FluidSynth renders happen, install the external FluidSynth binary and place a licensed `.sf2` under `assets/soundfonts/` or pass `--soundfont` explicitly.
+
+The next highest-priority item is recommendation 5: **post-FluidSynth mastering parity**. Source review still shows the FluidSynth success path runs `_post_process()` textures, then returns; it does not yet share the full procedural master chain stages such as multiband dynamics, spectral processing, auto-gain staging, and true-peak limiting.
