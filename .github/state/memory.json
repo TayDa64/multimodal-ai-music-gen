@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Golden prompt fixtures can lock cross-layer genre regressions without rendering audio",
+        "context": "upgrade-rock-golden-regression-matrix-035 uses optional fixture fields to assert parser metadata, analyzer target presence, bounded target_bars arrangements, and MIDI program/pitch guardrails for the exact 1990s rock prompt while preserving lightweight parse→arranger→MidiGenerator smoke behavior.",
+        "timestamp": "2026-05-14T21:00:00Z"
+      },
+      {
         "pattern": "Rock-family bass guitar must not route to Synth Bass/808 or arbitrary sub-heavy custom bass samples",
         "context": "upgrade-rock-bass-render-033 routes rock-family Bass MIDI to GM electric bass programs 33/34, keeps track name Bass for compatibility, and makes ProceduralRenderer guard GM bass programs 32-39 before custom bass cache, expansion samples, or generate_808_kick. Custom bass samples and Synth Bass 38/39 behavior remain available for non-rock genres.",
         "timestamp": "2026-05-14T19:00:00Z"
@@ -375,6 +380,16 @@
   },
   "decisions": [
     {
+      "decision": "Disambiguate the existing R&B golden fixture rather than changing parser/source behavior",
+      "rationale": "upgrade-rock-golden-regression-matrix-035: the old R&B fixture included explicit neo-soul wording, and the parser now correctly prioritizes neo_soul. Removing the ambiguous neo-soul phrase keeps a distinct R&B lock while the new Phase 6 fixture locks neo_soul explicitly.",
+      "alternatives_considered": [
+        "Change parser priority for mixed rnb neo-soul wording",
+        "Change the existing R&B fixture expected_genre to neo_soul",
+        "Leave the ambiguous fixture failing"
+      ],
+      "timestamp": "2026-05-14T21:00:00Z"
+    },
+    {
       "decision": "Use GM Electric Bass pick program 34 for rock-family bass contexts and a bounded procedural electric-bass renderer for rock-family programs 32-39.",
       "rationale": "The strict rock analyzer failed because program 38 rendered as 808/sub-kick with excessive sub-bass; rock band prompts requesting bass guitar need audible electric-bass harmonics without sub-heavy synth/sample routing.",
       "alternatives_considered": [
@@ -709,11 +724,11 @@
       ],
       "patterns": [
         "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
-          {
-            "pattern": "Borderline low rock percussive ratio should be tolerated only when live-drum detectors agree",
-            "context": "upgrade-rock-analysis-smoke-gate-034 keeps the Missing/low live drum presence error, <0.60 cap, and drums re_render correction for missing required drum parts or far-low percussive ratios, but tolerates a ratio within about 10% below the target minimum when required_drum_parts detectors all fire and onset density is in/near range. Strict 1990s rock smoke now also fails explicit audio_analysis.passed=false while absent/null analysis remains compatibility-neutral.",
-            "timestamp": "2026-05-14T20:00:00Z"
-          },
+        {
+          "pattern": "Borderline low rock percussive ratio should be tolerated only when live-drum detectors agree",
+          "context": "upgrade-rock-analysis-smoke-gate-034 keeps the Missing/low live drum presence error, <0.60 cap, and drums re_render correction for missing required drum parts or far-low percussive ratios, but tolerates a ratio within about 10% below the target minimum when required_drum_parts detectors all fire and onset density is in/near range. Strict 1990s rock smoke now also fails explicit audio_analysis.passed=false while absent/null analysis remains compatibility-neutral.",
+          "timestamp": "2026-05-14T20:00:00Z"
+        },
         "MIDI programs 110-113 reserved for Ethiopian instruments",
         "Genre profiles define ideal SonicProfile for instrument matching",
         "M/S encoding: mid=(L+R)/2, side=(L-R)/2",
@@ -865,5 +880,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T20:00:00Z"
+  "last_updated": "2026-05-14T21:20:00Z"
 }

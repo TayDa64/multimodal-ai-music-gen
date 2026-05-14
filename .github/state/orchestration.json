@@ -1,11 +1,56 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-01-17-masterclass",
-    "started": "2026-01-17T00:00:00Z",
-    "user_request": "Implement 8 professional masterclass features using RLM orchestration"
+    "id": "session-2026-05-14-upgrade-rock-golden-regression-matrix-035",
+    "started": "2026-05-14T21:00:00Z",
+    "user_request": "Implement milestone upgrade-rock-golden-regression-matrix-035: Phase 6 regression/golden prompt lock after the 1990s rock fixes."
   },
   "task_queue": [
+    {
+      "id": "upgrade-rock-golden-regression-matrix-035",
+      "description": "Add Phase 6 golden prompt regression matrix and optional smoke assertions for 1990s rock and neighboring genre guardrails",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "tests\\fixtures\\golden_prompts.json",
+        "tests\\test_golden_prompts_smoke.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T21:00:00Z",
+      "updated": "2026-05-14T21:05:00Z",
+      "result": {
+        "summary": "Expanded golden prompts with Phase 6 rock, boom_bap, trap_soul, neo_soul, and cinematic/classical locks. Golden smoke now asserts optional parse metadata, analyzer target coverage, target_bars/sections, MIDI bass/chord programs, and absent clap pitch 39 for the exact 1990s rock prompt without rendering audio.",
+        "verification": {
+          "timestamp": "2026-05-14T21:20:00Z",
+          "focused_pytest": "44 passed",
+          "broad_focused_suite": "110 passed, 7 expected librosa warnings",
+          "json_and_diff_checks": "state/fixture JSON valid and git diff --check OK",
+          "strict_smoke_path": "output/_diagnostics/rock_1990s_20260514_091707",
+          "strict_audio_failed": false,
+          "render_status": {
+            "success": true
+          },
+          "audio_analysis": {
+            "passed": true,
+            "score": 0.997,
+            "target_genre": "rock",
+            "sub_bass_energy_ratio": 0.1245,
+            "percussive_ratio": 0.112,
+            "required_drum_parts_detected": true
+          },
+          "midi": {
+            "bass_program": 34,
+            "chords_program": 25,
+            "clap_pitch_39_absent": true
+          },
+          "details": "Focused pytest: 44 passed. Broad focused suite: 110 passed with 7 expected librosa warnings. State/fixture JSON valid and git diff --check OK. Strict smoke path: output/_diagnostics/rock_1990s_20260514_091707. strict_audio_failed=false; render_status.success=true; audio_analysis.passed=true score=0.997 target_genre=rock sub_bass_energy_ratio=0.1245 percussive_ratio=0.112; required drum parts detected. MIDI Bass program 34, Chords program 25, clap pitch 39 absent."
+        }
+      }
+    },
     {
       "id": "upgrade-rock-analysis-smoke-gate-034",
       "description": "Tolerate borderline measured live-drum percussive ratios and harden strict 1990s rock smoke gating on explicit audio_analysis failure",

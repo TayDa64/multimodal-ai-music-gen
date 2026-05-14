@@ -45,9 +45,49 @@
     "expected_genre": "trap_soul"
   },
   {
+    "id": "phase6_trap_soul_808_rhodes",
+    "prompt": "trap soul with 808 and rhodes at 78 bpm in B minor with airy pads and emotional vocal chops",
+    "expected_genre": "trap_soul",
+    "expected_bpm": 78,
+    "expected_key": "B",
+    "expected_scale": "minor",
+    "expected_instruments_include": ["808", "rhodes"],
+    "expected_drums_include": ["808"]
+  },
+  {
     "id": "rnb_r_n_b_variant",
-    "prompt": "modern r n b neo-soul groove 92 bpm in F# minor with lush chords and smooth bass",
+    "prompt": "modern r n b groove 92 bpm in F# minor with lush chords and smooth bass",
     "expected_genre": "rnb"
+  },
+  {
+    "id": "phase6_neo_soul_rhodes_warm_bass",
+    "prompt": "neo soul with rhodes and warm bass at 92 bpm in F minor with laid back drums",
+    "expected_genre": "neo_soul",
+    "expected_bpm": 92,
+    "expected_key": "F",
+    "expected_scale": "minor",
+    "expected_instruments_include": ["rhodes", "bass"],
+    "expected_instruments_exclude": ["808"],
+    "expected_drums_include": ["kick", "snare", "hihat"],
+    "expected_drums_exclude": ["808"]
+  },
+  {
+    "id": "phase6_exact_1990s_rock_band_16bar",
+    "prompt": "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor",
+    "expected_genre": "rock",
+    "expected_bpm": 100,
+    "expected_key": "E",
+    "expected_scale": "minor",
+    "expected_instruments_include": ["guitar", "bass"],
+    "expected_instruments_exclude": ["choir"],
+    "expected_drums_include": ["kick", "snare", "hihat", "hihat_open", "crash", "ride"],
+    "expected_drums_exclude": ["808", "clap"],
+    "expected_target_bars": 16,
+    "expected_section_names": ["verse", "chorus", "bridge", "chorus"],
+    "expected_total_bars": 16,
+    "expected_midi_bass_program": 34,
+    "expected_midi_chords_program_range": [24, 31],
+    "expected_midi_drum_pitches_exclude": [39]
   },
   {
     "id": "lofi_chill",
@@ -63,6 +103,16 @@
     "id": "boom_bap_hyphen",
     "prompt": "boom-bap golden era east coast 94 bpm in G minor with chopped samples and punchy drums",
     "expected_genre": "boom_bap"
+  },
+  {
+    "id": "phase6_90s_boom_bap_hip_hop",
+    "prompt": "90s boom bap hip hop beat at 94 bpm in G minor with dusty drums, chopped samples, and punchy bass",
+    "expected_genre": "boom_bap",
+    "expected_bpm": 94,
+    "expected_key": "G",
+    "expected_scale": "minor",
+    "expected_instruments_include": ["bass"],
+    "expected_drums_include": ["kick", "snare", "hihat"]
   },
   {
     "id": "house_four_on_floor",
@@ -83,5 +133,15 @@
     "id": "ambient_cinematic_soundscape",
     "prompt": "ambient cinematic soundscape in C minor with atmospheric pads, drone, and long reverb tails",
     "expected_genre": "ambient"
+  },
+  {
+    "id": "phase6_cinematic_classical_score",
+    "prompt": "cinematic classical score at 72 bpm in C minor with strings, brass, timpani, and choir",
+    "expected_genre": "cinematic",
+    "expected_bpm": 72,
+    "expected_key": "C",
+    "expected_scale": "minor",
+    "expected_instruments_include": ["strings", "brass", "timpani", "choir"],
+    "expected_drums_include": ["timpani_drum"]
   }
 ]

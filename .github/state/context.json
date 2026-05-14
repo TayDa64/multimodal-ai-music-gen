@@ -1,7 +1,42 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-01-17-masterclass",
+  "session_id": "session-2026-05-14-upgrade-rock-golden-regression-matrix-035",
   "files_touched": [
+    {
+      "path": "tests\\fixtures\\golden_prompts.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added Phase 6 golden prompt cases and optional expected metadata for rock, boom_bap, trap_soul, neo_soul, and cinematic/classical regression coverage."
+    },
+    {
+      "path": "tests\\test_golden_prompts_smoke.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added optional parse, analyzer-target, arrangement, and MIDI program/pitch assertions while keeping pytest audio-render-free."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed upgrade-rock-golden-regression-matrix-035 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Phase 6 golden fixture strategy and R&B fixture disambiguation decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded files touched, changes, and verification placeholders for milestone 035."
+    },
     {
       "path": ".github\\state\\context.json",
       "action": "modified",
@@ -1272,6 +1307,24 @@
   ],
   "changes_made": [
     {
+      "file": "tests\\fixtures\\golden_prompts.json",
+      "description": "Expanded fixture matrix with exact 1990s rock lock plus boom_bap, trap_soul, neo_soul, and cinematic/classical guardrails; disambiguated the existing R&B prompt away from neo-soul wording.",
+      "diff_summary": "Added optional expected_bpm/key/scale, instrument/drum include/exclude, target_bars/sections, MIDI program, and drum pitch exclusion metadata.",
+      "timestamp": "2026-05-14T21:00:00Z"
+    },
+    {
+      "file": "tests\\test_golden_prompts_smoke.py",
+      "description": "Assert optional fixture fields across parsing, analyzer target coverage, target-bar arrangement shape, MIDI Bass/Chords programs, and absent drum pitch 39.",
+      "diff_summary": "Added helpers for normalization, main.py-style target_bars application, track programs, and drum pitch extraction; preserved non-empty drum smoke behavior.",
+      "timestamp": "2026-05-14T21:00:00Z"
+    },
+    {
+      "file": ".github\\state\\orchestration.json/.github\\state\\memory.json/.github\\state\\context.json",
+      "description": "Recorded completed milestone 035 and concise verification notes.",
+      "diff_summary": "Added completed task, memory pattern/decision, and context touched/change/verification entries.",
+      "timestamp": "2026-05-14T21:00:00Z"
+    },
+    {
       "file": "scripts\\smoke_1990s_rock.ps1; tests\\test_smoke_1990s_rock_contract.py",
       "description": "Strict 1990s rock smoke summaries now expose render-report audio_analysis presence, pass flag, score, and a concise first-issue failure reason; strict mode fails if audio_analysis.passed is explicitly false but remains compatible when analysis is absent/null.",
       "diff_summary": "Parsed audio_analysis from render reports, added analysis_* audio_status fields and analysisExplicitFailure strict gate; added static contract assertions for fields and explicit false-only gating.",
@@ -1783,6 +1836,34 @@
     }
   ],
   "verifications": [
+    {
+      "timestamp": "2026-05-14T21:20:00Z",
+      "type": "post",
+      "target": "Phase 6 external strict 1990s rock smoke",
+      "result": "PASS",
+      "details": "Focused pytest: 44 passed. Broad focused suite: 110 passed with 7 expected librosa warnings. State/fixture JSON valid and git diff --check OK. Strict smoke path: output/_diagnostics/rock_1990s_20260514_091707. strict_audio_failed=false; render_status.success=true; audio_analysis.passed=true score=0.997 target_genre=rock sub_bass_energy_ratio=0.1245 percussive_ratio=0.112; required drum parts detected. MIDI Bass program 34, Chords program 25, clap pitch 39 absent."
+    },
+    {
+      "type": "post",
+      "target": "Phase 6 focused golden/parser/rock suite",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_golden_prompts_smoke.py tests/test_prompt_parser_key.py tests/test_genre_normalization.py tests/test_rock_strategy.py tests/test_arranger_rock.py -q => 44 passed in 3.71s",
+      "timestamp": "2026-05-14T21:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "MIDI/audio/analyzer/golden/smoke-contract suite",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_midi_generator.py tests/test_audio_renderer.py tests/test_output_analyzer.py tests/test_golden_prompts_smoke.py tests/test_smoke_1990s_rock_contract.py -q => 110 passed, 7 warnings in 11.02s",
+      "timestamp": "2026-05-14T21:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "State and fixture JSON validity plus whitespace check",
+      "result": "PASS",
+      "details": "JSON validity passed for .github/state/orchestration.json, .github/state/memory.json, .github/state/context.json, and tests/fixtures/golden_prompts.json; git diff --check OK; modified files remain within allowed scope.",
+      "timestamp": "2026-05-14T21:05:00Z"
+    },
     {
       "timestamp": "2026-05-14T19:25:00Z",
       "type": "post",
