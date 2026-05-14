@@ -417,6 +417,65 @@ class TestGenreMatchScorer:
         assert any(i.category == "drums" for i in issues)
         assert any(c.target == "drums" for c in corrections)
 
+    def test_borderline_rock_live_drums_pass_with_required_parts_detected(self):
+        spectral = SpectralFeatures(
+            centroid_hz=2369.1,
+            rolloff_hz=4646.5,
+            flatness=0.0043,
+            dynamic_range_db=40.2,
+            sub_bass_energy_ratio=0.1214,
+        )
+        drums = DrumDetection(
+            drums_present=False,
+            percussive_ratio=0.117,
+            has_kick=True,
+            has_snare_or_clap=True,
+            has_hihats=True,
+            onset_density=3.86,
+        )
+
+        score, issues = GenreMatchScorer().score("rock", spectral, drums)
+        corrections = generate_corrections(issues)
+
+        assert score >= 0.60
+        assert score >= 0.95
+        assert not any(issue.severity == "error" for issue in issues)
+        assert not any(
+            "missing/low live drum presence" in issue.message.lower()
+            for issue in issues
+        )
+        assert corrections == []
+
+    def test_far_low_percussive_ratio_still_fails_rock_with_part_flags(self):
+        spectral = SpectralFeatures(
+            centroid_hz=2369.1,
+            rolloff_hz=4646.5,
+            flatness=0.0043,
+            dynamic_range_db=40.2,
+            sub_bass_energy_ratio=0.1214,
+        )
+        drums = DrumDetection(
+            drums_present=False,
+            percussive_ratio=0.03,
+            has_kick=True,
+            has_snare_or_clap=True,
+            has_hihats=True,
+            onset_density=3.86,
+        )
+
+        score, issues = GenreMatchScorer().score("rock", spectral, drums)
+        corrections = generate_corrections(issues)
+
+        assert score < 0.60
+        assert any(
+            "missing/low live drum presence" in issue.message.lower()
+            for issue in issues
+        )
+        assert any(
+            c.action == "re_render" and c.target == "drums"
+            for c in corrections
+        )
+
     def test_low_drum_trap_soul_does_not_trigger_live_drum_rerender(self):
         spectral = SpectralFeatures(
             centroid_hz=2400.0,

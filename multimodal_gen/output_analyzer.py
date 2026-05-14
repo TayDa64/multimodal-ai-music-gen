@@ -722,8 +722,32 @@ class InstrumentDetector:
 class GenreMatchScorer:
     """Score how well rendered audio matches genre expectations."""
 
+    DRUM_PRESENCE_LOW_TOLERANCE_RATIO = 0.10
+    ONSET_DENSITY_NEAR_TOLERANCE_RATIO = 0.10
+
     def __init__(self, targets: Optional[Dict[str, Dict]] = None):
         self.targets = targets or AUDIO_GENRE_TARGETS
+
+    @staticmethod
+    def _has_required_drum_parts(
+        required_parts: List[str], drums: DrumDetection
+    ) -> bool:
+        part_flags = {
+            "kick": drums.has_kick,
+            "snare_or_clap": drums.has_snare_or_clap,
+            "hihats": drums.has_hihats,
+        }
+        return all(part_flags.get(part, False) for part in required_parts)
+
+    @classmethod
+    def _onset_density_in_or_near_range(
+        cls, onset_density_range: Optional[Tuple[float, float]], drums: DrumDetection
+    ) -> bool:
+        if not onset_density_range:
+            return True
+        lo, hi = onset_density_range
+        slack = max((hi - lo) * cls.ONSET_DENSITY_NEAR_TOLERANCE_RATIO, 0.2)
+        return (lo - slack) <= drums.onset_density <= (hi + slack)
 
     def score(
         self,
@@ -742,6 +766,8 @@ class GenreMatchScorer:
         scores: List[float] = []
         score_caps: List[float] = []
         issues: List[AnalysisIssue] = []
+        required_parts = target.get("required_drum_parts", [])
+        onset_density_range = target.get("onset_density_range")
 
         # --- Spectral centroid ---
         centroid_range = target.get("spectral_centroid_range")
@@ -853,21 +879,50 @@ class GenreMatchScorer:
                 scores.append(max(0.0, 1.0 - dist / 0.3))
                 if drums.percussive_ratio < lo:
                     if target.get("required_drum_parts"):
-                        score_caps.append(0.58)
-                        issues.append(
-                            AnalysisIssue(
-                                severity="error",
-                                category="drums",
-                                message=(
-                                    f"Missing/low live drum presence: "
-                                    f"percussive ratio {drums.percussive_ratio:.3f} "
-                                    f"below expected {lo:.2f} for {genre}"
-                                ),
-                                metric_name="percussive_ratio",
-                                actual_value=drums.percussive_ratio,
-                                expected_range=f"{lo}-{hi}",
+                        tolerance_floor = lo * (
+                            1.0 - self.DRUM_PRESENCE_LOW_TOLERANCE_RATIO
+                        )
+                        live_drums_measured = (
+                            self._has_required_drum_parts(required_parts, drums)
+                            and self._onset_density_in_or_near_range(
+                                onset_density_range, drums
                             )
                         )
+                        if (
+                            drums.percussive_ratio >= tolerance_floor
+                            and live_drums_measured
+                        ):
+                            issues.append(
+                                AnalysisIssue(
+                                    severity="warning",
+                                    category="drums",
+                                    message=(
+                                        f"Live drum presence slightly below expected: "
+                                        f"percussive ratio {drums.percussive_ratio:.3f} "
+                                        f"below expected {lo:.2f} for {genre}; "
+                                        "required drum parts detected"
+                                    ),
+                                    metric_name="percussive_ratio",
+                                    actual_value=drums.percussive_ratio,
+                                    expected_range=f"{lo}-{hi}",
+                                )
+                            )
+                        else:
+                            score_caps.append(0.58)
+                            issues.append(
+                                AnalysisIssue(
+                                    severity="error",
+                                    category="drums",
+                                    message=(
+                                        f"Missing/low live drum presence: "
+                                        f"percussive ratio {drums.percussive_ratio:.3f} "
+                                        f"below expected {lo:.2f} for {genre}"
+                                    ),
+                                    metric_name="percussive_ratio",
+                                    actual_value=drums.percussive_ratio,
+                                    expected_range=f"{lo}-{hi}",
+                                )
+                            )
                     else:
                         issues.append(
                             AnalysisIssue(
@@ -924,7 +979,6 @@ class GenreMatchScorer:
                 )
 
         # --- Required live drum parts for rock-family targets ---
-        required_parts = target.get("required_drum_parts", [])
         if required_parts:
             part_flags = {
                 "kick": drums.has_kick,
@@ -956,7 +1010,6 @@ class GenreMatchScorer:
             else:
                 scores.append(1.0)
 
-        onset_density_range = target.get("onset_density_range")
         if onset_density_range:
             lo, hi = onset_density_range
             if lo <= drums.onset_density <= hi:

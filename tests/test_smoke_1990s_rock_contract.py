@@ -24,3 +24,32 @@ def test_smoke_1990s_rock_script_passes_prompt_as_one_process_argument():
     assert "-ArgumentList" not in script_text
     assert ".ArgumentList.Add($arg)" in script_text
     assert "$childArgs = @(" in script_text
+
+
+def test_smoke_1990s_rock_summary_reports_audio_analysis_contract():
+    script_text = SCRIPT_PATH.read_text(encoding="utf-8")
+
+    assert "$audioAnalysis" in script_text
+    assert "audio_analysis" in script_text
+    assert "analysis_present = $analysisPresent" in script_text
+    assert "analysis_passed = $analysisPassed" in script_text
+    assert "analysis_score = $analysisScore" in script_text
+    assert "analysis_failure_reason = $analysisFailureReason" in script_text
+    assert "Get-FirstAnalysisIssueMessage" in script_text
+
+
+def test_smoke_1990s_rock_strict_audio_fails_explicit_analysis_false_only():
+    script_text = SCRIPT_PATH.read_text(encoding="utf-8")
+
+    strict_line = next(
+           line
+           for line in script_text.splitlines()
+           if "$strictAudioFailed =" in line and "-or" in line
+    )
+
+    assert "$analysisExplicitFailure = $false" in script_text
+    assert "$analysisExplicitFailure = $true" in script_text
+    assert "$analysisPassed -eq $false" in script_text
+    assert "-or $analysisExplicitFailure" in strict_line
+    assert "-or (-not $analysisPresent)" not in strict_line
+    assert "-or ($analysisPassed -eq $null)" not in strict_line

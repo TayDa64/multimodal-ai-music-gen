@@ -49,6 +49,18 @@ function First-ArtifactPath {
     return $null
 }
 
+function Get-FirstAnalysisIssueMessage {
+    param($AudioAnalysis)
+    if (-not $AudioAnalysis -or -not $AudioAnalysis.issues) {
+        return $null
+    }
+    $firstIssue = @($AudioAnalysis.issues) | Select-Object -First 1
+    if ($firstIssue -and $firstIssue.message) {
+        return [string]$firstIssue.message
+    }
+    return $null
+}
+
 $outputRootPath = Resolve-SmokePath $OutputRoot
 New-Item -ItemType Directory -Force -Path $outputRootPath | Out-Null
 
@@ -146,6 +158,19 @@ $renderReportData = Read-JsonOrNull $renderReport
 $renderStatus = if ($renderReportData -and $renderReportData.render_status) { $renderReportData.render_status } else { $null }
 $renderFailure = if ($renderStatus -and $renderStatus.failure) { $renderStatus.failure } else { $null }
 $renderSuccess = if ($renderStatus -and $null -ne $renderStatus.success) { [bool]$renderStatus.success } else { $null }
+$audioAnalysis = if ($renderReportData -and $renderReportData.audio_analysis) { $renderReportData.audio_analysis } else { $null }
+$analysisPresent = $null -ne $audioAnalysis
+$analysisPassed = if ($analysisPresent -and $null -ne $audioAnalysis.passed) { [bool]$audioAnalysis.passed } else { $null }
+$analysisScore = if ($analysisPresent -and $null -ne $audioAnalysis.genre_match_score) { [double]$audioAnalysis.genre_match_score } else { $null }
+$analysisFailureReason = if ($analysisPassed -eq $false) { Get-FirstAnalysisIssueMessage $audioAnalysis } else { $null }
+if (($analysisPassed -eq $false) -and -not $analysisFailureReason -and $audioAnalysis.analysis_error) {
+    $analysisFailureReason = [string]$audioAnalysis.analysis_error
+}
+
+$analysisExplicitFailure = $false
+if ($analysisPresent -and $null -ne $analysisPassed -and ($analysisPassed -eq $false)) {
+    $analysisExplicitFailure = $true
+}
 
 $hasMetadataAudio = $false
 if ($outputs -and $null -ne $outputs.audio -and -not [string]::IsNullOrWhiteSpace([string]$outputs.audio)) {
@@ -154,7 +179,7 @@ if ($outputs -and $null -ne $outputs.audio -and -not [string]::IsNullOrWhiteSpac
 
 $strictAudioFailed = $false
 if ($StrictAudio.IsPresent) {
-    $strictAudioFailed = ($childExitCode -ne 0) -or (-not $metadata) -or (-not $hasMetadataAudio) -or ($renderSuccess -eq $false)
+    $strictAudioFailed = ($childExitCode -ne 0) -or (-not $metadata) -or (-not $hasMetadataAudio) -or ($renderSuccess -eq $false) -or $analysisExplicitFailure
 }
 
 $summary = [ordered]@{
@@ -186,6 +211,10 @@ $summary = [ordered]@{
         failure_reason = if ($renderFailure -and $renderFailure.reason) { [string]$renderFailure.reason } else { $null }
         failure_stage = if ($renderFailure -and $renderFailure.stage) { [string]$renderFailure.stage } elseif ($renderStatus -and $renderStatus.current_stage) { [string]$renderStatus.current_stage } else { $null }
         exception_type = if ($renderFailure -and $renderFailure.exception_type) { [string]$renderFailure.exception_type } else { $null }
+        analysis_present = $analysisPresent
+        analysis_passed = $analysisPassed
+        analysis_score = $analysisScore
+        analysis_failure_reason = $analysisFailureReason
     }
     command = [ordered]@{
         python = $pythonPath

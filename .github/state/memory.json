@@ -709,6 +709,11 @@
       ],
       "patterns": [
         "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
+          {
+            "pattern": "Borderline low rock percussive ratio should be tolerated only when live-drum detectors agree",
+            "context": "upgrade-rock-analysis-smoke-gate-034 keeps the Missing/low live drum presence error, <0.60 cap, and drums re_render correction for missing required drum parts or far-low percussive ratios, but tolerates a ratio within about 10% below the target minimum when required_drum_parts detectors all fire and onset density is in/near range. Strict 1990s rock smoke now also fails explicit audio_analysis.passed=false while absent/null analysis remains compatibility-neutral.",
+            "timestamp": "2026-05-14T20:00:00Z"
+          },
         "MIDI programs 110-113 reserved for Ethiopian instruments",
         "Genre profiles define ideal SonicProfile for instrument matching",
         "M/S encoding: mid=(L+R)/2, side=(L-R)/2",
@@ -725,6 +730,16 @@
         "ProceduralRenderer must return early from generic melodic loading when parsed Ethiopian instruments are present."
       ],
       "gotchas": [
+        {
+          "decision": "Use a small measurable tolerance for low rock percussive_ratio only when required drum-part flags and onset density prove live drums are present.",
+          "rationale": "The strict smoke failure was a marginal analyzer false-negative: percussive_ratio 0.117 was only about 2.5% below rock's 0.12 minimum while kick, snare/clap, hihats, and onset density were all detected. Keeping the tolerance tied to measured drum-part and onset evidence avoids suppressing real missing-drum or far-low percussive-ratio failures.",
+          "alternatives_considered": [
+            "Lower the rock drum_presence_range globally, rejected because it weakens missing-live-drum detection for all rock renders.",
+            "Ignore percussive_ratio whenever required drum parts are detected, rejected because far-low ratios such as 0.03 should still fail and trigger re-render correction.",
+            "Make strict smoke fail whenever audio_analysis is absent, rejected to preserve compatibility with reports generated before audio_analysis existed."
+          ],
+          "timestamp": "2026-05-14T20:00:00Z"
+        },
         "InstrumentCategory enum must match DIR_TO_CATEGORY and KEYWORD_TO_CATEGORY",
         "assets_gen.py synthesis functions are separate from instrument_manager.py categorization",
         "GENRE_PROFILES uses string keys matching InstrumentCategory.value",
@@ -850,5 +865,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T19:00:00Z"
+  "last_updated": "2026-05-14T20:00:00Z"
 }

@@ -5,6 +5,55 @@
     {
       "path": ".github\\state\\context.json",
       "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded upgrade-rock-analysis-smoke-gate-034 files touched, changes, verification, and continuity note."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded borderline live-drum tolerance and explicit audio_analysis strict-gate decision."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added completed upgrade-rock-analysis-smoke-gate-034 task."
+    },
+    {
+      "path": "tests\\test_smoke_1990s_rock_contract.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added static contract tests for audio_analysis summary fields and explicit false strict gating."
+    },
+    {
+      "path": "scripts\\smoke_1990s_rock.ps1",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added audio_analysis parsing, summary status fields, first-issue failure reason, and strict failure on explicit passed=false only."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added borderline exact-smoke metric pass regression and far-low percussive-ratio failure regression."
+    },
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added required-drum-parts/onset-backed low percussive-ratio tolerance while preserving real live-drum and sub-bass failures."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
       "timestamp": "2026-05-14T19:00:00Z",
       "by_agent": "builder",
       "changes": "Recorded upgrade-rock-bass-render-033 state, memory, and context."
@@ -1223,6 +1272,18 @@
   ],
   "changes_made": [
     {
+      "file": "scripts\\smoke_1990s_rock.ps1; tests\\test_smoke_1990s_rock_contract.py",
+      "description": "Strict 1990s rock smoke summaries now expose render-report audio_analysis presence, pass flag, score, and a concise first-issue failure reason; strict mode fails if audio_analysis.passed is explicitly false but remains compatible when analysis is absent/null.",
+      "diff_summary": "Parsed audio_analysis from render reports, added analysis_* audio_status fields and analysisExplicitFailure strict gate; added static contract assertions for fields and explicit false-only gating.",
+      "timestamp": "2026-05-14T20:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\output_analyzer.py; tests\\test_output_analyzer.py",
+      "description": "Borderline rock live-drum analysis no longer fails solely because percussive_ratio is marginally below the target minimum when required drum parts and onset density prove live drums are present.",
+      "diff_summary": "Added a 10% low-side drum-presence tolerance gated by required kick/snare_or_clap/hihat flags and in/near-range onset density; exact 0.117 smoke metrics pass without error/corrections, while 0.03 still fails with drums re_render correction.",
+      "timestamp": "2026-05-14T20:00:00Z"
+    },
+    {
       "file": "tests\\test_midi_generator.py; tests\\test_audio_renderer.py",
       "description": "Added regressions for exact 1990s rock Bass program routing, non-rock Synth Bass preservation, rock 808/custom-bass bypass, non-rock 808 preservation, Bass inference, and sub-bass ratio below 0.16.",
       "diff_summary": "Extended focused MIDI/audio renderer tests without changing existing guitar-cache expectations.",
@@ -1722,6 +1783,27 @@
     }
   ],
   "verifications": [
+    {
+      "timestamp": "2026-05-14T19:25:00Z",
+      "type": "post",
+      "target": "upgrade-rock-analysis-smoke-gate-034 strict smoke",
+      "result": "PASS",
+      "details": "88 focused tests passed; strict smoke path output/_diagnostics/rock_1990s_20260514_085509; strict_audio_failed=false; audio_analysis.passed=true, score=0.997, sub_bass_energy_ratio=0.1245, percussive_ratio=0.112, required drum parts detected."
+    },
+    {
+      "type": "post",
+      "target": "upgrade-rock-analysis-smoke-gate-034 required focused tests",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_output_analyzer.py tests/test_smoke_1990s_rock_contract.py -q passed 75 tests with 7 warnings.",
+      "timestamp": "2026-05-14T20:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "upgrade-rock-analysis-smoke-gate-034 broader regression tests",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_midi_generator.py tests/test_audio_renderer.py tests/test_output_analyzer.py tests/test_smoke_1990s_rock_contract.py -q passed 88 tests with 7 warnings.",
+      "timestamp": "2026-05-14T20:00:00Z"
+    },
     {
       "type": "post",
       "target": "upgrade-rock-bass-render-033 final integrity",
