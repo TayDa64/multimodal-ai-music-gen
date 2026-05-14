@@ -170,6 +170,50 @@ except ImportError:
     _HAS_MICROTIMING = False
 
 
+ROCK_FAMILY_GENRES = {
+    'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
+}
+
+
+def _has_bass_guitar_request(parsed: ParsedPrompt) -> bool:
+    """Return True when the prompt/instruments explicitly request electric bass guitar."""
+    aliases = {
+        'bass_guitar', 'bass guitar', 'electric_bass', 'electric bass',
+        'electric_bass_guitar', 'electric bass guitar', 'picked_bass', 'picked bass',
+    }
+    instruments_norm = {str(inst).strip().lower().replace('-', '_') for inst in getattr(parsed, 'instruments', [])}
+    instruments_spaced = {inst.replace('_', ' ') for inst in instruments_norm}
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+
+    return bool(instruments_norm & aliases) or bool(instruments_spaced & aliases) or any(
+        phrase in raw_prompt for phrase in ('bass guitar', 'electric bass', 'picked bass')
+    )
+
+
+def _rock_family_bass_program(parsed: ParsedPrompt) -> Optional[int]:
+    """Choose a GM electric-bass program for rock-family bass guitar contexts.
+
+    Returns mido 0-based program 34 (Electric Bass pick) for rock/crunch/pick
+    contexts and 33 (Electric Bass finger) for softer explicit bass-guitar rock
+    contexts. Returns None outside the safe rock-family context so trap/R&B
+    synth-bass behavior remains unchanged.
+    """
+    normalized_genre = normalize_genre(getattr(parsed, 'genre', '') or '')
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    rock_context_terms = ('rock', 'grunge', 'punk', 'indie', 'alternative', 'classic rock')
+    has_rock_context = normalized_genre in ROCK_FAMILY_GENRES or any(term in raw_prompt for term in rock_context_terms)
+
+    if not has_rock_context:
+        return None
+    if normalized_genre not in ROCK_FAMILY_GENRES and not _has_bass_guitar_request(parsed):
+        return None
+
+    pick_context_terms = ('pick', 'picked', 'crunch', 'energetic', 'punk', 'grunge', 'rock')
+    if normalized_genre in ROCK_FAMILY_GENRES or any(term in raw_prompt for term in pick_context_terms):
+        return 34  # Electric Bass (pick), 0-based GM program
+    return 33  # Electric Bass (finger), 0-based GM program
+
+
 # =============================================================================
 # NOTE EVENT DATA STRUCTURE
 # =============================================================================
@@ -1619,7 +1663,7 @@ class MidiGenerator:
         
         # Track 2: Bass/808
         is_orchestral = parsed.genre in ['cinematic', 'classical', 'orchestral', 'film_score']
-        if '808' in parsed.instruments or 'bass' in parsed.instruments:
+        if '808' in parsed.instruments or 'bass' in parsed.instruments or _has_bass_guitar_request(parsed):
             bass_track = self._create_bass_track(arrangement, parsed, groove_template)
             mid.tracks.append(bass_track)
         elif is_orchestral and 'contrabass' in parsed.instruments:
@@ -2250,8 +2294,12 @@ class MidiGenerator:
         track = MidiTrack()
         track.append(MetaMessage('track_name', name='Bass', time=0))
         
-        # Program change: Synth Bass (38) for 808 feel
-        track.append(Message('program_change', program=38, channel=1, time=0))
+        # Program change: preserve synth bass for non-rock, but route rock-family
+        # bass guitar prompts to GM electric bass so renderers don't treat them as 808s.
+        bass_program = _rock_family_bass_program(parsed) or 38
+        track.append(Message('program_change', program=bass_program, channel=1, time=0))
+        if bass_program in (33, 34):
+            track.append(MetaMessage('text', text='instrument:Bass Guitar', time=0))
         
         all_notes = []
         normalized_genre = normalize_genre(parsed.genre or '')

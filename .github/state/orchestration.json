@@ -7,6 +7,29 @@
   },
   "task_queue": [
     {
+      "id": "upgrade-rock-bass-render-033",
+      "description": "Route rock-family bass guitar away from Synth Bass/808 rendering and arbitrary sub-heavy custom bass samples",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\midi_generator.py",
+        "multimodal_gen\\audio_renderer.py",
+        "tests\\test_midi_generator.py",
+        "tests\\test_audio_renderer.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T19:00:00Z",
+      "updated": "2026-05-14T19:05:00Z",
+      "result": {
+        "summary": "MIDI Bass tracks now use GM Electric Bass pick/finger programs for rock-family bass guitar contexts instead of Synth Bass 38, while non-rock bass remains on the existing synth-bass path. Procedural rendering guards rock-family GM bass programs 32-39 before custom-cache/expansion/808 routing and renders a bounded high-passed electric-bass fallback; track-name Bass inference returns electric bass only for rock-family renderers.",
+        "verification": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_midi_generator.py tests/test_audio_renderer.py tests/test_output_analyzer.py -q passed 82 tests in 10.14s; VS Code diagnostics clean for touched source/tests; state JSON validity OK; git diff --check OK; exact-prompt MIDI probe printed Bass channel 1 programs=[34] and Chords channel 2 programs=[30]."
+      }
+    },
+    {
       "id": "upgrade-rock-output-analyzer-032",
       "description": "Implement first-class rock-family rendered-output analyzer targets with measurable sub-bass and live-drum checks",
       "status": "completed",

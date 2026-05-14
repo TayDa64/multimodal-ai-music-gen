@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 import tempfile
 
+ROCK_FAMILY_GENRES = {
+    'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
+}
+
 try:
     import soundfile as sf
     HAS_SOUNDFILE = True
@@ -594,6 +598,70 @@ class ProceduralRenderer:
         if 'guitar' in key_underscored and 'bass_guitar' not in key_underscored:
             return 'guitar'
         return key_underscored
+
+    def _is_rock_family_genre(self) -> bool:
+        """Return True for rock-family renderers using normalized genre keys."""
+        genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
+        return genre_key in ROCK_FAMILY_GENRES
+
+    def _synthesize_rock_electric_bass(
+        self,
+        frequency: float,
+        duration: float,
+        velocity: float,
+    ) -> np.ndarray:
+        """Bounded procedural electric-bass fallback for rock-family bass tracks.
+
+        The strict rock analyzer rejects sub/808-heavy content, so this fallback
+        emphasizes picked electric-bass harmonics and high-passes sub energy
+        instead of using the synth-bass/808 generator or arbitrary bass samples.
+        """
+        num_samples = int(max(0.0, duration) * self.sample_rate)
+        if num_samples <= 0:
+            return np.zeros(0, dtype=np.float32)
+
+        velocity = float(np.clip(velocity, 0.0, 1.0))
+        if velocity <= 0.0:
+            return np.zeros(num_samples, dtype=np.float32)
+
+        frequency = float(np.clip(frequency, 35.0, self.sample_rate / 4.0))
+        t = np.arange(num_samples, dtype=np.float64) / self.sample_rate
+        audio = np.zeros(num_samples, dtype=np.float64)
+
+        # Keep the fundamental controlled and put most energy in the audible
+        # octave/upper harmonics, matching picked rock bass without 808 sub bloom.
+        for harmonic, level in ((1, 0.10), (2, 0.95), (3, 0.52), (4, 0.30), (5, 0.14)):
+            harmonic_freq = frequency * harmonic
+            if harmonic_freq >= self.sample_rate / 2 - 200:
+                break
+            audio += level * np.sin(2 * np.pi * harmonic_freq * t)
+
+        pick_len = min(num_samples, max(1, int(0.006 * self.sample_rate)))
+        pick_t = np.arange(pick_len, dtype=np.float64) / self.sample_rate
+        pick = np.sin(2 * np.pi * min(1800.0, self.sample_rate / 4.0) * pick_t)
+        pick *= np.exp(-np.arange(pick_len) / max(1.0, 0.0025 * self.sample_rate))
+        audio[:pick_len] += pick * 0.10
+
+        audio = np.tanh(audio * 1.25)
+        for _ in range(2):
+            audio = highpass_filter(audio, 100.0, self.sample_rate)
+        audio = lowpass_filter(audio, 3200.0, self.sample_rate)
+
+        env = np.full(num_samples, 0.52, dtype=np.float64)
+        attack = min(num_samples, max(1, int(0.004 * self.sample_rate)))
+        env[:attack] = np.linspace(0.0, 1.0, attack, endpoint=False)
+        decay_end = min(num_samples, attack + int(0.080 * self.sample_rate))
+        if decay_end > attack:
+            env[attack:decay_end] = np.linspace(1.0, 0.52, decay_end - attack, endpoint=False)
+        release = min(num_samples, max(1, int(0.060 * self.sample_rate)))
+        env[-release:] *= np.linspace(1.0, 0.0, release, endpoint=False)
+        audio *= env
+
+        audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+        peak = float(np.max(np.abs(audio))) if audio.size else 0.0
+        if peak > 1e-9:
+            audio = audio / peak * min(0.68, 0.68 * velocity)
+        return np.clip(audio, -1.0, 1.0).astype(np.float32)
     
     def __init__(
         self,
@@ -1057,6 +1125,11 @@ class ProceduralRenderer:
         }
         
         inst_type = program_to_type.get(note.program)
+
+        # Rock-family bass programs are always rendered as bounded procedural
+        # electric bass: no custom sub-heavy bass samples and no 808 synth path.
+        if self._is_rock_family_genre() and 32 <= note.program <= 39:
+            return self._synthesize_rock_electric_bass(freq, duration, velocity)
         
         # TRY CUSTOM MELODIC SAMPLES FIRST (genre-intelligent selection)
         if inst_type and inst_type in self._custom_melodic_cache and self._custom_melodic_cache[inst_type]:
@@ -2015,6 +2088,8 @@ class AudioRenderer:
         
         # Bass instruments (programs 32-39)
         if 'bass' in name:
+            if self._normalize_genre() in ROCK_FAMILY_GENRES:
+                return 34  # Electric Bass (pick) for rock-family bass tracks
             return 38  # Synth Bass 1
         
         # Lead/Melody instruments (programs 80-87 - synth leads)
