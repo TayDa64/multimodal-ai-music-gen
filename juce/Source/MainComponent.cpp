@@ -32,9 +32,32 @@ juce::File sampleFileFromInstrumentId(const juce::String& instrumentId)
     return juce::File(path);
 }
 
-std::vector<juce::String> preferredCategoriesForTrack(const juce::String& trackName)
+bool isRockFamilyGenre(const juce::String& genre)
+{
+    if (genre.isEmpty())
+        return false;
+
+    const auto g = genre.toLowerCase().replaceCharacter('_', ' ');
+
+    // Exact matches
+    if (g == "rock")
+        return true;
+
+    // Rock family genres (check contains to handle variations like "classic_rock", "classic rock", etc.)
+    return g.contains("rock") && (g.contains("classic") || g.contains("alternative") ||
+                                    g.contains("grunge") || g.contains("punk") ||
+                                    g.contains("indie") || g.contains("hard") ||
+                                    g.contains("soft") || g.contains("prog"));
+}
+
+std::vector<juce::String> preferredCategoriesForTrack(const juce::String& trackName, const juce::String& genre)
 {
     const auto name = trackName.toLowerCase();
+    const bool isRock = isRockFamilyGenre(genre);
+
+    // Explicit guitar mention in track name always prefers guitar first
+    if (name.contains("guitar"))
+        return { "guitar", "keys", "synth", "pad", "strings", "brass" };
 
     if (name.contains("drum") || name.contains("perc"))
         return { "kick", "snare", "clap", "hihat", "perc", "drums" };
@@ -43,10 +66,18 @@ std::vector<juce::String> preferredCategoriesForTrack(const juce::String& trackN
         return { "bass", "808" };
 
     if (name.contains("chord") || name.contains("pad") || name.contains("keys") || name.contains("piano"))
+    {
+        if (isRock)
+            return { "guitar", "pad", "keys", "synth", "strings", "brass" };
         return { "pad", "keys", "synth", "strings", "brass" };
+    }
 
     if (name.contains("melody") || name.contains("lead") || name.contains("arp"))
+    {
+        if (isRock)
+            return { "guitar", "synth", "keys", "strings", "brass", "pad" };
         return { "synth", "keys", "strings", "brass", "pad" };
+    }
 
     return { "synth", "keys", "pad", "strings", "brass", "bass" };
 }
@@ -379,7 +410,7 @@ void MainComponent::applyGeneratedInstrumentSamples(const GenerationResult& resu
             continue;
 
         juce::var selected;
-        auto preferred = preferredCategoriesForTrack(trackName);
+        auto preferred = preferredCategoriesForTrack(trackName, result.genre);
         for (const auto& cat : preferred)
         {
             auto it = instrumentByCategory.find(cat);

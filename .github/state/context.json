@@ -1,7 +1,63 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-app-fx-mastering-preview-040",
+  "session_id": "session-2026-05-14-rock-app-instrument-preview-parity-041",
   "files_touched": [
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Made generated-project sample category preferences genre-aware and guitar-first for rock-family chord/lead tracks."
+    },
+    {
+      "path": "multimodal_gen\\instrument_manager.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Added guitar to InstrumentMatcher recommendation categories."
+    },
+    {
+      "path": "tests\\test_instrument_manager.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Added guitar recommendation guard and cleaned style."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded rock app instrument preview parity implementation and verification proof."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Marked rock-app-instrument-preview-parity-041 completed."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded rock-family guitar preview parity pattern and implementation decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:24:33Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded files touched, changes, and verification proof for milestone 041."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:06:50Z",
+      "by_agent": "supervisor",
+      "changes": "Opened rock-app-instrument-preview-parity-041 task."
+    },
     {
       "path": ".github\\state\\context.json",
       "action": "modified",
@@ -1580,6 +1636,12 @@
   ],
   "changes_made": [
     {
+      "file": "juce/Source/MainComponent.cpp; multimodal_gen/instrument_manager.py; tests/test_instrument_manager.py; docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Completed rock app instrument preview parity and backend guitar recommendation metadata.",
+      "diff_summary": "Rock-family generated projects now prefer guitar for chord/lead preview tracks; InstrumentMatcher recommendations include guitar; focused guard added; plan updated.",
+      "timestamp": "2026-05-14T20:24:33Z"
+    },
+    {
       "file": "juce/Source/MainComponent.cpp; juce/Source/UI/TransportComponent.cpp; juce/Source/UI/Mastering/MasteringSuitePanel.*",
       "description": "Made app playback/mastering labels explicit and truthful.",
       "diff_summary": "Backend WAV playback is labeled mastered audio/reference; MIDI-only playback is labeled unmastered preview/fallback; MasteringSuitePanel displays a notice that live MIDI preview is not processed by those controls yet. No AudioEngine MixerGraph processing was added.",
@@ -2163,6 +2225,20 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "rock-app-instrument-preview-parity-041",
+      "result": "PASS",
+      "details": "Post-verifier PASS_WITH_NITS, nits fixed. git diff --check PASS; focused pytest 30 passed; npm run build:debug PASS; VS Code diagnostics clean.",
+      "timestamp": "2026-05-14T20:24:33Z"
+    },
+    {
+      "type": "pre",
+      "target": "rock-app-instrument-preview-parity-041",
+      "result": "PENDING",
+      "details": "Pre-verifier will inspect app generated instrument sample mapping and backend instruments_used metadata for guitar parity.",
+      "timestamp": "2026-05-14T20:06:50Z"
+    },
     {
       "type": "post",
       "target": "build/tests for app-fx-mastering-preview-040",

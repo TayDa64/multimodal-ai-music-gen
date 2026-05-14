@@ -863,3 +863,52 @@ Results:
 ### Remaining follow-up
 
 Recommendation 2 is now honest in the UI, but not fully real-time processed. A future real-time FX/mastering slice should first harden `MixerGraph` routing and thread-safety, then route **only** unmastered live MIDI/sampler preview through the graph while keeping backend-mastered WAV playback untouched.
+
+## Rock app instrument preview parity implementation — 2026-05-14
+
+Status: **implemented and verified** for recommendation 3.
+
+### What changed
+
+- `juce/Source/MainComponent.cpp`
+  - Added a small rock-family genre helper for generated-project instrument selection.
+  - `preferredCategoriesForTrack()` now receives the generated result genre instead of relying on track name alone.
+  - For rock-family generated projects, Chords/Pad/Keys/Piano tracks now prefer `guitar` before pad/keys/synth/string/brass fallbacks.
+  - For rock-family Melody/Lead/Arp tracks, the app now also prefers `guitar` before synth/keys-style fallbacks.
+  - Track names that explicitly contain `guitar` prefer guitar samples regardless of genre.
+  - Non-rock preference order is preserved.
+- `multimodal_gen/instrument_manager.py`
+  - Added `guitar` to `InstrumentMatcher.get_recommendations()` so backend `instruments_used` metadata can expose guitar when guitar samples are available.
+- `tests/test_instrument_manager.py`
+  - Added a focused guard proving the recommendation list includes `guitar`, alongside existing first-class guitar categorization checks.
+
+### Preserved behavior
+
+- Backend mastered WAV playback remains the primary generated-song playback path in the app.
+- MIDI/live preview remains labeled as an unmastered preview/fallback.
+- No `MixerGraph::processBlock()` route was added.
+- Non-rock genres keep their previous app preview category ordering.
+- If no guitar sample is available, the existing category fallback loop still falls through to pad/keys/synth/string/brass choices.
+- `InstrumentBrowserPanel` already had first-class `guitar`/`guitars` category color support, so no UI category-list change was required.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+.\.venv\Scripts\python.exe -m pytest tests/test_instrument_manager.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+npm run build:debug
+```
+
+Results:
+
+- `git diff --check`: `PASS`.
+- Focused tests: `30 passed`.
+- Debug JUCE build: `PASS`.
+- VS Code diagnostics for touched C++/Python files: no errors.
+- Post-verifier: `PASS_WITH_NITS` before style cleanup, then nits were fixed and tests re-ran cleanly.
+
+### Remaining follow-up
+
+Recommendation 3 is now covered for the app preview/category-mapping surface and backend recommendation metadata. The next highest-priority slice is the FluidSynth/SoundFont proof: verify/install FluidSynth and a licensed SoundFont, run audio diagnostics, regenerate the exact rock prompt, and assert the selected renderer path in render diagnostics before moving to post-FluidSynth mastering parity.

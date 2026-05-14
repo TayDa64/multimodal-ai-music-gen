@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Rock-family app preview should prefer guitar samples by genre while keeping backend WAV playback as the mastered reference",
+        "context": "For rock-app-instrument-preview-parity-041, JUCE preferredCategoriesForTrack became genre-aware and prepends guitar for rock chord/lead tracks, while InstrumentMatcher recommendations include guitar so instruments_used can expose it when available. Non-rock category ordering and WAV playback parity are preserved.",
+        "timestamp": "2026-05-14T20:24:33Z"
+      },
+      {
         "pattern": "When real-time FX routing is unsafe, label MIDI preview as unmastered and keep backend WAV as mastered reference",
         "context": "For app-fx-mastering-preview-040, MixerGraph processBlock was deferred because master-chain input wiring, non-master bus routing, and graph mutation thread-safety are incomplete. The safe UX fix labels backend WAV playback as mastered audio/reference and MIDI-only playback as unmastered preview/fallback.",
         "timestamp": "2026-05-14T20:03:51Z"
@@ -404,6 +409,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Implement guitar parity through JUCE category preferences and backend recommendation metadata, not through audio-renderer changes.",
+      "rationale": "audio_renderer.py already maps GM guitar programs and custom guitar samples; the remaining parity gaps were app preview selection and instruments_used metadata.",
+      "alternatives_considered": [
+        "Change renderer guitar synthesis again",
+        "Route live MIDI through MixerGraph",
+        "Apply guitar preference globally to all genres"
+      ],
+      "timestamp": "2026-05-14T20:24:33Z"
+    },
     {
       "decision": "Defer MixerGraph processBlock until routing/thread-safety are hardened; label MIDI preview honestly now",
       "rationale": "Calling processBlock naively could silence or misroute FX chains, mutate graph nodes while the audio thread processes, and risk applying +9 dB/default graph processing to mastered WAV playback. Honest labels close the immediate UX gap without destabilizing playback.",
@@ -944,5 +959,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T20:03:51Z"
+  "last_updated": "2026-05-14T20:24:33Z"
 }

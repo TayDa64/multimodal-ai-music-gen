@@ -1,11 +1,51 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-app-fx-mastering-preview-040",
-    "started": "2026-05-14T19:49:23Z",
-    "user_request": "Continue with the highest priority recommendations from UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md after mastered WAV playback parity."
+    "id": "session-2026-05-14-rock-app-instrument-preview-parity-041",
+    "started": "2026-05-14T20:06:50Z",
+    "user_request": "Continue with rock app instrument preview parity / guitar category mapping, FluidSynth + SoundFont proof slice, and post-FluidSynth mastering parity."
   },
   "task_queue": [
+    {
+      "id": "rock-app-instrument-preview-parity-041",
+      "description": "Fix rock app instrument preview parity so generated rock chord/lead tracks prefer guitar samples/categories and backend instruments_used exposes guitar when renderer used guitar",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "juce\\Source\\MainComponent.cpp",
+        "juce\\Source\\MainComponent.h",
+        "multimodal_gen\\audio_renderer.py",
+        "main.py",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_protocol.py",
+        "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T20:06:50Z",
+      "updated": "2026-05-14T20:24:33Z",
+      "result": {
+        "summary": "Implemented rock app instrument preview parity: rock-family chord/lead tracks now prefer guitar samples in JUCE preview/fallback, explicit guitar track names prefer guitar, and backend InstrumentMatcher recommendations can expose guitar in instruments_used metadata.",
+        "files_changed": [
+          "juce/Source/MainComponent.cpp",
+          "multimodal_gen/instrument_manager.py",
+          "tests/test_instrument_manager.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+        ],
+        "verification": {
+          "pre_verifier": "PARTIAL - backend GM guitar render routing existed, but JUCE preferredCategoriesForTrack was genre-blind and InstrumentMatcher omitted guitar recommendations.",
+          "post_verifier": "PASS_WITH_NITS - verified requirements, then style nits were fixed by builder.",
+          "git_diff_check": "PASS",
+          "focused_pytest": "PASS - 30 passed for tests/test_instrument_manager.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q.",
+          "debug_build": "PASS - npm run build:debug.",
+          "diagnostics": "PASS - no VS Code diagnostics for touched source/test files."
+        },
+        "next_recommendation": "FluidSynth/SoundFont proof slice, followed by post-FluidSynth mastering parity."
+      }
+    },
     {
       "id": "app-fx-mastering-preview-040",
       "description": "Make the app FX/mastering path explicit after WAV playback parity: either route live MIDI preview through existing MixerGraph safely or label MIDI preview as unmastered while keeping mastered WAV as reference",

@@ -862,7 +862,7 @@ class InstrumentMatcher:
             # Drums / rhythm
             "kick", "snare", "hihat", "clap", "tom", "perc", "808",
             # Melodic / harmonic
-            "bass", "keys", "pad", "synth", "strings", "brass",
+            "bass", "guitar", "keys", "pad", "synth", "strings", "brass",
             # Ear candy
             "fx",
         ]
