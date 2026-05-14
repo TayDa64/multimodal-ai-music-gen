@@ -3,6 +3,69 @@
   "session_id": "session-2026-02-12-sprint75",
   "files_touched": [
     {
+      "path": "scripts\\smoke_1990s_rock.ps1",
+      "action": "created",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added reproducible 1990s-rock smoke harness with ProcessStartInfo.ArgumentList prompt passing, timestamped diagnostics directory, stdout/stderr logs, strict audio mode, and smoke_summary.json."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Clamped generate_organ_tone key-click length to the actual audio buffer and returned empty audio for zero-duration notes to avoid short-note render crashes."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added --require-audio strict smoke/CI semantics and MIDI-only human summary wording when audio is unavailable."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "created",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused organ-tone tests for short, zero-duration, and normal-duration generation."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Extended CLI render-diagnostic tests to cover --require-audio exit code 2 / JSON success false and default permissive behavior."
+    },
+    {
+      "path": "tests\\test_smoke_1990s_rock_contract.py",
+      "action": "created",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added static smoke-harness contract tests for exact prompt, strict-audio flag, summary/log artifacts, and split-safe argument passing."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed upgrade-rock-runtime-hardening-028 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Captured strict audio smoke artifact-gate pattern."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T13:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded runtime-hardening files touched, changes made, and focused verification proof."
+    },
+    {
       "path": ".github\\state\\context.json",
       "action": "modified",
       "timestamp": "2026-05-14T12:00:00Z",
@@ -859,6 +922,48 @@
   ],
   "changes_made": [
     {
+      "file": "scripts\\smoke_1990s_rock.ps1",
+      "description": "Added reproducible 1990s rock smoke harness.",
+      "diff_summary": "New PowerShell script uses the exact rock prompt as one ProcessStartInfo.ArgumentList value, writes generation.stdout.log/generation.stderr.log, polls the child PID up to 8 minutes, discovers metadata/MIDI/audio/render artifacts, writes smoke_summary.json, and exits strictly with --require-audio when requested.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\assets_gen.py",
+      "description": "Fixed short organ-note render crash.",
+      "diff_summary": "generate_organ_tone now returns an empty ndarray for zero-length notes and clamps the key-click duration to len(audio) before adding click noise, preserving normal key-click behavior for regular notes.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
+      "file": "main.py",
+      "description": "Added strict audio success semantics for smoke/CI.",
+      "diff_summary": "Added --require-audio, render_report render_status failure detection, JSON success=false and exit code 2 under strict audio failure, while keeping default missing-audio runs permissive and updating human summary text to MIDI-only when audio is unavailable.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
+      "file": "tests\\test_assets_gen.py",
+      "description": "Added focused organ-tone regressions.",
+      "diff_summary": "Covers 0.001s short organ notes, zero-duration notes, expected ndarray lengths, and no NaNs.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
+      "file": "tests\\test_main_render_diagnostics.py",
+      "description": "Extended CLI render diagnostics tests for --require-audio.",
+      "diff_summary": "Adds fake failed render_report coverage proving --require-audio returns code 2 / JSON success false, and default behavior remains code 0 / JSON success true for the same missing-audio result.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
+      "file": "tests\\test_smoke_1990s_rock_contract.py",
+      "description": "Added static smoke harness contract tests.",
+      "diff_summary": "Asserts exact prompt, strict audio flag, summary/log artifact names, duration/seed flags, and no Start-Process/-ArgumentList split-prone pattern.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
+      "file": ".github\\state\\orchestration.json .github\\state\\memory.json .github\\state\\context.json",
+      "description": "Updated orchestration state for completed milestone 1 / PR 1-3 implementation.",
+      "diff_summary": "Added upgrade-rock-runtime-hardening-028 completion record, strict audio artifact-gate memory pattern, and context files/changes/verifications entries.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
+    {
       "file": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "description": "Added the 2026-05-14 1990s rock quality degradation and UI upgrade plan.",
       "diff_summary": "New markdown document records smoke artifacts, source-grounded findings, preserve list, phased generation/UI plans, and 10 PR-sized follow-up tasks.",
@@ -1202,6 +1307,20 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "State JSON validity after runtime-hardening updates",
+      "result": "PASS",
+      "details": ".github/state/orchestration.json, .github/state/memory.json, and .github/state/context.json each passed .venv Python json.tool validation.",
+      "timestamp": "2026-05-14T13:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Milestone 1 / PR 1-3 runtime hardening focused tests",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_assets_gen.py tests/test_main_render_diagnostics.py tests/test_smoke_1990s_rock_contract.py -q -> 9 passed in 2.29s.",
+      "timestamp": "2026-05-14T13:00:00Z"
+    },
     {
       "type": "post",
       "target": "1990s rock smoke artifacts and plan coverage",

@@ -7,6 +7,31 @@
   },
   "task_queue": [
     {
+      "id": "upgrade-rock-runtime-hardening-028",
+      "description": "Implement 1990s rock smoke harness, organ short-note render fix, and strict audio CI semantics",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "scripts\\smoke_1990s_rock.ps1",
+        "multimodal_gen\\assets_gen.py",
+        "main.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_main_render_diagnostics.py",
+        "tests\\test_smoke_1990s_rock_contract.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T13:00:00Z",
+      "updated": "2026-05-14T13:00:00Z",
+      "result": {
+        "summary": "Added a reproducible PowerShell 1990s-rock smoke harness that passes the prompt as one ProcessStartInfo ArgumentList item, writes stdout/stderr logs plus smoke_summary.json, and supports strict --require-audio runs. Clamped organ key-click length and zero-duration output to prevent short-note crashes. Added additive CLI --require-audio semantics so smoke/CI can fail on missing audio or render_status.success=false while preserving default permissive behavior and --require-soundfont semantics.",
+        "verification": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_assets_gen.py tests/test_main_render_diagnostics.py tests/test_smoke_1990s_rock_contract.py -q passed 9 tests in 2.29s."
+      }
+    },
+    {
       "id": "upgrade-rock-quality-ui-plan-027",
       "description": "Document source-grounded 1990s rock quality degradation findings and phased UI upgrade plan",
       "status": "completed",

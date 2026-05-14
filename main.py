@@ -309,6 +309,29 @@ def _persist_render_diagnostics(
     return artifacts
 
 
+def _render_status_failed_from_results(results: dict) -> bool:
+    """Return True when a persisted render report explicitly marks render failure."""
+    if not isinstance(results, dict):
+        return False
+
+    render_report_path = results.get("render_report")
+    if not render_report_path:
+        return False
+
+    try:
+        render_report = json.loads(Path(render_report_path).read_text(encoding="utf-8"))
+    except Exception:
+        return False
+
+    render_status = render_report.get("render_status") if isinstance(render_report, dict) else None
+    return isinstance(render_status, dict) and render_status.get("success") is False
+
+
+def _require_audio_failed(results: dict) -> bool:
+    """Strict smoke/CI audio gate: require an audio artifact and successful render status."""
+    return not bool(results.get("audio")) or _render_status_failed_from_results(results)
+
+
 def check_ffmpeg() -> bool:
     """Check if ffmpeg is available for YouTube audio extraction.
     
@@ -2634,6 +2657,7 @@ Audio Notes:
   - Default: Procedural synthesis (no external dependencies)
     - For better sound: Put a .sf2 in ./assets/soundfonts/ (auto-detected) or pass --soundfont
     - Strict mode: Use --require-soundfont to fail instead of falling back
+        - CI smoke mode: Use --require-audio to fail when no audio artifact is produced
   - MPC export creates [ProjectData] folder with samples
   - Reference analysis extracts BPM, key, genre from any audio/video
 
@@ -2805,6 +2829,11 @@ Server Mode (for JUCE integration):
         "--require-soundfont",
         action="store_true",
         help="Fail if FluidSynth/SoundFont render cannot be used (no procedural fallback)",
+    )
+    parser.add_argument(
+        "--require-audio",
+        action="store_true",
+        help="Fail if generation does not produce an audio artifact or render diagnostics report failure",
     )
     parser.add_argument(
         "--diagnose-audio",
@@ -3182,6 +3211,7 @@ Server Mode (for JUCE integration):
         )
 
         require_soundfont_failed = bool(args.require_soundfont and not results.get('audio'))
+        require_audio_failed = bool(args.require_audio and _require_audio_failed(results))
 
         # Replace generated part with recorded performance (if present)
         if recorded_midi_path and results.get('midi'):
@@ -3260,21 +3290,30 @@ Server Mode (for JUCE integration):
         if args.json:
             # JSON output mode
             output = {
-                "success": not require_soundfont_failed,
+                "success": not (require_soundfont_failed or require_audio_failed),
                 "results": results,
-                    "metadata": str(metadata_path),
-                }
+                "metadata": str(metadata_path),
+            }
             print(json.dumps(output, indent=2))
         else:
             # Human-readable summary
+            has_audio = bool(results.get("audio"))
+            completion_title = (
+                "Generation Complete!"
+                if has_audio
+                else "Generation Complete (MIDI only - audio unavailable)"
+            )
+            summary_color = Fore.GREEN if has_audio else Fore.YELLOW
+            summary_mark = "✓" if has_audio else "⚠"
             try:
-                print(f"\n{Fore.GREEN}{'═' * 50}{Style.RESET_ALL}")
-                print(f"{Fore.GREEN}✓ Generation Complete!{Style.RESET_ALL}")
-                print(f"{Fore.GREEN}{'═' * 50}{Style.RESET_ALL}")
+                print(f"\n{summary_color}{'═' * 50}{Style.RESET_ALL}")
+                print(f"{summary_color}{summary_mark} {completion_title}{Style.RESET_ALL}")
+                print(f"{summary_color}{'═' * 50}{Style.RESET_ALL}")
             except UnicodeEncodeError:
-                print(f"\n{Fore.GREEN}{'=' * 50}{Style.RESET_ALL}")
-                print(f"{Fore.GREEN}[v] Generation Complete!{Style.RESET_ALL}")
-                print(f"{Fore.GREEN}{'=' * 50}{Style.RESET_ALL}")
+                ascii_mark = "[v]" if has_audio else "[!]"
+                print(f"\n{summary_color}{'=' * 50}{Style.RESET_ALL}")
+                print(f"{summary_color}{ascii_mark} {completion_title}{Style.RESET_ALL}")
+                print(f"{summary_color}{'=' * 50}{Style.RESET_ALL}")
             
             if results["midi"]:
                 try:
@@ -3311,9 +3350,11 @@ Server Mode (for JUCE integration):
                 print(f"\n  📁 Output:  {output_dir.absolute()}")
             except UnicodeEncodeError:
                 print(f"\n  [Output]    {output_dir.absolute()}")
+            if require_audio_failed:
+                print_warning("--require-audio failed: audio artifact missing or render diagnostics reported failure")
             print()
 
-        return 2 if require_soundfont_failed else 0
+        return 2 if (require_soundfont_failed or require_audio_failed) else 0
         
     except KeyboardInterrupt:
         if not args.json:

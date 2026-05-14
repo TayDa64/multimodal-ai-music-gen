@@ -237,3 +237,63 @@ def test_run_generation_persists_render_diagnostics_on_step5_exception(monkeypat
     assert "synthetic step 5 failure" in error_text
     assert "RuntimeError" in error_text
     assert "traceback:" in error_text
+
+
+def _missing_audio_results(tmp_path):
+    render_report = tmp_path / "failed_render_report.json"
+    render_report.write_text(
+        json.dumps({"render_status": {"success": False, "failure": {"reason": "render_exception"}}}),
+        encoding="utf-8",
+    )
+    return {
+        "midi": str(tmp_path / "smoke.mid"),
+        "audio": None,
+        "mpc": None,
+        "stems": [],
+        "samples": [],
+        "takes": {},
+        "comps": {},
+        "seed": 123,
+        "synthesis_params": {},
+        "render_report": str(render_report),
+        "project_metadata": str(tmp_path / "project_metadata.json"),
+    }
+
+
+def test_cli_require_audio_returns_code_2_and_json_failure(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(main_module, "run_generation", lambda **_kwargs: _missing_audio_results(tmp_path))
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "neo soul smoke test 88 bpm in D minor",
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+        "--require-audio",
+    ])
+
+    exit_code = main_module.main()
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == 2
+    assert output["success"] is False
+    assert output["results"]["audio"] is None
+
+
+def test_cli_missing_audio_default_remains_success(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(main_module, "run_generation", lambda **_kwargs: _missing_audio_results(tmp_path))
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "neo soul smoke test 88 bpm in D minor",
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+    ])
+
+    exit_code = main_module.main()
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert output["success"] is True
+    assert output["results"]["audio"] is None

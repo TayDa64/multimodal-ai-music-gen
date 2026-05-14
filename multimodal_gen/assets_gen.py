@@ -2200,6 +2200,9 @@ def generate_organ_tone(
     characteristic of Ethio-jazz and Ethio-funk.
     """
     num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0)
+
     t = np.arange(num_samples) / sample_rate
     
     audio = np.zeros(num_samples)
@@ -2215,7 +2218,7 @@ def generate_organ_tone(
         audio += level * np.sin(2 * np.pi * frequency * ratio * detune * t)
     
     # === KEY CLICK ===
-    click_duration = int(0.005 * sample_rate)
+    click_duration = min(int(0.005 * sample_rate), len(audio))
     click = np.random.randn(click_duration) * 0.3
     click *= np.exp(-np.arange(click_duration) / (0.001 * sample_rate))
     audio[:click_duration] += click

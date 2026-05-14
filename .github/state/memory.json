@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Strict audio smoke must gate on metadata audio and render_report render_status, not process exit code alone",
+        "context": "The 1990s rock runtime-hardening slice added --require-audio and scripts/smoke_1990s_rock.ps1 because previous smokes could exit 0 while project_metadata.current.outputs.audio was null and *_render_report.json recorded render_status.success=false. CI smoke checks should inspect project_metadata.json plus render_report/render_error artifacts and only treat a run as audio-successful when an audio path exists and render_status is not failed.",
+        "timestamp": "2026-05-14T13:00:00Z"
+      },
+      {
         "pattern": "Unsupported genres must be connected across parser/defaults/strategy/renderer/analyzer before judging musicality",
         "context": "The 2026-05-14 1990s rock smoke showed that rock assets existed in pattern/preset/timing/dynamics modules, but the prompt still routed to trap_soul because rock was missing from parser keywords, defaults, strategy registration, arranger template, guitar render routing, and rendered-audio analyzer targets.",
         "timestamp": "2026-05-14T12:00:00Z"
@@ -753,5 +758,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T12:00:00Z"
+  "last_updated": "2026-05-14T13:00:00Z"
 }
