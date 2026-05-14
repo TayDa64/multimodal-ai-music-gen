@@ -766,6 +766,66 @@ def generate_fm_pluck(
     return normalize_audio(carrier, 0.7)
 
 
+def generate_guitar_tone(
+    frequency: float,
+    duration: float = 0.5,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE,
+    drive: float = 0.45,
+) -> np.ndarray:
+    """Generate a conservative electric-guitar/crunch fallback tone.
+
+    This is intentionally lightweight and bounded for procedural rendering when
+    no guitar sample or expansion is available. It returns empty audio for
+    non-positive durations and keeps output finite/normalized for short notes.
+    """
+    num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float32)
+
+    frequency = float(np.clip(frequency, 20.0, sample_rate / 2.5))
+    velocity = float(np.clip(velocity, 0.0, 1.0))
+    drive = float(np.clip(drive, 0.0, 1.0))
+    t = np.arange(num_samples) / sample_rate
+
+    # Guitar-like harmonic stack: strong fundamental, controlled upper partials,
+    # and a small octave/fifth layer for body without becoming a synth lead.
+    audio = np.zeros(num_samples, dtype=np.float64)
+    for harmonic, level in [(1, 1.0), (2, 0.42), (3, 0.28), (4, 0.16), (5, 0.10)]:
+        harmonic_freq = frequency * harmonic
+        if harmonic_freq >= sample_rate / 2 - 200:
+            break
+        audio += level * np.sin(2 * np.pi * harmonic_freq * t)
+    fifth_freq = frequency * 1.5
+    if fifth_freq < sample_rate / 2 - 200:
+        audio += 0.10 * np.sin(2 * np.pi * fifth_freq * t)
+
+    # Deterministic pick transient; no randomness so tests and smokes are stable.
+    pick_len = min(num_samples, max(1, int(0.006 * sample_rate)))
+    pick_t = np.arange(pick_len) / sample_rate
+    pick = np.sin(2 * np.pi * min(5200.0, sample_rate / 4.0) * pick_t)
+    pick *= np.exp(-np.arange(pick_len) / max(1.0, 0.0018 * sample_rate))
+    audio[:pick_len] += pick * 0.08
+
+    # Mild amp-style saturation for overdrive/crunch, then band-limit to avoid
+    # harsh aliases in the fallback path.
+    saturation = 0.20 + drive * 1.80
+    audio = np.tanh(audio * saturation) / np.tanh(saturation)
+    audio = highpass_filter(audio, 70, sample_rate)
+    audio = lowpass_filter(audio, 6500 - drive * 1800, sample_rate)
+
+    attack = int(0.004 * sample_rate)
+    decay = int(0.090 * sample_rate)
+    sustain_level = 0.42 + (0.18 * drive)
+    release = int(0.120 * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
+
+    audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+    audio = normalize_audio(audio, 0.72 * velocity) if np.any(audio) else audio
+    return audio.astype(np.float32)
+
+
 def generate_pad_tone(
     frequency: float,
     duration: float,

@@ -75,6 +75,7 @@ class InstrumentCategory(Enum):
     PERC = "perc"
     BASS_808 = "808"
     BASS = "bass"
+    GUITAR = "guitar"
     KEYS = "keys"
     SYNTH = "synth"
     PAD = "pad"
@@ -108,6 +109,15 @@ DIR_TO_CATEGORY = {
     "perc": InstrumentCategory.PERC,
     "percussion": InstrumentCategory.PERC,
     "bass": InstrumentCategory.BASS,
+    "guitar": InstrumentCategory.GUITAR,
+    "guitars": InstrumentCategory.GUITAR,
+    "gtr": InstrumentCategory.GUITAR,
+    "electric_guitar": InstrumentCategory.GUITAR,
+    "electric guitar": InstrumentCategory.GUITAR,
+    "distortion_guitar": InstrumentCategory.GUITAR,
+    "acoustic_guitar": InstrumentCategory.GUITAR,
+    "crunchy_guitar": InstrumentCategory.GUITAR,
+    "crunchy guitar": InstrumentCategory.GUITAR,
     "keys": InstrumentCategory.KEYS,
     "piano": InstrumentCategory.KEYS,
     "synths": InstrumentCategory.SYNTH,
@@ -137,6 +147,12 @@ KEYWORD_TO_CATEGORY = {
     InstrumentCategory.TOM: ["tom", "tm"],
     InstrumentCategory.PERC: ["perc", "shaker", "tamb", "conga", "bongo", "rim"],
     InstrumentCategory.BASS: ["bass", "bs"],
+    InstrumentCategory.GUITAR: [
+        "guitar", "guitars", "gtr", "electric_guitar", "electric guitar",
+        "distortion_guitar", "distortion guitar", "acoustic_guitar",
+        "acoustic guitar", "crunchy_guitar", "crunchy guitar",
+        "rock_guitar", "rock guitar",
+    ],
     InstrumentCategory.KEYS: ["piano", "keys", "rhodes", "wurli", "organ"],
     InstrumentCategory.SYNTH: ["synth", "lead", "pluck"],
     InstrumentCategory.PAD: ["pad", "atmosphere", "ambient"],
@@ -525,6 +541,10 @@ GENRE_PROFILES = {
         "snare": SonicProfile(punch=0.75, brightness=0.55, noise_level=0.45),
         "hihat": SonicProfile(brightness=0.85, punch=0.8, decay_time_ms=30),
         "808": SonicProfile(warmth=0.9, punch=0.7, brightness=0.15, decay_time_ms=700),
+    },
+    "rock": {
+        "guitar": SonicProfile(brightness=0.62, warmth=0.5, punch=0.65, richness=0.75, decay_time_ms=350),
+        "bass": SonicProfile(warmth=0.8, punch=0.65, brightness=0.25, decay_time_ms=450),
     },
     # Ethiopian traditional music profiles
     "ethiopian_traditional": {
@@ -1188,6 +1208,8 @@ class InstrumentLibrary:
         # (e.g., Inst-Bass-* files duplicated into drums/hihats/ folder)
         filename_prefix_map = {
             'inst-bass-': InstrumentCategory.BASS,
+            'inst-guitar-': InstrumentCategory.GUITAR,
+            'inst-gtr-': InstrumentCategory.GUITAR,
             'inst-synth-': InstrumentCategory.SYNTH,
             'inst-pad-': InstrumentCategory.PAD,
             'inst-keys-': InstrumentCategory.KEYS,
@@ -1197,13 +1219,22 @@ class InstrumentLibrary:
         for prefix, category in filename_prefix_map.items():
             if filename_lower.startswith(prefix):
                 return category
+
+        # PRIORITY 2: Guitar-named melodic samples can live under generic
+        # strings/funk folders; classify them before directory fallback while
+        # leaving bass-guitar files to the existing bass keyword path.
+        guitar_keywords = KEYWORD_TO_CATEGORY.get(InstrumentCategory.GUITAR, [])
+        if 'bass' not in filename_lower:
+            for keyword in guitar_keywords:
+                if keyword in filename_lower:
+                    return InstrumentCategory.GUITAR
         
-        # PRIORITY 2: Check directory names
+        # PRIORITY 3: Check directory names
         for dir_name, category in DIR_TO_CATEGORY.items():
             if f"/{dir_name}/" in path_lower or f"\\{dir_name}\\" in path_lower:
                 return category
         
-        # PRIORITY 3: Check filename keywords
+        # PRIORITY 4: Check filename keywords
         for category, keywords in KEYWORD_TO_CATEGORY.items():
             for keyword in keywords:
                 if keyword in filename_lower:

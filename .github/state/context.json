@@ -3,6 +3,76 @@
   "session_id": "session-2026-02-12-sprint75",
   "files_touched": [
     {
+      "path": "multimodal_gen\\instrument_manager.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added GUITAR category, guitar directory/keyword aliases, rock guitar profile, and filename-priority detection before strings/funk directory fallback."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added guitar custom melodic loading, prompt aliases, GM 24-31 guitar cache routing, expansion alias normalization, and procedural guitar fallback."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded generate_guitar_tone fallback with zero-duration safety and finite normalized output."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added guitar aliases to chord_instruments and prioritized guitar program selection for rock/guitar chord tracks before Rhodes fallback."
+    },
+    {
+      "path": "tests\\test_instrument_manager.py",
+      "action": "created",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added guitar category and strings/funk category-detection regressions."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "created",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added GM guitar cache routing, procedural fallback, custom guitar loading/report, and Ethiopian guardrail regressions."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "created",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added rock guitar chord program and non-guitar Rhodes guard regressions."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed upgrade-rock-guitar-render-routing-031 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded first-class guitar routing pattern and Ethiopian guardrail decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T16:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded files touched, changes made, and focused verification for upgrade-rock-guitar-render-routing-031."
+    },
+    {
       "path": "multimodal_gen\\strategies\\rock_strategy.py",
       "action": "created",
       "timestamp": "2026-05-14T15:00:00Z",
@@ -1034,6 +1104,12 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen/render+midi guitar routing",
+      "description": "Completed upgrade-rock-guitar-render-routing-031 across category detection, audio render/cache routing, procedural guitar fallback, MIDI chord-track guitar programs, and focused regressions.",
+      "diff_summary": "GUITAR category and aliases; GM 24-31 guitar cache/expansion/procedural routing; generate_guitar_tone; guitar aliases in chord_instruments; rock guitar Chords program 30 and Rhodes guard tests.",
+      "timestamp": "2026-05-14T16:00:00Z"
+    },
+    {
       "file": "multimodal_gen\\strategies\\rock_strategy.py",
       "description": "Added first-class rock-family generation strategy.",
       "diff_summary": "New RockStrategy supports rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock, uses PatternLibrary rock backbeat assets for GM live-kit drums, avoids clap/trap rolls/808 assumptions, and supplies root/fifth eighth-note bass plus guitar-range power chords so rock sections do not fall back to synth/808 defaults.",
@@ -1479,6 +1555,13 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "upgrade-rock-guitar-render-routing-031 focused tests",
+      "result": "PASS",
+      "details": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_manager.py tests/test_audio_renderer.py tests/test_midi_generator.py tests/test_rock_strategy.py tests/test_arranger_rock.py -q passed 17 tests in 2.99s.",
+      "timestamp": "2026-05-14T16:00:00Z"
+    },
     {
       "type": "post",
       "target": "Rock strategy/arranger focused regression suite",

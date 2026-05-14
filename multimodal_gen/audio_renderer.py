@@ -55,6 +55,7 @@ from .assets_gen import (
     generate_vinyl_crackle,
     generate_rain,
     generate_fm_pluck,
+    generate_guitar_tone,
     generate_piano_tone,
     generate_lead_tone,
     generate_pad_tone,
@@ -575,6 +576,24 @@ class ProceduralRenderer:
     
     # Ethiopian instruments that should use procedural synthesis, not generic samples
     ETHIOPIAN_INSTRUMENTS = {'krar', 'masenqo', 'washint', 'begena', 'kebero', 'atamo'}
+    GUITAR_FAMILY_ALIASES = {
+        'guitar', 'guitars', 'gtr', 'electric_guitar', 'electric guitar',
+        'distortion_guitar', 'distortion guitar', 'acoustic_guitar',
+        'acoustic guitar', 'crunchy_guitar', 'crunchy guitar', 'rock_guitar',
+        'rock guitar', 'overdriven_guitar', 'overdriven guitar',
+    }
+
+    @classmethod
+    def _normalize_instrument_lookup_key(cls, name: str) -> str:
+        """Normalize expansion/sample lookup names, collapsing guitar aliases."""
+        key = str(name or '').strip().lower().replace('-', '_')
+        key_underscored = key.replace(' ', '_')
+        aliases = {alias.replace(' ', '_') for alias in cls.GUITAR_FAMILY_ALIASES}
+        if key_underscored in aliases or 'gtr' in key_underscored:
+            return 'guitar'
+        if 'guitar' in key_underscored and 'bass_guitar' not in key_underscored:
+            return 'guitar'
+        return key_underscored
     
     def __init__(
         self,
@@ -592,7 +611,7 @@ class ProceduralRenderer:
         self._instrument_service = instrument_service
         self.genre = genre or "trap"
         self.mood = mood
-        self._parsed_instruments = set(parsed_instruments) if parsed_instruments else set()
+        self._parsed_instruments = {str(inst).lower() for inst in parsed_instruments} if parsed_instruments else set()
         
         # Check if Ethiopian instruments are requested
         self._has_ethiopian_instruments = bool(self._parsed_instruments & self.ETHIOPIAN_INSTRUMENTS)
@@ -745,6 +764,7 @@ class ProceduralRenderer:
             melodic_mappings = {
                 'synth': InstrumentCategory.SYNTH,
                 'bass': InstrumentCategory.BASS,
+                'guitar': InstrumentCategory.GUITAR,
                 'keys': InstrumentCategory.KEYS,
                 'pad': InstrumentCategory.SYNTH,  # Pads fallback to synth since no pad category
                 'brass': InstrumentCategory.BRASS,
@@ -757,6 +777,12 @@ class ProceduralRenderer:
                 'piano': 'keys', 'keys': 'keys', 'keyboard': 'keys', 'grand_piano': 'keys',
                 'rhodes': 'keys', 'organ': 'keys', 'clavinet': 'keys',
                 'bass': 'bass', 'contrabass': 'bass', '808': 'bass',
+                'guitar': 'guitar', 'guitars': 'guitar', 'electric_guitar': 'guitar',
+                'electric guitar': 'guitar', 'distortion_guitar': 'guitar',
+                'distortion guitar': 'guitar', 'acoustic_guitar': 'guitar',
+                'acoustic guitar': 'guitar', 'crunchy_guitar': 'guitar',
+                'crunchy guitar': 'guitar', 'rock_guitar': 'guitar',
+                'rock guitar': 'guitar', 'gtr': 'guitar',
                 'synth': 'synth', 'synth_lead': 'synth', 'lead': 'synth',
                 'pad': 'pad', 'strings': 'strings', 'violin': 'strings', 'cello': 'strings',
                 'brass': 'brass', 'trumpet': 'brass', 'horn': 'brass',
@@ -887,8 +913,15 @@ class ProceduralRenderer:
                                 )
                         
                         # Store with original name and resolved name for lookup
-                        self._expansion_sample_cache[inst_name] = audio
-                        self._expansion_sample_cache[result.resolved_name.lower()] = audio
+                        cache_keys = {
+                            str(inst_name).lower(),
+                            str(result.resolved_name).lower(),
+                            self._normalize_instrument_lookup_key(inst_name),
+                            self._normalize_instrument_lookup_key(result.resolved_name),
+                        }
+                        for cache_key in cache_keys:
+                            if cache_key:
+                                self._expansion_sample_cache[cache_key] = audio
                         
                         print(f"  [*] Expansion: {inst_name} -> {result.resolved_name} ({result.match_type.name})")
                         
@@ -1006,7 +1039,7 @@ class ProceduralRenderer:
             # Organ (16-23)
             **{p: 'keys' for p in range(16, 24)},
             # Guitar (24-31)
-            **{p: 'keys' for p in range(24, 32)},
+            **{p: 'guitar' for p in range(24, 32)},
             # Bass (32-39)
             **{p: 'bass' for p in range(32, 40)},
             # Strings (40-51): GM Strings (40-47) + String Ensembles & Synth Strings (48-51)
@@ -1046,6 +1079,11 @@ class ProceduralRenderer:
             return generate_piano_tone(freq, duration, velocity, self.sample_rate)
         elif note.program in [4, 5, 6, 7]:  # Electric pianos
             return generate_fm_pluck(freq, duration)
+        elif 24 <= note.program <= 31:  # Guitar family
+            drive = 0.72 if note.program in (29, 30, 31) else 0.42
+            if str(self.genre or '').lower() in {'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'}:
+                drive = max(drive, 0.72)
+            return generate_guitar_tone(freq, duration, velocity, self.sample_rate, drive=drive)
         elif 80 <= note.program <= 87:  # Synth leads
             return generate_lead_tone(freq, duration, velocity, self.sample_rate)
         elif 12 <= note.program <= 15:  # Chromatic percussion (vibe/marimba/xylophone)
@@ -1196,7 +1234,7 @@ class ProceduralRenderer:
                 113: 'begena',
                 0: 'piano',
                 4: 'piano',  # Electric piano
-                25: 'guitar',
+                **{p: 'guitar' for p in range(24, 32)},
                 38: 'bass',
                 39: 'bass',
                 80: 'synth', # Lead 1 (square)
@@ -1205,11 +1243,18 @@ class ProceduralRenderer:
             }
             inst_name = program_to_instrument.get(program)
         
-        if not inst_name or inst_name not in self._expansion_sample_cache:
+        lookup_keys = []
+        if inst_name:
+            lookup_keys = [str(inst_name).lower(), self._normalize_instrument_lookup_key(inst_name)]
+
+        sample = None
+        for lookup_key in lookup_keys:
+            if lookup_key in self._expansion_sample_cache:
+                sample = self._expansion_sample_cache[lookup_key].copy()
+                break
+
+        if sample is None:
             return None
-        
-        # Get the sample
-        sample = self._expansion_sample_cache[inst_name].copy()
         
         # Calculate required length
         target_samples = int(duration * self.sample_rate)

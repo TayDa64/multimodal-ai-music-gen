@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "First-class melodic instruments need enum/category detection, renderer cache routing, GM program routing, procedural fallback, and MIDI track inclusion together",
+        "context": "The rock guitar render-routing slice added GUITAR as an InstrumentCategory, classified guitar-named strings/funk samples before directory fallback, loaded guitar into custom melodic cache, routed GM 24-31 to guitar/expansion/procedural fallback, and added guitar aliases to chord-track MIDI generation so rock guitar prompts no longer render as Rhodes/keys.",
+        "timestamp": "2026-05-14T16:00:00Z"
+      },
+      {
         "pattern": "First-class genre additions need strategy aliases and arrangement templates, not just parser/default keys",
         "context": "The rock strategy/arrangement slice completed the cross-layer routing after parser/defaults: StrategyRegistry now resolves rock-family aliases to RockStrategy, and ARRANGEMENT_TEMPLATES has matching rock-family keys so explicit 16-bar 1990s rock smokes avoid trap_soul drop/buildup/variation fallback and stay verse/chorus/bridge/chorus.",
         "timestamp": "2026-05-14T15:00:00Z"
@@ -355,6 +360,15 @@
   },
   "decisions": [
     {
+      "decision": "Keep Ethiopian melodic guardrail ahead of generic guitar/custom melodic loading",
+      "rationale": "Ethiopian instruments intentionally use procedural krar/masenqo/washint/begena synthesis; adding guitar cache loading must not cause mixed Ethiopian prompts to load generic melodic samples and bypass that guardrail.",
+      "alternatives_considered": [
+        "Load guitar alongside Ethiopian instruments",
+        "Only skip Ethiopian named instruments after generic cache population"
+      ],
+      "timestamp": "2026-05-14T16:00:00Z"
+    },
+    {
       "decision": "Implement a dedicated RockStrategy plus rock-family arrangement templates instead of reusing trap_soul/default strategy behavior for parsed rock prompts.",
       "rationale": "The approved plan and pre-check showed rock prompts already parse to modular rock keys, but StrategyRegistry.get('rock') returned None and the arranger fell back to trap_soul, expanding explicit 16-bar smoke prompts to 28 bars with drop/buildup/variation sections. A dedicated strategy and templates preserve existing unknown fallback behavior while making rock-family routing truthful.",
       "alternatives_considered": [
@@ -644,7 +658,11 @@
         "multimodal_gen/audio_renderer.py - master chain, mix engine integration",
         "multimodal_gen/mix_chain.py - effect chain processing, EffectType enum",
         "multimodal_gen/parametric_eq.py - RBJ biquads, dynamic EQ, exciter, resonance suppression",
-        "docs/DYNAMIC_EQ_RESEARCH.md - spectral processing research and implementation guide"
+        "docs/DYNAMIC_EQ_RESEARCH.md - spectral processing research and implementation guide",
+        "multimodal_gen\\instrument_manager.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\midi_generator.py"
       ],
       "patterns": [
         "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
@@ -659,7 +677,9 @@
         "Chebyshev polynomials: T_2=2x\u00b2-1, T_3=4x\u00b3-3x, T_4=8x\u2074-8x\u00b2+1, T_5=16x\u2075-20x\u00b3+5x",
         "Ethiopian time signatures: ethiopian/eskista/ethio_jazz use (6, 8), ethiopian_traditional uses (12, 8)",
         "Compound meter ticks: TICKS_PER_BEAT * numerator // 2 for /8 denominators (6/8 \u2192 1440 ticks, 12/8 \u2192 2880 ticks)",
-        "Time signature parameter flow: GENRE_DEFAULTS \u2192 prompt_parser.py \u2192 ParsedPrompt \u2192 strategy \u2192 midi_generator"
+        "Time signature parameter flow: GENRE_DEFAULTS \u2192 prompt_parser.py \u2192 ParsedPrompt \u2192 strategy \u2192 midi_generator",
+        "Guitar-family samples and GM programs 24-31 route through the guitar melodic cache key, not keys.",
+        "ProceduralRenderer must return early from generic melodic loading when parsed Ethiopian instruments are present."
       ],
       "gotchas": [
         "InstrumentCategory enum must match DIR_TO_CATEGORY and KEYWORD_TO_CATEGORY",
@@ -787,5 +807,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T15:00:00Z"
+  "last_updated": "2026-05-14T16:00:00Z"
 }

@@ -1627,14 +1627,23 @@ class MidiGenerator:
             mid.tracks.append(bass_track)
         
         # Track 3: Chords - includes both standard and Ethiopian instruments
+        _genre_norm_for_chords = normalize_genre(parsed.genre or '')
+        _raw_for_chords = (getattr(parsed, 'raw_prompt', '') or '').lower()
+        _rock_family_with_guitar = _genre_norm_for_chords in {
+            'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
+        } and ('guitar' in _raw_for_chords or 'gtr' in _raw_for_chords)
         chord_instruments = [
             'piano', 'rhodes', 'pad', 'strings', 'organ', 'brass',
+            'guitar', 'guitars', 'electric_guitar', 'electric guitar',
+            'distortion_guitar', 'distortion guitar', 'acoustic_guitar',
+            'acoustic guitar', 'crunchy_guitar', 'crunchy guitar',
+            'rock_guitar', 'rock guitar', 'gtr',
             # Ethiopian instruments
             'krar', 'masenqo', 'begena',
             # Orchestral
             'harp', 'choir', 'woodwinds',
         ]
-        if any(inst in parsed.instruments for inst in chord_instruments):
+        if any(inst in parsed.instruments for inst in chord_instruments) or _rock_family_with_guitar:
             chord_track = self._create_chord_track(arrangement, parsed, groove_template)
             mid.tracks.append(chord_track)
 
@@ -2340,6 +2349,33 @@ class MidiGenerator:
         # Program change based on instrument
         # Priority: Ethiopian genres should prefer Ethiopian instruments
         is_ethiopian = parsed.genre in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
+        normalized_genre = normalize_genre(parsed.genre or '')
+        rock_family = {'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'}
+        guitar_aliases = {
+            'guitar', 'guitars', 'electric_guitar', 'distortion_guitar',
+            'acoustic_guitar', 'crunchy_guitar', 'rock_guitar', 'gtr',
+            'electric guitar', 'distortion guitar', 'acoustic guitar',
+            'crunchy guitar', 'rock guitar',
+        }
+        parsed_instruments_norm = {str(inst).lower().replace('-', '_') for inst in parsed.instruments}
+        parsed_instruments_spaces = {inst.replace('_', ' ') for inst in parsed_instruments_norm}
+        raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower()
+        has_guitar_alias = bool(parsed_instruments_norm & guitar_aliases) or bool(parsed_instruments_spaces & guitar_aliases)
+        has_raw_guitar = 'guitar' in raw_prompt or 'gtr' in raw_prompt
+        wants_guitar = has_guitar_alias or (normalized_genre in rock_family and has_raw_guitar)
+
+        def _guitar_program() -> int:
+            guitar_context = ' '.join(
+                list(parsed_instruments_norm)
+                + list(parsed_instruments_spaces)
+                + list(getattr(parsed, 'style_modifiers', []) or [])
+                + [raw_prompt, normalized_genre]
+            )
+            if any(term in guitar_context for term in ['distortion', 'distorted', 'crunch', 'crunchy', 'grunge', 'rock', 'overdrive']):
+                return 30  # GM Distortion Guitar
+            if 'acoustic_guitar' in parsed_instruments_norm or 'acoustic guitar' in parsed_instruments_spaces:
+                return 25  # GM Steel-string Acoustic Guitar
+            return 27  # GM Clean Electric Guitar
         
         # Try to resolve instrument via service first (if available)
         program = None
@@ -2358,6 +2394,8 @@ class MidiGenerator:
                 instrument_to_resolve = 'begena'
             elif 'washint' in parsed.instruments:
                 instrument_to_resolve = 'washint'
+            elif wants_guitar:
+                instrument_to_resolve = 'guitar'
             elif 'rhodes' in parsed.instruments:
                 instrument_to_resolve = 'rhodes'
             elif 'piano' in parsed.instruments:
@@ -2379,6 +2417,10 @@ class MidiGenerator:
             )
             program = resolved.program
             resolved_instrument = instrument_to_resolve  # Use the instrument we asked to resolve
+            if wants_guitar:
+                if not (24 <= int(program) <= 31):
+                    program = _guitar_program()
+                resolved_instrument = 'Guitar'
         
         # Fallback to hardcoded mappings if no service or resolution failed
         if program is None:
@@ -2395,6 +2437,9 @@ class MidiGenerator:
             elif 'washint' in parsed.instruments:
                 program = 112  # Custom: Washint (Ethiopian flute)
                 resolved_instrument = 'Washint'
+            elif wants_guitar:
+                program = _guitar_program()
+                resolved_instrument = 'Guitar'
             # Standard GM instruments
             elif 'rhodes' in parsed.instruments:
                 program = 4  # Electric Piano 1

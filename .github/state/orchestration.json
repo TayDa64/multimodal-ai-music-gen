@@ -7,6 +7,32 @@
   },
   "task_queue": [
     {
+      "id": "upgrade-rock-guitar-render-routing-031",
+      "description": "Implement first-class guitar render/cache category, GM guitar routing, procedural fallback, and rock guitar chord-track MIDI routing",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\instrument_manager.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_instrument_manager.py",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_midi_generator.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T16:00:00Z",
+      "updated": "2026-05-14T16:00:00Z",
+      "result": {
+        "summary": "Added InstrumentCategory.GUITAR with directory/keyword detection so guitar-named strings/funk samples route to guitar while non-guitar strings remain strings. Audio rendering now loads guitar custom melodic cache, maps GM programs 24-31 to guitar, normalizes expansion guitar-family aliases to the guitar cache key, and falls back to a bounded procedural guitar tone. MIDI generation now treats guitar aliases as chord instruments and assigns channel-2 Chords tracks to GM guitar programs for rock/guitar prompts while preserving Rhodes/Ethiopian behavior when guitar is absent.",
+        "verification": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_manager.py tests/test_audio_renderer.py tests/test_midi_generator.py tests/test_rock_strategy.py tests/test_arranger_rock.py -q passed 17 tests in 2.99s."
+      }
+    },
+    {
       "id": "upgrade-rock-strategy-arrangement-030",
       "description": "Implement first-class rock-family strategy registration and rock arranger templates with bounded 16-bar smoke behavior",
       "status": "completed",
