@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Post-render external WAV paths can share backend mastering through a file-level mastering pass with prefixed pipeline diagnostics",
+        "context": "For post-fluidsynth-mastering-parity-043, successful FluidSynth WAVs now run _apply_file_level_mastering before texture post-processing. The method records fluidsynth_file_mastering.* stages and lets the render remain successful with a warning if mastering fails. Tests monkeypatch FluidSynth to avoid external binary/SoundFont dependencies.",
+        "timestamp": "2026-05-14T21:15:37Z"
+      },
+      {
         "pattern": "FluidSynth proof should capture renderer path and skip reason even when FluidSynth/SoundFonts are absent",
         "context": "For fluidsynth-soundfont-proof-042, the local machine lacked a fluidsynth binary and SoundFont assets. The safe slice added smoke_summary renderer_diagnostics, no-install render-report tests, accurate setup docs, and SoundFont git ignores without vendoring binaries or breaking procedural fallback.",
         "timestamp": "2026-05-14T20:47:37Z"
@@ -414,6 +419,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Add a dedicated file-level mastering pass for FluidSynth output rather than refactoring the procedural renderer in this slice.",
+      "rationale": "This gives FluidSynth-rendered WAVs LUFS/limiting/spectral parity while preserving the battle-tested procedural render path and keeping the diff bounded.",
+      "alternatives_considered": [
+        "Refactor _render_procedural to call a shared in-memory master chain",
+        "Leave FluidSynth output unmastered until a real SoundFont is installed",
+        "Fail FluidSynth renders if file-level mastering fails"
+      ],
+      "timestamp": "2026-05-14T21:15:37Z"
+    },
     {
       "decision": "Do not install or vendor FluidSynth/SoundFont binaries in the repo task; add proof guardrails and user setup documentation instead.",
       "rationale": "FluidSynth is an external binary and SoundFonts are large third-party licensed assets. The codebase should prove renderer selection and preserve procedural fallback without committing large or potentially unlicensed files.",
@@ -974,5 +989,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T20:47:37Z"
+  "last_updated": "2026-05-14T21:15:37Z"
 }

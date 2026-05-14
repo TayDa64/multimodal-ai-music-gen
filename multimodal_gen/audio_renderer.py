@@ -1675,6 +1675,7 @@ class AudioRenderer:
         self._last_render_report = None
         self._render_failure_context = None
         self._current_render_stage = None
+        self._pipeline_stages = {}
 
     def _set_render_stage(self, stage: Optional[str]) -> None:
         """Record the current render stage for diagnostics."""
@@ -1776,6 +1777,16 @@ class AudioRenderer:
                 )
 
                 if fluidsynth_success:
+                    # Apply file-level mastering to FluidSynth-rendered WAV
+                    self._set_render_stage("fluidsynth_file_mastering")
+                    mastering_ok = self._apply_file_level_mastering(
+                        output_path, parsed, stage_prefix="fluidsynth_file_mastering"
+                    )
+                    if not mastering_ok:
+                        warnings.append(
+                            "FluidSynth file-level mastering failed; output may be unmastered"
+                        )
+
                     if parsed:
                         self._set_render_stage("post_process")
                         self._post_process(output_path, parsed)
@@ -2586,6 +2597,204 @@ class AudioRenderer:
         
         return self.procedural.render_notes(notes, total_samples, is_drums=is_drum_track)
     
+    def _apply_file_level_mastering(
+        self, audio_path: str, parsed: Optional[ParsedPrompt] = None, stage_prefix: str = "file_mastering"
+    ) -> bool:
+        """
+        Apply file-level mastering chain to an already-rendered WAV.
+
+        Loads WAV, applies procedural-parity master processing, saves back.
+        Used for FluidSynth-rendered files to achieve mastering parity with procedural path.
+
+        Args:
+            audio_path: Path to rendered WAV file (will be overwritten)
+            parsed: Optional ParsedPrompt for genre/mood context
+            stage_prefix: Prefix for pipeline_stages keys
+
+        Returns:
+            True if mastering applied successfully, False if failed
+        """
+        if not HAS_SOUNDFILE:
+            self._pipeline_stages[f"{stage_prefix}.status"] = "failed:no_soundfile"
+            return False
+
+        try:
+            # Load the FluidSynth-rendered WAV
+            audio, file_sr = sf.read(audio_path, dtype='float32')
+
+            # Ensure stereo for stereo processing
+            if len(audio.shape) == 1:
+                # Mono -> stereo (center)
+                audio = np.stack([audio, audio], axis=-1)
+
+            # Use file sample rate for processing
+            sr = file_sr
+
+            # Apply master bus chain if available
+            master_chain = self.mix_chains.get('master')
+            if master_chain:
+                audio = master_chain.process(audio, sr)
+
+            # Convolution reverb send
+            if self._reverb and _HAS_CONVOLUTION_REVERB:
+                try:
+                    genre_reverb_map = {
+                        'jazz': 'hall', 'classical': 'hall', 'ambient': 'hall',
+                        'trap': 'room', 'drill': 'room', 'hip_hop': 'room',
+                        'lofi': 'lofi_room', 'lo_fi': 'lofi_room',
+                        'house': 'plate', 'rock': 'plate', 'funk': 'plate',
+                        'ethiopian': 'room', 'ethio_jazz': 'hall',
+                    }
+                    preset = genre_reverb_map.get(self._normalize_genre(), 'room')
+                    from .reverb import ReverbConfig
+                    reverb_cfg = ReverbConfig(wet_dry=1.0)
+                    wet = self._reverb.process(audio, preset=preset, config=reverb_cfg)
+                    send_level = self._get_preset_reverb_send()
+                    if self._mix_policy:
+                        try:
+                            _warmth = getattr(self._mix_policy, 'warmth_target', 0.5)
+                            send_level *= (0.8 + 0.4 * _warmth)
+                        except Exception:
+                            pass
+                    if wet is not None and len(wet) > 0:
+                        if len(wet) > len(audio):
+                            wet = wet[:len(audio)]
+                        elif len(wet) < len(audio):
+                            pad_shape = [(0, len(audio) - len(wet))]
+                            if len(wet.shape) > 1:
+                                pad_shape.append((0, 0))
+                            wet = np.pad(wet, pad_shape)
+                        audio = audio + wet * send_level
+                        self._pipeline_stages[f'{stage_prefix}.convolution_reverb'] = preset
+                except Exception:
+                    self._pipeline_stages[f'{stage_prefix}.convolution_reverb'] = 'error'
+
+            # Multiband dynamics
+            if _HAS_MULTIBAND_DYNAMICS:
+                try:
+                    from .multiband_dynamics import multiband_compress
+                    _genre_mb_map = {
+                        'trap': 'loudness_maximize', 'drill': 'loudness_maximize',
+                        'lofi': 'gentle_control', 'lo_fi': 'gentle_control',
+                        'ambient': 'gentle_control',
+                    }
+                    _mb_preset = _genre_mb_map.get(self._normalize_genre(), 'mastering_glue')
+                    audio = multiband_compress(audio, preset=_mb_preset, sample_rate=sr)
+                    self._pipeline_stages[f'{stage_prefix}.multiband_dynamics'] = _mb_preset
+                except Exception:
+                    self._pipeline_stages[f'{stage_prefix}.multiband_dynamics'] = 'error'
+
+            # Spectral processing
+            if _HAS_SPECTRAL_PROCESSING and self._resonance_suppressor:
+                try:
+                    from .spectral_processing import apply_spectral_preset
+                    audio = self._resonance_suppressor.process(audio)
+                    _genre_exciter_map = {
+                        'trap': 'tape_warmth', 'drill': 'tape_warmth',
+                        'lofi': 'analog_warmth', 'lo_fi': 'analog_warmth',
+                        'jazz': 'master_air', 'house': 'master_air',
+                        'classical': 'master_air', 'ambient': 'master_air',
+                    }
+                    _exciter_preset = _genre_exciter_map.get(
+                        self._normalize_genre(), 'radio_ready'
+                    )
+                    if self._mix_policy:
+                        try:
+                            _sat_type = getattr(self._mix_policy, 'saturation_type', 'tape')
+                            _sat_amt = getattr(self._mix_policy, 'saturation_amount', 0.2)
+                            if _sat_type == 'tube' and _sat_amt > 0.3:
+                                _exciter_preset = 'analog_warmth'
+                            elif _sat_type == 'tape' and _sat_amt > 0.3:
+                                _exciter_preset = 'tape_warmth'
+                            elif _sat_type == 'digital' and _sat_amt < 0.15:
+                                _exciter_preset = 'master_air'
+                        except Exception:
+                            pass
+                        try:
+                            _bright = getattr(self._mix_policy, 'brightness_target', 0.5)
+                            if _bright > 0.7:
+                                _exciter_preset = 'master_air'
+                            elif _bright < 0.3:
+                                _exciter_preset = 'tape_warmth'
+                        except Exception:
+                            pass
+                    audio = apply_spectral_preset(audio, _exciter_preset, sample_rate=sr)
+                    self._pipeline_stages[f'{stage_prefix}.spectral_processing'] = _exciter_preset
+                except Exception:
+                    self._pipeline_stages[f'{stage_prefix}.spectral_processing'] = 'error'
+
+            # Reference matching
+            if _HAS_REFERENCE_MATCHING and self._reference_matcher:
+                try:
+                    if getattr(self, '_reference_profile', None) is not None:
+                        audio = self._reference_matcher.process(audio)
+                        self._pipeline_stages[f'{stage_prefix}.reference_matching'] = 'active'
+                except Exception:
+                    self._pipeline_stages[f'{stage_prefix}.reference_matching'] = 'error'
+
+            # Soft clip
+            audio = soft_clip(audio, threshold=0.7)
+
+            # Auto-gain staging
+            if _HAS_AGS:
+                try:
+                    _target_lufs = getattr(self._mix_policy, 'target_lufs', -14.0) if self._mix_policy else -14.0
+                    from .auto_gain_staging import GainStagingParams as _GSP
+                    _ags = _AGS(_GSP(target_lufs=_target_lufs), sample_rate=sr)
+                    audio = _ags.process(audio)
+                    self._pipeline_stages[f'{stage_prefix}.auto_gain_staging'] = f'target={_target_lufs}'
+                except Exception:
+                    self._pipeline_stages[f'{stage_prefix}.auto_gain_staging'] = 'error'
+                    # Fallback normalization
+                    _norm_target = 0.95
+                    if self._mix_policy:
+                        try:
+                            _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0)
+                            _norm_target = min(0.98, max(0.5, 10 ** (_ceil_db / 20.0)))
+                        except Exception:
+                            pass
+                    audio = normalize_audio(audio, _norm_target)
+            else:
+                # No AGS available, use normalization
+                _norm_target = 0.95
+                if self._mix_policy:
+                    try:
+                        _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0)
+                        _norm_target = min(0.98, max(0.5, 10 ** (_ceil_db / 20.0)))
+                    except Exception:
+                        pass
+                audio = normalize_audio(audio, _norm_target)
+
+            # True peak limiter
+            if _HAS_TPL:
+                try:
+                    from .true_peak_limiter import TruePeakLimiterParams as _TPLP
+                    _ceil_db = getattr(self._mix_policy, 'master_ceiling_db', -1.0) if self._mix_policy else -1.0
+                    _tpl = _TPL(_TPLP(ceiling_dbtp=_ceil_db), sample_rate=sr)
+                    audio = _tpl.process(audio)
+                    self._pipeline_stages[f'{stage_prefix}.true_peak_limiter'] = f'ceiling={_ceil_db}dBTP'
+                except Exception:
+                    self._pipeline_stages[f'{stage_prefix}.true_peak_limiter'] = 'error'
+                    audio = limit_audio(audio, TARGET_TRUE_PEAK)
+            else:
+                audio = limit_audio(audio, TARGET_TRUE_PEAK)
+
+            # Save back to same path
+            # Use standard save_wav with 16-bit and dither
+            # BWF is skipped for simplicity/safety in this minimal slice
+            success = save_wav(audio, audio_path, sample_rate=sr, bit_depth=16, apply_dither=True)
+            if success:
+                self._pipeline_stages[f"{stage_prefix}.status"] = "applied"
+                return True
+            else:
+                self._pipeline_stages[f"{stage_prefix}.status"] = "failed:save_error"
+                return False
+
+        except Exception as e:
+            logger.exception(f"File-level mastering failed: {e}")
+            self._pipeline_stages[f"{stage_prefix}.status"] = f"failed:{type(e).__name__}"
+            return False
+
     def _post_process(self, audio_path: str, parsed: ParsedPrompt):
         """Apply post-processing based on prompt parameters."""
         # Load audio

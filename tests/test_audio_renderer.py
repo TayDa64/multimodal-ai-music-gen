@@ -224,3 +224,123 @@ def test_rock_procedural_electric_bass_sequence_limits_sub_bass_energy():
     assert np.all(np.isfinite(audio))
     assert np.max(np.abs(audio)) <= 1.0
     assert _sub_bass_ratio(audio, 44100) < 0.16
+
+
+def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):
+    """
+    Integration test: FluidSynth success path applies file-level mastering.
+
+    Monkeypatches render_midi_with_fluidsynth to write a simple WAV and return True,
+    then verifies that the file-level mastering pipeline runs and is recorded.
+    """
+    import soundfile as sf
+
+    # Create a simple loud WAV to be "rendered" by fake FluidSynth
+    def fake_fluidsynth_render(midi_path, output_path, soundfont_path, sample_rate):
+        """Fake FluidSynth that writes a loud stereo WAV."""
+        # Generate loud stereo audio (0.9 peak to test limiting)
+        duration = 0.5
+        samples = int(duration * sample_rate)
+        t = np.linspace(0, duration, samples, dtype=np.float32)
+        tone = 0.9 * np.sin(2 * np.pi * 440 * t)
+        stereo = np.stack([tone, tone], axis=-1)
+        sf.write(output_path, stereo, sample_rate, subtype='PCM_16')
+        return True
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.render_midi_with_fluidsynth", fake_fluidsynth_render)
+
+    # Create renderer with FluidSynth enabled
+    # Note: Must set these after construction because __init__ modifies use_fluidsynth based on availability
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="rock")
+    renderer.fluidsynth_available = True
+    renderer.use_fluidsynth = True
+    renderer.soundfont_path = "fake.sf2"  # Non-empty to allow FluidSynth
+
+    # Create fake MIDI file
+    midi_path = tmp_path / "test.mid"
+    midi_path.write_bytes(b"MThd" + b"\x00" * 20)  # Minimal fake MIDI header
+
+    output_path = tmp_path / "output.wav"
+
+    # Render
+    parsed = ParsedPrompt(
+        raw_prompt="rock song",
+        bpm=120,
+        key="C",
+        scale_type=ScaleType.MAJOR,
+        genre="rock",
+        mood="energetic",
+        target_bars=4,
+        textures=[]
+    )
+    success = renderer.render_midi_file(str(midi_path), str(output_path), parsed)
+
+    # Assertions
+    assert success is True
+    assert output_path.exists()
+
+    # Check render report
+    report = renderer._last_render_report
+    assert report is not None
+    assert report.get("renderer_path") == "fluidsynth"
+    assert report.get("fluidsynth", {}).get("success") is True
+
+    # Check pipeline_stages contains FluidSynth file mastering stages
+    stages = report.get("pipeline_stages", {})
+    assert "fluidsynth_file_mastering.status" in stages
+    assert stages["fluidsynth_file_mastering.status"] == "applied"
+
+    # Should have at least auto_gain_staging and true_peak_limiter stages recorded
+    # (or their error/fallback variants if modules unavailable)
+    has_ags = any("auto_gain_staging" in k for k in stages)
+    has_tpl = any("true_peak_limiter" in k for k in stages)
+    assert has_ags, "Should record auto_gain_staging (or fallback normalization)"
+    assert has_tpl, "Should record true_peak_limiter (or fallback limit)"
+
+    # Verify output is finite and limited
+    audio, sr = sf.read(str(output_path))
+    assert np.all(np.isfinite(audio))
+    peak = np.max(np.abs(audio))
+    assert peak <= 1.0, f"Peak {peak} should be limited to <= 1.0"
+
+
+def test_apply_file_level_mastering_unit(tmp_path):
+    """
+    Unit test for _apply_file_level_mastering() directly.
+
+    Creates a loud WAV, calls the method, asserts output is limited and stages recorded.
+    """
+    import soundfile as sf
+
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="rock")
+
+    # Create loud stereo WAV
+    duration = 0.3
+    samples = int(duration * 44100)
+    t = np.linspace(0, duration, samples, dtype=np.float32)
+    loud_tone = 1.5 * np.sin(2 * np.pi * 440 * t)  # Peak > 1.0
+    stereo = np.stack([loud_tone, loud_tone], axis=-1)
+
+    test_wav = tmp_path / "loud.wav"
+    sf.write(str(test_wav), stereo, 44100, subtype='PCM_16')
+
+    # Apply mastering
+    result = renderer._apply_file_level_mastering(str(test_wav), parsed=None, stage_prefix="test_master")
+
+    # Should succeed
+    assert result is True
+
+    # Check pipeline stages
+    assert "test_master.status" in renderer._pipeline_stages
+    assert renderer._pipeline_stages["test_master.status"] == "applied"
+
+    # Verify output exists and is limited
+    assert test_wav.exists()
+    audio, sr = sf.read(str(test_wav))
+    assert np.all(np.isfinite(audio))
+    peak = np.max(np.abs(audio))
+    assert peak <= 1.01, f"Mastered peak {peak} should be limited close to 1.0"
+
+    # Should have at least one mastering stage beyond status
+    stage_keys = [k for k in renderer._pipeline_stages.keys() if k.startswith("test_master.")]
+    assert len(stage_keys) >= 2, f"Should have multiple stages recorded, got: {stage_keys}"

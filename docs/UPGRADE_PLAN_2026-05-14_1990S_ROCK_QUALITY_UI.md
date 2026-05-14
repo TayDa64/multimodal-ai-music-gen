@@ -978,3 +978,50 @@ Results:
 Recommendation 4 is now proof-ready: future smoke artifacts can prove whether a run used FluidSynth, skipped it, or fell back to procedural rendering. To actually make local FluidSynth renders happen, install the external FluidSynth binary and place a licensed `.sf2` under `assets/soundfonts/` or pass `--soundfont` explicitly.
 
 The next highest-priority item is recommendation 5: **post-FluidSynth mastering parity**. Source review still shows the FluidSynth success path runs `_post_process()` textures, then returns; it does not yet share the full procedural master chain stages such as multiband dynamics, spectral processing, auto-gain staging, and true-peak limiting.
+
+## Post-FluidSynth mastering parity implementation — 2026-05-14
+
+Status: **implemented and verified** for recommendation 5 at the code/test level. Because this machine still has no real FluidSynth binary or SoundFont, the FluidSynth success path was verified with a no-install monkeypatched renderer that writes a WAV and returns success.
+
+### What changed
+
+- `multimodal_gen/audio_renderer.py`
+  - Successful FluidSynth renders now run a file-level mastering pass before texture `_post_process()` and before the render report is finalized.
+  - Added `_apply_file_level_mastering(audio_path, parsed=None, stage_prefix="file_mastering")` for already-rendered WAV files.
+  - The file-level pass loads the WAV, ensures stereo processing, applies the master bus chain where available, convolution reverb send, multiband dynamics, spectral processing, reference matching if active, soft clipping, LUFS-targeted auto-gain staging with fallback normalization, and true-peak limiting with fallback limiting.
+  - The mastered file is saved back as 16-bit WAV with dither via the existing `save_wav()` helper.
+  - FluidSynth mastering stages are recorded in the render report with a `fluidsynth_file_mastering.*` prefix, including `status`, `auto_gain_staging`, and `true_peak_limiter`.
+  - If file-level mastering fails, the FluidSynth WAV still remains a successful render, but the render report receives a warning: `FluidSynth file-level mastering failed; output may be unmastered`.
+  - `_reset_render_diagnostics()` now resets `_pipeline_stages` so sequential FluidSynth/procedural renders cannot leak stale mastering-stage diagnostics.
+- `tests/test_audio_renderer.py`
+  - Added a no-install FluidSynth integration test that monkeypatches `render_midi_with_fluidsynth()` to write a WAV, forces a fake SoundFont path, runs `render_midi_file()`, and verifies renderer path, FluidSynth success, prefixed mastering stages, and finite/limited output.
+  - Added a direct unit test for `_apply_file_level_mastering()` using a synthetic loud WAV.
+
+### Preserved behavior
+
+- The procedural `_render_procedural()` path was not refactored or replaced in this slice.
+- Procedural fallback behavior remains unchanged when FluidSynth is unavailable, skipped, or fails.
+- No real FluidSynth binary, SoundFont asset, or large third-party file was installed, downloaded, or committed.
+- JUCE app playback parity and MIDI preview/mastering honesty labels were untouched.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+.\.venv\Scripts\python.exe -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+```
+
+Results:
+
+- `git diff --check`: `PASS`.
+- Audio renderer + render report tests: `16 passed`, with 2 existing Python 3.13/audioread deprecation warnings.
+- Smoke contract + golden prompts: `27 passed`.
+- Post-verifier: first pass `PASS_WITH_NITS` required pipeline-stage reset; second pass confirmed the fix. The verifier mentioned a possible numba/LLVM environmental issue, but the focused suite passed in the main terminal.
+- VS Code diagnostics for touched files: no errors.
+
+### Remaining follow-up
+
+This closes the post-FluidSynth mastering parity code path, but real end-to-end SoundFont timbre proof still requires installing the external FluidSynth binary and placing a licensed SoundFont under `assets/soundfonts/` or passing `--soundfont`. Once that environment is available, run the 1990s rock smoke and inspect `smoke_summary.json.renderer_diagnostics.renderer_path == "fluidsynth"` plus the render report `pipeline_stages.fluidsynth_file_mastering.*` entries.
