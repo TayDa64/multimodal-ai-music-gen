@@ -1,7 +1,70 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-app-mastered-wav-playback-parity-039",
+  "session_id": "session-2026-05-14-app-fx-mastering-preview-040",
   "files_touched": [
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded files touched, changes, and verification proof for milestone 040."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded MixerGraph deferral decision and safe labeling pattern."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Marked app-fx-mastering-preview-040 completed."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded app FX/mastering preview honesty implementation and verification proof."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mastering\\MasteringSuitePanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Displayed/laid out notice and tooltip explaining backend WAV mastering vs unprocessed live MIDI preview."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mastering\\MasteringSuitePanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Added playback-path notice label declaration."
+    },
+    {
+      "path": "juce\\Source\\UI\\TransportComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Updated load/play/timer statuses to distinguish mastered audio/reference vs unmastered MIDI preview/fallback."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T20:03:51Z",
+      "by_agent": "supervisor",
+      "changes": "Labeled generated backend audio as mastered reference and MIDI as unmastered preview/fallback."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:49:23Z",
+      "by_agent": "supervisor",
+      "changes": "Opened app-fx-mastering-preview-040 task."
+    },
     {
       "path": ".github\\state\\context.json",
       "action": "modified",
@@ -1517,6 +1580,12 @@
   ],
   "changes_made": [
     {
+      "file": "juce/Source/MainComponent.cpp; juce/Source/UI/TransportComponent.cpp; juce/Source/UI/Mastering/MasteringSuitePanel.*",
+      "description": "Made app playback/mastering labels explicit and truthful.",
+      "diff_summary": "Backend WAV playback is labeled mastered audio/reference; MIDI-only playback is labeled unmastered preview/fallback; MasteringSuitePanel displays a notice that live MIDI preview is not processed by those controls yet. No AudioEngine MixerGraph processing was added.",
+      "timestamp": "2026-05-14T20:03:51Z"
+    },
+    {
       "file": "juce/Source/Audio/AudioEngine.cpp; juce/Source/MainComponent.cpp; juce/Source/UI/TransportComponent.cpp",
       "description": "Implemented app mastered-WAV playback parity for generated songs.",
       "diff_summary": "AudioEngine now loads and plays backend WAV/audio files through AudioTransportSource and skips MIDI/track rendering while that audio is playing. MainComponent loads result.audioPath after MIDI fallback/visualization. TransportComponent permits audio-only playback/status.",
@@ -2094,6 +2163,27 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "build/tests for app-fx-mastering-preview-040",
+      "result": "PASS",
+      "details": "npm run build:debug PASS; npm run build PASS with existing warnings; focused pytest PASS with 65 passed and 6 existing librosa warnings; git diff --check PASS; state JSON parse PASS.",
+      "timestamp": "2026-05-14T20:03:51Z"
+    },
+    {
+      "type": "post",
+      "target": "app-fx-mastering-preview-040",
+      "result": "PASS",
+      "details": "Post-verifier confirmed mastered/unmastered labels, MasteringSuitePanel notice/tooltip, no AudioEngine mixerGraph.processBlock, diagnostics clean, Debug build pass, and git diff --check pass.",
+      "timestamp": "2026-05-14T20:03:51Z"
+    },
+    {
+      "type": "pre",
+      "target": "app-fx-mastering-preview-040",
+      "result": "PASS",
+      "details": "Pre-verifier confirmed recommendation 2 was incomplete and warned against naive MixerGraph.processBlock due routing/thread-safety risks.",
+      "timestamp": "2026-05-14T20:03:51Z"
+    },
     {
       "type": "post",
       "target": "build/tests for app-mastered-wav-playback-parity-039",

@@ -20,6 +20,12 @@ MasteringSuitePanel::MasteringSuitePanel()
     titleLabel.setFont(juce::Font(18.0f, juce::Font::bold));
     titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(titleLabel);
+
+    playbackPathNoticeLabel.setFont(juce::Font(11.0f));
+    playbackPathNoticeLabel.setColour(juce::Label::textColourId, AppColours::warning);
+    playbackPathNoticeLabel.setJustificationType(juce::Justification::centredLeft);
+    playbackPathNoticeLabel.setTooltip("Generated WAV playback uses backend mastering; live MIDI preview is unmastered and not processed by these controls yet.");
+    addAndMakeVisible(playbackPathNoticeLabel);
     
     bypassButton.setColour(juce::ToggleButton::textColourId, AppColours::textSecondary);
     bypassButton.setColour(juce::ToggleButton::tickColourId, AppColours::warning);
@@ -200,6 +206,7 @@ void MasteringSuitePanel::resized()
     
     // Metering section (right side of header)
     auto meterArea = header.removeFromRight(240);
+    playbackPathNoticeLabel.setBounds(header.reduced(8, 0));
     int meterWidth = 75;
     
     auto lufsShortArea = meterArea.removeFromLeft(meterWidth);

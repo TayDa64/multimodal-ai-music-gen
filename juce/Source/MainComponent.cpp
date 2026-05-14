@@ -1080,12 +1080,18 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
 {
     currentProgress = 1.0f;
     {
-        juce::File outputFile(result.audioPath.isNotEmpty()
+        const bool hasMasteredAudio = result.audioPath.isNotEmpty();
+        juce::File outputFile(hasMasteredAudio
                                   ? result.audioPath
                                   : result.midiPath);
         currentStatus = outputFile.existsAsFile()
-                            ? ("Generated: " + outputFile.getFileNameWithoutExtension())
-                            : "Generation complete!";
+                            ? (juce::String(hasMasteredAudio
+                                                ? "Generated mastered audio (backend): "
+                                                : "Generated unmastered MIDI preview/fallback: ")
+                               + outputFile.getFileNameWithoutExtension())
+                            : juce::String(hasMasteredAudio
+                                               ? "Generation complete: mastered audio (backend)"
+                                               : "Generation complete: unmastered MIDI preview/fallback");
     }
     generationStatus = GenerationStatus::Completed;
     generationCompleteTime = juce::Time::getCurrentTime();
@@ -1112,7 +1118,7 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                 visualizationPanel->refreshRecentFiles();
             }
         
-        // Load the generated MIDI file for playback and visualization
+        // Load the generated MIDI file for visualization and as an unmastered preview/fallback.
         if (result.midiPath.isNotEmpty())
         {
             juce::File midiFile(result.midiPath);
@@ -1124,6 +1130,10 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                     visualizationPanel->loadMidiFile(midiFile);
 
                 applyGeneratedInstrumentSamples(result);
+
+                if (result.audioPath.isEmpty())
+                    currentStatus = "Loaded unmastered MIDI preview/fallback: "
+                                    + midiFile.getFileNameWithoutExtension();
             }
         }
 
@@ -1135,9 +1145,14 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
             if (audioFile.existsAsFile())
             {
                 if (audioEngine.loadAudioFile(audioFile))
-                    currentStatus = "Loaded audio: " + audioFile.getFileNameWithoutExtension();
+                    currentStatus = "Loaded mastered audio/reference: "
+                                    + audioFile.getFileNameWithoutExtension();
                 else
-                    currentStatus = "Audio load failed; using MIDI fallback";
+                    currentStatus = "Mastered audio load failed; using unmastered MIDI preview/fallback";
+            }
+            else
+            {
+                currentStatus = "Mastered audio missing; using unmastered MIDI preview/fallback";
             }
         }
         
@@ -1155,9 +1170,9 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
         
         // Show completion message (no callback to prevent accidental triggers)
         juce::String message = "Generation complete!\n\n";
-        message += "MIDI: " + result.midiPath + "\n";
+        message += "Unmastered MIDI preview/fallback: " + result.midiPath + "\n";
         if (result.audioPath.isNotEmpty())
-            message += "Audio: " + result.audioPath + "\n";
+            message += "Mastered audio reference (backend): " + result.audioPath + "\n";
         message += "\nDuration: " + juce::String(result.duration, 1) + "s";
         message += "\n\nThe file has been added to Recent Files.";
         
@@ -1440,7 +1455,12 @@ void MainComponent::cancelRequested()
 // VisualizationPanel::Listener
 void MainComponent::fileSelected(const juce::File& file)
 {
-    currentStatus = "Loaded: " + file.getFileName();
+    if (file.hasFileExtension(".wav;.wave;.aiff;.aif;.flac;.mp3;.ogg"))
+        currentStatus = "Loaded mastered audio/reference: " + file.getFileName();
+    else if (file.hasFileExtension(".mid;.midi"))
+        currentStatus = "Loaded unmastered MIDI preview/fallback: " + file.getFileName();
+    else
+        currentStatus = "Loaded: " + file.getFileName();
     
     // Note: VisualizationPanel already handles loading MIDI files into piano roll
     // We just update the status here

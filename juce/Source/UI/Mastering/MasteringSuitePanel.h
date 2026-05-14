@@ -105,6 +105,7 @@ private:
     
     // Header components
     juce::Label titleLabel { {}, "Mastering Suite" };
+    juce::Label playbackPathNoticeLabel { {}, "WAV: backend mastered | Live MIDI: unmastered (controls not in preview yet)" };
     juce::ToggleButton bypassButton { "Bypass" };
     juce::TextButton presetButton { "Presets" };
     juce::ComboBox presetCombo;

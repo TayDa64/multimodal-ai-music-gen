@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "When real-time FX routing is unsafe, label MIDI preview as unmastered and keep backend WAV as mastered reference",
+        "context": "For app-fx-mastering-preview-040, MixerGraph processBlock was deferred because master-chain input wiring, non-master bus routing, and graph mutation thread-safety are incomplete. The safe UX fix labels backend WAV playback as mastered audio/reference and MIDI-only playback as unmastered preview/fallback.",
+        "timestamp": "2026-05-14T20:03:51Z"
+      },
+      {
         "pattern": "Generated JUCE playback should load MIDI first for visualization, then load backend WAV to become the preferred playback source",
         "context": "For app mastering parity, MainComponent::onGenerationComplete keeps generated MIDI loaded for visualization/fallback, then calls AudioEngine::loadAudioFile(result.audioPath). AudioEngine renders AudioTransportSource while audio is playing and gates MIDI/track rendering with !shouldRenderAudioFile to avoid doubled playback.",
         "timestamp": "2026-05-14T19:44:24Z"
@@ -399,6 +404,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Defer MixerGraph processBlock until routing/thread-safety are hardened; label MIDI preview honestly now",
+      "rationale": "Calling processBlock naively could silence or misroute FX chains, mutate graph nodes while the audio thread processes, and risk applying +9 dB/default graph processing to mastered WAV playback. Honest labels close the immediate UX gap without destabilizing playback.",
+      "alternatives_considered": [
+        "Call mixerGraph.processBlock in AudioEngine immediately",
+        "Wire MasteringSuitePanel apply to backend without a process method",
+        "Do nothing after WAV playback parity"
+      ],
+      "timestamp": "2026-05-14T20:03:51Z"
+    },
     {
       "decision": "Close the app/mastering parity gap by preferring generated WAV playback before adding FluidSynth or deeper synthesis engines",
       "rationale": "The user-observed unmastered app sound was caused by a playback-path mismatch. Loading the mastered backend WAV into the app gives a truthful listening reference while retaining MIDI for visualization and fallback.",
@@ -929,5 +944,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T19:44:24Z"
+  "last_updated": "2026-05-14T20:03:51Z"
 }

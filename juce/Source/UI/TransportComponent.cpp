@@ -155,7 +155,8 @@ void TransportComponent::setupSliders()
                         currentPosition = 0.0;
                         updateTimeDisplay();
                         updateButtonStates();
-                        statusLabel.setText("Loaded: " + file.getFileName(), juce::dontSendNotification);
+                        statusLabel.setText("Loaded unmastered MIDI preview/fallback: " + file.getFileName(),
+                                            juce::dontSendNotification);
                         statusLabel.setColour(juce::Label::textColourId, AppColours::success);
                         
                         // Disable test tone when loading MIDI
@@ -361,7 +362,9 @@ void TransportComponent::playClicked()
     isPlaying = true;
     updateButtonStates();
     
-    statusLabel.setText(juce::String(hasLoadedAudio ? "Playing audio... (dur: " : "Playing MIDI... (dur: ")
+    statusLabel.setText(juce::String(hasLoadedAudio
+                                         ? "Playing mastered audio/reference... (dur: "
+                                         : "Playing unmastered MIDI preview/fallback... (dur: ")
                             + juce::String(duration, 1) + "s)", juce::dontSendNotification);
     statusLabel.setColour(juce::Label::textColourId, AppColours::success);
     
@@ -407,7 +410,12 @@ void TransportComponent::onGenerationProgress(const GenerationProgress& progress
 void TransportComponent::onGenerationCompleted(const juce::File& outputFile)
 {
     juce::MessageManager::callAsync([this, outputFile] {
-        statusLabel.setText("Ready: " + outputFile.getFileName(), juce::dontSendNotification);
+        const bool outputIsAudio = outputFile.hasFileExtension(".wav;.wave;.aiff;.aif;.flac;.mp3;.ogg");
+        const bool outputIsMidi = outputFile.hasFileExtension(".mid;.midi");
+        const juce::String readyPrefix = outputIsAudio
+            ? "Ready mastered audio/reference: "
+            : (outputIsMidi ? "Ready unmastered MIDI preview/fallback: " : "Ready: ");
+        statusLabel.setText(readyPrefix + outputFile.getFileName(), juce::dontSendNotification);
         statusLabel.setColour(juce::Label::textColourId, AppColours::success);
         
         // Get actual duration from AudioEngine if MIDI or audio is loaded
@@ -502,8 +510,12 @@ void TransportComponent::timerCallback()
         totalDuration = audioEngine.getTotalDuration();
         updateTimeDisplay();
         
-        // Show detailed playback debug status
-        statusLabel.setText(audioEngine.getPlaybackDebugStatus(), juce::dontSendNotification);
+        // Show detailed playback debug status with honest mastering-path labeling.
+        statusLabel.setText(juce::String(hasLoadedAudio
+                                             ? "Playing mastered audio/reference: "
+                                             : "Playing unmastered MIDI preview/fallback: ")
+                                + audioEngine.getPlaybackDebugStatus(),
+                            juce::dontSendNotification);
     }
     
     // Check if button states need update (e.g. if MIDI was loaded externally)
@@ -515,13 +527,15 @@ void TransportComponent::timerCallback()
         // Update status when playable media is loaded
         if (hasLoadedAudio)
         {
-            statusLabel.setText("Audio loaded: " + juce::String(audioEngine.getTotalDuration(), 1) + "s",
+            statusLabel.setText("Mastered audio/reference loaded: "
+                                   + juce::String(audioEngine.getTotalDuration(), 1) + "s",
                                juce::dontSendNotification);
             statusLabel.setColour(juce::Label::textColourId, AppColours::success);
         }
         else if (hasMidi)
         {
-            statusLabel.setText("MIDI loaded: " + juce::String(audioEngine.getTotalDuration(), 1) + "s", 
+            statusLabel.setText("Unmastered MIDI preview/fallback loaded: "
+                                   + juce::String(audioEngine.getTotalDuration(), 1) + "s",
                                juce::dontSendNotification);
             statusLabel.setColour(juce::Label::textColourId, AppColours::success);
         }

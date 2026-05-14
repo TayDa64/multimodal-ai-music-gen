@@ -808,3 +808,58 @@ Results:
 ### Remaining follow-up
 
 This closes recommendation 1. The next highest-priority recommendation is to make the app FX/mastering path explicit: either route live MIDI/sampler playback through `MixerGraph::processBlock()` and wire `MasteringSuitePanel` to real processing, or clearly label the MIDI path as an unmastered preview while the generated WAV remains the mastered playback reference.
+
+## App FX/mastering preview honesty implementation — 2026-05-14
+
+Status: **implemented and verified** for the safe half of recommendation 2.
+
+### Decision
+
+The live `MixerGraph::processBlock()` route was intentionally **not** enabled in this slice. Source review found that the current graph mutation/routing path needs hardening before it can safely process the real-time MIDI/sampler preview:
+
+- `MixerGraph::reconnectFXChain()` only handles the `master` bus and does not wire `drums`, `bass`, or `melodic` buses as real-time buses yet.
+- Master-chain reconnect removes connections into the master gain node and connects the last FX node to master gain, but the input/track-output-to-first-FX wiring is still incomplete.
+- `MainComponent::fxChainChanged()` mutates the graph from the UI/message path while the audio callback would process it if `processBlock()` were added, so graph update thread-safety needs an explicit design.
+- The default master graph gain is `+9 dB`, which must never be applied to backend-mastered WAV playback.
+
+Given those risks, this slice chose the safe/explicit path from the plan: **the generated WAV is labeled as the mastered backend reference, and MIDI playback is labeled as an unmastered preview/fallback until real-time FX routing is implemented.**
+
+### What changed
+
+- `juce/Source/UI/TransportComponent.cpp`
+  - Audio playback/status now says `mastered audio/reference`.
+  - MIDI-only load/play/status now says `unmastered MIDI preview/fallback`.
+- `juce/Source/MainComponent.cpp`
+  - Generation completion now labels `audioPath` as `Generated mastered audio (backend)` or `Loaded mastered audio/reference`.
+  - MIDI fallback/visualization path is labeled `unmastered MIDI preview/fallback`.
+  - Completion-message text distinguishes `Mastered audio reference (backend)` from `Unmastered MIDI preview/fallback`.
+  - Recent-file selection status also labels audio vs MIDI accordingly.
+- `juce/Source/UI/Mastering/MasteringSuitePanel.h/.cpp`
+  - Added a visible header notice: `WAV: backend mastered | Live MIDI: unmastered (controls not in preview yet)`.
+  - Added tooltip text clarifying that generated WAV playback uses backend mastering and live MIDI preview is not processed by those controls yet.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+Select-String -Path juce\Source\Audio\AudioEngine.cpp -Pattern "mixerGraph\.processBlock"
+Select-String -Path juce\Source\UI\TransportComponent.cpp,juce\Source\MainComponent.cpp,juce\Source\UI\Mastering\MasteringSuitePanel.* -Pattern "unmastered|mastered"
+npm run build:debug
+npm run build
+.\.venv\Scripts\python.exe -m pytest tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+git diff --check
+```
+
+Results:
+
+- `AudioEngine.cpp` contains **no** new `mixerGraph.processBlock` call.
+- Expected `mastered`/`unmastered` labels are present in Transport, MainComponent, and MasteringSuitePanel.
+- Debug build: `PASS`.
+- Release build: `PASS` with existing warning noise only.
+- Focused backend/protocol/golden tests: `65 passed, 6 existing librosa warnings`.
+- `git diff --check`: `PASS`.
+
+### Remaining follow-up
+
+Recommendation 2 is now honest in the UI, but not fully real-time processed. A future real-time FX/mastering slice should first harden `MixerGraph` routing and thread-safety, then route **only** unmastered live MIDI/sampler preview through the graph while keeping backend-mastered WAV playback untouched.

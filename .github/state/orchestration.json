@@ -1,11 +1,53 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-app-mastered-wav-playback-parity-039",
-    "started": "2026-05-14T19:25:32Z",
-    "user_request": "Continue with the highest priority recommendations from UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md."
+    "id": "session-2026-05-14-app-fx-mastering-preview-040",
+    "started": "2026-05-14T19:49:23Z",
+    "user_request": "Continue with the highest priority recommendations from UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md after mastered WAV playback parity."
   },
   "task_queue": [
+    {
+      "id": "app-fx-mastering-preview-040",
+      "description": "Make the app FX/mastering path explicit after WAV playback parity: either route live MIDI preview through existing MixerGraph safely or label MIDI preview as unmastered while keeping mastered WAV as reference",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "juce\\Source\\Audio\\AudioEngine.h",
+        "juce\\Source\\Audio\\AudioEngine.cpp",
+        "juce\\Source\\Audio\\MixerGraph.cpp",
+        "juce\\Source\\MainComponent.cpp",
+        "juce\\Source\\UI\\TransportComponent.cpp",
+        "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T19:49:23Z",
+      "updated": "2026-05-14T20:03:51Z",
+      "result": {
+        "summary": "Made app playback/mastering labels explicit: backend WAV playback is identified as mastered audio/reference, while MIDI-only playback is identified as unmastered preview/fallback. Added MasteringSuitePanel notice that live MIDI preview is not processed by those controls yet.",
+        "decision": "Chose safe labeling path instead of adding mixerGraph.processBlock because current MixerGraph routing and graph-update thread-safety need hardening first.",
+        "files_changed": [
+          "juce/Source/MainComponent.cpp",
+          "juce/Source/UI/TransportComponent.cpp",
+          "juce/Source/UI/Mastering/MasteringSuitePanel.h",
+          "juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+        ],
+        "verification": {
+          "pre_verifier": "PASS - identified MixerGraph processBlock risks and recommended explicit unmastered MIDI preview labeling.",
+          "post_verifier": "PASS - verified labels in Transport/Main/MasteringSuitePanel, no AudioEngine mixerGraph.processBlock, git diff --check, diagnostics, and Debug build.",
+          "debug_build": "PASS - npm run build:debug",
+          "release_build": "PASS - npm run build",
+          "focused_pytest": "PASS - 65 passed, 6 existing librosa warnings for protocol/smoke/golden tests.",
+          "git_diff_check": "PASS",
+          "state_json_valid": "PASS"
+        },
+        "next_recommendation": "Fix rock app instrument preview parity / guitar category mapping, then FluidSynth/SoundFont proof slice."
+      }
+    },
     {
       "id": "app-mastered-wav-playback-parity-039",
       "description": "Implement JUCE app playback parity by preferring backend-rendered WAV/audio output for generated songs while preserving MIDI preview fallback",
