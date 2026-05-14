@@ -1129,3 +1129,66 @@ Results:
 
 - Add a safe CLI/runtime switch for exact smoke isolation if we want full-prompt FluidSynth proof without the heavy expansion bootstrap and default custom drum/sample auto-load.
 - Improve the controlled rock MIDI/analyzer fixture if future CI needs the proof artifact to pass rock audio analysis as well as renderer-path assertions.
+
+## Procedural tempo-map / rendered silence-gap fix — 2026-05-14
+
+Status: **implemented and verified** for the reported periodic silent/low-level gaps in generated test songs. The controlled FluidSynth proof artifact still has intentional hand-authored rests, but the full generated/procedural 100 BPM rock WAV was not supposed to collapse into a low-level tail around the old 120 BPM-compressed endpoint.
+
+### Root cause
+
+- The generated rock MIDI stores `set_tempo=600000` (100 BPM) on the meta track / track 0.
+- `mido.MidiFile.length` correctly uses that global tempo map, so `_render_procedural()` sized the output buffer to the real song length: `38.719s` plus the configured tail.
+- `_render_track_procedural()` converted each note track independently with a local default tempo of `500000` microseconds per beat (120 BPM) unless that specific note track contained `set_tempo`.
+- Because the note tracks had no tempo messages, notes were rendered too early and ended near the 120 BPM-compressed position (`~32.266s`) while the buffer remained sized for the 100 BPM song, causing an audible/visible near-silent tail from roughly `33.7s` onward.
+
+### What changed
+
+- `multimodal_gen/audio_renderer.py`
+  - Added `DEFAULT_MIDI_TEMPO = 500000` and a `MidiTempoMap` helper.
+  - `MidiTempoMap.from_midi_file()` collects absolute-tick `set_tempo` events from all MIDI tracks and always provides the MIDI default tempo at tick 0 when needed.
+  - `MidiTempoMap.tick_to_sample()` and `tick_delta_to_samples()` convert arbitrary absolute ticks to samples while honoring tempo changes.
+  - `_render_procedural()` now builds one global tempo map from the full MIDI file and passes it to every track render.
+  - `_render_track_procedural()` now uses the shared tempo map for note `start_sample` and `duration_samples`; if called directly without a map, it still builds a local map for backwards compatibility.
+  - `render_stems()` now uses the same global tempo map so stems stay aligned with the full mix.
+- `tests/test_audio_renderer.py`
+  - Added a regression where tempo exists only on track 0 at 100 BPM and notes live on track 1. The test captures `SynthNote` timing and verifies `start_sample == 423360` and `duration_samples == 52920`, explicitly rejecting the old 120 BPM fallback value `352800`.
+  - Added a control regression confirming files with no tempo event still use MIDI's default 120 BPM behavior.
+
+### Runtime proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+.\.venv\Scripts\python.exe -m pytest tests/test_audio_renderer.py -q
+.\.venv\Scripts\python.exe -m pytest tests/test_render_report_schema.py -q
+```
+
+Results:
+
+- `git diff --check`: `PASS`.
+- Audio renderer tests: `24 passed`, with 2 existing Python 3.13/audioread deprecation warnings.
+- Render report schema tests: `5 passed`.
+- VS Code diagnostics for touched Python files: no errors.
+- Post-verifier: `PASS_WITH_NITS`; the only nits were lack of a dedicated `render_stems()` regression and an unrelated intermittent native `numba/llvmlite` abort in an older output-analysis path.
+
+Artifact comparison:
+
+- MIDI: `output\_diagnostics\rock_1990s_20260514_091707\rock_100.0bpm_Eminor_20260514_091711.mid`
+- Old WAV: `output\_diagnostics\rock_1990s_20260514_091707\rock_100.0bpm_Eminor_20260514_091711.wav`
+  - Duration: `40.719s`.
+  - First long section below `-45 dBFS`: `33.7s → 40.7s`.
+  - Last active window: `33.675s`.
+- Fixed WAV: `output\gap_fix_proof\rock_100bpm_Eminor_tempo_map_fix.wav`
+  - Duration: `40.719s`.
+  - First long section below `-45 dBFS`: `null`.
+  - Last active window: `40.175s`.
+  - Render report: `output\gap_fix_proof\rock_100bpm_Eminor_tempo_map_fix_render_report.json`
+  - `renderer_path="procedural"`, `render_status.success=true`.
+
+### Interpretation
+
+The answer to the listening question is therefore split:
+
+- **Controlled FluidSynth proof gaps:** expected for that tiny hand-authored technical proof MIDI because it contains rests.
+- **Full generated/procedural rock-song gaps or long near-silent tails:** **not expected**. They were a procedural tempo-map bug and are now fixed by sharing the global MIDI tempo map across note tracks and stems.

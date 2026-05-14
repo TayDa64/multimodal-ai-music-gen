@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Procedural MIDI renderers must share a global tempo map across tracks",
+        "context": "For render-silence-gap-analysis-045, generated rock MIDI stored 100 BPM tempo only on track 0/meta while note tracks had no set_tempo. Procedural note rendering had been using the per-track default 120 BPM, creating early note collapse and a long low-level tail. MidiTempoMap now collects tempo events across all tracks and is shared by full-mix and stem rendering.",
+        "timestamp": "2026-05-14T22:40:00Z"
+      },
+      {
         "pattern": "Windows portable FluidSynth needs short-option detection and options-before-files rendering",
         "context": "For external-fluidsynth-soundfont-proof-044, the official FluidSynth 2.4.7 Windows portable build rejected --version and failed/hung when -F/-r appeared after SoundFont/MIDI filenames. Detection now falls back to -V, and render commands use split -n/-i with -F and -r before the SoundFont and MIDI positional arguments.",
         "timestamp": "2026-05-14T21:52:00Z"

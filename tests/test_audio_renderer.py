@@ -1,5 +1,6 @@
 """Focused regressions for first-class guitar rendering/routing."""
 
+import mido
 import numpy as np
 
 from multimodal_gen.assets_gen import generate_guitar_tone
@@ -34,6 +35,71 @@ def _bass_note(program: int, pitch: int = 40, duration_samples: int = 11025) -> 
         channel=1,
         program=program,
     )
+
+
+def _save_two_track_tempo_midi(path, *, tempo: int | None = None, start_tick: int = 7680, duration_ticks: int = 960):
+    midi = mido.MidiFile(ticks_per_beat=480)
+
+    meta_track = mido.MidiTrack()
+    meta_track.append(mido.MetaMessage('track_name', name='Meta', time=0))
+    if tempo is not None:
+        meta_track.append(mido.MetaMessage('set_tempo', tempo=tempo, time=0))
+    midi.tracks.append(meta_track)
+
+    note_track = mido.MidiTrack()
+    note_track.append(mido.MetaMessage('track_name', name='Lead', time=0))
+    note_track.append(mido.Message('program_change', program=81, channel=0, time=0))
+    note_track.append(mido.Message('note_on', note=64, velocity=100, channel=0, time=start_tick))
+    note_track.append(mido.Message('note_off', note=64, velocity=0, channel=0, time=duration_ticks))
+    midi.tracks.append(note_track)
+
+    midi.save(path)
+    return midi
+
+
+def test_procedural_render_uses_global_meta_track_tempo_for_note_timing(monkeypatch, tmp_path):
+    midi_path = tmp_path / "meta_tempo_100bpm.mid"
+    _save_two_track_tempo_midi(midi_path, tempo=600000)  # 100 BPM on track 0 only
+
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="rock")
+    captured_notes = []
+
+    def fake_render_notes(notes, total_samples, is_drums=False):
+        captured_notes.extend(notes)
+        return np.zeros(total_samples, dtype=np.float32)
+
+    monkeypatch.setattr(renderer.procedural, "render_notes", fake_render_notes)
+    monkeypatch.setattr("multimodal_gen.audio_renderer.save_wav", lambda *args, **kwargs: True)
+
+    assert renderer._render_procedural(str(midi_path), str(tmp_path / "out.wav")) is True
+
+    assert len(captured_notes) == 1
+    note = captured_notes[0]
+    assert note.start_sample == 423360
+    assert note.duration_samples == 52920
+    assert note.start_sample != 352800  # The old per-track 120 BPM fallback.
+
+
+def test_procedural_render_defaults_to_120_bpm_without_any_tempo(monkeypatch, tmp_path):
+    midi_path = tmp_path / "default_tempo.mid"
+    _save_two_track_tempo_midi(midi_path, tempo=None)
+
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="rock")
+    captured_notes = []
+
+    def fake_render_notes(notes, total_samples, is_drums=False):
+        captured_notes.extend(notes)
+        return np.zeros(total_samples, dtype=np.float32)
+
+    monkeypatch.setattr(renderer.procedural, "render_notes", fake_render_notes)
+    monkeypatch.setattr("multimodal_gen.audio_renderer.save_wav", lambda *args, **kwargs: True)
+
+    assert renderer._render_procedural(str(midi_path), str(tmp_path / "out.wav")) is True
+
+    assert len(captured_notes) == 1
+    note = captured_notes[0]
+    assert note.start_sample == 352800
+    assert note.duration_samples == 44100
 
 
 def _sub_bass_ratio(audio: np.ndarray, sample_rate: int = 44100) -> float:

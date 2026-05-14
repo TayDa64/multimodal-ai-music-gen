@@ -609,6 +609,83 @@ class SynthNote:
     program: int = 0
 
 
+DEFAULT_MIDI_TEMPO = 500000  # 120 BPM, MIDI default microseconds per beat
+
+
+@dataclass(frozen=True)
+class MidiTempoMap:
+    """Convert absolute MIDI ticks using tempo events from the whole file."""
+    ticks_per_beat: int
+    entries: Tuple[Tuple[int, int], ...] = field(default_factory=lambda: ((0, DEFAULT_MIDI_TEMPO),))
+
+    @classmethod
+    def from_midi_file(cls, midi_file) -> "MidiTempoMap":
+        """Build a tempo map from every track in a mido MidiFile."""
+        return cls.from_tracks(getattr(midi_file, 'tracks', []), getattr(midi_file, 'ticks_per_beat', 480))
+
+    @classmethod
+    def from_track(cls, track, ticks_per_beat: int) -> "MidiTempoMap":
+        """Build a local tempo map for direct/backwards-compatible track rendering."""
+        return cls.from_tracks([track], ticks_per_beat)
+
+    @classmethod
+    def from_tracks(cls, tracks, ticks_per_beat: int) -> "MidiTempoMap":
+        """Collect absolute-tick set_tempo events and collapse same-tick updates."""
+        safe_tpb = max(int(ticks_per_beat or 480), 1)
+        events: List[Tuple[int, int, int, int]] = [(0, DEFAULT_MIDI_TEMPO, -1, -1)]
+
+        for track_index, track in enumerate(tracks or []):
+            absolute_tick = 0
+            for msg_index, msg in enumerate(track):
+                absolute_tick += int(getattr(msg, 'time', 0) or 0)
+                if getattr(msg, 'type', None) == 'set_tempo':
+                    tempo = int(getattr(msg, 'tempo', DEFAULT_MIDI_TEMPO) or DEFAULT_MIDI_TEMPO)
+                    events.append((max(0, absolute_tick), max(1, tempo), track_index, msg_index))
+
+        entries: List[Tuple[int, int]] = []
+        for absolute_tick, tempo, _track_index, _msg_index in sorted(events, key=lambda event: (event[0], event[2], event[3])):
+            if entries and entries[-1][0] == absolute_tick:
+                entries[-1] = (absolute_tick, tempo)
+            else:
+                entries.append((absolute_tick, tempo))
+
+        if not entries or entries[0][0] != 0:
+            entries.insert(0, (0, DEFAULT_MIDI_TEMPO))
+
+        return cls(ticks_per_beat=safe_tpb, entries=tuple(entries))
+
+    def tick_to_seconds(self, absolute_tick: int) -> float:
+        """Convert an absolute MIDI tick to seconds, honoring tempo changes."""
+        target_tick = max(0, int(absolute_tick or 0))
+        if target_tick == 0:
+            return 0.0
+
+        elapsed_us = 0.0
+        last_tick, last_tempo = self.entries[0]
+
+        for change_tick, change_tempo in self.entries[1:]:
+            if change_tick >= target_tick:
+                break
+            if change_tick > last_tick:
+                elapsed_us += (change_tick - last_tick) * last_tempo / self.ticks_per_beat
+            last_tick, last_tempo = change_tick, change_tempo
+
+        if target_tick > last_tick:
+            elapsed_us += (target_tick - last_tick) * last_tempo / self.ticks_per_beat
+
+        return elapsed_us / 1_000_000.0
+
+    def tick_to_sample(self, absolute_tick: int, sample_rate: int) -> int:
+        """Convert an absolute MIDI tick to an audio sample index."""
+        return int(self.tick_to_seconds(absolute_tick) * sample_rate)
+
+    def tick_delta_to_samples(self, start_tick: int, end_tick: int, sample_rate: int) -> int:
+        """Convert an absolute tick span to samples, honoring tempo changes inside it."""
+        start_seconds = self.tick_to_seconds(start_tick)
+        end_seconds = self.tick_to_seconds(max(start_tick, end_tick))
+        return int(max(0.0, end_seconds - start_seconds) * sample_rate)
+
+
 class ProceduralRenderer:
     """
     Renders MIDI to audio using procedural synthesis.
@@ -2196,6 +2273,8 @@ class AudioRenderer:
             self._capture_render_failure("midi_load_failed", exception=e)
             return False
         
+        tempo_map = MidiTempoMap.from_midi_file(midi)
+
         # Calculate total duration
         total_seconds = midi.length
         total_samples = int(total_seconds * self.sample_rate) + int(self.tail_seconds * self.sample_rate)
@@ -2215,7 +2294,8 @@ class AudioRenderer:
             track_audio = self._render_track_procedural(
                 track,
                 midi.ticks_per_beat,
-                total_samples
+                total_samples,
+                tempo_map=tempo_map
             )
             if track_audio is not None:
                 tracks_audio.append(track_audio)
@@ -2574,7 +2654,8 @@ class AudioRenderer:
         self,
         track,
         ticks_per_beat: int,
-        total_samples: int
+        total_samples: int,
+        tempo_map: Optional[MidiTempoMap] = None
     ) -> Optional[np.ndarray]:
         """Render a single MIDI track using procedural synthesis."""
         import mido
@@ -2591,8 +2672,8 @@ class AudioRenderer:
         if inferred_program is not None:
             current_program = inferred_program
         
-        # Tempo (default 120 BPM)
-        tempo = 500000  # microseconds per beat
+        if tempo_map is None:
+            tempo_map = MidiTempoMap.from_track(track, ticks_per_beat)
         
         # Collect note events
         pending_notes: Dict[int, Tuple[int, int]] = {}  # pitch -> (start_tick, velocity)
@@ -2600,10 +2681,7 @@ class AudioRenderer:
         for msg in track:
             current_tick += msg.time
             
-            if msg.type == 'set_tempo':
-                tempo = msg.tempo
-            
-            elif msg.type == 'program_change':
+            if msg.type == 'program_change':
                 current_program = msg.program
             
             elif msg.type == 'note_on' and msg.velocity > 0:
@@ -2619,12 +2697,8 @@ class AudioRenderer:
                     duration_ticks = current_tick - start_tick
                     
                     # Convert to samples
-                    us_per_tick = tempo / ticks_per_beat
-                    start_us = start_tick * us_per_tick
-                    duration_us = duration_ticks * us_per_tick
-                    
-                    start_sample = int(start_us / 1_000_000 * self.sample_rate)
-                    duration_samples = int(duration_us / 1_000_000 * self.sample_rate)
+                    start_sample = tempo_map.tick_to_sample(start_tick, self.sample_rate)
+                    duration_samples = tempo_map.tick_delta_to_samples(start_tick, current_tick, self.sample_rate)
                     
                     notes.append(SynthNote(
                         pitch=msg.note,
@@ -2928,6 +3002,7 @@ class AudioRenderer:
         except Exception:
             return stems
         
+        tempo_map = MidiTempoMap.from_midi_file(midi)
         total_seconds = midi.length
         total_samples = int(total_seconds * self.sample_rate) + int(self.tail_seconds * self.sample_rate)
         
@@ -2952,7 +3027,8 @@ class AudioRenderer:
             audio = self._render_track_procedural(
                 track,
                 midi.ticks_per_beat,
-                total_samples
+                total_samples,
+                tempo_map=tempo_map
             )
             
             if audio is not None:
