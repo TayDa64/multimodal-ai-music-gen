@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Windows portable FluidSynth needs short-option detection and options-before-files rendering",
+        "context": "For external-fluidsynth-soundfont-proof-044, the official FluidSynth 2.4.7 Windows portable build rejected --version and failed/hung when -F/-r appeared after SoundFont/MIDI filenames. Detection now falls back to -V, and render commands use split -n/-i with -F and -r before the SoundFont and MIDI positional arguments.",
+        "timestamp": "2026-05-14T21:52:00Z"
+      },
+      {
+        "pattern": "Local SoundFont proof assets should be discoverable but ignored and uncommitted",
+        "context": "For external-fluidsynth-soundfont-proof-044, FluidR3Mono_GM.sf3 was downloaded under assets/soundfonts for local proof, SHA256 2AACD036D7058D40A371846EF2F5DC5F130D648AB3837FE2626591BA49A71254, discovered by --diagnose-audio, and verified as ignored via git status (!!). Code and docs support .sf3 without vendoring the binary asset.",
+        "timestamp": "2026-05-14T21:52:00Z"
+      },
+      {
         "pattern": "Post-render external WAV paths can share backend mastering through a file-level mastering pass with prefixed pipeline diagnostics",
         "context": "For post-fluidsynth-mastering-parity-043, successful FluidSynth WAVs now run _apply_file_level_mastering before texture post-processing. The method records fluidsynth_file_mastering.* stages and lets the render remain successful with a warning if mastering fails. Tests monkeypatch FluidSynth to avoid external binary/SoundFont dependencies.",
         "timestamp": "2026-05-14T21:15:37Z"
@@ -989,5 +999,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T21:15:37Z"
+  "last_updated": "2026-05-14T21:19:17Z"
 }

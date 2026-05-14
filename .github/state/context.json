@@ -1,7 +1,84 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-post-fluidsynth-mastering-parity-043",
+  "session_id": "session-2026-05-14-external-fluidsynth-soundfont-proof-044",
   "files_touched": [
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked external-fluidsynth-soundfont-proof-044 completed with external assets, runtime proof, and verification results."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Windows portable FluidSynth no-getopt pattern and local ignored SF3 proof-asset pattern."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded files touched, changes, proof artifacts, and verification for milestone 044."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added --version/-V detection fallback, .sf3 discovery, disabled-renderer SoundFont reporting guard, .sf2/.sf3 messages, and no-getopt-safe FluidSynth command ordering."
+    },
+    {
+      "path": "multimodal_gen\\synthesizers\\fluidsynth_synth.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Mirrored FluidSynth -V detection fallback, .sf3 discovery, no-getopt-safe render command ordering, and render timeout in the synthesizer wrapper."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Updated --soundfont help text to mention .sf2/.sf3 files."
+    },
+    {
+      "path": "assets\\soundfonts\\README.md",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Updated setup docs for .sf3 SoundFonts and Windows portable fluidsynth -V verification."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added FluidSynth detection fallback, SF3 discovery, and options-before-files command-ordering regressions."
+    },
+    {
+      "path": "tests\\test_synthesizers.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added synthesizer wrapper regressions for -V fallback, no-getopt-safe render ordering, and timeout."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded external FluidSynth/SF3 runtime proof, command-ordering root cause, artifacts, diagnostics, and remaining follow-up."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T21:19:17Z",
+      "by_agent": "supervisor",
+      "changes": "Opened external-fluidsynth-soundfont-proof-044 task."
+    },
     {
       "path": "multimodal_gen\\audio_renderer.py",
       "action": "modified",
@@ -2358,6 +2435,20 @@
   "verifications": [
     {
       "type": "post",
+      "target": "external-fluidsynth-soundfont-proof-044",
+      "result": "PASS",
+      "details": "Portable FluidSynth 2.4.7 detected via -V; FluidR3Mono_GM.sf3 discovered and ignored; controlled AudioRenderer proof produced renderer_path=fluidsynth, fluidsynth.success=true, render_status.success=true, and fluidsynth_file_mastering.status=applied with auto_gain and true_peak stages; git diff --check PASS; focused pytest 52 passed.",
+      "timestamp": "2026-05-14T21:52:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "external-fluidsynth-soundfont-proof-044",
+      "result": "PENDING",
+      "details": "Pre-check found clean repo, fluidsynth missing, choco/winget/curl available, and assets/soundfonts contains only README.md.",
+      "timestamp": "2026-05-14T21:19:17Z"
+    },
+    {
+      "type": "post",
       "target": "post-fluidsynth-mastering-parity-043",
       "result": "PASS",
       "details": "Pre-verifier NOT_IMPLEMENTED, post-verifier required stage reset, final checks passed: git diff --check, 16 focused audio/render-report tests, 27 smoke/golden tests, diagnostics clean.",
@@ -3109,5 +3200,13 @@
       "tests/test_golden_prompts_smoke.py tests/test_smoke_1990s_rock_contract.py - 26 passed",
       "git diff --check - PASS"
     ]
-  }
+  },
+  "changes": [
+    {
+      "file": "external-fluidsynth-soundfont-proof-044",
+      "description": "Completed local external FluidSynth/SoundFont proof without committing binaries: fixed Windows portable command behavior, added SF3 support, generated real FluidSynth WAV proof, and documented/state-recorded the milestone.",
+      "diff_summary": "audio_renderer.py and fluidsynth_synth.py now support -V fallback, .sf3 discovery, no-getopt-safe options-first render commands, and tests/docs/state capture the proof.",
+      "timestamp": "2026-05-14T21:52:00Z"
+    }
+  ]
 }

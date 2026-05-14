@@ -344,3 +344,232 @@ def test_apply_file_level_mastering_unit(tmp_path):
     # Should have at least one mastering stage beyond status
     stage_keys = [k for k in renderer._pipeline_stages.keys() if k.startswith("test_master.")]
     assert len(stage_keys) >= 2, f"Should have multiple stages recorded, got: {stage_keys}"
+
+
+# ============================================================================
+# FluidSynth Detection Tests (Windows portable fallback)
+# ============================================================================
+
+def test_check_fluidsynth_available_with_long_option(monkeypatch):
+    """Test detection when modern --version works."""
+    from multimodal_gen.audio_renderer import check_fluidsynth_available
+    import subprocess
+
+    call_count = [0]
+
+    def fake_run(cmd, **kwargs):
+        call_count[0] += 1
+        result = subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
+        return result
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    available = check_fluidsynth_available()
+
+    assert available is True
+    assert call_count[0] == 1  # Should succeed on first try
+
+
+def test_check_fluidsynth_available_fallback_to_short_option(monkeypatch):
+    """Test fallback to -V when --version fails (Windows portable build)."""
+    from multimodal_gen.audio_renderer import check_fluidsynth_available
+    import subprocess
+
+    call_count = [0]
+
+    def fake_run(cmd, **kwargs):
+        call_count[0] += 1
+        if '--version' in cmd:
+            # Windows portable build rejects long options
+            result = subprocess.CompletedProcess(
+                args=cmd,
+                returncode=1,
+                stdout="",
+                stderr="This version was compiled without getopt support. Unknown switch.\n"
+            )
+        elif '-V' in cmd:
+            # Short option works
+            result = subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
+        else:
+            result = subprocess.CompletedProcess(args=cmd, returncode=1, stdout="", stderr="")
+        return result
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    available = check_fluidsynth_available()
+
+    assert available is True
+    assert call_count[0] == 2  # Should try both options
+
+
+def test_check_fluidsynth_not_found(monkeypatch):
+    """Test when FluidSynth binary is not in PATH."""
+    from multimodal_gen.audio_renderer import check_fluidsynth_available
+
+    def fake_run(cmd, **kwargs):
+        raise FileNotFoundError("fluidsynth not found")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    available = check_fluidsynth_available()
+
+    assert available is False
+
+
+def test_get_fluidsynth_version_with_long_option(monkeypatch):
+    """Test version retrieval when modern --version works."""
+    from multimodal_gen.audio_renderer import get_fluidsynth_version
+    import subprocess
+
+    def fake_run(cmd, **kwargs):
+        result = subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
+        return result
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    version = get_fluidsynth_version()
+
+    assert version == "FluidSynth 2.4.7"
+
+
+def test_get_fluidsynth_version_fallback_to_short_option(monkeypatch):
+    """Test version retrieval with fallback to -V (Windows portable build)."""
+    from multimodal_gen.audio_renderer import get_fluidsynth_version
+    import subprocess
+
+    def fake_run(cmd, **kwargs):
+        if '--version' in cmd:
+            result = subprocess.CompletedProcess(
+                args=cmd,
+                returncode=1,
+                stdout="",
+                stderr="This version was compiled without getopt support.\n"
+            )
+        elif '-V' in cmd:
+            result = subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
+        else:
+            result = subprocess.CompletedProcess(args=cmd, returncode=1, stdout="", stderr="")
+        return result
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    version = get_fluidsynth_version()
+
+    assert version == "FluidSynth 2.4.7"
+
+
+def test_get_fluidsynth_version_not_found(monkeypatch):
+    """Test version retrieval when FluidSynth binary is not in PATH."""
+    from multimodal_gen.audio_renderer import get_fluidsynth_version
+
+    def fake_run(cmd, **kwargs):
+        raise FileNotFoundError("fluidsynth not found")
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+
+    version = get_fluidsynth_version()
+
+    assert version is None
+
+
+def test_find_soundfont_discovers_sf3_before_sf2(monkeypatch):
+    """Test that find_soundfont discovers .sf3 files with priority over .sf2."""
+    from multimodal_gen.audio_renderer import find_soundfont
+    import os
+
+    def fake_exists(path):
+        # Simulate FluidR3Mono_GM.sf3 exists in assets/soundfonts/
+        if path.endswith('FluidR3Mono_GM.sf3'):
+            return True
+        return False
+
+    monkeypatch.setattr(os.path, 'exists', fake_exists)
+
+    result = find_soundfont()
+
+    assert result is not None
+    assert result.endswith('FluidR3Mono_GM.sf3')
+    assert 'assets' in result or 'soundfonts' in result
+
+
+def test_find_soundfont_discovers_ms_basic_sf3(monkeypatch):
+    """Test that find_soundfont discovers MS Basic.sf3."""
+    from multimodal_gen.audio_renderer import find_soundfont
+    import os
+
+    def fake_exists(path):
+        if path.endswith('MS Basic.sf3'):
+            return True
+        return False
+
+    monkeypatch.setattr(os.path, 'exists', fake_exists)
+
+    result = find_soundfont()
+
+    assert result is not None
+    assert result.endswith('MS Basic.sf3')
+
+
+def test_find_soundfont_falls_back_to_sf2(monkeypatch):
+    """Test that find_soundfont still discovers .sf2 files when .sf3 not available."""
+    from multimodal_gen.audio_renderer import find_soundfont
+    import os
+
+    def fake_exists(path):
+        # No .sf3 files exist, but FluidR3_GM.sf2 does
+        if path.endswith('FluidR3_GM.sf2'):
+            return True
+        return False
+
+    monkeypatch.setattr(os.path, 'exists', fake_exists)
+
+    result = find_soundfont()
+
+    assert result is not None
+    assert result.endswith('FluidR3_GM.sf2')
+
+
+def test_find_soundfont_returns_none_when_no_soundfont(monkeypatch):
+    """Test that find_soundfont returns None when no soundfont exists."""
+    from multimodal_gen.audio_renderer import find_soundfont
+    import os
+
+    def fake_exists(path):
+        return False
+
+    monkeypatch.setattr(os.path, 'exists', fake_exists)
+
+    result = find_soundfont()
+
+    assert result is None
+
+
+def test_render_midi_with_fluidsynth_uses_options_before_files(monkeypatch, tmp_path):
+    """Windows portable FluidSynth requires options before SoundFont/MIDI files."""
+    from multimodal_gen.audio_renderer import render_midi_with_fluidsynth
+    import os
+    import subprocess
+
+    captured = {}
+    midi_path = str(tmp_path / "song.mid")
+    wav_path = str(tmp_path / "song.wav")
+    sf_path = str(tmp_path / "FluidR3Mono_GM.sf3")
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+    def fake_exists(path):
+        return path == wav_path
+
+    monkeypatch.setattr("subprocess.run", fake_run)
+    monkeypatch.setattr(os.path, "exists", fake_exists)
+
+    assert render_midi_with_fluidsynth(midi_path, wav_path, sf_path, sample_rate=48000) is True
+
+    cmd = captured["cmd"]
+    assert "-ni" not in cmd
+    assert cmd[:7] == ["fluidsynth", "-n", "-i", "-F", wav_path, "-r", "48000"]
+    assert cmd[-2:] == [sf_path, midi_path]
+    assert captured["kwargs"]["timeout"] == 60

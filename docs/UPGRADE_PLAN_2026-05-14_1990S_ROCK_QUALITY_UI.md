@@ -915,7 +915,9 @@ Recommendation 3 is now covered for the app preview/category-mapping surface and
 
 ## FluidSynth/SoundFont proof guardrails — 2026-05-14
 
-Status: **implemented and verified** for the code/documentation half of recommendation 4. The local runtime proof shows FluidSynth and a SoundFont are still **not installed** on this machine, so this slice intentionally did not vendor or download third-party binaries.
+Status: **implemented and verified** for the code/documentation half of recommendation 4. The local runtime proof at this point showed FluidSynth and a SoundFont were still **not installed** on this machine, so this slice intentionally did not vendor or download third-party binaries.
+
+> 2026-05-14 update: this environment-only limitation was superseded by the later external runtime proof below. The repo still does not vendor SoundFont binaries; the local `.sf3` asset remains ignored.
 
 ### Environment proof
 
@@ -1025,3 +1027,105 @@ Results:
 ### Remaining follow-up
 
 This closes the post-FluidSynth mastering parity code path, but real end-to-end SoundFont timbre proof still requires installing the external FluidSynth binary and placing a licensed SoundFont under `assets/soundfonts/` or passing `--soundfont`. Once that environment is available, run the 1990s rock smoke and inspect `smoke_summary.json.renderer_diagnostics.renderer_path == "fluidsynth"` plus the render report `pipeline_stages.fluidsynth_file_mastering.*` entries.
+
+## External FluidSynth/SoundFont runtime proof — 2026-05-14
+
+Status: **implemented and verified** for recommendation 4's external runtime half and recommendation 5's real-file proof. The machine now has a local portable FluidSynth binary and a licensed local SoundFont asset, but neither binary nor SoundFont is committed to the repo.
+
+### External assets and licensing posture
+
+- FluidSynth binary: `C:\dev\MUSE-ai\tools\fluidsynth-2.4.7-win10-x64\bin\fluidsynth.exe`
+  - `fluidsynth -V` reports `FluidSynth runtime version 2.4.7` / `FluidSynth executable version 2.4.7`.
+  - Important Windows-portable finding: this official build is compiled without getopt support. It rejects long options such as `--version`, and it requires FluidSynth render options before positional SoundFont/MIDI arguments.
+- Local SoundFont: `assets\soundfonts\FluidR3Mono_GM.sf3`
+  - Size: `23712790` bytes.
+  - SHA256: `2AACD036D7058D40A371846EF2F5DC5F130D648AB3837FE2626591BA49A71254`.
+  - License source: MuseScore/FluidR3Mono-derived MIT notices were checked from the upstream SoundFont documentation.
+  - Git status proof: `!! assets/soundfonts/FluidR3Mono_GM.sf3`, so the local SoundFont remains ignored and uncommitted.
+
+### What changed
+
+- `multimodal_gen/audio_renderer.py`
+  - `check_fluidsynth_available()` and `get_fluidsynth_version()` now try `--version` first, then fall back to `-V` for Windows portable builds.
+  - `find_soundfont()` now discovers `.sf3` SoundFonts before falling back to existing `.sf2` names.
+  - `render_midi_with_fluidsynth()` now constructs a no-getopt-safe command: split `-n`/`-i`, put `-F` and `-r` before SoundFont/MIDI, then pass SoundFont and MIDI as positional arguments. This prevents the Windows portable build from interpreting render options as filenames or dropping into a shell.
+  - When `use_fluidsynth=False`, default SoundFont discovery is no longer reported in disabled-renderer diagnostics.
+- `multimodal_gen/synthesizers/fluidsynth_synth.py`
+  - Mirrors the `-V` detection fallback, `.sf3` discovery, options-first command ordering, and render timeout for the synthesizer abstraction wrapper.
+- `main.py` and `assets/soundfonts/README.md`
+  - User-facing SoundFont help/docs now include `.sf3`.
+  - README documents the `fluidsynth -V` fallback for official Windows portable builds.
+- Tests
+  - Added regression coverage for `--version`/`-V` detection, `.sf3` discovery, no-getopt-safe command ordering, and wrapper timeout behavior.
+
+### Runtime diagnostics proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE` with `C:\dev\MUSE-ai\tools\fluidsynth-2.4.7-win10-x64\bin` prepended to `PATH`:
+
+```powershell
+Get-Command fluidsynth
+fluidsynth -V
+Get-FileHash assets\soundfonts\FluidR3Mono_GM.sf3 -Algorithm SHA256
+git status --short --ignored --untracked-files=all assets/soundfonts
+.\.venv\Scripts\python.exe main.py --diagnose-audio
+```
+
+Results:
+
+- `Get-Command fluidsynth`: `C:\dev\MUSE-ai\tools\fluidsynth-2.4.7-win10-x64\bin\fluidsynth.exe`.
+- `main.py --diagnose-audio` reports:
+  - `fluidsynth.available=true`
+  - `fluidsynth.version` includes `FluidSynth runtime version 2.4.7` and `Sample type=float`
+  - `soundfont.discovered="./assets/soundfonts/FluidR3Mono_GM.sf3"`
+  - `soundfonts_dir_exists=true`
+  - `default_audio_file_count=1485`
+
+### Real renderer-path proof
+
+The first exact full-CLI rock attempt used an explicit empty instrument directory to avoid the custom-drum skip condition, but it stalled in unrelated expansion/instrument registration chatter before reaching the render proof. Rather than misreport that as a FluidSynth failure, the verified proof used a controlled rock MIDI that bypasses expansion bootstrap while exercising the same `AudioRenderer.render_midi_file()` FluidSynth branch and the same file-level mastering pass.
+
+Artifacts:
+
+- MIDI: `output\external_fluidsynth\controlled_renderer_proof\rock_controlled_input.mid`
+- WAV: `output\external_fluidsynth\controlled_renderer_proof\rock_controlled_fluidsynth.wav`
+- Render report: `output\external_fluidsynth\controlled_renderer_proof\rock_controlled_render_report.json`
+
+Render report proof:
+
+- `renderer_path="fluidsynth"`
+- `fluidsynth.available=true`
+- `fluidsynth.attempted=true`
+- `fluidsynth.success=true`
+- `fluidsynth.skip_reason=null`
+- `soundfont_path="assets\\soundfonts\\FluidR3Mono_GM.sf3"`
+- `render_status.success=true`
+- WAV size: `6778924` bytes
+- `estimated_lufs=-20.5`
+- `peak_dbfs=-1.3`
+- `pipeline_stages.fluidsynth_file_mastering.status="applied"`
+- `pipeline_stages.fluidsynth_file_mastering.auto_gain_staging="target=-14.0"`
+- `pipeline_stages.fluidsynth_file_mastering.true_peak_limiter="ceiling=-1.0dBTP"`
+
+Important interpretation: the controlled proof's `audio_analysis.passed=false` is not a FluidSynth-path failure. It reflects the intentionally tiny hand-authored MIDI used for renderer proof (`genre_match_score=0.58`, analyzer says snare/hihat evidence is weak and top end is bright). The proof objective here was external renderer selection, SoundFont use, and post-FluidSynth mastering parity; full musical rock-quality validation remains the strict 1990s rock generation smoke.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+.\.venv\Scripts\python.exe -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py tests/test_synthesizers.py -q
+```
+
+Results:
+
+- `git diff --check`: `PASS`.
+- Focused tests: `52 passed`, with 2 existing Python 3.13/audioread deprecation warnings.
+- Manual command proof:
+  - Positional-first/attached attempts timed out and logged `fluid_is_soundfont(): fopen() failed: 'File does not exist.'`
+  - Options-first command `fluidsynth -n -i -F <wav> -r 48000 <sf3> <midi>` exited `0` and wrote a `7376940` byte WAV.
+
+### Remaining follow-up
+
+- Add a safe CLI/runtime switch for exact smoke isolation if we want full-prompt FluidSynth proof without the heavy expansion bootstrap and default custom drum/sample auto-load.
+- Improve the controlled rock MIDI/analyzer fixture if future CI needs the proof artifact to pass rock audio analysis as well as renderer-path assertions.

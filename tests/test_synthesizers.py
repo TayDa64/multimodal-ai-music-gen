@@ -283,3 +283,62 @@ class TestFluidSynthSynthesizer:
         
         assert isinstance(caps, dict)
         assert 'soundfonts' in caps
+
+    def test_version_detection_falls_back_to_short_option(self, monkeypatch):
+        """Windows portable FluidSynth may reject --version but accept -V."""
+        from multimodal_gen.synthesizers import FluidSynthSynthesizer
+        import subprocess
+
+        calls = []
+
+        def fake_run(cmd, **kwargs):
+            calls.append(cmd)
+            if '--version' in cmd:
+                return subprocess.CompletedProcess(args=cmd, returncode=1, stdout='', stderr='no getopt')
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout='FluidSynth 2.4.7\n', stderr='')
+
+        monkeypatch.setattr('subprocess.run', fake_run)
+
+        synth = FluidSynthSynthesizer()
+
+        assert synth.is_available is True
+        assert synth.version == 'FluidSynth 2.4.7'
+        assert calls == [['fluidsynth', '--version'], ['fluidsynth', '-V']]
+
+    def test_render_midi_file_uses_options_before_files(self, monkeypatch, tmp_path):
+        """FluidSynthSynthesizer should use no-getopt-safe option ordering."""
+        from multimodal_gen.synthesizers import FluidSynthSynthesizer
+        import os
+        import subprocess
+        import sys
+        import types
+        import numpy as np
+
+        captured = {}
+        midi_path = str(tmp_path / 'song.mid')
+        wav_path = str(tmp_path / 'song.wav')
+        sf_path = str(tmp_path / 'FluidR3Mono_GM.sf3')
+
+        def fake_exists(path):
+            return path in {midi_path, wav_path, sf_path}
+
+        def fake_run(cmd, **kwargs):
+            captured.setdefault('cmds', []).append(cmd)
+            captured.setdefault('kwargs', []).append(kwargs)
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout='FluidSynth 2.4.7\n', stderr='')
+
+        fake_soundfile = types.SimpleNamespace(read=lambda path: (np.zeros((8, 2), dtype=np.float32), 48000))
+
+        monkeypatch.setattr(os.path, 'exists', fake_exists)
+        monkeypatch.setattr('subprocess.run', fake_run)
+        monkeypatch.setitem(sys.modules, 'soundfile', fake_soundfile)
+
+        synth = FluidSynthSynthesizer(soundfont_path=sf_path)
+        result = synth.render_midi_file(midi_path, wav_path, sample_rate=48000)
+
+        assert result.success is True
+        render_cmd = captured['cmds'][-1]
+        assert '-ni' not in render_cmd
+        assert render_cmd[:7] == ['fluidsynth', '-n', '-i', '-F', wav_path, '-r', '48000']
+        assert render_cmd[-2:] == [sf_path, midi_path]
+        assert captured['kwargs'][-1]['timeout'] == 60

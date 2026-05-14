@@ -2823,7 +2823,7 @@ Server Mode (for JUCE integration):
     parser.add_argument(
         "--soundfont",
         type=str,
-        help="Path to SoundFont (.sf2) file for audio rendering",
+        help="Path to SoundFont (.sf2/.sf3) file for audio rendering",
     )
     parser.add_argument(
         "--require-soundfont",

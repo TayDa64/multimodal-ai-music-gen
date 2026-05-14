@@ -29,7 +29,7 @@ class FluidSynthSynthesizer(ISynthesizer):
         Initialize FluidSynth synthesizer.
         
         Args:
-            soundfont_path: Path to SoundFont (.sf2) file
+            soundfont_path: Path to SoundFont (.sf2/.sf3) file
             sample_rate: Output sample rate
             **kwargs: Additional options (ignored for forward compatibility)
         """
@@ -62,11 +62,24 @@ class FluidSynthSynthesizer(ISynthesizer):
             result = subprocess.run(
                 ['fluidsynth', '--version'],
                 capture_output=True,
-                text=True
+                text=True,
+                timeout=3,
             )
+            if result.returncode != 0:
+                # Official Windows portable builds can reject long options when
+                # compiled without getopt support. Fall back to the short flag.
+                result = subprocess.run(
+                    ['fluidsynth', '-V'],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                )
             self._fluidsynth_available = result.returncode == 0
-            self._version = (result.stdout or result.stderr).strip()
+            self._version = (result.stdout or result.stderr).strip() if result.returncode == 0 else None
         except FileNotFoundError:
+            self._fluidsynth_available = False
+            self._version = None
+        except Exception:
             self._fluidsynth_available = False
             self._version = None
     
@@ -137,7 +150,7 @@ class FluidSynthSynthesizer(ISynthesizer):
                     audio=np.array([]),
                     sample_rate=sample_rate,
                     success=False,
-                    message="No SoundFont (.sf2) file found"
+                    message="No SoundFont (.sf2/.sf3) file found"
                 )
         
         # Verify SoundFont exists
@@ -159,16 +172,20 @@ class FluidSynthSynthesizer(ISynthesizer):
             )
         
         try:
+            # Keep options before SoundFont/MIDI for Windows portable builds
+            # compiled without getopt support. Avoid bundled ``-ni``; split the
+            # flags so the process never drops into an interactive shell.
             cmd = [
                 'fluidsynth',
-                '-ni',                      # No interactive mode
-                soundfont,                  # SoundFont
-                midi_path,                  # Input MIDI
+                '-n',                       # No MIDI input driver
+                '-i',                       # No interactive shell
                 '-F', output_path,          # Output file
                 '-r', str(sample_rate),     # Sample rate
+                soundfont,                  # SoundFont
+                midi_path,                  # Input MIDI
             ]
             
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
             
             if result.returncode == 0 and os.path.exists(output_path):
                 # Load the rendered audio
@@ -230,6 +247,9 @@ class FluidSynthSynthesizer(ISynthesizer):
         ]
         
         soundfont_names = [
+            'FluidR3Mono_GM.sf3',
+            'MS Basic.sf3',
+            'default.sf3',
             'default_sound_font.sf2',
             'FluidR3_GM.sf2',
             'GeneralUser_GS.sf2',

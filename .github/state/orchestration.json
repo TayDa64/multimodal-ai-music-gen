@@ -1,11 +1,66 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-post-fluidsynth-mastering-parity-043",
-    "started": "2026-05-14T20:48:10Z",
-    "user_request": "Continue with post-FluidSynth mastering parity after the FluidSynth/SoundFont proof guardrails."
+    "id": "session-2026-05-14-external-fluidsynth-soundfont-proof-044",
+    "started": "2026-05-14T21:19:17Z",
+    "user_request": "Continue with the key remaining external steps: install/verify external FluidSynth, add a licensed local SoundFont, and run real renderer-path proof."
   },
   "task_queue": [
+    {
+      "id": "external-fluidsynth-soundfont-proof-044",
+      "description": "Install or verify external FluidSynth, place a licensed ignored SoundFont locally, run diagnose-audio and a real 1990s rock smoke proving renderer_path=fluidsynth plus file-level mastering diagnostics when possible.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\synthesizers\\fluidsynth_synth.py",
+        "main.py",
+        "assets\\soundfonts\\README.md",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_synthesizers.py",
+        "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "external_actions": [
+        "install fluidsynth binary if available via package manager",
+        "download/place licensed SoundFont under ignored assets/soundfonts",
+        "run main.py --diagnose-audio and strict rock smoke with renderer diagnostics"
+      ],
+      "created": "2026-05-14T21:19:17Z",
+      "updated": "2026-05-14T21:52:00Z",
+      "result": {
+        "summary": "Installed/verified portable FluidSynth locally, downloaded an ignored licensed FluidR3Mono_GM.sf3 SoundFont, fixed Windows portable detection/command-ordering/SF3 discovery, and proved a real AudioRenderer FluidSynth render with file-level mastering diagnostics.",
+        "external_assets": {
+          "fluidsynth_binary": "C:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe",
+          "fluidsynth_version": "FluidSynth runtime/executable version 2.4.7, Sample type=float",
+          "soundfont": "assets\\soundfonts\\FluidR3Mono_GM.sf3",
+          "soundfont_sha256": "2AACD036D7058D40A371846EF2F5DC5F130D648AB3837FE2626591BA49A71254",
+          "soundfont_bytes": 23712790,
+          "git_status": "ignored/untracked (!! assets/soundfonts/FluidR3Mono_GM.sf3)"
+        },
+        "implementation": {
+          "audio_renderer": "Detection tries --version then -V; find_soundfont() discovers .sf3; render_midi_with_fluidsynth() uses split -n/-i and options-before-files ordering for no-getopt Windows portable builds; disabled renderers no longer report discovered SoundFonts.",
+          "synthesizer_wrapper": "Mirrors -V fallback, .sf3 discovery, options-first FluidSynth command ordering, and render timeout.",
+          "docs": "Updated upgrade plan and SoundFonts README for .sf3 and Windows portable behavior."
+        },
+        "runtime_proof": {
+          "diagnose_audio": "PASS - fluidsynth.available=true, soundfont.discovered=./assets/soundfonts/FluidR3Mono_GM.sf3, default_audio_file_count=1485.",
+          "manual_command": "PASS - options-first fluidsynth -n -i -F <wav> -r 48000 <sf3> <midi> exited 0 and wrote a 7376940-byte WAV; positional/attached attempts timed out.",
+          "controlled_renderer_report": "output/external_fluidsynth/controlled_renderer_proof/rock_controlled_render_report.json",
+          "controlled_renderer_summary": "renderer_path=fluidsynth, attempted=true, success=true, skip_reason=null, render_status.success=true, WAV bytes=6778924, LUFS=-20.5, peak=-1.3, mastering status=applied, auto_gain=target=-14.0, true_peak=ceiling=-1.0dBTP."
+        },
+        "verification": {
+          "git_diff_check": "PASS",
+          "focused_pytest": "PASS - 52 passed, 2 existing audioread/Python 3.13 deprecation warnings for tests/test_audio_renderer.py tests/test_render_report_schema.py tests/test_synthesizers.py -q.",
+          "ignored_asset_check": "PASS - SF3 remains ignored and was not staged."
+        },
+        "remaining_follow_up": "A full exact-prompt FluidSynth CLI smoke still needs a safe way to bypass heavy expansion bootstrap/default custom-sample loading; the controlled renderer proof covers the external renderer and mastering path truthfully."
+      }
+    },
     {
       "id": "post-fluidsynth-mastering-parity-043",
       "description": "Make successful FluidSynth-rendered WAVs pass through the backend mastering/loudness chain or equivalent file-level master processing, with diagnostics and tests, while preserving procedural rendering behavior and fallback.",

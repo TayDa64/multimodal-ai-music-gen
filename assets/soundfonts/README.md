@@ -2,7 +2,7 @@
 
 This project can render MIDI to audio in two ways:
 
-- **FluidSynth + SoundFont (.sf2)** (recommended): higher-quality, realistic timbres
+- **FluidSynth + SoundFont (.sf2/.sf3)** (recommended): higher-quality, realistic timbres
 - **Procedural fallback**: offline-first, no external assets, but noticeably less realistic
 
 ---
@@ -50,6 +50,13 @@ Run:
 fluidsynth --version
 ```
 
+On some official Windows portable builds, long options are unavailable because
+the binary was compiled without getopt support. If `--version` fails, use:
+
+```powershell
+fluidsynth -V
+```
+
 Expected output:
 ```
 FluidSynth runtime version X.X.X
@@ -66,13 +73,16 @@ Download a SoundFont you have rights to use, then place it in this folder.
 
 ### Where to Place SoundFonts
 
-Place your `.sf2` file(s) in:
+Place your `.sf2` or `.sf3` file(s) in:
 
 ```
 assets/soundfonts/
 ```
 
 The renderer auto-searches common names:
+- `FluidR3Mono_GM.sf3`
+- `MS Basic.sf3`
+- `default.sf3`
 - `FluidR3_GM.sf2`
 - `GeneralUser_GS.sf2`
 - `default.sf2`
@@ -90,6 +100,12 @@ python main.py "g_funk at 94 bpm" --soundfont "C:\Path\To\Your.sf2"
 - **License**: MIT
 - **Size**: ~148 MB
 - **Quality**: Balanced, general-purpose
+
+#### FluidR3Mono_GM.sf3 (free, MIT license; compact)
+- **Source**: [MuseScore SoundFont Repository](https://github.com/musescore/MuseScore/tree/master/share/sound)
+- **License**: MIT / FluidR3-derived notices in the upstream repository
+- **Size**: ~23 MB
+- **Quality**: Compact General MIDI proof asset; useful for local validation
 
 #### GeneralUser GS (free, custom license)
 - **Source**: [GeneralUser GS Official Site](http://schristiancollins.com/generaluser.php)
@@ -124,11 +140,11 @@ Expected output (FluidSynth + SoundFont installed):
   "schema_version": 1,
   "fluidsynth": {
     "available": true,
-    "version": "FluidSynth 2.3.3"
+    "version": "FluidSynth runtime version 2.4.7..."
   },
   "soundfont": {
     "cli_arg": null,
-    "discovered": "assets\\soundfonts\\FluidR3_GM.sf2",
+    "discovered": "./assets/soundfonts/FluidR3Mono_GM.sf3",
     "soundfonts_dir": "C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts",
     "soundfonts_dir_exists": true
   },

@@ -453,30 +453,62 @@ def soft_clip(
 # =============================================================================
 
 def check_fluidsynth_available() -> bool:
-    """Check if FluidSynth is installed and available."""
+    """Check if FluidSynth is installed and available.
+
+    Tries both --version (modern builds) and -V (Windows portable builds
+    compiled without getopt support).
+    """
     try:
+        # Try modern long option first
         result = subprocess.run(
             ['fluidsynth', '--version'],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=3
+        )
+        if result.returncode == 0:
+            return True
+        # Fall back to short option for Windows portable builds
+        result = subprocess.run(
+            ['fluidsynth', '-V'],
+            capture_output=True,
+            text=True,
+            timeout=3
         )
         return result.returncode == 0
     except FileNotFoundError:
         return False
+    except Exception:
+        return False
 
 
 def get_fluidsynth_version() -> Optional[str]:
-    """Return the FluidSynth version string if available, else None."""
+    """Return the FluidSynth version string if available, else None.
+
+    Tries both --version (modern builds) and -V (Windows portable builds
+    compiled without getopt support).
+    """
     try:
+        # Try modern long option first
         result = subprocess.run(
             ['fluidsynth', '--version'],
             capture_output=True,
-            text=True
+            text=True,
+            timeout=3
         )
-        if result.returncode != 0:
-            return None
-        # Typical output: "FluidSynth 2.3.3"
-        return (result.stdout or result.stderr).strip() or None
+        if result.returncode == 0:
+            # Typical output: "FluidSynth 2.3.3"
+            return (result.stdout or result.stderr).strip() or None
+        # Fall back to short option for Windows portable builds
+        result = subprocess.run(
+            ['fluidsynth', '-V'],
+            capture_output=True,
+            text=True,
+            timeout=3
+        )
+        if result.returncode == 0:
+            return (result.stdout or result.stderr).strip() or None
+        return None
     except FileNotFoundError:
         return None
     except Exception:
@@ -484,7 +516,7 @@ def get_fluidsynth_version() -> Optional[str]:
 
 
 def find_soundfont() -> Optional[str]:
-    """Try to find a SoundFont file."""
+    """Try to find a SoundFont file (.sf2 or .sf3)."""
     # Common locations
     search_paths = [
         # Project assets
@@ -499,6 +531,11 @@ def find_soundfont() -> Optional[str]:
     ]
     
     soundfont_names = [
+        # SF3 (compressed SoundFont 3) - smaller, modern
+        'FluidR3Mono_GM.sf3',
+        'MS Basic.sf3',
+        'default.sf3',
+        # SF2 (SoundFont 2) - traditional
         'default_sound_font.sf2',
         'FluidR3_GM.sf2',
         'GeneralUser_GS.sf2',
@@ -532,13 +569,19 @@ def render_midi_with_fluidsynth(
             return False
     
     try:
+        # Keep all options before positional SoundFont/MIDI arguments.
+        # The official Windows portable build is compiled without getopt support:
+        # it accepts short options, but treats options that appear after filenames
+        # as additional files and can drop into an interactive shell. Avoid the
+        # bundled ``-ni`` form for the same reason; split the flags explicitly.
         cmd = [
             'fluidsynth',
-            '-ni',                      # No interactive mode
-            soundfont_path,             # SoundFont
-            midi_path,                  # Input MIDI
+            '-n',                       # No MIDI input driver
+            '-i',                       # No interactive shell
             '-F', output_path,          # Output file
             '-r', str(sample_rate),     # Sample rate
+            soundfont_path,             # SoundFont
+            midi_path,                  # Input MIDI
         ]
 
         # Safety: FluidSynth can hang on some systems (driver/device issues, bad SF2, etc).
@@ -1413,7 +1456,7 @@ class AudioRenderer:
         self.fluidsynth_available = check_fluidsynth_available()
         self.fluidsynth_version = get_fluidsynth_version() if self.fluidsynth_available else None
         self.use_fluidsynth = use_fluidsynth and self.fluidsynth_available
-        self.soundfont_path = soundfont_path or find_soundfont()
+        self.soundfont_path = soundfont_path or (find_soundfont() if self.use_fluidsynth else None)
         self.require_soundfont = require_soundfont
         self.instrument_library = instrument_library
         self.expansion_manager = expansion_manager
@@ -1747,7 +1790,7 @@ class AudioRenderer:
                 if not self.fluidsynth_available:
                     warnings.append("FluidSynth not available but --require-soundfont enabled")
                 if not self.soundfont_path:
-                    warnings.append("No SoundFont (.sf2) found but --require-soundfont enabled")
+                    warnings.append("No SoundFont (.sf2/.sf3) found but --require-soundfont enabled")
 
                 if warnings:
                     self._capture_render_failure("require_soundfont", stage="preflight")
@@ -1818,7 +1861,7 @@ class AudioRenderer:
                 )
                 fluidsynth_skip_reason = f"custom_drums_loaded:{custom_drums_loaded}"
             elif self.use_fluidsynth and not self.soundfont_path:
-                warnings.append("FluidSynth available but no SoundFont (.sf2) found; using procedural")
+                warnings.append("FluidSynth available but no SoundFont (.sf2/.sf3) found; using procedural")
                 fluidsynth_skip_reason = "no_soundfont"
             elif not self.fluidsynth_available:
                 warnings.append("FluidSynth not available; using procedural")
