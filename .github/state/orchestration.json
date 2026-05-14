@@ -1,11 +1,55 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-natural-instrument-mastering-parity-038",
-    "started": "2026-05-14T19:10:14Z",
-    "user_request": "Ground Gemini natural-instrument synthesis and app-vs-workspace mastering observations against the current MUSE codebase as source of truth."
+    "id": "session-2026-05-14-app-mastered-wav-playback-parity-039",
+    "started": "2026-05-14T19:25:32Z",
+    "user_request": "Continue with the highest priority recommendations from UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md."
   },
   "task_queue": [
+    {
+      "id": "app-mastered-wav-playback-parity-039",
+      "description": "Implement JUCE app playback parity by preferring backend-rendered WAV/audio output for generated songs while preserving MIDI preview fallback",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "juce\\Source\\Audio\\AudioEngine.h",
+        "juce\\Source\\Audio\\AudioEngine.cpp",
+        "juce\\Source\\MainComponent.cpp",
+        "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T19:25:32Z",
+      "updated": "2026-05-14T19:44:24Z",
+      "result": {
+        "summary": "Implemented JUCE app playback parity so generated songs prefer the backend-rendered/mastered WAV while preserving generated MIDI for visualization and fallback.",
+        "files_changed": [
+          "juce/Source/Audio/AudioEngine.h",
+          "juce/Source/Audio/AudioEngine.cpp",
+          "juce/Source/MainComponent.cpp",
+          "juce/Source/UI/TransportComponent.cpp",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+        ],
+        "implementation": {
+          "audio_engine": "Added AudioFormatReaderSource/AudioTransportSource-backed loadAudioFile(), hasAudioFileLoaded(), audio-file-aware transport controls, position/duration accessors, and callback preference for loaded audio during playback.",
+          "main_component": "onGenerationComplete still loads generated MIDI for visualization/fallback, then loads result.audioPath so backend WAV playback is preferred when available.",
+          "transport_component": "Transport UI now treats loaded audio or MIDI as playable media and displays audio playback status/progress."
+        },
+        "verification": {
+          "pre_verifier": "PASS - confirmed feature was not implemented and identified minimal edit surface.",
+          "post_verifier": "PASS - verified audio load, preferred playback, MIDI fallback/visualization, transport UI, and no CMake changes.",
+          "debug_build": "PASS - npm run build:debug / Debug target compiled.",
+          "release_build": "PASS - npm run build after stopping locked Release app process.",
+          "focused_pytest": "PASS - 65 passed, 6 existing librosa warnings for tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q.",
+          "git_diff_check": "PASS",
+          "state_json_valid": "PASS"
+        },
+        "next_recommendation": "Make app FX/mastering real or clearly label MIDI as unmastered preview."
+      }
+    },
     {
       "id": "natural-instrument-mastering-parity-findings-038",
       "description": "Document code-grounded findings for app playback mastering parity, FluidSynth/SoundFont implications, and natural instrument synthesis roadmap",

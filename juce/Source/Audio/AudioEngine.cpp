@@ -589,6 +589,7 @@ void AudioEngine::play()
     DBG("AudioEngine::play() called");
     DBG("  initialised: " << (initialised.load() ? "YES" : "NO"));
     DBG("  hasMidiLoaded: " << (midiPlayer.hasMidiLoaded() ? "YES" : "NO"));
+    DBG("  hasAudioFileLoaded: " << (audioFileLoaded.load() ? "YES" : "NO"));
     DBG("  testToneEnabled: " << (testToneEnabled.load() ? "YES" : "NO"));
     
     if (!initialised.load())
@@ -597,6 +598,13 @@ void AudioEngine::play()
         return;
     }
         
+    if (audioFileLoaded.load())
+    {
+        if (audioTransportSource.getCurrentPosition() >= audioTransportSource.getLengthInSeconds())
+            audioTransportSource.setPosition(0.0);
+        audioTransportSource.start();
+    }
+
     setTransportState(TransportState::Starting);
     setTransportState(TransportState::Playing);
     DBG("  Transport state set to Playing");
@@ -610,6 +618,8 @@ void AudioEngine::pause()
     if (transportState.load() == TransportState::Playing)
     {
         setTransportState(TransportState::Pausing);
+        audioTransportSource.stop();
+        midiPlayer.setPlaying(false);
         setTransportState(TransportState::Paused);
     }
 }
@@ -628,6 +638,8 @@ void AudioEngine::stop()
         setTestToneEnabled(false);
         
         // Stop MIDI playback
+        audioTransportSource.stop();
+        audioTransportSource.setPosition(0.0);
         midiPlayer.setPlaying(false);
         midiPlayer.setPosition(0.0);
         
@@ -714,6 +726,9 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
     
     // Prepare MIDI player
     midiPlayer.prepareToPlay(sampleRate, samplesPerBlockExpected);
+
+    // Prepare audio-file transport
+    audioTransportSource.prepareToPlay(samplesPerBlockExpected, sampleRate);
     
     // Prepare Mixer
     mixerGraph.prepareToPlay(sampleRate, samplesPerBlockExpected);
@@ -728,6 +743,7 @@ void AudioEngine::prepareToPlay(int samplesPerBlockExpected, double sampleRate)
 
 void AudioEngine::releaseResources()
 {
+    audioTransportSource.releaseResources();
     midiPlayer.releaseResources();
     mixerGraph.releaseResources();
     DBG("AudioEngine::releaseResources");
@@ -743,8 +759,32 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
     //    return;
     // NOTE: We want to hear live notes even if transport is stopped!
     
-    // MIDI playback (renders to buffer)
-    if (transportState.load() == TransportState::Playing && midiPlayer.hasMidiLoaded() && !testToneEnabled.load())
+    const bool isTransportPlaying = transportState.load() == TransportState::Playing;
+    const bool shouldRenderAudioFile = isTransportPlaying && audioFileLoaded.load() && !testToneEnabled.load();
+
+    if (shouldRenderAudioFile)
+    {
+        audioTransportSource.getNextAudioBlock(bufferToFill);
+
+        if (audioTransportSource.hasStreamFinished())
+        {
+            if (looping.load())
+            {
+                double loopStart = loopRegionStart.load();
+                audioTransportSource.setPosition(loopStart >= 0.0 ? loopStart : 0.0);
+                audioTransportSource.start();
+            }
+            else
+            {
+                juce::MessageManager::callAsync([this]() {
+                    stop();
+                });
+            }
+        }
+    }
+
+    // MIDI playback (renders to buffer) - fallback only when no audio file is loaded
+    if (!shouldRenderAudioFile && isTransportPlaying && midiPlayer.hasMidiLoaded() && !testToneEnabled.load())
     {
         // Render MIDI directly to the output buffer's active region
         auto* leftChannel = bufferToFill.buffer->getWritePointer(0, bufferToFill.startSample);
@@ -830,7 +870,8 @@ void AudioEngine::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferTo
         }
     }
     
-    // Process Tracks
+    // Process Tracks. Skip while the mastered audio file is playing to avoid doubling MIDI-rendered tracks.
+    if (!shouldRenderAudioFile)
     {
         const juce::ScopedLock sl(tracksLock);
         
@@ -1025,6 +1066,7 @@ bool AudioEngine::loadMidiFile(const juce::File& midiFile)
     
     // Stop playback first
     stop();
+    clearLoadedAudioFile();
     
     bool success = midiPlayer.loadMidiFile(midiFile);
     
@@ -1045,21 +1087,45 @@ bool AudioEngine::loadMidiFile(const juce::File& midiFile)
 
 bool AudioEngine::loadAudioFile(const juce::File& audioFile)
 {
-    // TODO: Phase 2 - Implement full audio file playback
-    // For now, just log and return false until we have an audio file player
-    DBG("AudioEngine: loadAudioFile requested (not yet implemented) - " << audioFile.getFileName());
-    
-    // Future implementation will:
-    // 1. Load audio file using AudioFormatReader
-    // 2. Create AudioTransportSource for playback
-    // 3. Mix with MIDI output through MixerGraph
-    
-    return false;
+    DBG("AudioEngine::loadAudioFile - " << audioFile.getFullPathName());
+
+    stop();
+    clearLoadedAudioFile();
+
+    if (!audioFile.existsAsFile())
+    {
+        DBG("AudioEngine: Audio file does not exist: " << audioFile.getFullPathName());
+        return false;
+    }
+
+    std::unique_ptr<juce::AudioFormatReader> reader(formatManager.createReaderFor(audioFile));
+    if (reader == nullptr)
+    {
+        DBG("AudioEngine: Failed to create audio reader for " << audioFile.getFileName());
+        return false;
+    }
+
+    const double sourceSampleRate = reader->sampleRate;
+    auto newReaderSource = std::make_unique<juce::AudioFormatReaderSource>(reader.release(), true);
+
+    audioReaderSource = std::move(newReaderSource);
+    audioTransportSource.setSource(audioReaderSource.get(), 0, nullptr, sourceSampleRate);
+    audioTransportSource.setPosition(0.0);
+
+    if (currentSampleRate > 0.0 && currentBufferSize > 0)
+        audioTransportSource.prepareToPlay(currentBufferSize, currentSampleRate);
+
+    audioFileLoaded = true;
+
+    DBG("AudioEngine: Loaded audio file - " << audioFile.getFileName()
+        << " (" << audioTransportSource.getLengthInSeconds() << "s)");
+    return true;
 }
 
 void AudioEngine::loadMidiData(const juce::MidiFile& midi)
 {
     stop();
+    clearLoadedAudioFile();
     midiPlayer.setMidiData(midi);
     DBG("AudioEngine: Loaded MIDI data from memory");
 }
@@ -1068,6 +1134,14 @@ void AudioEngine::clearMidiFile()
 {
     stop();
     midiPlayer.clearMidiFile();
+}
+
+void AudioEngine::clearLoadedAudioFile()
+{
+    audioTransportSource.stop();
+    audioTransportSource.setSource(nullptr);
+    audioReaderSource.reset();
+    audioFileLoaded = false;
 }
 
 bool AudioEngine::hasMidiLoaded() const
@@ -1081,9 +1155,10 @@ juce::String AudioEngine::getPlaybackDebugStatus() const
     auto state = transportState.load();
     status += (state == TransportState::Playing) ? "PLAY " : "STOP ";
     status += testToneEnabled.load() ? "TT " : "";
+    status += audioFileLoaded.load() ? "AUDIO " : "";
     status += "E:" + juce::String(midiPlayer.getNumEvents()) + " ";
     status += "L:" + juce::String(midiPlayer.getLastMaxSample(), 3) + " ";
-    status += juce::String(midiPlayer.getPosition(), 1) + "s";
+    status += juce::String(getPlaybackPosition(), 1) + "s";
     return status;
 }
 
@@ -1178,16 +1253,29 @@ bool AudioEngine::renderToWavFile(const juce::File& outputFile, double sampleRat
 
 double AudioEngine::getPlaybackPosition() const
 {
+    if (audioFileLoaded.load())
+        return audioTransportSource.getCurrentPosition();
+
     return midiPlayer.getPosition();
 }
 
 void AudioEngine::setPlaybackPosition(double positionSeconds)
 {
+    if (audioFileLoaded.load())
+        audioTransportSource.setPosition(positionSeconds);
+
     midiPlayer.setPosition(positionSeconds);
 }
 
 double AudioEngine::getTotalDuration() const
 {
+    if (audioFileLoaded.load())
+    {
+        const double audioLength = audioTransportSource.getLengthInSeconds();
+        if (audioLength > 0.0)
+            return audioLength;
+    }
+
     return midiPlayer.getTotalDuration();
 }
 

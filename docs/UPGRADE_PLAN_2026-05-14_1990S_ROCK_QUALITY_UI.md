@@ -759,3 +759,52 @@ Conclusion: the app-vs-workspace sound difference is not just a FluidSynth issue
 5. **Post-FluidSynth mastering parity:** if FluidSynth succeeds, load its WAV back through the same post-render master chain or a dedicated file-level mastering function so SoundFont quality and backend loudness/limiting are both present.
 6. **Unified natural-instrument patch model:** introduce a small `InstrumentPatch`/`SynthesisVoice` abstraction first for procedural fallback (oscillators, amp ADSR, filter ADSR, velocity-to-amplitude, velocity-to-cutoff, noise/transient layer, saturation), then map existing instrument functions into it incrementally instead of rewriting every instrument at once.
 7. **Genre-specific synth engines after parity:** add SF2/SFZ orchestral routing, wavetable/unison for EDM/pop, lo-fi wow/flutter, and Karplus-Strong/multisampled rock guitars as separate PR-sized slices with analyzer and render-report proof.
+
+## App mastered-WAV playback parity implementation — 2026-05-14
+
+Status: **implemented and verified** for the first/highest-priority recommendation above.
+
+### What changed
+
+- `juce/Source/Audio/AudioEngine.h/.cpp`
+  - Implemented generated audio-file playback using `juce::AudioFormatReaderSource` and `juce::AudioTransportSource`.
+  - Added `hasAudioFileLoaded()` and internal audio-file state.
+  - `loadAudioFile()` now validates the file, creates a reader, connects it to the transport source, prepares playback when the audio device is active, and returns `true` on successful load.
+  - `play()`, `pause()`, `stop()`, `prepareToPlay()`, `releaseResources()`, `getPlaybackPosition()`, `setPlaybackPosition()`, and `getTotalDuration()` now account for loaded audio files.
+  - `getNextAudioBlock()` prefers the loaded audio file while transport is playing, and skips MIDI/track rendering during audio-file playback to avoid doubled playback.
+- `juce/Source/MainComponent.cpp`
+  - `onGenerationComplete()` still loads generated MIDI for visualization and fallback.
+  - After MIDI loading, it attempts to load `result.audioPath`; if the backend WAV exists and loads successfully, the app playback path now uses that rendered/mastered WAV by default.
+- `juce/Source/UI/TransportComponent.cpp`
+  - Transport controls now treat either loaded audio or loaded MIDI as playable media.
+  - Play/status/progress labels can represent audio-file playback, not only MIDI playback.
+
+### Preserved behavior
+
+- Generated MIDI remains loaded for piano-roll/visualization and as fallback if the audio file is missing or cannot be decoded.
+- Explicit MIDI loading clears stale audio-file playback so a failed new audio load cannot accidentally keep playing an older mastered WAV.
+- No CMake/source-list change was required because the existing JUCE target already links the needed audio modules.
+
+### Verification proof
+
+Commands run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+npm run build:debug
+npm run build
+.\.venv\Scripts\python.exe -m pytest tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+git diff --check
+.\.venv\Scripts\python.exe -c "import json, pathlib; [json.loads(pathlib.Path(p).read_text(encoding='utf-8')) for p in ['.github/state/orchestration.json','.github/state/memory.json','.github/state/context.json']]; print('state json valid')"
+```
+
+Results:
+
+- Debug build: `PASS`.
+- Release build: `PASS` after stopping the already-running Release app process that was locking `AI Music Generator.exe`.
+- Focused backend/protocol/golden tests: `65 passed, 6 existing librosa warnings`.
+- `git diff --check`: `PASS`.
+- State JSON parse: `PASS`.
+
+### Remaining follow-up
+
+This closes recommendation 1. The next highest-priority recommendation is to make the app FX/mastering path explicit: either route live MIDI/sampler playback through `MixerGraph::processBlock()` and wire `MasteringSuitePanel` to real processing, or clearly label the MIDI path as an unmastered preview while the generated WAV remains the mastered playback reference.

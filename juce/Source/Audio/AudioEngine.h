@@ -160,6 +160,9 @@ public:
     
     /** Check if MIDI is loaded */
     bool hasMidiLoaded() const;
+
+    /** Check if an audio file is loaded */
+    bool hasAudioFileLoaded() const { return audioFileLoaded.load(); }
     
     /** Get debug status string for UI display */
     juce::String getPlaybackDebugStatus() const;
@@ -440,6 +443,7 @@ private:
     
     void setTransportState(TransportState newState);
     void notifyListeners(std::function<void(Listener*)> callback);
+    void clearLoadedAudioFile();
     
     //==========================================================================
     // Members
@@ -469,6 +473,11 @@ private:
     
     // MIDI playback
     MidiPlayer midiPlayer;
+
+    // Audio file playback (preferred over MIDI when loaded)
+    std::unique_ptr<juce::AudioFormatReaderSource> audioReaderSource;
+    juce::AudioTransportSource audioTransportSource;
+    std::atomic<bool> audioFileLoaded { false };
     
     // Mixer
     Audio::MixerGraph mixerGraph;

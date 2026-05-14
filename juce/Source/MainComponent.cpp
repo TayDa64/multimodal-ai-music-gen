@@ -1126,6 +1126,20 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                 applyGeneratedInstrumentSamples(result);
             }
         }
+
+        // Prefer the backend-rendered/mastered audio for playback, while keeping MIDI loaded above
+        // for visualization and as a fallback if the audio file cannot be loaded.
+        if (result.audioPath.isNotEmpty())
+        {
+            juce::File audioFile(result.audioPath);
+            if (audioFile.existsAsFile())
+            {
+                if (audioEngine.loadAudioFile(audioFile))
+                    currentStatus = "Loaded audio: " + audioFile.getFileNameWithoutExtension();
+                else
+                    currentStatus = "Audio load failed; using MIDI fallback";
+            }
+        }
         
         // Pass takes data to TakeLanePanel if available
         if (result.takesJson.isNotEmpty() && takeLanePanel)

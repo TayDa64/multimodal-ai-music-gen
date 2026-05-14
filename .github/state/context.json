@@ -1,7 +1,70 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-natural-instrument-mastering-parity-038",
+  "session_id": "session-2026-05-14-app-mastered-wav-playback-parity-039",
   "files_touched": [
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded files touched, changes, and verification proof for milestone 039."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded generated WAV playback parity pattern and decision."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Marked app-mastered-wav-playback-parity-039 completed."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded app mastered-WAV playback parity implementation and verification proof."
+    },
+    {
+      "path": "juce\\Source\\UI\\TransportComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Transport controls now treat loaded audio or MIDI as playable media."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Generation completion now loads backend audioPath after MIDI visualization/fallback load."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Implemented AudioTransportSource-backed audio-file loading/playback preference and audio-aware transport behavior."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.h",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:44:24Z",
+      "by_agent": "supervisor",
+      "changes": "Added audio-file loaded state/API for mastered WAV playback."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T19:25:32Z",
+      "by_agent": "supervisor",
+      "changes": "Opened app-mastered-wav-playback-parity-039 task."
+    },
     {
       "path": ".github\\state\\context.json",
       "action": "modified",
@@ -1454,6 +1517,18 @@
   ],
   "changes_made": [
     {
+      "file": "juce/Source/Audio/AudioEngine.cpp; juce/Source/MainComponent.cpp; juce/Source/UI/TransportComponent.cpp",
+      "description": "Implemented app mastered-WAV playback parity for generated songs.",
+      "diff_summary": "AudioEngine now loads and plays backend WAV/audio files through AudioTransportSource and skips MIDI/track rendering while that audio is playing. MainComponent loads result.audioPath after MIDI fallback/visualization. TransportComponent permits audio-only playback/status.",
+      "timestamp": "2026-05-14T19:44:24Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Opened app mastered-WAV playback parity implementation task.",
+      "diff_summary": "Set current session/task to app-mastered-wav-playback-parity-039 in probe phase.",
+      "timestamp": "2026-05-14T19:25:32Z"
+    },
+    {
       "file": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "description": "Grounded Gemini natural-sound recommendations and the app-vs-workspace mastering observation against concrete backend/JUCE code paths.",
       "diff_summary": "Added a new section documenting that backend WAV exports use the Python master chain while JUCE app playback loads MIDI into an internal synth/sampler path; added a table mapping ADSR, additive synthesis, filter envelopes, saturation/body, presence, dynamics, SoundFonts, EDM, lo-fi, rock physical modeling, InstrumentPatch, and DDSP to current source evidence and gaps.",
@@ -2019,6 +2094,27 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "build/tests for app-mastered-wav-playback-parity-039",
+      "result": "PASS",
+      "details": "npm run build:debug PASS; npm run build PASS after stopping the running Release app process; focused pytest PASS with 65 passed and 6 existing librosa warnings; git diff --check PASS; state JSON parse PASS.",
+      "timestamp": "2026-05-14T19:44:24Z"
+    },
+    {
+      "type": "post",
+      "target": "app-mastered-wav-playback-parity-039",
+      "result": "PASS",
+      "details": "Post-verifier confirmed loadAudioFile implementation, audio-preferred playback without MIDI doubling, MIDI visualization/fallback, transport UI audio support, no CMake changes, and git diff --check PASS.",
+      "timestamp": "2026-05-14T19:44:24Z"
+    },
+    {
+      "type": "pre",
+      "target": "app-mastered-wav-playback-parity-039",
+      "result": "PASS",
+      "details": "Pre-verifier confirmed generated-song playback did not use backend WAV yet: audioPath was recorded for app state, but onGenerationComplete loaded midiPath and AudioEngine::loadAudioFile returned false/TODO.",
+      "timestamp": "2026-05-14T19:44:24Z"
+    },
     {
       "type": "post",
       "target": "natural-instrument/mastering-parity documentation update",

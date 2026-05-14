@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Generated JUCE playback should load MIDI first for visualization, then load backend WAV to become the preferred playback source",
+        "context": "For app mastering parity, MainComponent::onGenerationComplete keeps generated MIDI loaded for visualization/fallback, then calls AudioEngine::loadAudioFile(result.audioPath). AudioEngine renders AudioTransportSource while audio is playing and gates MIDI/track rendering with !shouldRenderAudioFile to avoid doubled playback.",
+        "timestamp": "2026-05-14T19:44:24Z"
+      },
+      {
         "pattern": "Judge mastered song quality from backend WAV exports unless JUCE playback is explicitly using the generated audio file",
         "context": "The backend render path applies mastering-style processing and writes a WAV, but JUCE onGenerationComplete currently loads the generated MIDI into AudioEngine for playback. AudioEngine::loadAudioFile is TODO, MixerGraph FX are not processed in getNextAudioBlock, and MasteringSuite apply is not wired. App preview can therefore sound unmastered even when the saved WAV is processed.",
         "timestamp": "2026-05-14T19:10:14Z"
@@ -394,6 +399,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Close the app/mastering parity gap by preferring generated WAV playback before adding FluidSynth or deeper synthesis engines",
+      "rationale": "The user-observed unmastered app sound was caused by a playback-path mismatch. Loading the mastered backend WAV into the app gives a truthful listening reference while retaining MIDI for visualization and fallback.",
+      "alternatives_considered": [
+        "Route MixerGraph first",
+        "Install FluidSynth first",
+        "Start InstrumentPatch architecture first"
+      ],
+      "timestamp": "2026-05-14T19:44:24Z"
+    },
     {
       "decision": "Prioritize app playback/mastering parity before deeper FluidSynth, wavetable, or DDSP work",
       "rationale": "FluidSynth can improve source timbre, but the immediate user-observed mismatch is that app playback uses a separate MIDI/internal-synth path while workspace WAV playback uses the backend mastered render. Fixing parity prevents false quality judgments and gives a stable reference for later natural-instrument upgrades.",
@@ -914,5 +929,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T19:10:14Z"
+  "last_updated": "2026-05-14T19:44:24Z"
 }

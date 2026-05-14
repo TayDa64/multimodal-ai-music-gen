@@ -301,8 +301,8 @@ void TransportComponent::resized()
 //==============================================================================
 void TransportComponent::updateButtonStates()
 {
-    // Enable play if we have MIDI loaded or an audio file
-    bool hasAudio = appState.getOutputFile().existsAsFile() || audioEngine.hasMidiLoaded();
+    // Enable play if the engine has MIDI or an audio file loaded.
+    bool hasAudio = audioEngine.hasAudioFileLoaded() || audioEngine.hasMidiLoaded();
     
     playButton.setEnabled(hasAudio && !isPlaying);
     pauseButton.setEnabled(hasAudio && isPlaying);
@@ -346,12 +346,13 @@ void TransportComponent::updateTimeDisplay()
 void TransportComponent::playClicked()
 {
     // Debug: Show state before playing
+    bool hasLoadedAudio = audioEngine.hasAudioFileLoaded();
     bool hasMidi = audioEngine.hasMidiLoaded();
     double duration = audioEngine.getTotalDuration();
     
-    if (!hasMidi)
+    if (!hasLoadedAudio && !hasMidi)
     {
-        statusLabel.setText("No MIDI loaded - double-click a file first", juce::dontSendNotification);
+        statusLabel.setText("No audio or MIDI loaded - generate or load a file first", juce::dontSendNotification);
         statusLabel.setColour(juce::Label::textColourId, AppColours::error);
         return;
     }
@@ -360,7 +361,8 @@ void TransportComponent::playClicked()
     isPlaying = true;
     updateButtonStates();
     
-    statusLabel.setText("Playing... (dur: " + juce::String(duration, 1) + "s)", juce::dontSendNotification);
+    statusLabel.setText(juce::String(hasLoadedAudio ? "Playing audio... (dur: " : "Playing MIDI... (dur: ")
+                            + juce::String(duration, 1) + "s)", juce::dontSendNotification);
     statusLabel.setColour(juce::Label::textColourId, AppColours::success);
     
     listeners.call(&TransportComponent::Listener::transportPlayRequested);
@@ -408,8 +410,8 @@ void TransportComponent::onGenerationCompleted(const juce::File& outputFile)
         statusLabel.setText("Ready: " + outputFile.getFileName(), juce::dontSendNotification);
         statusLabel.setColour(juce::Label::textColourId, AppColours::success);
         
-        // Get actual duration from AudioEngine if MIDI is loaded
-        if (audioEngine.hasMidiLoaded())
+        // Get actual duration from AudioEngine if MIDI or audio is loaded
+        if (audioEngine.hasAudioFileLoaded() || audioEngine.hasMidiLoaded())
         {
             totalDuration = audioEngine.getTotalDuration();
         }
@@ -490,7 +492,11 @@ void TransportComponent::audioDeviceChanged()
 void TransportComponent::timerCallback()
 {
     // Update playback position if playing
-    if (audioEngine.isPlaying() && audioEngine.hasMidiLoaded())
+    const bool hasLoadedAudio = audioEngine.hasAudioFileLoaded();
+    const bool hasMidi = audioEngine.hasMidiLoaded();
+    const bool hasPlayableMedia = hasLoadedAudio || hasMidi;
+
+    if (audioEngine.isPlaying() && hasPlayableMedia)
     {
         currentPosition = audioEngine.getPlaybackPosition();
         totalDuration = audioEngine.getTotalDuration();
@@ -501,14 +507,19 @@ void TransportComponent::timerCallback()
     }
     
     // Check if button states need update (e.g. if MIDI was loaded externally)
-    bool hasAudio = appState.getOutputFile().existsAsFile() || audioEngine.hasMidiLoaded();
-    if (hasAudio != lastHasAudioState)
+    if (hasPlayableMedia != lastHasAudioState)
     {
-        lastHasAudioState = hasAudio;
+        lastHasAudioState = hasPlayableMedia;
         updateButtonStates();
         
-        // Update status when MIDI loaded
-        if (hasAudio && audioEngine.hasMidiLoaded())
+        // Update status when playable media is loaded
+        if (hasLoadedAudio)
+        {
+            statusLabel.setText("Audio loaded: " + juce::String(audioEngine.getTotalDuration(), 1) + "s",
+                               juce::dontSendNotification);
+            statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+        }
+        else if (hasMidi)
         {
             statusLabel.setText("MIDI loaded: " + juce::String(audioEngine.getTotalDuration(), 1) + "s", 
                                juce::dontSendNotification);
