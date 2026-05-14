@@ -437,6 +437,33 @@ GENRE_MOTIF_MAPPINGS: Dict[str, Dict[str, MotifAssignment]] = {
 # =============================================================================
 
 # Common arrangement templates by genre
+ROCK_FAMILY_GENRES = {
+    'rock',
+    'classic_rock',
+    'alternative_rock',
+    'grunge',
+    'punk_rock',
+    'indie_rock',
+}
+
+ROCK_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.INTRO, 4),
+    (SectionType.VERSE, 8),
+    (SectionType.CHORUS, 8),
+    (SectionType.VERSE, 8),
+    (SectionType.CHORUS, 8),
+    (SectionType.BRIDGE, 4),
+    (SectionType.CHORUS, 8),
+    (SectionType.OUTRO, 4),
+]
+
+ROCK_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.VERSE, 4),
+    (SectionType.CHORUS, 4),
+    (SectionType.BRIDGE, 4),
+    (SectionType.CHORUS, 4),
+]
+
 ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
     'trap_soul': [
         (SectionType.INTRO, 4),
@@ -468,6 +495,12 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
         (SectionType.CHORUS, 8),
         (SectionType.OUTRO, 4),
     ],
+    'rock': ROCK_TEMPLATE,
+    'classic_rock': ROCK_TEMPLATE,
+    'alternative_rock': ROCK_TEMPLATE,
+    'grunge': ROCK_TEMPLATE,
+    'punk_rock': ROCK_TEMPLATE,
+    'indie_rock': ROCK_TEMPLATE,
     'trap': [
         (SectionType.INTRO, 4),
         (SectionType.DROP, 8),
@@ -640,11 +673,11 @@ class Arranger:
         Returns:
             Arrangement with all sections configured
         """
-        # Get template for genre
-        template = self._get_template(parsed.genre, parsed.section_hints)
-
         # Allow explicit bar-count requests to bypass the global minimum
         self._min_bars_override = getattr(parsed, "target_bars", None)
+
+        # Get template for genre
+        template = self._get_template(parsed.genre, parsed.section_hints)
 
         # Adjust template to meet target duration
         template = self._adjust_to_duration(template, parsed.bpm)
@@ -781,6 +814,13 @@ class Arranger:
         
         # Sprint 10.1: Normalize genre for consistent template lookup
         _genre_norm = (genre or '').lower().replace(' ', '_').replace('-', '_')
+
+        try:
+            target_bars = int(self._min_bars_override or 0)
+        except (TypeError, ValueError):
+            target_bars = 0
+        if _genre_norm in ROCK_FAMILY_GENRES and 0 < target_bars <= 16:
+            return ROCK_SHORT_TEMPLATE.copy()
         
         # Try config-driven loading first
         if USE_CONFIG_DRIVEN and self.config_loader is not None:

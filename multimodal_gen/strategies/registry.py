@@ -95,6 +95,7 @@ class StrategyRegistry:
         from .default_strategy import DefaultStrategy
         from .cinematic_strategy import CinematicStrategy
         from .ambient_strategy import AmbientStrategy
+        from .rock_strategy import RockStrategy
         
         cls.register(TrapStrategy())
         cls.register(TrapSoulStrategy())
@@ -111,6 +112,7 @@ class StrategyRegistry:
         cls.register(BoomBapStrategy())    # overrides 'boom_bap'/'boombap' from DefaultStrategy
         cls.register(CinematicStrategy())  # cinematic/orchestral/film_score/soundtrack/epic
         cls.register(AmbientStrategy())    # ambient/atmospheric/soundscape
+        cls.register(RockStrategy())       # rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock
         
         cls._initialized = True
     

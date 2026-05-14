@@ -3,6 +3,62 @@
   "session_id": "session-2026-02-12-sprint75",
   "files_touched": [
     {
+      "path": "multimodal_gen\\strategies\\rock_strategy.py",
+      "action": "created",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added RockStrategy with live-kit GM drums, no trap rolls/claps/808 assumptions, and deterministic rock bass/power-chord generation."
+    },
+    {
+      "path": "multimodal_gen\\strategies\\registry.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Registered RockStrategy so rock-family aliases resolve without changing unknown DefaultStrategy fallback behavior."
+    },
+    {
+      "path": "multimodal_gen\\arranger.py",
+      "action": "modified",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added rock-family band templates and a bounded explicit target_bars<=16 short template for verse/chorus/bridge/chorus smoke runs."
+    },
+    {
+      "path": "tests\\test_rock_strategy.py",
+      "action": "created",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused tests for RockStrategy config, registry aliases, live-kit drums, no clap pitch 39, and non-empty bass/chords."
+    },
+    {
+      "path": "tests\\test_arranger_rock.py",
+      "action": "created",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added exact 16-bar 1990s rock arranger contract, rock-family template assertions, and trap_soul template guard."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed upgrade-rock-strategy-arrangement-030 task."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded rock strategy/template cross-layer routing pattern and implementation decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T15:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded files touched, changes made, and focused verification for upgrade-rock-strategy-arrangement-030."
+    },
+    {
       "path": "scripts\\smoke_1990s_rock.ps1",
       "action": "created",
       "timestamp": "2026-05-14T13:00:00Z",
@@ -978,6 +1034,36 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen\\strategies\\rock_strategy.py",
+      "description": "Added first-class rock-family generation strategy.",
+      "diff_summary": "New RockStrategy supports rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock, uses PatternLibrary rock backbeat assets for GM live-kit drums, avoids clap/trap rolls/808 assumptions, and supplies root/fifth eighth-note bass plus guitar-range power chords so rock sections do not fall back to synth/808 defaults.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\strategies\\registry.py",
+      "description": "Registered rock-family aliases to RockStrategy.",
+      "diff_summary": "StrategyRegistry lazy initialization now imports/registers RockStrategy while leaving unknown get() as None and get_or_default() as DefaultStrategy.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
+    {
+      "file": "multimodal_gen\\arranger.py",
+      "description": "Added rock-family arrangement templates and bounded short rock smoke behavior.",
+      "diff_summary": "Added rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock templates using intro/verse/chorus/verse/chorus/bridge/chorus/outro, plus a target_bars<=16 rock short template returning verse 4 + chorus 4 + bridge 4 + chorus 4 before section-hint mutation to avoid trap_soul fallback expansion.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
+    {
+      "file": "tests\\test_rock_strategy.py",
+      "description": "Added focused RockStrategy regressions.",
+      "diff_summary": "Covers import/config/aliases, registry rock-family resolution and unknown fallback, live-kit GM drum channel with kick/snare/hihat/no clap, and non-empty verse/chorus bass/chords in sane ranges.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
+    {
+      "file": "tests\\test_arranger_rock.py",
+      "description": "Added focused rock arranger regressions.",
+      "diff_summary": "Asserts the exact 1990s rock prompt with target_bars=16 produces exactly 16 bars as verse/chorus/bridge/chorus, rock-family templates avoid drop/buildup/variation, and trap_soul template remains unchanged.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
+    {
       "file": "scripts\\smoke_1990s_rock.ps1",
       "description": "Added reproducible 1990s rock smoke harness.",
       "diff_summary": "New PowerShell script uses the exact rock prompt as one ProcessStartInfo.ArgumentList value, writes generation.stdout.log/generation.stderr.log, polls the child PID up to 8 minutes, discovers metadata/MIDI/audio/render artifacts, writes smoke_summary.json, and exits strictly with --require-audio when requested.",
@@ -1393,6 +1479,20 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Rock strategy/arranger focused regression suite",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_rock_strategy.py tests/test_arranger_rock.py tests/test_strategies.py tests/test_prompt_parser_key.py tests/test_genre_normalization.py -q -> 51 passed in 2.07s.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Whitespace diff check for rock strategy/arranger milestone",
+      "result": "PASS",
+      "details": "git diff --check passed with no output.",
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
     {
       "type": "post",
       "target": "State JSON validity after runtime-hardening updates",

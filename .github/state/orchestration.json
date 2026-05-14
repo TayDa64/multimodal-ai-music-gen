@@ -7,6 +7,30 @@
   },
   "task_queue": [
     {
+      "id": "upgrade-rock-strategy-arrangement-030",
+      "description": "Implement first-class rock-family strategy registration and rock arranger templates with bounded 16-bar smoke behavior",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "multimodal_gen\\strategies\\rock_strategy.py",
+        "multimodal_gen\\strategies\\registry.py",
+        "multimodal_gen\\arranger.py",
+        "tests\\test_rock_strategy.py",
+        "tests\\test_arranger_rock.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T15:00:00Z",
+      "updated": "2026-05-14T15:00:00Z",
+      "result": {
+        "summary": "Added RockStrategy for rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock with live-kit GM drums, no trap rolls/claps/808 assumptions, and non-empty root/fifth bass plus power-chord guitar-range chords. Registered rock-family aliases and added rock-family band arrangement templates with a short 16-bar verse/chorus/bridge/chorus path for explicit target_bars smoke runs.",
+        "verification": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_rock_strategy.py tests/test_arranger_rock.py tests/test_strategies.py tests/test_prompt_parser_key.py tests/test_genre_normalization.py -q passed 51 tests in 2.07s; git diff --check passed with no output."
+      }
+    },
+    {
       "id": "upgrade-rock-parser-defaults-029",
       "description": "Implement 1990s rock-family parser keywords, modular genre defaults, instrument-resolution defaults, and focused parser/default regressions",
       "status": "completed",

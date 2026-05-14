@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "First-class genre additions need strategy aliases and arrangement templates, not just parser/default keys",
+        "context": "The rock strategy/arrangement slice completed the cross-layer routing after parser/defaults: StrategyRegistry now resolves rock-family aliases to RockStrategy, and ARRANGEMENT_TEMPLATES has matching rock-family keys so explicit 16-bar 1990s rock smokes avoid trap_soul drop/buildup/variation fallback and stay verse/chorus/bridge/chorus.",
+        "timestamp": "2026-05-14T15:00:00Z"
+      },
+      {
         "pattern": "Modular genre aliases must have defaults in every parser/default lookup layer before the parser returns them",
         "context": "The 1990s rock parser/defaults slice returns distinct rock-family keys (rock, classic_rock, alternative_rock, grunge, punk_rock, indie_rock). Each returned key also needs normalize_genre aliases, GENRE_DEFAULTS, ParsedPrompt default instruments/drums, and instrument_resolution DEFAULT_GENRE_INSTRUMENTS entries; otherwise service-backed parsing or downstream defaults silently fall back to unrelated trap_soul/piano-bass behavior.",
         "timestamp": "2026-05-14T14:00:00Z"
@@ -349,6 +354,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Implement a dedicated RockStrategy plus rock-family arrangement templates instead of reusing trap_soul/default strategy behavior for parsed rock prompts.",
+      "rationale": "The approved plan and pre-check showed rock prompts already parse to modular rock keys, but StrategyRegistry.get('rock') returned None and the arranger fell back to trap_soul, expanding explicit 16-bar smoke prompts to 28 bars with drop/buildup/variation sections. A dedicated strategy and templates preserve existing unknown fallback behavior while making rock-family routing truthful.",
+      "alternatives_considered": [
+        "Alias rock-family keys to DefaultStrategy and rely on generic boom-bap drums",
+        "Modify prompt_parser or GENRE_DEFAULTS again even though parser/defaults already passed",
+        "Change _adjust_to_duration globally, which risked trap_soul/rnb regressions"
+      ],
+      "timestamp": "2026-05-14T15:00:00Z"
+    },
     {
       "decision": "Before rerunning prompt smoke tests, harden main.py/audio_renderer.py with an explicit --duration-bars CLI override and persisted Step 5 render diagnostics rather than treating the freeze as a Python server problem.",
       "rationale": "The failing inline run did not use --server, the output manifest proved the prompt-only 16-bar request still expanded to 72 bars, and audio remained null despite exit code 0. The most truthful next move was to bound runtime explicitly and make render failures durable/inspectable.",
@@ -772,5 +787,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T14:00:00Z"
+  "last_updated": "2026-05-14T15:00:00Z"
 }
