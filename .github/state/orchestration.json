@@ -1,11 +1,52 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-14-upgrade-rock-app-validation-docs-037",
-    "started": "2026-05-14T22:30:00Z",
-    "user_request": "Validate the launched app/backend with a 1990s rock request, open the generated WAV for listening, document results, and preserve progress with a commit."
+    "id": "session-2026-05-14-natural-instrument-mastering-parity-038",
+    "started": "2026-05-14T19:10:14Z",
+    "user_request": "Ground Gemini natural-instrument synthesis and app-vs-workspace mastering observations against the current MUSE codebase as source of truth."
   },
   "task_queue": [
+    {
+      "id": "natural-instrument-mastering-parity-findings-038",
+      "description": "Document code-grounded findings for app playback mastering parity, FluidSynth/SoundFont implications, and natural instrument synthesis roadmap",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "files_to_modify": [
+        "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "created": "2026-05-14T19:10:14Z",
+      "updated": "2026-05-14T19:10:14Z",
+      "result": {
+        "summary": "Appended source-grounded findings showing that backend WAV exports are mastered through the Python render chain while the JUCE app currently previews generated MIDI through a separate internal synth/sampler path. Grounded each Gemini natural-synthesis point against current code, including ADSR, additive harmonics, static filters, saturation, noise/presence, velocity/dynamics, FluidSynth/SoundFonts, lo-fi, EDM, rock physical modeling, patch abstractions, and DDSP status.",
+        "key_findings": {
+          "playback_parity": "JUCE generation-complete path records audioPath but loads midiPath into AudioEngine for playback; AudioEngine::loadAudioFile is TODO/returns false; getNextAudioBlock does not call mixerGraph.processBlock.",
+          "backend_mastering": "Python procedural render path applies track balancing, master chain, convolution reverb, multiband dynamics, spectral processing, auto-gain staging, normalization/limiting, dither, and render-report diagnostics.",
+          "fluidsynth": "FluidSynth/SoundFont support exists but final validation reported not_available; successful FluidSynth path still needs post-render mastering parity.",
+          "synth_roadmap": "Natural-sound ingredients exist but are scattered; next durable step is a unified InstrumentPatch/SynthesisVoice contract after playback parity."
+        },
+        "verification": {
+          "pre_edit_status": "clean working tree and state JSON valid before doc update",
+          "source_files_inspected": [
+            "juce/Source/MainComponent.cpp",
+            "juce/Source/Audio/AudioEngine.cpp",
+            "juce/Source/Audio/MixerGraph.cpp",
+            "juce/Source/UI/Mastering/MasteringSuitePanel.h",
+            "multimodal_gen/audio_renderer.py",
+            "multimodal_gen/assets_gen.py",
+            "multimodal_gen/mix_chain.py",
+            "multimodal_gen/style_policy.py",
+            "multimodal_gen/spectral_processing.py",
+            "assets/soundfonts/README.md",
+            "requirements.txt"
+          ]
+        }
+      }
+    },
     {
       "id": "upgrade-rock-app-validation-docs-037",
       "description": "Validate launched app/backend rock generation, fix transported key+mode semantics for E minor, open final WAV for listening, and document validation results",

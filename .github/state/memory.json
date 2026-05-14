@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Judge mastered song quality from backend WAV exports unless JUCE playback is explicitly using the generated audio file",
+        "context": "The backend render path applies mastering-style processing and writes a WAV, but JUCE onGenerationComplete currently loads the generated MIDI into AudioEngine for playback. AudioEngine::loadAudioFile is TODO, MixerGraph FX are not processed in getNextAudioBlock, and MasteringSuite apply is not wired. App preview can therefore sound unmastered even when the saved WAV is processed.",
+        "timestamp": "2026-05-14T19:10:14Z"
+      },
+      {
         "pattern": "Transported key and mode must be compacted before calling run_generation",
         "context": "During launched-app/JSON-RPC rock validation, params key=E and mode=minor still generated Emajor because worker forwarding sent only key_override=\"E\" to main.run_generation(), whose override convention treats bare roots as major and minor as an m suffix. build_run_generation_kwargs now compacts separate key/mode transport to Em while preserving already-compact keys and explicit major overrides.",
         "timestamp": "2026-05-14T22:30:00Z"
@@ -389,6 +394,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Prioritize app playback/mastering parity before deeper FluidSynth, wavetable, or DDSP work",
+      "rationale": "FluidSynth can improve source timbre, but the immediate user-observed mismatch is that app playback uses a separate MIDI/internal-synth path while workspace WAV playback uses the backend mastered render. Fixing parity prevents false quality judgments and gives a stable reference for later natural-instrument upgrades.",
+      "alternatives_considered": [
+        "Install FluidSynth first",
+        "Implement DDSP first",
+        "Rewrite procedural instruments first"
+      ],
+      "timestamp": "2026-05-14T19:10:14Z"
+    },
     {
       "decision": "Append rock-family fallback genre choices after all existing GenreSelector defaults and keep auto selected by dontSendNotification.",
       "rationale": "The backend now supports rock-family IDs, but existing dropdown IDs/order and auto prompt-derived behavior are guardrails. Appending rock/classic_rock/alternative_rock/grunge plus consistent punk_rock/indie_rock exposes the new capability without disturbing prior defaults or listener semantics.",
@@ -899,5 +914,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T16:40:51Z"
+  "last_updated": "2026-05-14T19:10:14Z"
 }
