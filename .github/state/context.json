@@ -1,7 +1,105 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-15-fluidsynth-renderer-profiles-048",
+  "session_id": "session-2026-05-15-fluidsynth-genre-profile-policies-049",
   "files_touched": [
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:17:38Z",
+      "by_agent": "supervisor",
+      "changes": "Renamed task 049 last_validation artifact path to summary_path and restored human-readable summary."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:17:08Z",
+      "by_agent": "supervisor",
+      "changes": "Marked task 049 completed with runtime matrix proof and post-verifier nit resolution."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:17:08Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded final task 049 verification, runtime proof, and latest validation."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:17:08Z",
+      "by_agent": "supervisor",
+      "changes": "Updated FluidSynth profile matrix memory with runtime proof."
+    },
+    {
+      "path": "scripts\\smoke_fluidsynth_profile_matrix.ps1",
+      "action": "created",
+      "timestamp": "2026-05-15T16:02:13Z",
+      "by_agent": "builder",
+      "changes": "Added explicit-SoundFont FluidSynth profile measurement matrix script."
+    },
+    {
+      "path": "tests\\test_fluidsynth_profile_matrix_contract.py",
+      "action": "created",
+      "timestamp": "2026-05-15T16:02:13Z",
+      "by_agent": "builder",
+      "changes": "Added static contract tests for matrix parameters, isolated flags, summary schema, failure policy, and deferred jazz."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:02:13Z",
+      "by_agent": "builder",
+      "changes": "Documented task 049 FluidSynth profile measurement matrix milestone and deferred generic jazz note."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:02:13Z",
+      "by_agent": "builder",
+      "changes": "Recorded non-final task 049 builder implementation and local verification."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:02:13Z",
+      "by_agent": "builder",
+      "changes": "Recorded task 049 files and local verification."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T16:02:13Z",
+      "by_agent": "builder",
+      "changes": "Recorded measurement-before-policy pattern for FluidSynth profile expansion."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T15:55:33Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 049 pre-verifier PARTIAL and advanced to decompose."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T15:55:33Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 049 pre-verification result."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T15:50:58Z",
+      "by_agent": "supervisor",
+      "changes": "Opened task 049 for the next measured FluidSynth genre profile/policy expansion."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T15:50:58Z",
+      "by_agent": "supervisor",
+      "changes": "Started session context for task 049."
+    },
     {
       "path": ".github\\state\\orchestration.json",
       "action": "modified",
@@ -2133,6 +2231,23 @@
   ],
   "changes_made": [
     {
+      "timestamp": "2026-05-15T16:17:08Z",
+      "task": "fluidsynth-genre-profile-policies-049",
+      "summary": "Completed the FluidSynth profile measurement matrix baseline without adding non-rock shelves or touching renderer/profile code.",
+      "details": [
+        "New script runs rock_control, cinematic_classical, and trap_modern_beat as isolated explicit-SoundFont cases.",
+        "matrix_summary.json records renderer/profile proof plus audio-analysis measurements.",
+        "audio_analysis.passed=false remains measurement data, not a default matrix failure.",
+        "generic_jazz is deferred until parser/runtime routing is first-class."
+      ]
+    },
+    {
+      "file": "scripts/smoke_fluidsynth_profile_matrix.ps1; tests/test_fluidsynth_profile_matrix_contract.py; docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Added FluidSynth profile measurement matrix and static contracts; documented task 049 milestone.",
+      "diff_summary": "New matrix runs explicit isolated SoundFont cases, records per-case/aggregate machine-readable evidence, defers generic jazz runtime route, and does not fail on audio_analysis.passed=false.",
+      "timestamp": "2026-05-15T16:02:13Z"
+    },
+    {
       "timestamp": "2026-05-15T15:46:16Z",
       "task": "fluidsynth-renderer-profiles-048",
       "summary": "Completed FluidSynth Renderer Profiles + Genre Policy Registry with immutable profile definitions and profile-driven file-level mastering diagnostics.",
@@ -2796,6 +2911,88 @@
     }
   ],
   "verifications": [
+    {
+      "timestamp": "2026-05-15T16:17:08Z",
+      "task": "fluidsynth-genre-profile-policies-049",
+      "command": ".\\scripts\\smoke_fluidsynth_profile_matrix.ps1 -SoundFont 'assets\\soundfonts\\FluidR3Mono_GM.sf3' -OutputRoot 'output\\_diagnostics\\fluidsynth_profile_matrix' -DurationBars 8 -Seed 49049 -TimeoutSeconds 480",
+      "result": "PASS",
+      "evidence": {
+        "artifact_dir": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_090547",
+        "summary": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_090547\\matrix_summary.json",
+        "proof_passed": true,
+        "failure_count": 0,
+        "case_count": 3,
+        "deferred_case_count": 1,
+        "cases": [
+          {
+            "id": "rock_control",
+            "parsed_genre": "rock",
+            "renderer_path": "fluidsynth",
+            "fluidsynth_success": true,
+            "fluidsynth_skip_reason": null,
+            "profile": "rock:rock",
+            "tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+            "rock_tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+            "proof_passed": true,
+            "audio_analysis_passed": true,
+            "genre_match_score": 1.0
+          },
+          {
+            "id": "cinematic_classical",
+            "parsed_genre": "cinematic",
+            "renderer_path": "fluidsynth",
+            "fluidsynth_success": true,
+            "fluidsynth_skip_reason": null,
+            "profile": "classical:classical",
+            "tone_shaping": null,
+            "rock_tone_shaping": null,
+            "proof_passed": true,
+            "audio_analysis_passed": true,
+            "genre_match_score": 1.0
+          },
+          {
+            "id": "trap_modern_beat",
+            "parsed_genre": "trap",
+            "renderer_path": "fluidsynth",
+            "fluidsynth_success": true,
+            "fluidsynth_skip_reason": null,
+            "profile": "trap_modern_beat:modern_beat",
+            "tone_shaping": null,
+            "rock_tone_shaping": null,
+            "proof_passed": true,
+            "audio_analysis_passed": true,
+            "genre_match_score": 0.844
+          }
+        ],
+        "deferred_cases": [
+          {
+            "id": "generic_jazz",
+            "reason": "Deferred because the registry has a jazz no-op profile but generic jazz is not yet a first-class parser/runtime route comparable to cinematic/classical or trap."
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-05-15T16:17:08Z",
+      "task": "fluidsynth-genre-profile-policies-049",
+      "type": "post-verifier",
+      "result": "PASS_WITH_NITS_RESOLVED",
+      "details": "Verifier confirmed safety and runtime proof; stale NOT_RUN runtime state was the only nit and was resolved in final aggregation."
+    },
+    {
+      "timestamp": "2026-05-15T16:02:13Z",
+      "type": "builder-local",
+      "target": "fluidsynth-genre-profile-policies-049",
+      "result": "PASS",
+      "details": "Focused pytest 15 passed; git diff --check PASS before state update; PowerShell parser check PASS; runtime matrix not run because Builder verification does not require a SoundFont."
+    },
+    {
+      "timestamp": "2026-05-15T15:55:33Z",
+      "type": "pre",
+      "target": "fluidsynth-genre-profile-policies-049",
+      "result": "PARTIAL",
+      "details": "Verifier found non-rock profiles are currently discoverable no-ops and recommended a baseline FluidSynth profile measurement matrix before adding actual tone shelves."
+    },
     {
       "timestamp": "2026-05-15T15:46:16Z",
       "task": "fluidsynth-renderer-profiles-048",
@@ -3679,13 +3876,13 @@
     }
   ],
   "last_validation": {
-    "milestone": "fluidsynth-renderer-profiles-048",
-    "timestamp": "2026-05-15T15:46:16Z",
-    "summary": "FluidSynth profile registry passed focused tests and exact isolated 1990s rock strict smoke with renderer_path=fluidsynth and profile=rock:rock.",
-    "artifact_dir": "output\\_diagnostics\\rock_1990s_20260515_084307",
-    "render_report": "output\\_diagnostics\\rock_1990s_20260515_084307\\rock_100.0bpm_Eminor_20260515_084310_render_report.json",
-    "tests": "35 passed for fluidsynth_profiles/audio_renderer/render_report_schema",
-    "smoke": "strict_audio_failed=false; fluidsynth_isolation_failed=false; renderer_path=fluidsynth; profile=rock:rock"
+    "milestone": "fluidsynth-genre-profile-policies-049",
+    "timestamp": "2026-05-15T16:17:38Z",
+    "summary": "FluidSynth profile measurement matrix passed for rock, cinematic/classical, and trap/modern-beat with expected profile diagnostics and no proof failures.",
+    "artifact_dir": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_090547",
+    "tests": "15 passed for fluidsynth profile, profile matrix contract, and rock smoke contract tests",
+    "matrix": "proof_passed=true; failure_count=0; profiles rock:rock, classical:classical, trap_modern_beat:modern_beat; generic_jazz deferred",
+    "summary_path": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_090547\\matrix_summary.json"
   },
   "changes": [
     {

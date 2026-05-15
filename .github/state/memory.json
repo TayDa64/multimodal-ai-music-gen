@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Measure FluidSynth genre profiles before enabling new non-rock tone shelves",
+        "context": "For task 049, scripts/smoke_fluidsynth_profile_matrix.ps1 established explicit SoundFont isolated baselines for rock_control, cinematic_classical, and trap_modern_beat before adding any non-rock shelves. Runtime artifact output/_diagnostics/fluidsynth_profile_matrix/matrix_20260515_090547/matrix_summary.json proved renderer_path=fluidsynth and expected profiles for all three cases with failure_count=0. audio_analysis.passed=false remains measurement data, not a default matrix failure; generic jazz is deferred until a first-class parser/runtime route exists.",
+        "timestamp": "2026-05-15T16:17:08Z"
+      },
+      {
         "pattern": "FluidSynth renderer profiles should start as additive file-level policies with no-op genre entries",
         "context": "For fluidsynth-renderer-profiles-048, rock strict FluidSynth shelves were moved from hard-coded audio_renderer logic into immutable profiles while default/classical/jazz/trap entries remained discoverable no-ops. AudioRenderer now records fluidsynth_file_mastering.profile and applies shelves only during file-level FluidSynth mastering; renderer selection, SoundFont discovery, command ordering, custom/expansion skip gates, and procedural fallback stayed unchanged. Exact smoke remained green with renderer_path=fluidsynth, strict_audio_failed=false, fluidsynth_isolation_failed=false, profile=rock:rock, and the exact rock tone diagnostic preserved.",
         "timestamp": "2026-05-15T15:46:16Z"
@@ -465,6 +470,15 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Do not add non-rock FluidSynth tone shelves in task 049; add a measurement matrix instead.",
+      "rationale": "Pre-verifier found non-rock profiles are no-op and adding shelves without runtime baselines is too risky.",
+      "alternatives_considered": [
+        "Add classical/jazz/trap shelves immediately",
+        "Force a generic jazz runtime matrix case"
+      ],
+      "timestamp": "2026-05-15T16:02:13Z"
+    },
     {
       "decision": "Do not change AudioRenderer FluidSynth/procedural fallback selection for the exact smoke proof; add opt-in generation and smoke-script isolation instead.",
       "rationale": "Default users still need expansion instruments, default sample loading, custom drums, and procedural fallback. The proof needed a way to prevent those opt-in assets from masking FluidSynth renderer selection, so the safest boundary was CLI/runtime bootstrap plus strict smoke diagnostics.",
@@ -1045,5 +1059,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T15:46:16Z"
+  "last_updated": "2026-05-15T16:17:08Z"
 }
