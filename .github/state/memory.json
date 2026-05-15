@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "After closing a first-class route, generate a dedicated listening artifact outside matrix folders",
+        "context": "Task 052 created output/_diagnostics/first_class_jazz_quality_20260515_110245 with a 16-bar generic jazz WAV/MIDI/render-report package after task 051 proved the route in the matrix. This gives the user a direct audition file while keeping proof artifacts ignored/uncommitted.",
+        "timestamp": "2026-05-15T18:05:26Z"
+      },
+      {
         "pattern": "Genre-specific default augmentation must honor negative prompt exclusions after merging",
         "context": "Task 051 verifier caught generic jazz combo-kit defaults reintroducing --no kick/--no hihat because the merge happened after exclusion filtering. The fix filters kick/snare/hihat/ride against excluded_drums during jazz default augmentation and adds parser regressions for both exclusions.",
         "timestamp": "2026-05-15T17:35:33Z"
@@ -1084,5 +1089,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T17:35:33Z"
+  "last_updated": "2026-05-15T18:05:26Z"
 }

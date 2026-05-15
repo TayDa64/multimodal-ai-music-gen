@@ -1,7 +1,42 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-15-generic-jazz-runtime-route-051",
+  "session_id": "session-2026-05-15-first-class-jazz-listening-render-052",
   "files_touched": [
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:05:26Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded dedicated listening render checkpoint pattern."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:05:26Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 052 jazz listening artifact paths and validation summary."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:05:26Z",
+      "by_agent": "supervisor",
+      "changes": "Marked task 052 completed with dedicated first-class jazz listening artifact proof."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:01:43Z",
+      "by_agent": "supervisor",
+      "changes": "Started session context for task 052 jazz listening artifact generation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:01:43Z",
+      "by_agent": "supervisor",
+      "changes": "Opened task 052 for dedicated first-class jazz listening render artifacts."
+    },
     {
       "path": "multimodal_gen\\prompt_parser.py",
       "action": "modified",
@@ -3136,6 +3171,47 @@
   ],
   "verifications": [
     {
+      "timestamp": "2026-05-15T18:05:26Z",
+      "task": "first-class-jazz-listening-render-052",
+      "command": "main.py first-class generic jazz prompt with --require-audio --skip-default-instruments --skip-expansions --require-soundfont --soundfont assets/soundfonts/FluidR3Mono_GM.sf3",
+      "result": "PASS",
+      "evidence": {
+        "artifact_dir": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245",
+        "summary": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\first_class_jazz_quality_summary.json",
+        "prompt": "small-combo jazz quartet with walking upright bass, ride cymbal swing, acoustic piano comping, warm saxophone lead, 120 BPM in Bb major",
+        "seed": 51052,
+        "duration_bars": 16,
+        "audio": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.wav",
+        "midi": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.mid",
+        "render_report": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248_render_report.json",
+        "metadata": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\project_metadata.json",
+        "stdout": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\generation.stdout.log",
+        "stderr": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\generation.stderr.log",
+        "exit_code": 0,
+        "timed_out": false,
+        "proof_passed": true,
+        "parsed_genre": "jazz",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "fluidsynth_skip_reason": null,
+        "profile": "jazz:jazz",
+        "tone_shaping": null,
+        "rock_tone_shaping": null,
+        "audio_analysis_passed": true,
+        "genre_match_score": 0.933,
+        "centroid_hz": 3604.7,
+        "sub_bass_energy_ratio": 0.0584,
+        "percussive_ratio": 0.077,
+        "issues": [
+          {
+            "severity": "warning",
+            "category": "genre",
+            "message": "Spectral centroid 3605 Hz outside expected 600\u20132800 Hz"
+          }
+        ]
+      }
+    },
+    {
       "timestamp": "2026-05-15T17:35:33Z",
       "task": "generic-jazz-runtime-route-051",
       "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_genre_normalization.py tests/test_jazz_strategy.py tests/test_arranger_rock.py tests/test_rock_strategy.py tests/test_strategies.py tests/test_fluidsynth_profiles.py tests/test_fluidsynth_profile_matrix_contract.py tests/test_smoke_1990s_rock_contract.py -q -p no:cacheprovider",
@@ -4249,15 +4325,15 @@
     }
   ],
   "last_validation": {
-    "milestone": "generic-jazz-runtime-route-051",
-    "timestamp": "2026-05-15T17:35:33Z",
-    "summary": "Generic jazz is a first-class runtime FluidSynth profile-matrix case with jazz:jazz no-op profile and exclusion-safe combo-kit defaults.",
-    "artifact_dir": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211",
-    "summary_path": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\matrix_summary.json",
-    "jazz_audio": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\generic_jazz\\jazz_120.0bpm_Bflatmajor_20260515_101855.wav",
-    "jazz_midi": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\generic_jazz\\jazz_120.0bpm_Bflatmajor_20260515_101855.mid",
-    "jazz_render_report": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\generic_jazz\\jazz_120.0bpm_Bflatmajor_20260515_101855_render_report.json",
-    "result": "aggregate.proof_passed=true; failure_count=0; case_count=4; deferred_case_count=0; generic_jazz profile=jazz:jazz; audio_analysis.passed=true; score=0.923"
+    "milestone": "first-class-jazz-listening-render-052",
+    "timestamp": "2026-05-15T18:05:26Z",
+    "summary": "Dedicated first-class generic jazz WAV/MIDI listening package is ready for audition.",
+    "artifact_dir": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245",
+    "summary_path": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\first_class_jazz_quality_summary.json",
+    "jazz_audio": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.wav",
+    "jazz_midi": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.mid",
+    "jazz_render_report": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248_render_report.json",
+    "result": "proof_passed=true; renderer_path=fluidsynth; profile=jazz:jazz; audio_analysis.passed=true; score=0.933"
   },
   "changes": [
     {

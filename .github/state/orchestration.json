@@ -1,11 +1,74 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-15-generic-jazz-runtime-route-051",
-    "started": "2026-05-15T16:48:11Z",
-    "user_request": "Continue after successful cinematic quality validation by closing the deferred generic jazz FluidSynth/runtime route."
+    "id": "session-2026-05-15-first-class-jazz-listening-render-052",
+    "started": "2026-05-15T18:01:43Z",
+    "user_request": "Generate first-class generic jazz output files, including a WAV, for listening validation."
   },
   "task_queue": [
+    {
+      "id": "first-class-jazz-listening-render-052",
+      "description": "Generate a dedicated first-class generic jazz listening artifact package with WAV, MIDI, render report, logs, and summary using the explicit local FluidSynth SoundFont route.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "generic-jazz-runtime-route-051"
+      ],
+      "files_to_modify": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-15T18:01:43Z",
+      "updated": "2026-05-15T18:05:26Z",
+      "result": {
+        "plan": "Run main.py with the first-class generic jazz prompt, --require-audio, explicit --soundfont, --skip-default-instruments, --skip-expansions, capture WAV/MIDI/render report/logs, then record artifact paths in state.",
+        "summary": "Generated a dedicated first-class generic jazz listening package with WAV, MIDI, render report, logs, and summary using the explicit local FluidSynth SoundFont route.",
+        "runtime_proof": {
+          "artifact_dir": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245",
+          "summary": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\first_class_jazz_quality_summary.json",
+          "prompt": "small-combo jazz quartet with walking upright bass, ride cymbal swing, acoustic piano comping, warm saxophone lead, 120 BPM in Bb major",
+          "seed": 51052,
+          "duration_bars": 16,
+          "audio": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.wav",
+          "midi": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.mid",
+          "render_report": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248_render_report.json",
+          "metadata": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\project_metadata.json",
+          "stdout": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\generation.stdout.log",
+          "stderr": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\generation.stderr.log",
+          "exit_code": 0,
+          "timed_out": false,
+          "proof_passed": true,
+          "parsed_genre": "jazz",
+          "renderer_path": "fluidsynth",
+          "fluidsynth_success": true,
+          "fluidsynth_skip_reason": null,
+          "profile": "jazz:jazz",
+          "tone_shaping": null,
+          "rock_tone_shaping": null,
+          "audio_analysis_passed": true,
+          "genre_match_score": 0.933,
+          "centroid_hz": 3604.7,
+          "sub_bass_energy_ratio": 0.0584,
+          "percussive_ratio": 0.077,
+          "issues": [
+            {
+              "severity": "warning",
+              "category": "genre",
+              "message": "Spectral centroid 3605 Hz outside expected 600\u20132800 Hz"
+            }
+          ]
+        },
+        "verification": {
+          "summary_json": "PASS - first_class_jazz_quality_summary.json reports proof_passed=true, exit_code=0, timed_out=false.",
+          "renderer": "PASS - renderer_path=fluidsynth, fluidsynth_success=true, skip_reason=null, profile=jazz:jazz, no tone shaping.",
+          "audio_analysis": "PASS - audio_analysis.passed=true, genre_match_score=0.933; warning records jazz render is still bright for later tuning.",
+          "artifact_policy": "Output artifacts remain under ignored output/_diagnostics; SoundFont remains ignored/uncommitted."
+        }
+      }
+    },
     {
       "id": "generic-jazz-runtime-route-051",
       "description": "Make generic jazz a first-class parser/runtime route sufficient for the FluidSynth profile matrix to measure a real jazz case, while preserving ethio_jazz, rock, trap, cinematic, renderer fallback, and SoundFont behavior.",
@@ -2337,7 +2400,7 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-15T17:35:33Z",
+    "last_updated": "2026-05-15T18:05:26Z",
     "total_tasks_completed": 71,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
