@@ -174,6 +174,49 @@ ROCK_FAMILY_GENRES = {
     'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
 }
 
+JAZZ_HORN_MELODY_VELOCITY_CAP = 112
+
+SAX_MELODY_ALIASES = ('sax', 'saxophone', 'saxes', 'saxophones')
+ALTO_SAX_MELODY_ALIASES = ('alto_sax', 'alto_saxophone', 'alto sax', 'alto saxophone')
+TENOR_SAX_MELODY_ALIASES = ('tenor_sax', 'tenor_saxophone', 'tenor sax', 'tenor saxophone')
+TRUMPET_MELODY_ALIASES = ('trumpet', 'trumpets')
+TROMBONE_MELODY_ALIASES = ('trombone', 'trombones')
+BRASS_MELODY_ALIASES = ('brass', 'brass_section', 'brass section', 'horns', 'horn_section', 'horn section')
+
+EXPLICIT_HORN_MELODY_CHOICES: Tuple[Tuple[Tuple[str, ...], str, int, str], ...] = (
+    (TENOR_SAX_MELODY_ALIASES, 'tenor_sax', 66, 'Tenor Sax'),
+    (ALTO_SAX_MELODY_ALIASES, 'alto_sax', 65, 'Alto Sax'),
+    (SAX_MELODY_ALIASES, 'sax', 65, 'Sax'),
+    (TRUMPET_MELODY_ALIASES, 'trumpet', 56, 'Trumpet'),
+    (TROMBONE_MELODY_ALIASES, 'trombone', 57, 'Trombone'),
+)
+
+
+def _instrument_alias_present(parsed: ParsedPrompt, aliases: Tuple[str, ...]) -> bool:
+    instruments_norm = {
+        str(inst).strip().lower().replace('-', '_')
+        for inst in getattr(parsed, 'instruments', [])
+    }
+    instruments_spaced = {inst.replace('_', ' ') for inst in instruments_norm}
+    for alias in aliases:
+        alias_norm = alias.strip().lower().replace('-', '_')
+        if alias_norm in instruments_norm or alias_norm.replace('_', ' ') in instruments_spaced:
+            return True
+    return False
+
+
+def _explicit_horn_melody_choice(parsed: ParsedPrompt) -> Optional[Tuple[str, int, str]]:
+    for aliases, instrument_to_resolve, program, display_name in EXPLICIT_HORN_MELODY_CHOICES:
+        if _instrument_alias_present(parsed, aliases):
+            return instrument_to_resolve, program, display_name
+    return None
+
+
+def _is_jazz_horn_melody(parsed: ParsedPrompt, horn_choice: Optional[Tuple[str, int, str]]) -> bool:
+    if normalize_genre(getattr(parsed, 'genre', '') or '') != 'jazz':
+        return False
+    return bool(horn_choice) or _instrument_alias_present(parsed, BRASS_MELODY_ALIASES)
+
 
 def _has_bass_guitar_request(parsed: ParsedPrompt) -> bool:
     """Return True when the prompt/instruments explicitly request electric bass guitar."""
@@ -1725,7 +1768,10 @@ class MidiGenerator:
                 mid.tracks.append(organ_track)
         
         # Track 4: Melody (optional) - especially for Ethiopian flute/lead
-        melody_instruments = ['washint', 'flute', 'synth_lead', 'synth', 'oboe', 'clarinet', 'french_horn']
+        melody_instruments = [
+            'washint', 'flute', 'synth_lead', 'synth', 'oboe', 'clarinet', 'french_horn',
+            'tenor_sax', 'alto_sax', 'sax', 'saxophone', 'trumpet', 'trombone', 'brass',
+        ]
         has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
         if parsed.genre not in ['ambient', 'lofi'] or has_melody_inst:
             melody_track = self._create_melody_track(arrangement, parsed, groove_template)
@@ -3107,6 +3153,8 @@ class MidiGenerator:
     ) -> MidiTrack:
         """Generate optional melody track."""
         track = MidiTrack()
+        horn_choice = _explicit_horn_melody_choice(parsed)
+        jazz_horn_velocity_cap = JAZZ_HORN_MELODY_VELOCITY_CAP if _is_jazz_horn_melody(parsed, horn_choice) else None
         
         # Try to resolve instrument via service first (if available)
         program = None
@@ -3124,6 +3172,8 @@ class MidiGenerator:
                 instrument_to_resolve = 'krar'
             elif 'flute' in parsed.instruments:
                 instrument_to_resolve = 'flute'
+            elif horn_choice:
+                instrument_to_resolve = horn_choice[0]
             elif 'brass' in parsed.instruments:
                 instrument_to_resolve = 'brass'
             elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
@@ -3136,7 +3186,7 @@ class MidiGenerator:
                 genre=parsed.genre or ""
             )
             program = resolved.program
-            resolved_instrument = instrument_to_resolve
+            resolved_instrument = horn_choice[2] if horn_choice and instrument_to_resolve == horn_choice[0] else instrument_to_resolve
         
         # Fallback to hardcoded mappings if no service
         if program is None:
@@ -3152,6 +3202,9 @@ class MidiGenerator:
             elif 'flute' in parsed.instruments:
                 program = 73  # Flute
                 resolved_instrument = 'Flute'
+            elif horn_choice:
+                program = horn_choice[1]
+                resolved_instrument = horn_choice[2]
             elif 'brass' in parsed.instruments:
                 program = 56  # Trumpet
                 resolved_instrument = 'Brass'
@@ -3325,7 +3378,20 @@ class MidiGenerator:
             all_notes, parsed.genre or 'default', 'lead'
         )
 
-        self._notes_to_track(all_notes, track, channel=3, groove_template=groove_template)
+        if jazz_horn_velocity_cap is not None and all_notes:
+            peak_velocity = max(note.velocity for note in all_notes)
+            if peak_velocity > jazz_horn_velocity_cap:
+                scale = jazz_horn_velocity_cap / max(1, peak_velocity)
+                for note in all_notes:
+                    note.velocity = max(1, min(jazz_horn_velocity_cap, int(round(note.velocity * scale))))
+
+        self._notes_to_track(
+            all_notes,
+            track,
+            channel=3,
+            groove_template=groove_template,
+            velocity_cap=jazz_horn_velocity_cap,
+        )
 
         # CC Expression injection for melody track (Sprint 7)
         if hasattr(arrangement, 'get_tension_curve'):
@@ -3403,7 +3469,8 @@ class MidiGenerator:
         groove_template: Optional[GrooveTemplate] = None,
         bpm: float = 90.0,
         genre: str = "default",
-        role: str = "drums"
+        role: str = "drums",
+        velocity_cap: Optional[int] = None,
     ):
         """
         Convert list of NoteEvents to MIDI track messages.
@@ -3439,6 +3506,10 @@ class MidiGenerator:
                 n = d['note_event']
                 n.start_tick = d['tick']
                 n.velocity = d['velocity']
+
+        if velocity_cap is not None:
+            for note in notes:
+                note.velocity = max(1, min(int(velocity_cap), int(note.velocity)))
         
         # Apply physics-aware humanization for drums
         if HAS_PHYSICS_HUMANIZER and channel == GM_DRUM_CHANNEL and self.use_physics_humanization:

@@ -3,8 +3,10 @@
 from mido import MidiFile, MidiTrack
 
 from multimodal_gen.arranger import Arrangement, SECTION_CONFIGS, SectionType, SongSection
-from multimodal_gen.midi_generator import MidiGenerator
+from multimodal_gen.instrument_resolution import InstrumentResolutionService
+from multimodal_gen.midi_generator import JAZZ_HORN_MELODY_VELOCITY_CAP, MidiGenerator
 from multimodal_gen.prompt_parser import ParsedPrompt
+from multimodal_gen.prompt_parser import PromptParser
 from multimodal_gen.utils import ScaleType, TICKS_PER_BAR_4_4
 
 
@@ -15,13 +17,13 @@ EXACT_1990S_ROCK_PROMPT = (
 )
 
 
-def _one_bar_arrangement() -> Arrangement:
+def _one_bar_arrangement(section_type: SectionType = SectionType.VERSE) -> Arrangement:
     section = SongSection(
-        section_type=SectionType.VERSE,
+        section_type=section_type,
         start_tick=0,
         end_tick=TICKS_PER_BAR_4_4,
         bars=1,
-        config=SECTION_CONFIGS[SectionType.VERSE],
+        config=SECTION_CONFIGS[section_type],
     )
     return Arrangement(
         sections=[section],
@@ -38,6 +40,10 @@ def _chords_track(mid: MidiFile) -> MidiTrack:
 
 def _bass_track(mid: MidiFile) -> MidiTrack:
     return _track_by_name(mid, "Bass")
+
+
+def _melody_track(mid: MidiFile) -> MidiTrack:
+    return _track_by_name(mid, "Melody")
 
 
 def _track_by_name(mid: MidiFile, name: str) -> MidiTrack:
@@ -59,6 +65,18 @@ def _channel_program(track: MidiTrack, channel: int) -> int:
 
 def _channel_1_program(track: MidiTrack) -> int:
     return _channel_program(track, 1)
+
+
+def _channel_3_program(track: MidiTrack) -> int:
+    return _channel_program(track, 3)
+
+
+def _text_markers(track: MidiTrack) -> list[str]:
+    return [msg.text for msg in track if msg.type == "text"]
+
+
+def _note_on_velocities(track: MidiTrack) -> list[int]:
+    return [msg.velocity for msg in track if msg.type == "note_on" and msg.velocity > 0]
 
 
 def test_rock_guitar_prompt_creates_guitar_chord_track_not_rhodes():
@@ -137,3 +155,96 @@ def test_non_guitar_rhodes_prompt_still_uses_rhodes_program():
     program = _channel_2_program(_chords_track(mid))
 
     assert program == 4
+
+
+def test_exact_jazz_sax_prompt_uses_sax_melody_program_and_capped_velocity():
+    parsed = PromptParser().parse(
+        "small-combo jazz quartet with walking upright bass, ride cymbal swing, "
+        "acoustic piano comping, warm saxophone lead, 120 BPM in Bb major"
+    )
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), parsed)
+    melody = _melody_track(mid)
+    program = _channel_3_program(melody)
+    velocities = _note_on_velocities(melody)
+
+    assert program == 65
+    assert program != 56
+    assert "instrument:Sax" in _text_markers(melody)
+    assert velocities
+    assert max(velocities) <= JAZZ_HORN_MELODY_VELOCITY_CAP
+    assert JAZZ_HORN_MELODY_VELOCITY_CAP < 127
+
+
+def test_jazz_trombone_and_flute_melody_programs_remain_distinct():
+    trombone = ParsedPrompt(
+        genre="jazz",
+        bpm=120,
+        key="Bb",
+        scale_type=ScaleType.MAJOR,
+        instruments=["trombone"],
+        drum_elements=["kick", "snare", "hihat", "ride"],
+        raw_prompt="jazz quartet with trombone lead",
+    )
+    flute = ParsedPrompt(
+        genre="jazz",
+        bpm=120,
+        key="Bb",
+        scale_type=ScaleType.MAJOR,
+        instruments=["flute"],
+        drum_elements=["kick", "snare", "hihat", "ride"],
+        raw_prompt="jazz quartet with flute lead",
+    )
+
+    trombone_program = _channel_3_program(
+        _melody_track(MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), trombone))
+    )
+    flute_program = _channel_3_program(
+        _melody_track(MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), flute))
+    )
+
+    assert trombone_program == 57
+    assert flute_program == 73
+
+
+def test_jazz_trumpet_lead_and_generic_brass_melody_markers_are_distinct():
+    trumpet = ParsedPrompt(
+        genre="jazz",
+        bpm=120,
+        key="Bb",
+        scale_type=ScaleType.MAJOR,
+        instruments=["trumpet"],
+        drum_elements=["kick", "snare", "hihat", "ride"],
+        raw_prompt="jazz quartet with trumpet lead",
+    )
+    brass = ParsedPrompt(
+        genre="jazz",
+        bpm=120,
+        key="Bb",
+        scale_type=ScaleType.MAJOR,
+        instruments=["brass"],
+        drum_elements=["kick", "snare", "hihat", "ride"],
+        raw_prompt="jazz quartet with brass section hits",
+    )
+
+    trumpet_track = _melody_track(
+        MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), trumpet)
+    )
+    brass_track = _melody_track(
+        MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), brass)
+    )
+
+    assert _channel_3_program(trumpet_track) == 56
+    assert _channel_3_program(brass_track) == 56
+    assert "instrument:Trumpet" in _text_markers(trumpet_track)
+    assert "instrument:Brass" in _text_markers(brass_track)
+
+
+def test_instrument_resolution_saxophone_aliases_resolve_to_gm_sax_programs():
+    service = InstrumentResolutionService()
+
+    assert service.resolve_instrument("saxophone").program == 65
+    assert service.resolve_instrument("alto saxophone").program == 65
+    assert service.resolve_instrument("tenor saxophone").program == 66
+    assert service.get_instrument_for_program(65) == "alto_sax"
+    assert service.get_instrument_for_program(66) == "tenor_sax"

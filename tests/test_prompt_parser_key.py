@@ -12,6 +12,11 @@ GENERIC_JAZZ_PROMPT = (
     "piano comping, 120 BPM in Bb major"
 )
 
+WARM_SAX_JAZZ_PROMPT = (
+    "small-combo jazz quartet with walking upright bass, ride cymbal swing, "
+    "acoustic piano comping, warm saxophone lead, 120 BPM in Bb major"
+)
+
 
 def test_key_extraction_prefers_explicit_key_over_word_fragments():
     parser = PromptParser()
@@ -73,6 +78,37 @@ def test_generic_jazz_prompt_parses_as_combo_defaults_without_trap_fallbacks():
     assert "crash" not in parsed.drum_elements
     assert "808" not in parsed.drum_elements
     assert "hihat_roll" not in parsed.drum_elements
+
+
+def test_warm_saxophone_jazz_prompt_preserves_explicit_sax_not_generic_brass():
+    parsed = PromptParser().parse(WARM_SAX_JAZZ_PROMPT)
+
+    assert parsed.genre == "jazz"
+    assert parsed.bpm == 120
+    assert parsed.key == "Bb"
+    assert parsed.scale_type.name.lower() == "major"
+    assert "sax" in parsed.instruments or "saxophone" in parsed.instruments
+    assert "brass" not in parsed.instruments
+
+
+def test_explicit_jazz_horns_stay_distinct_while_brass_section_stays_generic():
+    parser = PromptParser()
+
+    trumpet = parser.parse("jazz quartet with trumpet lead and walking bass")
+    trombone = parser.parse("jazz quartet with trombone lead and walking bass")
+    brass_section = parser.parse("jazz quartet with brass section hits and horns")
+
+    assert trumpet.genre == "jazz"
+    assert "trumpet" in trumpet.instruments
+    assert "brass" not in trumpet.instruments
+
+    assert trombone.genre == "jazz"
+    assert "trombone" in trombone.instruments
+    assert "brass" not in trombone.instruments
+
+    assert brass_section.genre == "jazz"
+    assert "brass" in brass_section.instruments
+    assert not {"sax", "saxophone", "trumpet", "trombone"} & set(brass_section.instruments)
 
 
 def test_generic_jazz_combo_defaults_honor_excluded_drums():

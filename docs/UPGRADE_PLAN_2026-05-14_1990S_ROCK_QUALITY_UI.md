@@ -63,26 +63,6 @@ Task `fluidsynth-rock-strict-quality-047` fixed the exact isolated FluidSynth re
 - `multimodal_gen/audio_renderer.py` adds rock-family-only FluidSynth file-mastering tone shaping before final soft clipping/gain staging: a conservative high shelf (`-6.0 dB @ 5000 Hz`) and low shelf (`-0.75 dB @ 90 Hz`). The render report records this as `pipeline_stages.fluidsynth_file_mastering.rock_tone_shaping`.
 - Regression coverage was added for GM-style snare detection in hat-heavy live drum mixes, the no-snare kick/hat negative case, and the rock FluidSynth tone-shaping helper.
 
-### FluidSynth renderer profile registry — 2026-05-15
-
-Task `fluidsynth-renderer-profiles-048` moves the hard-coded rock FluidSynth tone shelves into `multimodal_gen/fluidsynth_profiles.py`, an immutable profile/genre registry used only by file-level FluidSynth mastering. Rock-family profiles keep the exact strict-quality shelf diagnostic `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`, while initial classical, jazz, and trap/modern-beat profiles are discoverable no-ops. The integration is additive: it records a `fluidsynth_file_mastering.profile` diagnostic, does not make FluidSynth mandatory, does not vendor SoundFonts, and does not change SoundFont discovery, FluidSynth command ordering, renderer selection gates, or procedural/custom/expansion fallback behavior.
-
-Profile-registry regression proof: focused tests passed (`35 passed, 2 existing warnings`), post-verifier returned `PASS`, and the exact strict FluidSynth smoke remained green on `output\_diagnostics\rock_1990s_20260515_084307` with `renderer_path=fluidsynth`, `strict_audio_failed=false`, `fluidsynth_isolation_failed=false`, `audio_analysis.passed=true`, `fluidsynth_file_mastering.profile=rock:rock`, and the preserved rock tone diagnostic `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`.
-
-### FluidSynth profile measurement matrix — 2026-05-15
-
-Task `fluidsynth-genre-profile-policies-049` adds `scripts/smoke_fluidsynth_profile_matrix.ps1` as the safe baseline step before any non-rock FluidSynth tone shelves. The script runs explicit-SoundFont, isolated runtime cases with `--skip-default-instruments`, `--skip-expansions`, and `--require-soundfont`, using a rock control plus first-class cinematic/classical and trap/modern-beat routes. Each case captures stdout/stderr and parses `project_metadata.json`, the render report, renderer diagnostics, `audio_analysis` metrics, and `pipeline_stages.fluidsynth_file_mastering.profile` into `matrix_summary.json`.
-
-The matrix's default failure policy gates only process/render-path/profile proof (`renderer_path="fluidsynth"`, `fluidsynth.attempted/success == true`, empty skip reason, present SoundFont path, expected profile diagnostics, and expected absence/presence of tone-shaping diagnostics). It records `audio_analysis.passed == false` as measurement data for later policy tuning rather than failing the whole matrix. At task 049 time, generic jazz was deferred in the summary because the registry had a jazz no-op profile, but the parser/runtime did not yet expose a first-class generic jazz route comparable to cinematic/classical or trap.
-
-Runtime proof: `output\_diagnostics\fluidsynth_profile_matrix\matrix_20260515_090547\matrix_summary.json` completed with `proof_passed=true`, `failure_count=0`, and three explicit FluidSynth cases. The rock control parsed as `rock` with `profile=rock:rock` and the exact tone diagnostic, the cinematic/classical case parsed as `cinematic` with `profile=classical:classical` and no tone-shaping diagnostics, and the trap/modern-beat case parsed as `trap` with `profile=trap_modern_beat:modern_beat` and no tone-shaping diagnostics.
-
-### Generic jazz runtime route — 2026-05-15
-
-Task `generic-jazz-runtime-route-051` closes the deferred matrix route for `small-combo jazz quartet with walking bass, ride cymbal, piano comping, 120 BPM in Bb major`. Generic jazz now parses as `jazz`, uses combo-safe piano/bass/brass defaults with ride-led acoustic drums and no 808/hi-hat-roll defaults, has a dedicated `JazzStrategy` plus jazz arrangement template, and runs as a runtime FluidSynth matrix case expecting the existing no-op profile diagnostic `jazz:jazz` with no tone-shaping diagnostics. `ethio_jazz` priority and Ethiopian instrument semantics remain separate.
-
-Runtime proof: `output\_diagnostics\fluidsynth_profile_matrix\matrix_20260515_101211\matrix_summary.json` completed with `aggregate.proof_passed=true`, `failure_count=0`, `case_count=4`, and `deferred_case_count=0`. The new `generic_jazz` case parsed as `jazz`, rendered through `renderer_path=fluidsynth` with `fluidsynth.attempted/success=true`, recorded `profile=jazz:jazz`, kept `actual_tone_shaping=null` and `actual_rock_tone_shaping=null`, and passed audio analysis with score `0.923`. Post-verifier also confirmed generic jazz `--no kick` / `--no hihat` exclusions are not reintroduced by combo-kit defaults.
-
 Pre-fix measurement on `output\_diagnostics\rock_1990s_20260514_160450` showed the quality failure was not missing MIDI drums: GM snare note 38 appeared 48 times with mean velocity `88.8`, and snare-aligned mid-band RMS averaged `0.091816`. The old detector still reported `has_snare_or_clap=false` because its full-file mid-band/percussive ratio was only `0.097` against the historical `>0.300` gate.
 
 Post-fix exact isolated FluidSynth smoke proof:
@@ -116,6 +96,42 @@ Post-fix exact isolated FluidSynth smoke proof:
   - `drums.percussive_ratio=0.215`
 
 Focused verification for the code slice: `tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_render_report_schema.py -q` passed (`103 passed`, with existing librosa/audioread warnings).
+
+### FluidSynth renderer profile registry — 2026-05-15
+
+Task `fluidsynth-renderer-profiles-048` moves the hard-coded rock FluidSynth tone shelves into `multimodal_gen/fluidsynth_profiles.py`, an immutable profile/genre registry used only by file-level FluidSynth mastering. Rock-family profiles keep the exact strict-quality shelf diagnostic `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`, while initial classical, jazz, and trap/modern-beat profiles are discoverable no-ops. The integration is additive: it records a `fluidsynth_file_mastering.profile` diagnostic, does not make FluidSynth mandatory, does not vendor SoundFonts, and does not change SoundFont discovery, FluidSynth command ordering, renderer selection gates, or procedural/custom/expansion fallback behavior.
+
+Profile-registry regression proof: focused tests passed (`35 passed, 2 existing warnings`), post-verifier returned `PASS`, and the exact strict FluidSynth smoke remained green on `output\_diagnostics\rock_1990s_20260515_084307` with `renderer_path=fluidsynth`, `strict_audio_failed=false`, `fluidsynth_isolation_failed=false`, `audio_analysis.passed=true`, `fluidsynth_file_mastering.profile=rock:rock`, and the preserved rock tone diagnostic `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`.
+
+### FluidSynth profile measurement matrix — 2026-05-15
+
+Task `fluidsynth-genre-profile-policies-049` adds `scripts/smoke_fluidsynth_profile_matrix.ps1` as the safe baseline step before any non-rock FluidSynth tone shelves. The script runs explicit-SoundFont, isolated runtime cases with `--skip-default-instruments`, `--skip-expansions`, and `--require-soundfont`, using a rock control plus first-class cinematic/classical and trap/modern-beat routes. Each case captures stdout/stderr and parses `project_metadata.json`, the render report, renderer diagnostics, `audio_analysis` metrics, and `pipeline_stages.fluidsynth_file_mastering.profile` into `matrix_summary.json`.
+
+The matrix's default failure policy gates only process/render-path/profile proof (`renderer_path="fluidsynth"`, `fluidsynth.attempted/success == true`, empty skip reason, present SoundFont path, expected profile diagnostics, and expected absence/presence of tone-shaping diagnostics). It records `audio_analysis.passed == false` as measurement data for later policy tuning rather than failing the whole matrix. At task 049 time, generic jazz was deferred in the summary because the registry had a jazz no-op profile, but the parser/runtime did not yet expose a first-class generic jazz route comparable to cinematic/classical or trap.
+
+Runtime proof: `output\_diagnostics\fluidsynth_profile_matrix\matrix_20260515_090547\matrix_summary.json` completed with `proof_passed=true`, `failure_count=0`, and three explicit FluidSynth cases. The rock control parsed as `rock` with `profile=rock:rock` and the exact tone diagnostic, the cinematic/classical case parsed as `cinematic` with `profile=classical:classical` and no tone-shaping diagnostics, and the trap/modern-beat case parsed as `trap` with `profile=trap_modern_beat:modern_beat` and no tone-shaping diagnostics.
+
+### Generic jazz runtime route — 2026-05-15
+
+Task `generic-jazz-runtime-route-051` closes the deferred matrix route for `small-combo jazz quartet with walking bass, ride cymbal, piano comping, 120 BPM in Bb major`. Generic jazz now parses as `jazz`, uses combo-safe piano/bass/brass defaults with ride-led acoustic drums and no 808/hi-hat-roll defaults, has a dedicated `JazzStrategy` plus jazz arrangement template, and runs as a runtime FluidSynth matrix case expecting the existing no-op profile diagnostic `jazz:jazz` with no tone-shaping diagnostics. `ethio_jazz` priority and Ethiopian instrument semantics remain separate.
+
+Runtime proof: `output\_diagnostics\fluidsynth_profile_matrix\matrix_20260515_101211\matrix_summary.json` completed with `aggregate.proof_passed=true`, `failure_count=0`, `case_count=4`, and `deferred_case_count=0`. The new `generic_jazz` case parsed as `jazz`, rendered through `renderer_path=fluidsynth` with `fluidsynth.attempted/success=true`, recorded `profile=jazz:jazz`, kept `actual_tone_shaping=null` and `actual_rock_tone_shaping=null`, and passed audio analysis with score `0.923`. Post-verifier also confirmed generic jazz `--no kick` / `--no hihat` exclusions are not reintroduced by combo-kit defaults.
+
+### Jazz horn realism / sax lead polish - 2026-05-15
+
+Task `jazz-horn-realism-sax-lead-polish-053` addresses the first generic-jazz listening artifact where `warm saxophone lead` collapsed to generic `brass`, produced a Melody track on GM program `56` (Trumpet), and allowed lead velocities to hit `127`. The code-level fix is intentionally semantic and local: parser horn keywords now keep explicit `sax`/`trumpet`/`trombone` identities while leaving `brass`/`horns`/`brass section` generic, instrument resolution has direct saxophone/alto/tenor sax aliases, and Melody routing checks explicit sax/trumpet/trombone before generic brass. Generic jazz still uses the existing no-op FluidSynth profile `jazz:jazz`; no renderer or FluidSynth profile shelves were added. A jazz-only horn melody velocity normalization/cap keeps explicit sax/trumpet/trombone/brass lead notes below clipping while preserving relative phrase dynamics.
+
+Post-change sax listening/runtime proof:
+
+- Summary: `output\_diagnostics\jazz_sax_lead_polish_20260515_120838\jazz_sax_lead_polish_summary.json`
+- WAV: `output\_diagnostics\jazz_sax_lead_polish_20260515_120838\generic_jazz_sax_lead\jazz_120.0bpm_Bflatmajor_20260515_120840.wav`
+- MIDI: `output\_diagnostics\jazz_sax_lead_polish_20260515_120838\generic_jazz_sax_lead\jazz_120.0bpm_Bflatmajor_20260515_120840.mid`
+- Render report: `output\_diagnostics\jazz_sax_lead_polish_20260515_120838\generic_jazz_sax_lead\jazz_120.0bpm_Bflatmajor_20260515_120840_render_report.json`
+- Runtime gates: `proof_passed=true`, `exit_code=0`, `renderer_path=fluidsynth`, `fluidsynth_success=true`, `skip_reason=null`, and `profile=jazz:jazz`.
+- Sax routing proof: parsed instruments were `[piano, sax, bass]`; the Melody track used GM program `65`, marker `instrument:Sax`, and `velocity_max=112`.
+- Listening/analysis proof: `audio_analysis.passed=true`, `genre_match_score=0.95`, and `spectral.centroid_hz=3404.3`; the remaining warning is brightness-related and no longer a failed render or trumpet-routing issue.
+- Focused tests passed: `68 passed`, with `2` dependency warnings.
+- Guardrails: `audio_renderer.py` and `fluidsynth_profiles.py` were unchanged, and no jazz FluidSynth shelves were added.
 
 ### Failed runner attempt
 

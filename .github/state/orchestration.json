@@ -1,11 +1,160 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-15-first-class-jazz-listening-render-052",
-    "started": "2026-05-15T18:01:43Z",
-    "user_request": "Generate first-class generic jazz output files, including a WAV, for listening validation."
+    "id": "session-2026-05-15-jazz-horn-realism-sax-lead-polish-053",
+    "started": "2026-05-15T18:43:02Z",
+    "user_request": "Continue with Jazz Horn Realism / Sax Lead Polish and review other instrument routing for correctness."
   },
   "task_queue": [
+    {
+      "id": "jazz-horn-realism-sax-lead-polish-053",
+      "description": "Polish generic jazz horn realism by preserving saxophone cues, correcting melody program routing, normalizing sax/horn dynamics, auditing nearby instrument-routing correctness, and generating a fresh listening proof while preserving existing genre/render behavior.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "first-class-jazz-listening-render-052",
+        "generic-jazz-runtime-route-051"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/prompt_parser.py",
+        "multimodal_gen/instrument_resolution.py",
+        "multimodal_gen/midi_generator.py",
+        "tests/test_prompt_parser_key.py",
+        "tests/test_jazz_strategy.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-15T18:43:02Z",
+      "updated": "2026-05-15T19:18:37Z",
+      "baseline_evidence": {
+        "listening_artifact": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.wav",
+        "midi": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.mid",
+        "render_summary": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\first_class_jazz_quality_summary.json",
+        "issue_summary": "Prompt requested warm saxophone lead, parsed instruments collapsed saxophone to generic brass, melody MIDI used program 56 with velocity max 127, and audio analysis warned centroid 3604.7 Hz exceeded jazz target 600-2800 Hz."
+      },
+      "pre_verifier": {
+        "verdict": "PARTIAL",
+        "summary": "Sax/saxophone currently collapses to generic brass; the exact warm saxophone jazz prompt renders Melody program 56 (Trumpet) with velocity max 127. Adjacent risk is trumpet/trombone/sax collapse, while flute, rock guitar/bass, trap synth/bass, and cinematic secondary tracks are mostly OK in this path.",
+        "evidence": [
+          "prompt_parser.py INSTRUMENT_KEYWORDS[brass] contains brass/horns/trumpet/sax/saxophone/trombone.",
+          "instrument_resolution.py has distinct GM mappings such as trumpet=56, trombone=57, sax=65, flute=73, but parser does not preserve saxophone identity.",
+          "midi_generator.py _create_melody_track maps parsed brass to program 56 / Trumpet.",
+          "Baseline first-class jazz artifact parsed instruments [piano, brass, bass] and saved Melody program 56 with max velocity 127."
+        ],
+        "recommended_slice": "Split explicit sax/trumpet/trombone parser keys, add resolver aliases, handle explicit horn programs before generic brass in melody routing, add jazz sax/horn velocity cap, and leave audio_renderer/fluidsynth_profiles unchanged.",
+        "guardrails": [
+          "Do not touch audio_renderer.py or fluidsynth_profiles.py in this slice.",
+          "Keep jazz:jazz profile no-op; no jazz tone shelves.",
+          "Preserve ethio_jazz priority and EthioJazzStrategy.",
+          "Preserve rock guitar/bass, trap synth/bass, cinematic secondary tracks, FluidSynth profile matrix, and renderer fallback."
+        ],
+        "timestamp": "2026-05-15T18:49:13Z"
+      },
+      "result": {
+        "summary": "Generic jazz sax lead routing now preserves sax identity, renders Melody as sax GM program 65 instead of trumpet program 56, caps jazz horn lead velocity at 112, and generated a fresh FluidSynth listening WAV/MIDI proof while preserving renderer/profile behavior.",
+        "pre_verifier": {
+          "verdict": "PARTIAL",
+          "summary": "Sax/saxophone collapsed to generic brass and baseline Melody program 56 with velocity max 127; adjacent concrete risk was sax/trumpet/trombone collapse."
+        },
+        "implementation": {
+          "files_changed": [
+            "multimodal_gen/prompt_parser.py",
+            "multimodal_gen/instrument_resolution.py",
+            "multimodal_gen/midi_generator.py",
+            "tests/test_prompt_parser_key.py",
+            "tests/test_midi_generator.py",
+            "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+          ],
+          "key_points": [
+            "Parser now preserves explicit sax/alto_sax/tenor_sax/trumpet/trombone while keeping brass/horns/brass section generic.",
+            "Instrument resolver has direct saxophone and sax-family aliases to GM sax programs.",
+            "Melody routing handles explicit horns before generic brass; sax uses GM program 65 and marker instrument:Sax.",
+            "Jazz-only horn lead velocity normalization caps sax/trumpet/trombone/brass Melody notes at 112 without global dynamics changes.",
+            "Docs record the sax listening proof and the remaining brightness warning separately from the solved trumpet-routing issue."
+          ],
+          "guardrails": [
+            "multimodal_gen/audio_renderer.py unchanged",
+            "multimodal_gen/fluidsynth_profiles.py unchanged",
+            "No jazz FluidSynth tone shelves added; profile remains jazz:jazz",
+            "ethio_jazz, rock guitar/bass, trap synth/bass, and cinematic secondary orchestral routing covered by focused tests/probes",
+            "Output artifacts remain under ignored output/_diagnostics; SoundFont remains ignored/uncommitted"
+          ]
+        },
+        "post_verifier": {
+          "verdict": "PASS_WITH_NITS",
+          "summary": "recursive-verifier confirmed sax identity, Melody program 65, instrument:Sax marker, local velocity cap, adjacent horn/wind routing, no protected renderer/profile diffs, and focused regression suite pass. Nit was to generate a fresh runtime listening proof, completed by supervisor.",
+          "evidence": [
+            "Exact prompt parsed instruments [piano, sax, bass] and Melody program 65/text instrument:Sax/max_velocity 112 in no-render probe.",
+            "Trumpet, trombone, generic brass, flute, ethio_jazz, rock, trap, and cinematic guardrail probes passed.",
+            "Protected diff check clean for multimodal_gen/audio_renderer.py and multimodal_gen/fluidsynth_profiles.py.",
+            "Focused pytest suite: 68 passed, 2 dependency warnings."
+          ]
+        },
+        "runtime_proof": {
+          "artifact_dir": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838",
+          "summary": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\jazz_sax_lead_polish_summary.json",
+          "prompt": "small-combo jazz quartet with walking upright bass, ride cymbal swing, acoustic piano comping, warm saxophone lead, 120 BPM in Bb major",
+          "seed": 53053,
+          "duration_bars": 16,
+          "audio": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840.wav",
+          "midi": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840.mid",
+          "render_report": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840_render_report.json",
+          "exit_code": 0,
+          "timed_out": false,
+          "proof_passed": true,
+          "proof_failures": [],
+          "parsed_genre": "jazz",
+          "parsed_instruments": [
+            "piano",
+            "sax",
+            "bass"
+          ],
+          "renderer_path": "fluidsynth",
+          "fluidsynth_success": true,
+          "fluidsynth_skip_reason": null,
+          "profile": "jazz:jazz",
+          "tone_shaping": null,
+          "rock_tone_shaping": null,
+          "melody_programs": [
+            65
+          ],
+          "melody_texts": [
+            "instrument:Sax"
+          ],
+          "melody_velocity_max": 112,
+          "audio_analysis_passed": true,
+          "genre_match_score": 0.95,
+          "centroid_hz": 3404.3,
+          "remaining_issues": [
+            {
+              "severity": "warning",
+              "category": "genre",
+              "message": "Spectral centroid 3404 Hz outside expected 600-2800 Hz"
+            }
+          ]
+        },
+        "local_verification": {
+          "focused_pytest": "PASS - .\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_jazz_strategy.py tests/test_midi_generator.py tests/test_audio_renderer.py tests/test_fluidsynth_profiles.py tests/test_fluidsynth_profile_matrix_contract.py tests/test_smoke_1990s_rock_contract.py -q -p no:cacheprovider -> 68 passed, 2 dependency warnings.",
+          "no_render_probe": "PASS - exact sax prompt -> genre=jazz, instruments=[piano,sax,bass], Melody program=65, marker=instrument:Sax, max_velocity=112; trumpet/trombone/brass/flute and ethio_jazz guardrail probes passed.",
+          "runtime_sax_render": "PASS - generated post-change WAV/MIDI/render report with proof_passed=true, renderer_path=fluidsynth, profile=jazz:jazz, melody_programs=[65], velocity_max=112, audio_analysis.passed=true, score=0.95.",
+          "diff_check": "PASS - git diff --check clean; only Git LF-to-CRLF warning for tests/test_prompt_parser_key.py.",
+          "protected_diff_check": "PASS - no changes to audio_renderer.py or fluidsynth_profiles.py.",
+          "diagnostics": "PASS - get_errors reported no errors in touched Python/test files.",
+          "optional_matrix_guard": "NOT_USED - attempted cross-genre profile matrix guard was stopped after a long trap-case stall without summary; not required for this parser/MIDI sax slice because focused tests/probes plus exact runtime sax proof cover the acceptance criteria."
+        },
+        "verification": {
+          "supervisor": "PASS",
+          "post_verifier": "PASS_WITH_NITS_RESOLVED",
+          "runtime_sax_render": "PASS",
+          "artifact_policy": "Output artifacts remain under ignored output/_diagnostics; SoundFont remains ignored/uncommitted."
+        },
+        "next_recommendation": "User should audition the new sax-lead WAV. Remaining brightness warning (centroid 3404 Hz vs jazz target 600-2800) should be handled in a later measured jazz mastering/breath-articulation slice only after listening feedback confirms the new sax routing is better."
+      }
+    },
     {
       "id": "first-class-jazz-listening-render-052",
       "description": "Generate a dedicated first-class generic jazz listening artifact package with WAV, MIDI, render report, logs, and summary using the explicit local FluidSynth SoundFont route.",
@@ -2396,7 +2545,7 @@
     "upgrade-ui-theme-panel-polish-036"
   ],
   "blocked_tasks": [],
-  "current_phase": "verify",
+  "current_phase": "aggregate",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {

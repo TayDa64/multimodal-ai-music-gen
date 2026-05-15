@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Prompt-level instrument cues must preserve semantic identity before mastering realism issues",
+        "context": "Task 053 improved jazz horn realism by fixing saxophone prompt routing from generic brass/trumpet program 56 to sax program 65 with a local jazz horn velocity cap. The remaining brightness warning is a later measured mastering/breath slice, not a reason to mask wrong instrument routing with global EQ.",
+        "timestamp": "2026-05-15T19:18:37Z"
+      },
+      {
         "pattern": "After closing a first-class route, generate a dedicated listening artifact outside matrix folders",
         "context": "Task 052 created output/_diagnostics/first_class_jazz_quality_20260515_110245 with a 16-bar generic jazz WAV/MIDI/render-report package after task 051 proved the route in the matrix. This gives the user a direct audition file while keeping proof artifacts ignored/uncommitted.",
         "timestamp": "2026-05-15T18:05:26Z"
@@ -911,6 +916,26 @@
         "Add parser keywords without adding defaults in every lookup layer"
       ],
       "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "decision": "For jazz horn realism, fix prompt/instrument/MIDI routing before adding broad jazz mastering shelves.",
+      "rationale": "The baseline WAV was bright, but the stronger root cause is semantic: warm saxophone lead collapsed to generic brass and rendered as GM trumpet program 56 with velocity spikes to 127. Correcting the source instrument and dynamics is safer than masking the problem with global EQ.",
+      "alternatives_considered": [
+        "Add jazz FluidSynth high-shelf reduction immediately",
+        "Only change analyzer thresholds",
+        "Treat all brass/horns as trumpet"
+      ],
+      "timestamp": "2026-05-15T18:43:02Z"
+    },
+    {
+      "decision": "Close the sax lead polish slice on parser/resolver/MIDI/runtime proof without adding jazz FluidSynth shelves.",
+      "rationale": "The root listening issue was semantic routing and velocity spikes: sax collapsed to brass/trumpet and hit velocity 127. The post-change render proves sax program 65 and velocity cap 112 while preserving jazz:jazz no-op profile; broad jazz mastering should be a separate measured slice.",
+      "alternatives_considered": [
+        "Add global jazz high-shelf now",
+        "Change generic brass program broadly",
+        "Require full profile matrix proof despite optional trap-case stall"
+      ],
+      "timestamp": "2026-05-15T19:18:37Z"
     }
   ],
   "learnings": {
@@ -1089,5 +1114,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T18:05:26Z"
+  "last_updated": "2026-05-15T19:18:37Z"
 }

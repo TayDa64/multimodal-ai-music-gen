@@ -1,7 +1,105 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-15-first-class-jazz-listening-render-052",
+  "session_id": "session-2026-05-15-jazz-horn-realism-sax-lead-polish-053",
   "files_touched": [
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded sax cue routing pattern."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 053 final verification and artifact paths."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Marked task 053 completed with post-verifier and runtime sax proof."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 053 sax lead polish proof and cleaned up rock/jazz milestone structure."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Added MIDI routing and velocity-cap regressions for sax/horns plus resolver alias tests."
+    },
+    {
+      "path": "tests\\test_prompt_parser_key.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Added parser regressions for sax, trumpet, trombone, and generic brass."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Routed explicit jazz horn leads before generic brass and capped jazz horn Melody velocity at 112."
+    },
+    {
+      "path": "multimodal_gen\\instrument_resolution.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Added saxophone/alto/tenor sax resolver aliases to GM sax programs."
+    },
+    {
+      "path": "multimodal_gen\\prompt_parser.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T19:18:37Z",
+      "by_agent": "supervisor",
+      "changes": "Split explicit sax/trumpet/trombone parser keys while preserving generic brass."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:49:13Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 053 pre-verification result."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:49:13Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 053 pre-verifier PARTIAL and advanced to decompose."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:43:02Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 053 decision to fix sax routing before broad mastering."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:43:02Z",
+      "by_agent": "supervisor",
+      "changes": "Started session context for task 053."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T18:43:02Z",
+      "by_agent": "supervisor",
+      "changes": "Opened task 053 for jazz horn realism / sax lead polish and instrument-routing audit."
+    },
     {
       "path": ".github\\state\\memory.json",
       "action": "modified",
@@ -3167,6 +3265,24 @@
       "description": "Focused normalization regressions cover rock-family aliases, modular parse keys, and GENRE_DEFAULTS presence.",
       "diff_summary": "Added normalization and parser/defaults tests for rock-family variants.",
       "timestamp": "2026-05-14T14:00:00Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Opened task 053 for Jazz Horn Realism / Sax Lead Polish with baseline evidence from the first-class jazz listening render.",
+      "diff_summary": "Updated current_session and prepended in-progress task with dependencies, planned files, and baseline sax/brass/brightness evidence.",
+      "timestamp": "2026-05-15T18:43:02Z"
+    },
+    {
+      "file": "multimodal_gen/prompt_parser.py; multimodal_gen/instrument_resolution.py; multimodal_gen/midi_generator.py",
+      "description": "Implemented Jazz Horn Realism / Sax Lead Polish routing and local dynamics cap.",
+      "diff_summary": "Explicit sax/trumpet/trombone identities are preserved, sax resolver aliases added, Melody now routes sax to GM program 65 with instrument:Sax marker, and jazz horn Melody velocities cap at 112.",
+      "timestamp": "2026-05-15T19:18:37Z"
+    },
+    {
+      "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Documented task 053 post-change sax listening proof and moved old rock proof under the rock section.",
+      "diff_summary": "Added paths for sax proof WAV/MIDI/report/summary and noted remaining brightness warning as follow-up.",
+      "timestamp": "2026-05-15T19:18:37Z"
     }
   ],
   "verifications": [
@@ -4128,6 +4244,34 @@
       "result": "PASS",
       "details": "git diff --check => PASS; emitted Git line-ending notice for tests/test_prompt_parser_key.py only (LF will be replaced by CRLF), with no whitespace errors.",
       "timestamp": "2026-05-14T14:05:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "jazz-horn-realism-sax-lead-polish-053",
+      "result": "PARTIAL",
+      "details": "recursive-verifier confirmed sax/saxophone collapses to brass and renders as GM program 56; recommended narrow parser/resolver/MIDI routing plus local jazz horn velocity cap, with no renderer/profile changes.",
+      "timestamp": "2026-05-15T18:49:13Z"
+    },
+    {
+      "type": "post",
+      "target": "jazz-horn-realism-sax-lead-polish-053",
+      "result": "PASS_WITH_NITS_RESOLVED",
+      "details": "recursive-verifier PASS_WITH_NITS; nit for fresh runtime proof resolved by generated sax listening package.",
+      "timestamp": "2026-05-15T19:18:37Z"
+    },
+    {
+      "type": "runtime",
+      "target": "jazz-horn-realism-sax-lead-polish-053",
+      "result": "PASS",
+      "details": "Sax listening render proof_passed=true with renderer_path=fluidsynth, profile=jazz:jazz, Melody program 65, marker instrument:Sax, velocity_max=112, audio_analysis.passed=true, score=0.95.",
+      "timestamp": "2026-05-15T19:18:37Z"
+    },
+    {
+      "type": "local",
+      "target": "jazz-horn-realism-sax-lead-polish-053",
+      "result": "PASS",
+      "details": "Focused pytest 68 passed, get_errors clean, git diff --check clean, protected renderer/profile diff clean.",
+      "timestamp": "2026-05-15T19:18:37Z"
     }
   ],
   "sprint_75_files_touched": [
@@ -4309,7 +4453,15 @@
       "Builder 4 status correction"
     ]
   },
-  "errors_encountered": [],
+  "errors_encountered": [
+    {
+      "timestamp": "2026-05-15T19:18:37Z",
+      "task": "jazz-horn-realism-sax-lead-polish-053",
+      "severity": "info",
+      "description": "Optional cross-genre FluidSynth profile matrix guard was stopped after a long trap-case stall without summary output; the duplicate earlier run was also cleaned up. This was not used as acceptance evidence for the sax routing slice.",
+      "resolution": "No leftover matrix/main/fluidsynth processes remained after cleanup; acceptance used focused tests/probes and exact sax runtime proof."
+    }
+  ],
   "rollback_points": [
     {
       "id": "rollback-003",
@@ -4325,15 +4477,14 @@
     }
   ],
   "last_validation": {
-    "milestone": "first-class-jazz-listening-render-052",
-    "timestamp": "2026-05-15T18:05:26Z",
-    "summary": "Dedicated first-class generic jazz WAV/MIDI listening package is ready for audition.",
-    "artifact_dir": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245",
-    "summary_path": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\first_class_jazz_quality_summary.json",
-    "jazz_audio": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.wav",
-    "jazz_midi": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248.mid",
-    "jazz_render_report": "output\\_diagnostics\\first_class_jazz_quality_20260515_110245\\generic_jazz_combo\\jazz_120.0bpm_Bflatmajor_20260515_110248_render_report.json",
-    "result": "proof_passed=true; renderer_path=fluidsynth; profile=jazz:jazz; audio_analysis.passed=true; score=0.933"
+    "task_id": "jazz-horn-realism-sax-lead-polish-053",
+    "timestamp": "2026-05-15T19:18:37Z",
+    "type": "runtime_sax_render",
+    "result": "PASS",
+    "summary_path": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\jazz_sax_lead_polish_summary.json",
+    "audio": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840.wav",
+    "midi": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840.mid",
+    "details": "Fresh sax-lead jazz render uses FluidSynth, profile jazz:jazz, Melody GM program 65, instrument:Sax, velocity_max=112, audio_analysis score=0.95."
   },
   "changes": [
     {

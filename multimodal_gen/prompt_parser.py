@@ -585,8 +585,23 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
         'strings', 'orchestral', 'violin', 'cello', 'viola',
         'string section', 'orchestra'
     ],
+    'tenor_sax': [
+        'tenor sax', 'tenor saxophone'
+    ],
+    'alto_sax': [
+        'alto sax', 'alto saxophone'
+    ],
+    'sax': [
+        'sax', 'saxes', 'saxophone', 'saxophones'
+    ],
+    'trumpet': [
+        'trumpet', 'trumpets'
+    ],
+    'trombone': [
+        'trombone', 'trombones'
+    ],
     'brass': [
-        'brass', 'horns', 'trumpet', 'sax', 'saxophone', 'trombone'
+        'brass', 'horns', 'brass section', 'horn section'
     ],
     'guitar': [
         'guitar', 'guitars', 'acoustic guitar', 'acoustic guitars',
@@ -1259,6 +1274,9 @@ class PromptParser:
                 # Use word boundaries to avoid substring false positives
                 # e.g. 'ep' matching inside 'epic', 'bass' matching inside 'bassoon'
                 pattern = r'\b' + re.escape(keyword) + r'\b'
+                if instrument == 'choir' and keyword in {'alto', 'tenor', 'baritone'}:
+                    if re.search(rf'\b{re.escape(keyword)}\s+sax(?:ophone)?\b', prompt, re.IGNORECASE):
+                        continue
                 if re.search(pattern, prompt, re.IGNORECASE):
                     if instrument not in found:
                         found.append(instrument)

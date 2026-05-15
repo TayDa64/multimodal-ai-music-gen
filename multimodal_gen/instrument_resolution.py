@@ -167,8 +167,25 @@ DEFAULT_INSTRUMENT_TO_PROGRAM: Dict[str, int] = {
     
     # Reed (64-71)
     'sax': 65,
+    'saxophone': 65,
+    'saxes': 65,
+    'saxophones': 65,
     'alto_sax': 65,
+    'alto_saxophone': 65,
+    'alto sax': 65,
+    'alto saxophone': 65,
+    'soprano_sax': 64,
+    'soprano_saxophone': 64,
+    'soprano sax': 64,
+    'soprano saxophone': 64,
     'tenor_sax': 66,
+    'tenor_saxophone': 66,
+    'tenor sax': 66,
+    'tenor saxophone': 66,
+    'baritone_sax': 67,
+    'baritone_saxophone': 67,
+    'baritone sax': 67,
+    'baritone saxophone': 67,
     'oboe': 68,
     'bassoon': 70,
     'clarinet': 71,
@@ -220,6 +237,12 @@ DEFAULT_INSTRUMENT_TO_PROGRAM: Dict[str, int] = {
 DEFAULT_PROGRAM_TO_INSTRUMENT: Dict[int, str] = {
     v: k for k, v in DEFAULT_INSTRUMENT_TO_PROGRAM.items()
 }
+DEFAULT_PROGRAM_TO_INSTRUMENT.update({
+    64: 'soprano_sax',
+    65: 'alto_sax',
+    66: 'tenor_sax',
+    67: 'baritone_sax',
+})
 
 
 # =============================================================================
