@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Use paired genre validation renders before choosing the next quality policy",
+        "context": "For task 050, generated paired 16-bar FluidSynth validation WAVs for 1990s rock and cinematic/orchestral using the same SoundFont and isolation flags. This creates a listening checkpoint before adding more genre policies, so user feedback can target actual cross-genre quality differences instead of speculative tuning.",
+        "timestamp": "2026-05-15T16:35:59Z"
+      },
+      {
         "pattern": "Measure FluidSynth genre profiles before enabling new non-rock tone shelves",
         "context": "For task 049, scripts/smoke_fluidsynth_profile_matrix.ps1 established explicit SoundFont isolated baselines for rock_control, cinematic_classical, and trap_modern_beat before adding any non-rock shelves. Runtime artifact output/_diagnostics/fluidsynth_profile_matrix/matrix_20260515_090547/matrix_summary.json proved renderer_path=fluidsynth and expected profiles for all three cases with failure_count=0. audio_analysis.passed=false remains measurement data, not a default matrix failure; generic jazz is deferred until a first-class parser/runtime route exists.",
         "timestamp": "2026-05-15T16:17:08Z"
@@ -1059,5 +1064,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T16:17:08Z"
+  "last_updated": "2026-05-15T16:35:59Z"
 }
