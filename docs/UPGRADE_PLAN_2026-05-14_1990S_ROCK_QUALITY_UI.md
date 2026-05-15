@@ -63,6 +63,12 @@ Task `fluidsynth-rock-strict-quality-047` fixed the exact isolated FluidSynth re
 - `multimodal_gen/audio_renderer.py` adds rock-family-only FluidSynth file-mastering tone shaping before final soft clipping/gain staging: a conservative high shelf (`-6.0 dB @ 5000 Hz`) and low shelf (`-0.75 dB @ 90 Hz`). The render report records this as `pipeline_stages.fluidsynth_file_mastering.rock_tone_shaping`.
 - Regression coverage was added for GM-style snare detection in hat-heavy live drum mixes, the no-snare kick/hat negative case, and the rock FluidSynth tone-shaping helper.
 
+### FluidSynth renderer profile registry — 2026-05-15
+
+Task `fluidsynth-renderer-profiles-048` moves the hard-coded rock FluidSynth tone shelves into `multimodal_gen/fluidsynth_profiles.py`, an immutable profile/genre registry used only by file-level FluidSynth mastering. Rock-family profiles keep the exact strict-quality shelf diagnostic `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`, while initial classical, jazz, and trap/modern-beat profiles are discoverable no-ops. The integration is additive: it records a `fluidsynth_file_mastering.profile` diagnostic, does not make FluidSynth mandatory, does not vendor SoundFonts, and does not change SoundFont discovery, FluidSynth command ordering, renderer selection gates, or procedural/custom/expansion fallback behavior.
+
+Profile-registry regression proof: focused tests passed (`35 passed, 2 existing warnings`), post-verifier returned `PASS`, and the exact strict FluidSynth smoke remained green on `output\_diagnostics\rock_1990s_20260515_084307` with `renderer_path=fluidsynth`, `strict_audio_failed=false`, `fluidsynth_isolation_failed=false`, `audio_analysis.passed=true`, `fluidsynth_file_mastering.profile=rock:rock`, and the preserved rock tone diagnostic `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`.
+
 Pre-fix measurement on `output\_diagnostics\rock_1990s_20260514_160450` showed the quality failure was not missing MIDI drums: GM snare note 38 appeared 48 times with mean velocity `88.8`, and snare-aligned mid-band RMS averaged `0.091816`. The old detector still reported `has_snare_or_clap=false` because its full-file mid-band/percussive ratio was only `0.097` against the historical `>0.300` gate.
 
 Post-fix exact isolated FluidSynth smoke proof:

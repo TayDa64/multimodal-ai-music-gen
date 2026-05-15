@@ -27,9 +27,13 @@ logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 import tempfile
 
-ROCK_FAMILY_GENRES = {
-    'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
-}
+from .fluidsynth_profiles import (
+    ROCK_FAMILY_GENRES,
+    FluidSynthRendererProfile,
+    get_fluidsynth_profile,
+    profile_diagnostic,
+    profile_tone_shelves_diagnostic,
+)
 
 try:
     import soundfile as sf
@@ -1763,16 +1767,31 @@ class AudioRenderer:
         sample_rate: int,
         stage_prefix: str,
     ) -> np.ndarray:
-        """Tame GM/SoundFont rock renders that arrive overly bright.
+        """Compatibility wrapper for the generic FluidSynth profile helper."""
+        return self._apply_fluidsynth_profile_tone_shaping(
+            audio,
+            sample_rate,
+            stage_prefix,
+            profile=get_fluidsynth_profile(self._normalize_genre()),
+        )
 
-        FluidR3/GM-style rock kits can put a lot of energy into cymbal/air
-        bands after the file-level mastering exciter.  Apply a conservative,
-        rock-family-only tone correction before final clipping/gain so the
-        mastered SoundFont path stays closer to the same rendered-audio targets
-        as the procedural rock path.  The correction is deliberately fixed and
-        diagnostic-rich rather than adapting the analyzer result after the fact.
+    def _apply_fluidsynth_profile_tone_shaping(
+        self,
+        audio: np.ndarray,
+        sample_rate: int,
+        stage_prefix: str,
+        profile: Optional[FluidSynthRendererProfile] = None,
+    ) -> np.ndarray:
+        """Apply file-level FluidSynth tone shelves from the genre profile.
+
+        This is intentionally limited to post-render file mastering. It does
+        not affect FluidSynth availability, SoundFont discovery, renderer
+        selection, custom sample gates, or procedural fallback behavior.
         """
-        if self._normalize_genre() not in ROCK_FAMILY_GENRES:
+        profile = profile or get_fluidsynth_profile(self._normalize_genre())
+        self._pipeline_stages[f'{stage_prefix}.profile'] = profile_diagnostic(profile)
+
+        if not profile.tone_shelves:
             return audio
 
         try:
@@ -1781,23 +1800,25 @@ class AudioRenderer:
 
             processed = np.asarray(audio, dtype=np.float32)
 
-            high_b, high_a = design_shelf_filter(
-                5000.0, -6.0, sample_rate, shelf_type='high'
-            )
-            processed = _scipy_signal.lfilter(high_b, high_a, processed, axis=0)
+            for shelf in profile.tone_shelves:
+                shelf_b, shelf_a = design_shelf_filter(
+                    shelf.frequency_hz,
+                    shelf.gain_db,
+                    sample_rate,
+                    shelf_type=shelf.shelf_type,
+                )
+                processed = _scipy_signal.lfilter(shelf_b, shelf_a, processed, axis=0)
 
-            low_b, low_a = design_shelf_filter(
-                90.0, -0.75, sample_rate, shelf_type='low'
-            )
-            processed = _scipy_signal.lfilter(low_b, low_a, processed, axis=0)
-
-            self._pipeline_stages[f'{stage_prefix}.rock_tone_shaping'] = (
-                'high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz'
-            )
+            diagnostic = profile_tone_shelves_diagnostic(profile)
+            self._pipeline_stages[f'{stage_prefix}.tone_shaping'] = diagnostic
+            if profile.genre_family == 'rock':
+                self._pipeline_stages[f'{stage_prefix}.rock_tone_shaping'] = diagnostic
             return processed.astype(np.float32, copy=False)
         except Exception as exc:
-            logger.exception("Rock FluidSynth tone shaping failed: %s", exc)
-            self._pipeline_stages[f'{stage_prefix}.rock_tone_shaping'] = 'error'
+            logger.exception("FluidSynth profile tone shaping failed: %s", exc)
+            self._pipeline_stages[f'{stage_prefix}.tone_shaping'] = 'error'
+            if profile.genre_family == 'rock':
+                self._pipeline_stages[f'{stage_prefix}.rock_tone_shaping'] = 'error'
             return audio
 
     def _compute_pan(self, name: str, is_drums: bool, index: int) -> float:
@@ -2892,7 +2913,7 @@ class AudioRenderer:
                 except Exception:
                     self._pipeline_stages[f'{stage_prefix}.reference_matching'] = 'error'
 
-            audio = self._apply_rock_fluidsynth_tone_shaping(
+            audio = self._apply_fluidsynth_profile_tone_shaping(
                 audio, sr, stage_prefix
             )
 

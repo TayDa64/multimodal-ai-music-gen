@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "FluidSynth renderer profiles should start as additive file-level policies with no-op genre entries",
+        "context": "For fluidsynth-renderer-profiles-048, rock strict FluidSynth shelves were moved from hard-coded audio_renderer logic into immutable profiles while default/classical/jazz/trap entries remained discoverable no-ops. AudioRenderer now records fluidsynth_file_mastering.profile and applies shelves only during file-level FluidSynth mastering; renderer selection, SoundFont discovery, command ordering, custom/expansion skip gates, and procedural fallback stayed unchanged. Exact smoke remained green with renderer_path=fluidsynth, strict_audio_failed=false, fluidsynth_isolation_failed=false, profile=rock:rock, and the exact rock tone diagnostic preserved.",
+        "timestamp": "2026-05-15T15:46:16Z"
+      },
+      {
         "pattern": "GM/SoundFont rock snare detection needs transient evidence in addition to aggregate HPSS band energy",
         "context": "For fluidsynth-rock-strict-quality-047, the exact FluidSynth rock MIDI had 48 GM snare hits and measurable snare-aligned mid-band RMS, but the analyzer missed snare_or_clap because full-file mid/percussive energy was only 0.097 under bright cymbal/kick-heavy SoundFont output. The detector now keeps the legacy aggregate gate and adds an audio-only mid-band transient fallback that rejects kick-dominated and pure hi-hat/air windows without reading MIDI metadata.",
         "timestamp": "2026-05-15T05:38:21Z"
@@ -1040,5 +1045,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T05:38:21Z"
+  "last_updated": "2026-05-15T15:46:16Z"
 }

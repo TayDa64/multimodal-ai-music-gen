@@ -335,6 +335,23 @@ def test_rock_fluidsynth_tone_shaping_tames_bright_soundfont_balance():
     assert renderer._pipeline_stages["fluidsynth_file_mastering.rock_tone_shaping"] == (
         "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz"
     )
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.profile"] == "rock:rock"
+
+
+def test_trap_fluidsynth_profile_does_not_apply_rock_tone_shaping():
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="trap")
+    audio = np.full((256, 2), 0.125, dtype=np.float32)
+
+    shaped = renderer._apply_rock_fluidsynth_tone_shaping(
+        audio, 44100, "fluidsynth_file_mastering"
+    )
+
+    np.testing.assert_array_equal(shaped, audio)
+    assert "fluidsynth_file_mastering.rock_tone_shaping" not in renderer._pipeline_stages
+    assert "fluidsynth_file_mastering.tone_shaping" not in renderer._pipeline_stages
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.profile"] == (
+        "trap_modern_beat:modern_beat"
+    )
 
 
 def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):
