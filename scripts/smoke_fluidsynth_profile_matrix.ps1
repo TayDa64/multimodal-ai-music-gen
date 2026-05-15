@@ -41,16 +41,19 @@ $Cases = @(
         expected_tone_shaping = $null
         expected_rock_tone_shaping = $null
         notes = "First-class trap/modern-beat route; profile is intentionally a no-op measurement baseline."
+    },
+    [ordered]@{
+        id = "generic_jazz"
+        prompt = "small-combo jazz quartet with walking bass, ride cymbal, piano comping, 120 BPM in Bb major"
+        expected_parsed_genres = @("jazz")
+        expected_profile = "jazz:jazz"
+        expected_tone_shaping = $null
+        expected_rock_tone_shaping = $null
+        notes = "First-class generic jazz route; profile is intentionally a no-op measurement baseline."
     }
 )
 
-$DeferredCases = @(
-    [ordered]@{
-        id = "generic_jazz"
-        candidate_prompt = "small-combo jazz quartet with walking bass, ride cymbal, piano comping, 120 BPM in Bb major"
-        reason = "Deferred: the FluidSynth profile registry has a jazz no-op profile, but generic jazz is not currently a first-class parser/runtime genre route. Avoid forcing a failing runtime case until that route exists."
-    }
-)
+$DeferredCases = @()
 
 function Resolve-MatrixPath {
     param([Parameter(Mandatory = $true)][string]$PathValue)

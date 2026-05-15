@@ -188,6 +188,13 @@ def normalize_genre(genre: str) -> str:
         "rnb": "rnb",
         "neo_soul": "neo_soul",
         "neosoul": "neo_soul",
+        "jazz": "jazz",
+        "jazz_quartet": "jazz",
+        "jazz_trio": "jazz",
+        "small_combo_jazz": "jazz",
+        "smooth_jazz": "jazz",
+        "bebop": "jazz",
+        "hard_bop": "jazz",
 
         # Rock family
         "rock": "rock",
@@ -695,6 +702,17 @@ GENRE_DEFAULTS = {
         'swing': 0.08,
         'hihat_rolls': True,
         'emphasis': 'chords',
+    },
+    'jazz': {
+        'bpm_range': (90, 150),
+        'default_bpm': 120,
+        'scale': ScaleType.MAJOR,
+        'swing': 0.12,
+        'hihat_rolls': False,
+        'emphasis': 'combo',
+        'walking_bass': True,
+        'comping': True,
+        'live_drums': True,
     },
     'rock': {
         'bpm_range': (92, 130),

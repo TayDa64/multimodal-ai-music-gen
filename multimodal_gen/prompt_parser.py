@@ -229,6 +229,14 @@ class ParsedPrompt:
             self.drum_elements = [d for d in self.drum_elements if d not in self.excluded_drums]
         if self.excluded_instruments:
             self.instruments = [i for i in self.instruments if i not in self.excluded_instruments]
+
+        if self.genre == 'jazz' and self.allow_default_drums:
+            # Preserve explicit ride/brush cues while keeping generic jazz on an
+            # acoustic kit instead of inheriting trap-style sparse/808 defaults.
+            excluded_drums = set(self.excluded_drums)
+            combo_kit = [d for d in ['kick', 'snare', 'hihat', 'ride'] if d not in excluded_drums]
+            self.drum_elements = list(dict.fromkeys([*self.drum_elements, *combo_kit]))
+            self.drum_elements = [d for d in self.drum_elements if d not in {'808', 'hihat_roll'}]
         
         # Apply genre intelligence if available
         self._apply_genre_intelligence()
@@ -249,6 +257,7 @@ class ParsedPrompt:
             'trap': ['808', 'synth_lead'],
             'trap_soul': ['808', 'piano', 'rhodes', 'strings'],
             'rnb': ['piano', 'rhodes', 'bass', 'strings', 'pad'],
+            'jazz': ['piano', 'bass', 'brass', 'rhodes'],
             'rock': ['guitar', 'bass', 'piano'],
             'classic_rock': ['guitar', 'bass', 'piano', 'organ'],
             'alternative_rock': ['guitar', 'bass', 'synth', 'pad'],
@@ -277,6 +286,7 @@ class ParsedPrompt:
             'trap': ['kick', '808', 'snare', 'clap', 'hihat', 'hihat_roll'],
             'trap_soul': ['kick', '808', 'snare', 'clap', 'hihat'],
             'rnb': ['kick', 'snare', 'hihat', 'rim'],  # Smoother, no hi-hat rolls
+            'jazz': ['kick', 'snare', 'hihat', 'ride'],
             'rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
             'classic_rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
             'alternative_rock': ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom'],
@@ -461,6 +471,12 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
     'trap_soul': [
         'trap soul', 'trap-soul', 'trapsoul', 'rnb trap', 'r&b trap', 'soul trap',
         'emotional trap', 'melodic trap', 'bryson', 'sza', '6lack'
+    ],
+    'jazz': [
+        'jazz', 'jazz quartet', 'jazz trio', 'small combo jazz', 'small-combo jazz',
+        'small combo', 'small-combo', 'walking bass', 'ride cymbal',
+        'piano comping', 'comping piano', 'swing jazz', 'jazz swing',
+        'bebop', 'hard bop', 'jazz combo'
     ],
     'rock': [
         'rock', 'rock song', 'rock band', 'hard rock', '90s rock', "90's rock",
@@ -1088,9 +1104,11 @@ class PromptParser:
         for pattern in KEY_PATTERNS:
             match = re.search(pattern, prompt, re.IGNORECASE)
             if match:
-                root = match.group(1).upper()
-                # Normalize flats/sharps
-                root = root.replace('♯', '#').replace('♭', 'b')
+                raw_root = match.group(1).strip().replace('♯', '#').replace('♭', 'b')
+                root = raw_root[0].upper()
+                if len(raw_root) > 1:
+                    accidental = raw_root[1]
+                    root += '#' if accidental == '#' else 'b' if accidental.lower() == 'b' else ''
                 
                 # Determine scale type
                 scale_str = match.group(2) if match.lastindex >= 2 else None
@@ -1142,6 +1160,8 @@ class PromptParser:
             kw = kw.strip().lower()
             if not kw:
                 return 0
+            if genre_name == 'ethio_jazz':
+                return 12
             # Strong signal: keyword is essentially the genre name.
             genre_variants = {
                 genre_name,
@@ -1185,6 +1205,7 @@ class PromptParser:
             'rnb',  # R&B
             'trap',
             'lofi',
+            'jazz',
             'classic_rock',
             'alternative_rock',
             'grunge',
@@ -1249,6 +1270,8 @@ class PromptParser:
         found = []
         for element, keywords in DRUM_KEYWORDS.items():
             for keyword in keywords:
+                if element == 'crash' and keyword == 'cymbal' and re.search(r'\bride\s+cymbal\b', prompt):
+                    continue
                 if keyword in prompt:
                     if element not in found:
                         found.append(element)

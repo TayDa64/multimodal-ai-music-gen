@@ -84,6 +84,7 @@ DEFAULT_GENRE_INSTRUMENTS: Dict[str, List[str]] = {
     'trap': ['808', 'synth_lead'],
     'trap_soul': ['808', 'piano', 'rhodes', 'strings'],
     'rnb': ['piano', 'rhodes', 'bass', 'strings', 'pad'],
+    'jazz': ['piano', 'bass', 'brass', 'rhodes'],
     'rock': ['guitar', 'bass', 'piano'],
     'classic_rock': ['guitar', 'bass', 'piano', 'organ'],
     'alternative_rock': ['guitar', 'bass', 'synth', 'pad'],
@@ -132,6 +133,8 @@ DEFAULT_INSTRUMENT_TO_PROGRAM: Dict[str, int] = {
     
     # Bass (32-39)
     'bass': 33,
+    'acoustic_bass': 32,
+    'upright_bass': 32,
     'electric_bass': 33,
     'synth_bass': 38,
     '808': 38,  # 808 bass uses synth bass

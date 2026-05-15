@@ -1,11 +1,197 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-15-two-genre-quality-validation-renders-050",
-    "started": "2026-05-15T16:28:56Z",
-    "user_request": "Generate two different genre songs so the user can validate quality between genres before continuing implementation."
+    "id": "session-2026-05-15-generic-jazz-runtime-route-051",
+    "started": "2026-05-15T16:48:11Z",
+    "user_request": "Continue after successful cinematic quality validation by closing the deferred generic jazz FluidSynth/runtime route."
   },
   "task_queue": [
+    {
+      "id": "generic-jazz-runtime-route-051",
+      "description": "Make generic jazz a first-class parser/runtime route sufficient for the FluidSynth profile matrix to measure a real jazz case, while preserving ethio_jazz, rock, trap, cinematic, renderer fallback, and SoundFont behavior.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "fluidsynth-genre-profile-policies-049",
+        "two-genre-quality-validation-renders-050"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/prompt_parser.py",
+        "multimodal_gen/utils.py",
+        "multimodal_gen/arranger.py",
+        "multimodal_gen/strategies/registry.py",
+        "multimodal_gen/strategies/jazz_strategy.py",
+        "scripts/smoke_fluidsynth_profile_matrix.ps1",
+        "tests/test_prompt_parser.py",
+        "tests/test_fluidsynth_profile_matrix_contract.py",
+        "tests/test_strategy_registry.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/memory.json",
+        ".github/state/context.json"
+      ],
+      "created": "2026-05-15T16:48:11Z",
+      "updated": "2026-05-15T17:35:33Z",
+      "result": {
+        "pre_verifier": {
+          "verdict": "PARTIAL",
+          "summary": "Generic jazz has downstream analyzer/profile support, but the exact prompt currently parses as trap_soul and falls through trap_soul arrangement/strategy behavior.",
+          "evidence": {
+            "current_prompt_parse": "small-combo jazz quartet... -> genre=trap_soul, profile=trap_modern_beat:modern_beat",
+            "existing_support": [
+              "AUDIO_GENRE_TARGETS[jazz]",
+              "JAZZ_FLUIDSYNTH_PROFILE -> jazz:jazz",
+              "some jazz-aware MIDI/groove/preset logic"
+            ],
+            "missing_support": [
+              "generic jazz parser keywords/defaults",
+              "GENRE_DEFAULTS[jazz]",
+              "DEFAULT_GENRE_INSTRUMENTS[jazz]",
+              "ARRANGEMENT_TEMPLATES[jazz]/config template",
+              "JazzStrategy registration",
+              "matrix runtime case"
+            ]
+          },
+          "recommended_slice": "Add first-class generic jazz route sufficient for parser->strategy/arrangement->FluidSynth profile matrix proof; keep jazz FluidSynth profile no-op and do not add tone shelves.",
+          "guardrails": [
+            "Preserve ethio_jazz routing and Ethiopian instrument skip gates",
+            "Do not change FluidSynth renderer selection/SoundFont command ordering",
+            "Do not add jazz tone shelves",
+            "Preserve rock/trap/cinematic matrix cases and exact rock diagnostic"
+          ]
+        },
+        "builder": {
+          "verdict": "IMPLEMENTED_PENDING_SUPERVISOR_REVIEW",
+          "summary": "Generic jazz now parses/routes as jazz with combo-safe defaults, JazzStrategy, jazz arrangement/config template, acoustic-bass MIDI guard, and runtime FluidSynth profile matrix case expecting jazz:jazz with no tone shaping.",
+          "files_changed": [
+            "multimodal_gen/prompt_parser.py",
+            "multimodal_gen/utils.py",
+            "multimodal_gen/instrument_resolution.py",
+            "multimodal_gen/arranger.py",
+            "multimodal_gen/strategies/jazz_strategy.py",
+            "multimodal_gen/strategies/registry.py",
+            "multimodal_gen/midi_generator.py",
+            "configs/arrangements/templates/jazz.yaml",
+            "scripts/smoke_fluidsynth_profile_matrix.ps1",
+            "tests/test_prompt_parser_key.py",
+            "tests/test_genre_normalization.py",
+            "tests/test_jazz_strategy.py",
+            "tests/test_fluidsynth_profile_matrix_contract.py",
+            "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+          ],
+          "guardrails": [
+            "ethio_jazz remains registered to EthioJazzStrategy and parser priority is explicitly guarded",
+            "FluidSynth renderer selection, find_soundfont(), and render command ordering were not changed",
+            "jazz profile remains no-op; no jazz tone shelves added",
+            "rock/trap/cinematic matrix expectations and exact rock tone diagnostic preserved"
+          ],
+          "proofs": [
+            ".\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_genre_normalization.py tests/test_jazz_strategy.py tests/test_arranger_rock.py tests/test_rock_strategy.py tests/test_strategies.py tests/test_fluidsynth_profiles.py tests/test_fluidsynth_profile_matrix_contract.py tests/test_smoke_1990s_rock_contract.py -q -p no:cacheprovider -> 76 passed in 2.86s",
+            "Import proof: exact jazz prompt -> genre='jazz', bpm=120.0, key='Bb', scale='MAJOR', profile='jazz:jazz', tone_shelves='', drums=['ride','kick','snare','hihat']",
+            "Exclusion proof: 'jazz quartet --no kick' -> drums=['snare','hihat','ride']; 'jazz quartet --no hihat' -> drums=['kick','snare','ride']",
+            "git diff --check -> passed (only Git CRLF warning for tests/test_prompt_parser_key.py)",
+            "PowerShell Parser::ParseFile(scripts\\smoke_fluidsynth_profile_matrix.ps1) -> OK",
+            "get_errors on prompt_parser.py, tests/test_prompt_parser_key.py, jazz_strategy.py, matrix script -> no errors found"
+          ],
+          "limitations": [
+            "Full runtime FluidSynth matrix was run by supervisor after builder implementation and is recorded in runtime_proof."
+          ],
+          "latest_verification_at": "2026-05-15T17:35:33Z"
+        },
+        "summary": "Generic jazz is now a first-class parser/runtime route and FluidSynth profile-matrix case using the existing no-op jazz:jazz profile, while preserving ethio_jazz, rock, trap, cinematic, renderer fallback, and SoundFont behavior.",
+        "local_verification": {
+          "focused_pytest": "PASS - 76 passed in 2.86s for parser/genre/jazz/rock/strategy/profile/matrix/smoke-contract suite.",
+          "git_diff_check": "PASS - git diff --check exited 0; only Git LF-to-CRLF warning for tests/test_prompt_parser_key.py.",
+          "powershell_parse": "PASS - scripts/smoke_fluidsynth_profile_matrix.ps1 parsed with no errors.",
+          "import_proof": "PASS - exact jazz prompt parsed genre='jazz', key='Bb', profile='jazz:jazz', tone_shelves='', drums=['ride','kick','snare','hihat'].",
+          "exclusion_regression": "PASS - generic jazz combo defaults honor --no kick and --no hihat without reintroducing excluded drums."
+        },
+        "post_verifier": {
+          "verdict": "PASS",
+          "summary": "recursive-verifier confirmed exact generic jazz parsing/profile, exclusion fix, ethio_jazz protection, no renderer/profile changes, matrix runtime case, and runtime proof sufficiency.",
+          "evidence": [
+            "generic jazz exact prompt -> jazz, Bb, profile jazz:jazz, no tone shelves",
+            "--no kick and --no hihat are honored after combo-kit default augmentation",
+            "ethio_jazz prompts still parse as ethio_jazz and resolve to EthioJazzStrategy",
+            "No diff in multimodal_gen/audio_renderer.py or multimodal_gen/fluidsynth_profiles.py; no jazz tone shelves",
+            "matrix summary aggregate proof_passed=true, failure_count=0, case_count=4, deferred_case_count=0"
+          ]
+        },
+        "runtime_proof": {
+          "artifact_dir": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211",
+          "summary": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\matrix_summary.json",
+          "proof_passed": true,
+          "failure_count": 0,
+          "case_count": 4,
+          "deferred_case_count": 0,
+          "cases": [
+            {
+              "id": "rock_control",
+              "parsed_genre": "rock",
+              "renderer_path": "fluidsynth",
+              "fluidsynth_success": true,
+              "fluidsynth_skip_reason": null,
+              "profile": "rock:rock",
+              "tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+              "rock_tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+              "proof_passed": true,
+              "audio_analysis_passed": true,
+              "genre_match_score": 1.0
+            },
+            {
+              "id": "cinematic_classical",
+              "parsed_genre": "cinematic",
+              "renderer_path": "fluidsynth",
+              "fluidsynth_success": true,
+              "fluidsynth_skip_reason": null,
+              "profile": "classical:classical",
+              "tone_shaping": null,
+              "rock_tone_shaping": null,
+              "proof_passed": true,
+              "audio_analysis_passed": true,
+              "genre_match_score": 1.0
+            },
+            {
+              "id": "trap_modern_beat",
+              "parsed_genre": "trap",
+              "renderer_path": "fluidsynth",
+              "fluidsynth_success": true,
+              "fluidsynth_skip_reason": null,
+              "profile": "trap_modern_beat:modern_beat",
+              "tone_shaping": null,
+              "rock_tone_shaping": null,
+              "proof_passed": true,
+              "audio_analysis_passed": true,
+              "genre_match_score": 0.83
+            },
+            {
+              "id": "generic_jazz",
+              "parsed_genre": "jazz",
+              "renderer_path": "fluidsynth",
+              "fluidsynth_success": true,
+              "fluidsynth_skip_reason": null,
+              "profile": "jazz:jazz",
+              "tone_shaping": null,
+              "rock_tone_shaping": null,
+              "proof_passed": true,
+              "audio_analysis_passed": true,
+              "genre_match_score": 0.923
+            }
+          ],
+          "generic_jazz_audio": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\generic_jazz\\jazz_120.0bpm_Bflatmajor_20260515_101855.wav",
+          "generic_jazz_midi": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\generic_jazz\\jazz_120.0bpm_Bflatmajor_20260515_101855.mid",
+          "generic_jazz_render_report": "output\\_diagnostics\\fluidsynth_profile_matrix\\matrix_20260515_101211\\generic_jazz\\jazz_120.0bpm_Bflatmajor_20260515_101855_render_report.json"
+        },
+        "verification": {
+          "supervisor": "PASS",
+          "runtime_matrix": "PASS",
+          "post_verifier": "PASS",
+          "artifact_policy": "Output artifacts remain under ignored output/_diagnostics; SoundFont remains ignored/uncommitted."
+        }
+      }
+    },
     {
       "id": "two-genre-quality-validation-renders-050",
       "description": "Generate two fresh comparable audio artifacts in different genres for manual quality validation: 1990s rock and cinematic/orchestral, using the same explicit FluidSynth SoundFont path for fair comparison.",
@@ -2147,16 +2333,16 @@
     "upgrade-ui-theme-panel-polish-036"
   ],
   "blocked_tasks": [],
-  "current_phase": "aggregate",
+  "current_phase": "verify",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-15T16:35:59Z",
+    "last_updated": "2026-05-15T17:35:33Z",
     "total_tasks_completed": 71,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "await-user-listening-feedback"
+    "next_phase": "supervisor-review-runtime-matrix"
   },
   "sprint_11": {
     "status": "COMPLETE",

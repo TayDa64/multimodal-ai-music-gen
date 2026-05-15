@@ -1,0 +1,27 @@
+# Jazz Arrangement Template
+# Generic small-combo jazz form with head/solo-like contrast using supported section names
+
+template_id: jazz
+display_name: "Jazz Combo"
+genre_ref: jazz
+version: "1.0.0"
+description: "Small-combo jazz arrangement with verse/chorus/bridge contrast and no trap drop/buildup sections"
+tags:
+  - jazz
+  - swing
+  - small_combo
+  - acoustic
+
+sections:
+  - type: intro
+    bars: 4
+  - type: verse
+    bars: 8
+  - type: chorus
+    bars: 8
+  - type: bridge
+    bars: 8
+  - type: chorus
+    bars: 8
+  - type: outro
+    bars: 4

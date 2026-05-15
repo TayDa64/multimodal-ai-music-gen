@@ -96,6 +96,7 @@ class StrategyRegistry:
         from .cinematic_strategy import CinematicStrategy
         from .ambient_strategy import AmbientStrategy
         from .rock_strategy import RockStrategy
+        from .jazz_strategy import JazzStrategy
         
         cls.register(TrapStrategy())
         cls.register(TrapSoulStrategy())
@@ -113,6 +114,7 @@ class StrategyRegistry:
         cls.register(CinematicStrategy())  # cinematic/orchestral/film_score/soundtrack/epic
         cls.register(AmbientStrategy())    # ambient/atmospheric/soundscape
         cls.register(RockStrategy())       # rock/classic_rock/alternative_rock/grunge/punk_rock/indie_rock
+        cls.register(JazzStrategy())       # generic small-combo jazz only; ethio_jazz remains EthiopianStrategy-owned
         
         cls._initialized = True
     

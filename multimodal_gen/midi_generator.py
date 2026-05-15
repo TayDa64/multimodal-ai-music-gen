@@ -214,6 +214,22 @@ def _rock_family_bass_program(parsed: ParsedPrompt) -> Optional[int]:
     return 33  # Electric Bass (finger), 0-based GM program
 
 
+def _jazz_acoustic_bass_program(parsed: ParsedPrompt) -> Optional[int]:
+    """Route generic jazz walking/upright bass to GM acoustic bass, not synth bass."""
+    normalized_genre = normalize_genre(getattr(parsed, 'genre', '') or '')
+    if normalized_genre != 'jazz':
+        return None
+
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    instruments_norm = {str(inst).strip().lower().replace('-', '_') for inst in getattr(parsed, 'instruments', [])}
+    instruments_spaced = {inst.replace('_', ' ') for inst in instruments_norm}
+    if 'bass' in instruments_norm or 'bass' in instruments_spaced or any(
+        phrase in raw_prompt for phrase in ('walking bass', 'upright bass', 'acoustic bass', 'double bass')
+    ):
+        return 32  # Acoustic Bass, 0-based GM program
+    return None
+
+
 # =============================================================================
 # NOTE EVENT DATA STRUCTURE
 # =============================================================================
@@ -2296,10 +2312,12 @@ class MidiGenerator:
         
         # Program change: preserve synth bass for non-rock, but route rock-family
         # bass guitar prompts to GM electric bass so renderers don't treat them as 808s.
-        bass_program = _rock_family_bass_program(parsed) or 38
+        bass_program = _rock_family_bass_program(parsed) or _jazz_acoustic_bass_program(parsed) or 38
         track.append(Message('program_change', program=bass_program, channel=1, time=0))
         if bass_program in (33, 34):
             track.append(MetaMessage('text', text='instrument:Bass Guitar', time=0))
+        elif bass_program == 32:
+            track.append(MetaMessage('text', text='instrument:Acoustic Bass', time=0))
         
         all_notes = []
         normalized_genre = normalize_genre(parsed.genre or '')

@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Genre-specific default augmentation must honor negative prompt exclusions after merging",
+        "context": "Task 051 verifier caught generic jazz combo-kit defaults reintroducing --no kick/--no hihat because the merge happened after exclusion filtering. The fix filters kick/snare/hihat/ride against excluded_drums during jazz default augmentation and adds parser regressions for both exclusions.",
+        "timestamp": "2026-05-15T17:35:33Z"
+      },
+      {
+        "pattern": "Close deferred no-op profile routes only after parser/defaults/strategy/arrangement matrix wiring exists",
+        "context": "For task 051, generic jazz moved from deferred matrix metadata into a runtime FluidSynth matrix case only after the exact prompt parsed to jazz, combo defaults avoided 808/hi-hat rolls, JazzStrategy generated ride/walking-bass/comping parts, bass MIDI routed to acoustic bass instead of synth bass, and the runtime matrix proved generic_jazz with renderer_path=fluidsynth, profile=jazz:jazz, no tone shaping, failure_count=0, and audio_analysis.passed=true.",
+        "timestamp": "2026-05-15T17:35:33Z"
+      },
+      {
         "pattern": "Use paired genre validation renders before choosing the next quality policy",
         "context": "For task 050, generated paired 16-bar FluidSynth validation WAVs for 1990s rock and cinematic/orchestral using the same SoundFont and isolation flags. This creates a listening checkpoint before adding more genre policies, so user feedback can target actual cross-genre quality differences instead of speculative tuning.",
         "timestamp": "2026-05-15T16:35:59Z"
@@ -475,6 +485,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Register only generic jazz to JazzStrategy while preserving ethio_jazz under EthioJazzStrategy.",
+      "rationale": "The task required generic jazz first-class routing without overriding Ethiopian/Mulatu/Addis/Ethiopiques semantics or Ethiopian instrument skip gates; smooth_jazz/bebop aliases were left as normalization/default conveniences rather than strategy registrations.",
+      "alternatives_considered": [
+        "Reuse EthioJazzStrategy for generic jazz, rejected because it uses Ethiopian compound-meter/percussion semantics",
+        "Register smooth_jazz/bebop aliases immediately, deferred to avoid untested parser/default/template surface",
+        "Add jazz FluidSynth shelves, rejected by guardrail because jazz:jazz must remain no-op"
+      ],
+      "timestamp": "2026-05-15T17:06:50Z"
+    },
     {
       "decision": "Do not add non-rock FluidSynth tone shelves in task 049; add a measurement matrix instead.",
       "rationale": "Pre-verifier found non-rock profiles are no-op and adding shelves without runtime baselines is too risky.",
@@ -1064,5 +1084,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T16:35:59Z"
+  "last_updated": "2026-05-15T17:35:33Z"
 }

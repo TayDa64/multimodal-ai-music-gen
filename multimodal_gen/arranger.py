@@ -464,6 +464,27 @@ ROCK_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.CHORUS, 4),
 ]
 
+JAZZ_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.INTRO, 4),
+    (SectionType.VERSE, 8),
+    (SectionType.CHORUS, 8),
+    (SectionType.BRIDGE, 8),
+    (SectionType.CHORUS, 8),
+    (SectionType.OUTRO, 4),
+]
+
+JAZZ_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.VERSE, 4),
+    (SectionType.CHORUS, 4),
+    (SectionType.BRIDGE, 4),
+    (SectionType.CHORUS, 4),
+]
+
+JAZZ_SMOKE_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.VERSE, 4),
+    (SectionType.CHORUS, 4),
+]
+
 ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
     'trap_soul': [
         (SectionType.INTRO, 4),
@@ -495,6 +516,7 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
         (SectionType.CHORUS, 8),
         (SectionType.OUTRO, 4),
     ],
+    'jazz': JAZZ_TEMPLATE,
     'rock': ROCK_TEMPLATE,
     'classic_rock': ROCK_TEMPLATE,
     'alternative_rock': ROCK_TEMPLATE,
@@ -821,6 +843,10 @@ class Arranger:
             target_bars = 0
         if _genre_norm in ROCK_FAMILY_GENRES and 0 < target_bars <= 16:
             return ROCK_SHORT_TEMPLATE.copy()
+        if _genre_norm == 'jazz' and 0 < target_bars <= 8:
+            return JAZZ_SMOKE_TEMPLATE.copy()
+        if _genre_norm == 'jazz' and 0 < target_bars <= 16:
+            return JAZZ_SHORT_TEMPLATE.copy()
         
         # Try config-driven loading first
         if USE_CONFIG_DRIVEN and self.config_loader is not None:

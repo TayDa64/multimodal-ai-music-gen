@@ -7,6 +7,11 @@ EXACT_1990S_ROCK_PROMPT = (
     "100 BPM in E minor"
 )
 
+GENERIC_JAZZ_PROMPT = (
+    "small-combo jazz quartet with walking bass, ride cymbal, "
+    "piano comping, 120 BPM in Bb major"
+)
+
 
 def test_key_extraction_prefers_explicit_key_over_word_fragments():
     parser = PromptParser()
@@ -49,6 +54,54 @@ def test_exact_1990s_rock_prompt_parses_as_band_defaults_without_trap_fallbacks(
     assert "verse" in parsed.section_hints
     assert "drop" in parsed.section_hints  # chorus is currently represented as a drop/hook hint
     assert "breakdown" in parsed.section_hints  # bridge maps to the breakdown hint
+
+
+def test_generic_jazz_prompt_parses_as_combo_defaults_without_trap_fallbacks():
+    parsed = PromptParser().parse(GENERIC_JAZZ_PROMPT)
+
+    assert parsed.genre == "jazz"
+    assert parsed.bpm == 120
+    assert parsed.key == "Bb"
+    assert parsed.scale_type.name.lower() == "major"
+
+    assert "piano" in parsed.instruments
+    assert "bass" in parsed.instruments
+    assert not {"krar", "masenqo", "washint", "begena", "kebero", "atamo"} & set(parsed.instruments)
+
+    for element in ["kick", "snare", "hihat", "ride"]:
+        assert element in parsed.drum_elements
+    assert "crash" not in parsed.drum_elements
+    assert "808" not in parsed.drum_elements
+    assert "hihat_roll" not in parsed.drum_elements
+
+
+def test_generic_jazz_combo_defaults_honor_excluded_drums():
+    parser = PromptParser()
+
+    for prompt, excluded in [
+        ("jazz quartet --no kick", "kick"),
+        ("jazz quartet --no hihat", "hihat"),
+    ]:
+        parsed = parser.parse(prompt)
+
+        assert parsed.genre == "jazz"
+        assert excluded in parsed.excluded_drums
+        assert excluded not in parsed.drum_elements
+        assert "808" not in parsed.drum_elements
+        assert "hihat_roll" not in parsed.drum_elements
+
+
+def test_ethio_jazz_priority_survives_generic_jazz_keywords():
+    parser = PromptParser()
+
+    for prompt in [
+        "ethio-jazz groove with krar comping and ride cymbal",
+        "ethiopian jazz in Addis with Mulatu Astatke brass lines",
+        "Ethiopiques style jazz with swinging Addis nightlife energy",
+    ]:
+        parsed = parser.parse(prompt)
+        assert parsed.genre == "ethio_jazz"
+        assert parsed.time_signature == (6, 8)
 
 
 def test_90s_boom_bap_and_hip_hop_still_route_to_boom_bap():

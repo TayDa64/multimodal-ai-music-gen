@@ -50,7 +50,7 @@ def test_fluidsynth_profile_matrix_runs_isolated_explicit_soundfont_cases():
     assert "--no-banner" in script_text
 
 
-def test_fluidsynth_profile_matrix_case_contracts_and_deferred_jazz():
+def test_fluidsynth_profile_matrix_case_contracts_and_generic_jazz_runtime():
     script_text = _script_text()
     cases_block = _cases_block(script_text)
 
@@ -61,10 +61,12 @@ def test_fluidsynth_profile_matrix_case_contracts_and_deferred_jazz():
     assert 'expected_profile = "classical:classical"' in cases_block
     assert 'id = "trap_modern_beat"' in cases_block
     assert 'expected_profile = "trap_modern_beat:modern_beat"' in cases_block
+    assert 'id = "generic_jazz"' in cases_block
+    assert 'expected_parsed_genres = @("jazz")' in cases_block
+    assert 'expected_profile = "jazz:jazz"' in cases_block
     assert 'expected_tone_shaping = $null' in cases_block
-    assert "generic_jazz" not in cases_block
-    assert 'id = "generic_jazz"' in script_text
-    assert "Deferred: the FluidSynth profile registry has a jazz no-op profile" in script_text
+    assert "$DeferredCases = @()" in script_text
+    assert "Deferred: the FluidSynth profile registry has a jazz no-op profile" not in script_text
 
 
 def test_fluidsynth_profile_matrix_parses_required_artifacts_and_summary_schema():

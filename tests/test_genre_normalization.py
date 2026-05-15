@@ -41,6 +41,17 @@ def test_neo_soul_has_first_class_defaults():
     assert GENRE_DEFAULTS["neo_soul"]["emphasis"] == "chords"
 
 
+def test_normalize_genre_jazz_variants_and_defaults():
+    assert normalize_genre("jazz") == "jazz"
+    assert normalize_genre("jazz quartet") == "jazz"
+    assert normalize_genre("small combo jazz") == "jazz"
+    assert normalize_genre("bebop") == "jazz"
+
+    assert "jazz" in GENRE_DEFAULTS
+    assert GENRE_DEFAULTS["jazz"]["hihat_rolls"] is False
+    assert GENRE_DEFAULTS["jazz"]["emphasis"] == "combo"
+
+
 def test_normalize_genre_rock_family_variants():
     assert normalize_genre("rock") == "rock"
     assert normalize_genre("90s rock") == "rock"
