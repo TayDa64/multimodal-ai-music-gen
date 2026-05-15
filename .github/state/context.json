@@ -1,7 +1,70 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-14-exact-rock-fluidsynth-smoke-isolation-046",
+  "session_id": "session-2026-05-14-fluidsynth-rock-strict-quality-047",
   "files_touched": [
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Added audio-only mid-band transient fallback for GM/SoundFont snare_or_clap detection while preserving the legacy aggregate energy rule."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Added rock-family-only FluidSynth file-mastering tone shaping and render-report pipeline diagnostics."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Added deterministic GM-style live drum detector regressions for hat-heavy snare-positive and no-snare negative cases."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Added a rock FluidSynth tone-shaping helper regression."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 047 diagnosis, implementation, exact FluidSynth strict-quality proof, and focused test results."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Marked fluidsynth-rock-strict-quality-047 completed with pre-check, implementation, runtime proof, and verification."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded GM/SoundFont snare detector and rock FluidSynth tone-shaping patterns."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T05:38:21Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 047 files, changes, verifications, and latest exact smoke artifact."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-14T23:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Opened fluidsynth-rock-strict-quality-047 for exact FluidSynth rock strict-quality follow-up."
+    },
     {
       "path": ".github\\state\\memory.json",
       "action": "modified",
@@ -1986,6 +2049,16 @@
   ],
   "changes_made": [
     {
+      "timestamp": "2026-05-15T05:38:21Z",
+      "task": "fluidsynth-rock-strict-quality-047",
+      "summary": "Exact isolated FluidSynth rock strict audio now passes: renderer_path=fluidsynth, strict_audio_failed=false, audio_analysis.passed=true, score=1.0, centroid=4461.1Hz, snare/kick/hihats all detected.",
+      "details": [
+        "Improved audio-only snare_or_clap detection for GM/SoundFont mixes where cymbals and kicks dominate aggregate percussive energy.",
+        "Added rock-family-only FluidSynth tone shaping to tame brightness and sub-bass before final mastering stages.",
+        "Preserved default procedural fallback and FluidSynth isolation semantics."
+      ]
+    },
+    {
       "file": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md; .github\\state\\orchestration.json; .github\\state\\memory.json; .github\\state\\context.json",
       "description": "Aggregated exact FluidSynth isolation runtime proof and identified the next strict-quality blocker.",
       "diff_summary": "Recorded artifact paths, renderer diagnostics, mastering status, strict_audio_failed=true, spectral centroid 5649 Hz, and missing snare_or_clap analysis.",
@@ -2564,7 +2637,7 @@
     {
       "file": "multimodal_gen/utils.py",
       "description": "Added get_ticks_per_bar() helper function for dynamic bar length calculation",
-      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8→1440, 12/8→2880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
+      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8\u21921440, 12/8\u21922880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
       "timestamp": "2026-01-21T12:10:00Z"
     },
     {
@@ -2617,6 +2690,38 @@
     }
   ],
   "verifications": [
+    {
+      "timestamp": "2026-05-15T05:38:21Z",
+      "task": "fluidsynth-rock-strict-quality-047",
+      "command": ".\\scripts\\smoke_1990s_rock.ps1 -StrictAudio -FluidSynthIsolation -SoundFont 'assets\\soundfonts\\FluidR3Mono_GM.sf3' -OutputRoot 'output\\_diagnostics' -DurationBars 16 -Seed 199001",
+      "result": "PASS",
+      "evidence": {
+        "artifact_dir": "output\\_diagnostics\\rock_1990s_20260514_223641",
+        "exit_code": 0,
+        "strict_audio_failed": false,
+        "fluidsynth_isolation_failed": false,
+        "renderer_path": "fluidsynth",
+        "audio_analysis_passed": true,
+        "genre_match_score": 1.0,
+        "centroid_hz": 4461.1,
+        "sub_bass_energy_ratio": 0.1585,
+        "has_snare_or_clap": true,
+        "rock_tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz"
+      }
+    },
+    {
+      "timestamp": "2026-05-15T05:38:21Z",
+      "task": "fluidsynth-rock-strict-quality-047",
+      "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_render_report_schema.py -q",
+      "result": "PASS - 103 passed, 9 existing warnings"
+    },
+    {
+      "type": "pre",
+      "target": "fluidsynth-rock-strict-quality-047",
+      "result": "PENDING",
+      "details": "Pre-verifier will inspect exact FluidSynth smoke artifact, MIDI drum notes, rendered spectral/drum features, output analyzer thresholds, and mastering stages before choosing fix scope.",
+      "timestamp": "2026-05-14T23:25:00Z"
+    },
     {
       "type": "runtime",
       "target": "exact-rock-fluidsynth-smoke-isolation-046",
@@ -3179,21 +3284,21 @@
     },
     {
       "type": "post",
-      "target": "Sprint 5 production code — Gemini synthesis audit",
+      "target": "Sprint 5 production code \u2014 Gemini synthesis audit",
       "result": "PASS",
       "details": "All 7 deliverables CORRECT. No dead code, no crash paths, all guard clauses present. HarmonicBrain wiring verified, PolicyContext consumption verified, GenreDNA overlay verified, quality gate verified, scale-snap verified, preference defaults verified.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 test suite — GPT adversarial stress-test",
+      "target": "Sprint 5 test suite \u2014 GPT adversarial stress-test",
       "result": "FAIL",
       "details": "0/5 wiring points tested, 12 trivially-passing assertions, latent IndexError in compute_vlc([[]]). test_intelligence_integration.py could pass with all Sprint 5 features deleted.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 diagnostician fixes — production bug + test hardening",
+      "target": "Sprint 5 diagnostician fixes \u2014 production bug + test hardening",
       "result": "PASS",
       "details": "1 production bug fixed (compute_vlc empty voicing guard). 48 tests total: 12 trivial assertions tightened, 11 edge-case tests added, 5 wiring tests added. All 5 Sprint 5 wiring points now verified.",
       "timestamp": "2026-02-11T00:00:00Z"
@@ -3258,12 +3363,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 CORRECT, 1 MEDIUM dead instance — FIXED"
+      "details": "6/6 CORRECT, 1 MEDIUM dead instance \u2014 FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL→FIXED",
-      "details": "3 bugs + 1 flaw + 4 vacuous tests — all fixed by diagnostician"
+      "result": "FAIL\u2192FIXED",
+      "details": "3 bugs + 1 flaw + 4 vacuous tests \u2014 all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -3302,12 +3407,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "5/6 CORRECT, 1 MEDIUM bug — FIXED"
+      "details": "5/6 CORRECT, 1 MEDIUM bug \u2014 FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL→FIXED",
-      "details": "2 bugs + 4 vacuous tests — all fixed by diagnostician"
+      "result": "FAIL\u2192FIXED",
+      "details": "2 bugs + 4 vacuous tests \u2014 all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -3366,12 +3471,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue — FIXED"
+      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue \u2014 FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL→FIXED",
-      "details": "3 production bugs + 7 trivial tests → all fixed by diagnostician"
+      "result": "FAIL\u2192FIXED",
+      "details": "3 production bugs + 7 trivial tests \u2192 all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -3381,7 +3486,7 @@
   ],
   "wave_1": {
     "status": "COMPLETE",
-    "test_progression": "1075 → 1133 (+58)",
+    "test_progression": "1075 \u2192 1133 (+58)",
     "categories": [
       "C2 Masterclass Reconciliation (+30)",
       "C4 Analysis & Narrative (+15)",
@@ -3390,7 +3495,7 @@
   },
   "wave_2": {
     "status": "COMPLETE",
-    "test_progression": "1133 → 1197 (+64)",
+    "test_progression": "1133 \u2192 1197 (+64)",
     "categories": [
       "C1 Architecture Refactoring (+29)",
       "C3 Groove & Expression (+35)"
@@ -3398,7 +3503,7 @@
   },
   "wave_3": {
     "status": "COMPLETE",
-    "test_progression": "1197 → 1223 (+26)",
+    "test_progression": "1197 \u2192 1223 (+26)",
     "gaps_closed": [
       "MIDI CC injection (Task 2.1)",
       "extract_drum_pattern() API (Task 4.3)",
@@ -3422,17 +3527,13 @@
     }
   ],
   "last_validation": {
-    "milestone": "upgrade-rock-app-validation-docs-037",
-    "timestamp": "2026-05-14T22:30:00Z",
-    "summary": "Fresh backend JSON-RPC generate_sync for the exact 1990s rock prompt passed after key/mode compaction fix; final WAV opened for listening.",
-    "artifact_dir": "output\\ui_validation\\rock_app_validation_20260514_eminor_fixed",
-    "wav": "output\\ui_validation\\rock_app_validation_20260514_eminor_fixed\\rock_100bpm_Eminor_20260514_101946.wav",
-    "midi": "output\\ui_validation\\rock_app_validation_20260514_eminor_fixed\\rock_100bpm_Eminor_20260514_101946.mid",
-    "tests": [
-      "tests/test_protocol.py - 39 passed",
-      "tests/test_golden_prompts_smoke.py tests/test_smoke_1990s_rock_contract.py - 26 passed",
-      "git diff --check - PASS"
-    ]
+    "milestone": "fluidsynth-rock-strict-quality-047",
+    "timestamp": "2026-05-15T05:38:21Z",
+    "summary": "Exact FluidSynth 1990s rock strict-quality gate passed with renderer-path isolation still proven.",
+    "artifact_dir": "output\\_diagnostics\\rock_1990s_20260514_223641",
+    "wav": "output\\_diagnostics\\rock_1990s_20260514_223641\\rock_100.0bpm_Eminor_20260514_223643.wav",
+    "midi": "output\\_diagnostics\\rock_1990s_20260514_223641\\rock_100.0bpm_Eminor_20260514_223643.mid",
+    "tests": "103 passed for output analyzer/audio renderer/render report schema"
   },
   "changes": [
     {

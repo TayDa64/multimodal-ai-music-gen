@@ -585,9 +585,72 @@ class InstrumentDetector:
             )
             mid_band = scipy_signal.filtfilt(b, a, percussive)
             mid_energy = float(np.sum(mid_band**2))
-            result.has_snare_or_clap = (
-                mid_energy / (perc_energy + 1e-10) > 0.3
-            )
+            snare_energy_ratio = mid_energy / (perc_energy + 1e-10)
+            result.has_snare_or_clap = snare_energy_ratio > 0.3
+
+            # GM/SoundFont rock kits can have very bright cymbal tails and
+            # strong kick lows.  In those mixes, aggregate mid-band energy can
+            # fall below the historical 0.30 ratio even when a clear backbeat
+            # snare is present.  Add an audio-only transient fallback: count
+            # mid-band onsets whose local percussive window is neither kick-
+            # dominated nor pure hi-hat/air.  This preserves the old aggregate
+            # gate and avoids using MIDI metadata as a shortcut.
+            if not result.has_snare_or_clap and result.drums_present:
+                try:
+                    mid_onset_env = librosa.onset.onset_strength(
+                        y=mid_band, sr=sr
+                    )
+                    mid_onsets = librosa.onset.onset_detect(
+                        y=mid_band, sr=sr, onset_envelope=mid_onset_env
+                    )
+
+                    if len(mid_onsets) > 0:
+                        b, a = scipy_signal.butter(
+                            4, 200 / nyq, btype="low", output="ba"
+                        )
+                        low_band = scipy_signal.filtfilt(b, a, percussive)
+
+                        b, a = scipy_signal.butter(
+                            4, 5000 / nyq, btype="high", output="ba"
+                        )
+                        high_band = scipy_signal.filtfilt(b, a, percussive)
+
+                        onset_samples = librosa.frames_to_samples(mid_onsets)
+                        pre_samples = int(sr * 0.015)
+                        post_samples = int(sr * 0.110)
+                        qualifying_mid_transients = 0
+
+                        for onset_sample in onset_samples:
+                            start = max(0, int(onset_sample) - pre_samples)
+                            end = min(len(percussive), int(onset_sample) + post_samples)
+                            if end <= start:
+                                continue
+
+                            low_energy = float(np.sum(low_band[start:end] ** 2))
+                            local_mid_energy = float(np.sum(mid_band[start:end] ** 2))
+                            high_energy = float(np.sum(high_band[start:end] ** 2))
+                            local_total = low_energy + local_mid_energy + high_energy + 1e-10
+
+                            mid_share = local_mid_energy / local_total
+                            low_share = low_energy / local_total
+                            high_share = high_energy / local_total
+
+                            if (
+                                mid_share >= 0.26
+                                and low_share <= 0.80
+                                and high_share <= 0.70
+                            ):
+                                qualifying_mid_transients += 1
+
+                        qualifying_density = qualifying_mid_transients / max(
+                            duration_sec, 0.1
+                        )
+                        result.has_snare_or_clap = (
+                            qualifying_mid_transients >= 4
+                            and qualifying_density >= 0.35
+                        )
+                except Exception as exc:
+                    logger.debug("Snare transient fallback failed: %s", exc)
 
         return result
 

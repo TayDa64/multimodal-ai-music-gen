@@ -114,6 +114,27 @@ def _sub_bass_ratio(audio: np.ndarray, sample_rate: int = 44100) -> float:
     return float(np.sum(power[freqs < 90.0]) / total)
 
 
+def _sub_bass_power(audio: np.ndarray, sample_rate: int = 44100) -> float:
+    audio = np.asarray(audio, dtype=np.float64).reshape(-1)
+    if audio.size == 0 or not np.any(audio):
+        return 0.0
+    power = np.abs(np.fft.rfft(audio)) ** 2
+    freqs = np.fft.rfftfreq(audio.size, d=1.0 / sample_rate)
+    return float(np.sum(power[freqs < 90.0]))
+
+
+def _high_band_ratio(audio: np.ndarray, sample_rate: int = 44100) -> float:
+    audio = np.asarray(audio, dtype=np.float64).reshape(-1)
+    if audio.size == 0 or not np.any(audio):
+        return 0.0
+    power = np.abs(np.fft.rfft(audio)) ** 2
+    total = float(np.sum(power))
+    if total <= 1e-12:
+        return 0.0
+    freqs = np.fft.rfftfreq(audio.size, d=1.0 / sample_rate)
+    return float(np.sum(power[freqs > 5000.0]) / total)
+
+
 def _library_with_dummy_guitar() -> InstrumentLibrary:
     lib = InstrumentLibrary(instruments_dir=None, auto_load_audio=False)
     inst = AnalyzedInstrument(
@@ -290,6 +311,30 @@ def test_rock_procedural_electric_bass_sequence_limits_sub_bass_energy():
     assert np.all(np.isfinite(audio))
     assert np.max(np.abs(audio)) <= 1.0
     assert _sub_bass_ratio(audio, 44100) < 0.16
+
+
+def test_rock_fluidsynth_tone_shaping_tames_bright_soundfont_balance():
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="rock")
+    duration = 1.0
+    t = np.linspace(0, duration, int(44100 * duration), endpoint=False, dtype=np.float32)
+    bright_mono = (
+        0.35 * np.sin(2 * np.pi * 55.0 * t)
+        + 0.22 * np.sin(2 * np.pi * 440.0 * t)
+        + 0.18 * np.sin(2 * np.pi * 8000.0 * t)
+    ).astype(np.float32)
+    bright_stereo = np.stack([bright_mono, bright_mono], axis=-1)
+
+    shaped = renderer._apply_rock_fluidsynth_tone_shaping(
+        bright_stereo, 44100, "fluidsynth_file_mastering"
+    )
+
+    assert shaped.shape == bright_stereo.shape
+    assert np.all(np.isfinite(shaped))
+    assert _high_band_ratio(shaped[:, 0], 44100) < _high_band_ratio(bright_mono, 44100) * 0.45
+    assert _sub_bass_power(shaped[:, 0], 44100) < _sub_bass_power(bright_mono, 44100)
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.rock_tone_shaping"] == (
+        "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz"
+    )
 
 
 def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):

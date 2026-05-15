@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy import signal as scipy_signal
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -62,6 +63,81 @@ def _percussive_signal(
         burst *= np.exp(-np.arange(burst_len) / (sr * 0.003))
         audio[pos : pos + burst_len] += burst * 0.8
     return audio
+
+
+def _filtered_noise_burst(
+    rng: np.random.Generator,
+    samples: int,
+    band: tuple[float | None, float | None],
+    sr: int = SR,
+) -> np.ndarray:
+    burst = rng.standard_normal(samples).astype(np.float32)
+    nyq = sr / 2.0
+    lo, hi = band
+    if lo is None:
+        b, a = scipy_signal.butter(3, hi / nyq, btype="low")
+    elif hi is None:
+        b, a = scipy_signal.butter(3, lo / nyq, btype="high")
+    else:
+        b, a = scipy_signal.butter(3, [lo / nyq, hi / nyq], btype="band")
+    return scipy_signal.lfilter(b, a, burst).astype(np.float32)
+
+
+def _live_drum_backbeat_signal(
+    *,
+    include_snare: bool = True,
+    include_kick: bool = True,
+    include_hihat: bool = True,
+    duration: float = 8.0,
+    bpm: float = 100.0,
+    sr: int = SR,
+) -> np.ndarray:
+    """Deterministic GM-ish rock drum pattern for detector regressions."""
+    rng = np.random.default_rng(1990)
+    audio = np.zeros(int(duration * sr), dtype=np.float32)
+    beat = 60.0 / bpm
+    bar = beat * 4.0
+
+    def add(start_sec: float, burst: np.ndarray, amp: float) -> None:
+        start = int(start_sec * sr)
+        if start >= len(audio):
+            return
+        end = min(len(audio), start + len(burst))
+        audio[start:end] += burst[: end - start] * amp
+
+    for bar_index in range(int(duration / bar)):
+        bar_start = bar_index * bar
+
+        if include_kick:
+            for beat_pos in (0.0, 2.0):
+                n = int(0.14 * sr)
+                t = np.arange(n, dtype=np.float32) / sr
+                pitch_sweep = 70.0 - 30.0 * np.minimum(t / 0.14, 1.0)
+                kick = np.sin(2 * np.pi * pitch_sweep * t) * np.exp(-t / 0.045)
+                add(bar_start + beat_pos * beat, kick.astype(np.float32), 0.8)
+
+        if include_snare:
+            for beat_pos in (1.0, 3.0):
+                n = int(0.12 * sr)
+                t = np.arange(n, dtype=np.float32) / sr
+                noise = _filtered_noise_burst(rng, n, (200.0, 5000.0), sr)
+                noise *= np.exp(-t / 0.035)
+                body = np.sin(2 * np.pi * 190.0 * t) * np.exp(-t / 0.05)
+                snare = 0.8 * noise + 0.25 * body
+                add(bar_start + beat_pos * beat, snare.astype(np.float32), 0.65)
+
+        if include_hihat:
+            for eighth in range(8):
+                n = int(0.05 * sr)
+                t = np.arange(n, dtype=np.float32) / sr
+                hat = _filtered_noise_burst(rng, n, (6000.0, None), sr)
+                hat *= np.exp(-t / 0.012)
+                add(bar_start + eighth * beat / 2.0, hat.astype(np.float32), 0.5)
+
+    peak = float(np.max(np.abs(audio)))
+    if peak > 1e-9:
+        audio = audio / peak * 0.8
+    return audio.astype(np.float32)
 
 
 def _piano_like_signal(
@@ -169,6 +245,36 @@ class TestDrumDetection:
 
         assert result.percussive_ratio > 0.05
         assert result.onset_density > 2.0
+
+    def test_gm_style_snare_detected_when_hats_dominate_aggregate_energy(self):
+        audio = _live_drum_backbeat_signal(
+            include_snare=True,
+            include_kick=True,
+            include_hihat=True,
+        )
+        detector = InstrumentDetector()
+
+        result = detector.detect_drums(audio, SR)
+
+        assert result.drums_present
+        assert result.has_kick
+        assert result.has_hihats
+        assert result.has_snare_or_clap
+
+    def test_kick_hat_groove_does_not_fake_snare_or_clap(self):
+        audio = _live_drum_backbeat_signal(
+            include_snare=False,
+            include_kick=True,
+            include_hihat=True,
+        )
+        detector = InstrumentDetector()
+
+        result = detector.detect_drums(audio, SR)
+
+        assert result.drums_present
+        assert result.has_kick
+        assert result.has_hihats
+        assert not result.has_snare_or_clap
 
     def test_drum_detection_returns_dataclass(self):
         audio = _sine(200.0, duration=1.0)

@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "GM/SoundFont rock snare detection needs transient evidence in addition to aggregate HPSS band energy",
+        "context": "For fluidsynth-rock-strict-quality-047, the exact FluidSynth rock MIDI had 48 GM snare hits and measurable snare-aligned mid-band RMS, but the analyzer missed snare_or_clap because full-file mid/percussive energy was only 0.097 under bright cymbal/kick-heavy SoundFont output. The detector now keeps the legacy aggregate gate and adds an audio-only mid-band transient fallback that rejects kick-dominated and pure hi-hat/air windows without reading MIDI metadata.",
+        "timestamp": "2026-05-15T05:38:21Z"
+      },
+      {
+        "pattern": "Rock-family FluidSynth renders may need fixed tone shaping before final file-level mastering gates",
+        "context": "For fluidsynth-rock-strict-quality-047, FluidR3Mono_GM.sf3 exact rock output was too bright (centroid 5649 Hz) and near the rock sub-bass ceiling. A rock-family-only file-level mastering step applies high_shelf=-6.0dB@5000Hz and low_shelf=-0.75dB@90Hz before final soft clipping/gain staging, records fluidsynth_file_mastering.rock_tone_shaping, and made the exact smoke pass with centroid 4461.1 Hz, sub_bass_energy_ratio 0.1585, and audio score 1.0.",
+        "timestamp": "2026-05-15T05:38:21Z"
+      },
+      {
         "pattern": "Exact FluidSynth smoke proofs can pass renderer-path isolation while still failing strict audio quality",
         "context": "For exact-rock-fluidsynth-smoke-isolation-046, -FluidSynthIsolation proved renderer_path=fluidsynth with attempted/success true, skip_reason null, custom_drums_loaded=0, instrument_library.loaded=false, expansions.loaded=false, and file mastering applied. The same -StrictAudio run still failed audio analysis because the SoundFont render was too bright and snare_or_clap was not detected, so renderer proof and quality proof must be tracked separately.",
         "timestamp": "2026-05-14T23:15:00Z"
@@ -69,7 +79,7 @@
       },
       {
         "pattern": "Golden prompt fixtures can lock cross-layer genre regressions without rendering audio",
-        "context": "upgrade-rock-golden-regression-matrix-035 uses optional fixture fields to assert parser metadata, analyzer target presence, bounded target_bars arrangements, and MIDI program/pitch guardrails for the exact 1990s rock prompt while preserving lightweight parse→arranger→MidiGenerator smoke behavior.",
+        "context": "upgrade-rock-golden-regression-matrix-035 uses optional fixture fields to assert parser metadata, analyzer target presence, bounded target_bars arrangements, and MIDI program/pitch guardrails for the exact 1990s rock prompt while preserving lightweight parse\u2192arranger\u2192MidiGenerator smoke behavior.",
         "timestamp": "2026-05-14T21:00:00Z"
       },
       {
@@ -283,7 +293,7 @@
         "timestamp": "2026-03-18T17:20:00Z"
       },
       {
-        "pattern": "Ethiopian instruments follow: enum → DIR_TO_CATEGORY → KEYWORD_TO_CATEGORY → GENRE_PROFILES",
+        "pattern": "Ethiopian instruments follow: enum \u2192 DIR_TO_CATEGORY \u2192 KEYWORD_TO_CATEGORY \u2192 GENRE_PROFILES",
         "context": "When adding any new instrument category to instrument_manager.py",
         "timestamp": "2026-01-16T00:30:00Z"
       },
@@ -298,7 +308,7 @@
         "timestamp": "2026-01-16T00:30:00Z"
       },
       {
-        "pattern": "Time signature flow: GENRE_DEFAULTS → prompt_parser → ParsedPrompt → strategy → generator",
+        "pattern": "Time signature flow: GENRE_DEFAULTS \u2192 prompt_parser \u2192 ParsedPrompt \u2192 strategy \u2192 generator",
         "context": "When implementing time signatures for any genre, ensure all layers pass the parameter",
         "timestamp": "2026-01-21T12:30:00Z"
       },
@@ -324,7 +334,7 @@
       },
       {
         "pattern": "Disable-compare wiring tests > import-flag-only checks",
-        "context": "Sprint 6 GPT stress-test found 7/11 trivially-passing assertions (import flags, track count). Use monkeypatch: generate WITH feature → disable → generate WITHOUT → assert difference.",
+        "context": "Sprint 6 GPT stress-test found 7/11 trivially-passing assertions (import flags, track count). Use monkeypatch: generate WITH feature \u2192 disable \u2192 generate WITHOUT \u2192 assert difference.",
         "timestamp": "2026-02-12T00:00:00Z"
       },
       {
@@ -348,7 +358,7 @@
         "timestamp": "2026-02-12T01:00:00Z"
       },
       {
-        "pattern": "Wire orphaned modules before writing new code — highest ROI",
+        "pattern": "Wire orphaned modules before writing new code \u2014 highest ROI",
         "context": "Sprint 7 wired 5,578+ LOC of existing orphaned modules. Writing new code only needed for CC expression (~200 LOC). Inventory orphaned modules first.",
         "timestamp": "2026-02-12T01:00:00Z"
       },
@@ -373,17 +383,17 @@
         "timestamp": "2026-02-12T03:00:00Z"
       },
       {
-        "pattern": "TrackProcessor per-stem uses genre→preset mapping dict with fallback defaults",
-        "context": "Sprint 8: genre-normalized string keys map to TRACK_PRESETS names. drums→punchy_kick/boom_bap_drums, bass→trap_808/boom_bap_bass/clean_bass, pad→warm_pad, lead→bright_synth, other→lofi_keys or bright_synth",
+        "pattern": "TrackProcessor per-stem uses genre\u2192preset mapping dict with fallback defaults",
+        "context": "Sprint 8: genre-normalized string keys map to TRACK_PRESETS names. drums\u2192punchy_kick/boom_bap_drums, bass\u2192trap_808/boom_bap_bass/clean_bass, pad\u2192warm_pad, lead\u2192bright_synth, other\u2192lofi_keys or bright_synth",
         "timestamp": "2026-02-12T03:00:00Z"
       },
       {
-        "pattern": "Genre-gate per-stem processing to target genres only — don't apply hip-hop presets to classical",
+        "pattern": "Genre-gate per-stem processing to target genres only \u2014 don't apply hip-hop presets to classical",
         "context": "TrackProcessor applied boom_bap_drums saturation to classical instruments. Gate with a set of genres that benefit from per-stem processing.",
         "timestamp": "2026-02-12T04:00:00Z"
       },
       {
-        "pattern": "Wrap ALL optional pipeline blocks in try/except — asymmetric error handling is a bug class",
+        "pattern": "Wrap ALL optional pipeline blocks in try/except \u2014 asymmetric error handling is a bug class",
         "context": "Sprint 8 sidechain block had no try/except while TrackProcessor did. If sidechain threw, render crashed. All blocks must match the graceful degradation pattern.",
         "timestamp": "2026-02-12T04:00:00Z"
       },
@@ -393,18 +403,18 @@
         "timestamp": "2026-02-12T04:00:00Z"
       },
       {
-        "pattern": "Extract formulas into named testable helpers — never mirror formulas in tests",
+        "pattern": "Extract formulas into named testable helpers \u2014 never mirror formulas in tests",
         "context": "Sprint 8.7 had 9/15 tests copy-pasting the production formula into test helpers. Auditor + stress-tester flagged as vacuous. Fix: extract _get_preset_target_rms() and _get_preset_reverb_send() as production methods, then tests call production code directly.",
         "timestamp": "2026-02-12T06:00:00Z"
       },
       {
-        "pattern": "dB→gain cap must be level-relative, not absolute constant",
-        "context": "Sprint 8.7 stem_headroom_db at -6dB capped gain to ~1.0x (absolute 10^(db/20)*2). Fix: use 10^(-db/20) so -6dB → max gain 2.0x (6dB of boost allowed).",
+        "pattern": "dB\u2192gain cap must be level-relative, not absolute constant",
+        "context": "Sprint 8.7 stem_headroom_db at -6dB capped gain to ~1.0x (absolute 10^(db/20)*2). Fix: use 10^(-db/20) so -6dB \u2192 max gain 2.0x (6dB of boost allowed).",
         "timestamp": "2026-02-12T06:00:00Z"
       },
       {
         "pattern": "Verify formula neutral points against actual preset values",
-        "context": "Sprint 8.7 formula 0.28-0.12*ha had neutral at ha=0.25 — exactly the 'polished' preset value. Zero effect. Fix: shift formula so no built-in preset lands on the neutral point.",
+        "context": "Sprint 8.7 formula 0.28-0.12*ha had neutral at ha=0.25 \u2014 exactly the 'polished' preset value. Zero effect. Fix: shift formula so no built-in preset lands on the neutral point.",
         "timestamp": "2026-02-12T06:00:00Z"
       },
       {
@@ -413,7 +423,7 @@
         "timestamp": "2026-02-13T00:00:00Z"
       },
       {
-        "pattern": "Supervisor pre-digest eliminates Builder read cycles — zero-read edits",
+        "pattern": "Supervisor pre-digest eliminates Builder read cycles \u2014 zero-read edits",
         "context": "Plan agent reads all files once, produces 19KB manifest with exact line numbers and edit targets. Builders receive manifest and edit without reading. Saves ~50% token budget per wave.",
         "timestamp": "2026-02-13T00:00:00Z"
       },
@@ -423,7 +433,7 @@
         "timestamp": "2026-02-13T00:00:00Z"
       },
       {
-        "pattern": "MIDI CC events complement velocity dynamics — different layers of expression",
+        "pattern": "MIDI CC events complement velocity dynamics \u2014 different layers of expression",
         "context": "dynamics.py had velocity-only phrase shaping. Adding CC11/CC1/CC74 via generate_phrase_cc_events() completes the expression stack. CC injection was already wired in midi_generator._inject_cc_expression() from Sprint 7.",
         "timestamp": "2026-02-13T00:00:00Z"
       }
@@ -883,14 +893,14 @@
         "Genre profiles define ideal SonicProfile for instrument matching",
         "M/S encoding: mid=(L+R)/2, side=(L-R)/2",
         "M/S decoding: L=mid+side, R=mid-side",
-        "Audio pipeline: Tracks → MixBus → Effects → Master Sum → Master Chain → Limiter → Output",
-        "New effects follow: EffectType enum → Params dataclass → DSP.method() → MixChain.process()",
+        "Audio pipeline: Tracks \u2192 MixBus \u2192 Effects \u2192 Master Sum \u2192 Master Chain \u2192 Limiter \u2192 Output",
+        "New effects follow: EffectType enum \u2192 Params dataclass \u2192 DSP.method() \u2192 MixChain.process()",
         "RBJ biquad coefficients depend on filter type, frequency, Q, gain",
         "Transposed Direct Form II: y[n] = b0*x[n] + w1; w1 = b1*x[n] - a1*y[n] + w2; w2 = b2*x[n] - a2*y[n]",
-        "Chebyshev polynomials: T_2=2x²-1, T_3=4x³-3x, T_4=8x⁴-8x²+1, T_5=16x⁵-20x³+5x",
+        "Chebyshev polynomials: T_2=2x\u00b2-1, T_3=4x\u00b3-3x, T_4=8x\u2074-8x\u00b2+1, T_5=16x\u2075-20x\u00b3+5x",
         "Ethiopian time signatures: ethiopian/eskista/ethio_jazz use (6, 8), ethiopian_traditional uses (12, 8)",
-        "Compound meter ticks: TICKS_PER_BEAT * numerator // 2 for /8 denominators (6/8 → 1440 ticks, 12/8 → 2880 ticks)",
-        "Time signature parameter flow: GENRE_DEFAULTS → prompt_parser.py → ParsedPrompt → strategy → midi_generator",
+        "Compound meter ticks: TICKS_PER_BEAT * numerator // 2 for /8 denominators (6/8 \u2192 1440 ticks, 12/8 \u2192 2880 ticks)",
+        "Time signature parameter flow: GENRE_DEFAULTS \u2192 prompt_parser.py \u2192 ParsedPrompt \u2192 strategy \u2192 midi_generator",
         "Guitar-family samples and GM programs 24-31 route through the guitar melodic cache key, not keys.",
         "ProceduralRenderer must return early from generic melodic loading when parsed Ethiopian instruments are present."
       ],
@@ -1016,7 +1026,7 @@
           "vbap": "Vector Base Amplitude Panning for 3D"
         },
         "reference_matching": {
-          "algorithm": "LTAS (Long-Term Average Spectrum) difference → parametric EQ",
+          "algorithm": "LTAS (Long-Term Average Spectrum) difference \u2192 parametric EQ",
           "key": "50-70% match to preserve source character"
         },
         "stem_separation": {
@@ -1030,5 +1040,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-14T23:15:00Z"
+  "last_updated": "2026-05-15T05:38:21Z"
 }

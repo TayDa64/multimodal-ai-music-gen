@@ -6,7 +6,7 @@ Document a source-grounded investigation plan for the 1990s rock quality regress
 
 ## Scope and guardrails
 
-- **Current task scope:** documentation/state updates only; no production code or tests are changed here.
+- **Plan status:** this document started as a documentation/state plan and now also records the implementation/proof milestones completed from it.
 - **Primary quality goal:** the prompt below should produce a rock/band arrangement with guitars, bass guitar, live drums, verse/chorus/bridge structure, 100 BPM, E minor, and a rendered audio artifact.
 - **Primary safety goal:** do not regress existing high-priority genres and workflows while adding rock coverage. The fix must connect all genre layers instead of making one isolated parser or renderer tweak.
 
@@ -54,6 +54,48 @@ Runtime proof from the first exact isolated smoke:
   - `pipeline_stages.fluidsynth_file_mastering.status="applied"`
 
 Important quality follow-up: the isolation proof succeeded, but the combined `-StrictAudio` quality gate still reported `strict_audio_failed=true` because the full SoundFont render failed rock audio analysis (`genre_match_score=0.58`, spectral centroid `5649 Hz` above the 1000–4500 Hz target, and `snare_or_clap` not detected). That is no longer a renderer-selection/bootstrap problem; it becomes the next mastering/analyzer/instrument-balance priority.
+
+### FluidSynth strict rock quality fix — 2026-05-15
+
+Task `fluidsynth-rock-strict-quality-047` fixed the exact isolated FluidSynth render quality gate without weakening the renderer-path proof:
+
+- `multimodal_gen/output_analyzer.py` keeps the existing aggregate snare/clap energy rule, but adds an audio-only mid-band transient fallback for GM/SoundFont rock kits. This catches real snare backbeats when bright cymbal/air energy and kick lows dominate aggregate HPSS percussive energy. The fallback does **not** inspect MIDI metadata.
+- `multimodal_gen/audio_renderer.py` adds rock-family-only FluidSynth file-mastering tone shaping before final soft clipping/gain staging: a conservative high shelf (`-6.0 dB @ 5000 Hz`) and low shelf (`-0.75 dB @ 90 Hz`). The render report records this as `pipeline_stages.fluidsynth_file_mastering.rock_tone_shaping`.
+- Regression coverage was added for GM-style snare detection in hat-heavy live drum mixes, the no-snare kick/hat negative case, and the rock FluidSynth tone-shaping helper.
+
+Pre-fix measurement on `output\_diagnostics\rock_1990s_20260514_160450` showed the quality failure was not missing MIDI drums: GM snare note 38 appeared 48 times with mean velocity `88.8`, and snare-aligned mid-band RMS averaged `0.091816`. The old detector still reported `has_snare_or_clap=false` because its full-file mid-band/percussive ratio was only `0.097` against the historical `>0.300` gate.
+
+Post-fix exact isolated FluidSynth smoke proof:
+
+- Command:
+
+  ```powershell
+  Set-Location C:\dev\MUSE-ai\MUSE
+  $env:PATH = 'C:\dev\MUSE-ai\tools\fluidsynth-2.4.7-win10-x64\bin;' + $env:PATH
+  .\scripts\smoke_1990s_rock.ps1 -StrictAudio -FluidSynthIsolation -SoundFont 'assets\soundfonts\FluidR3Mono_GM.sf3' -OutputRoot 'output\_diagnostics' -DurationBars 16 -Seed 199001
+  ```
+
+- Artifact directory: `output\_diagnostics\rock_1990s_20260514_223641`
+- Summary: `smoke_summary.json`
+- Render report: `rock_100.0bpm_Eminor_20260514_223643_render_report.json`
+- Smoke gates:
+  - `exit_code=0`
+  - `strict_audio_failed=false`
+  - `fluidsynth_isolation_failed=false`
+  - `renderer_path="fluidsynth"`
+  - `fluidsynth.success=true`
+  - `fluidsynth.skip_reason=null`
+  - `audio_analysis.passed=true`
+  - `audio_analysis.genre_match_score=1.0`
+- Rendered-audio analysis after the fix:
+  - `spectral.centroid_hz=4461.1` within the rock target upper bound of `4500`
+  - `spectral.sub_bass_energy_ratio=0.1585` below the rock ceiling of `0.16`
+  - `drums.has_kick=true`
+  - `drums.has_snare_or_clap=true`
+  - `drums.has_hihats=true`
+  - `drums.percussive_ratio=0.215`
+
+Focused verification for the code slice: `tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_render_report_schema.py -q` passed (`103 passed`, with existing librosa/audioread warnings).
 
 ### Failed runner attempt
 

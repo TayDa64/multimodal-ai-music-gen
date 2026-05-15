@@ -1757,6 +1757,49 @@ class AudioRenderer:
         """
         return (self.genre or '').lower().replace(' ', '_').replace('-', '_')
 
+    def _apply_rock_fluidsynth_tone_shaping(
+        self,
+        audio: np.ndarray,
+        sample_rate: int,
+        stage_prefix: str,
+    ) -> np.ndarray:
+        """Tame GM/SoundFont rock renders that arrive overly bright.
+
+        FluidR3/GM-style rock kits can put a lot of energy into cymbal/air
+        bands after the file-level mastering exciter.  Apply a conservative,
+        rock-family-only tone correction before final clipping/gain so the
+        mastered SoundFont path stays closer to the same rendered-audio targets
+        as the procedural rock path.  The correction is deliberately fixed and
+        diagnostic-rich rather than adapting the analyzer result after the fact.
+        """
+        if self._normalize_genre() not in ROCK_FAMILY_GENRES:
+            return audio
+
+        try:
+            from scipy import signal as _scipy_signal
+            from .spectral_processing import design_shelf_filter
+
+            processed = np.asarray(audio, dtype=np.float32)
+
+            high_b, high_a = design_shelf_filter(
+                5000.0, -6.0, sample_rate, shelf_type='high'
+            )
+            processed = _scipy_signal.lfilter(high_b, high_a, processed, axis=0)
+
+            low_b, low_a = design_shelf_filter(
+                90.0, -0.75, sample_rate, shelf_type='low'
+            )
+            processed = _scipy_signal.lfilter(low_b, low_a, processed, axis=0)
+
+            self._pipeline_stages[f'{stage_prefix}.rock_tone_shaping'] = (
+                'high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz'
+            )
+            return processed.astype(np.float32, copy=False)
+        except Exception as exc:
+            logger.exception("Rock FluidSynth tone shaping failed: %s", exc)
+            self._pipeline_stages[f'{stage_prefix}.rock_tone_shaping'] = 'error'
+            return audio
+
     def _compute_pan(self, name: str, is_drums: bool, index: int) -> float:
         """Compute panning value for a track.
 
@@ -2848,6 +2891,10 @@ class AudioRenderer:
                         self._pipeline_stages[f'{stage_prefix}.reference_matching'] = 'active'
                 except Exception:
                     self._pipeline_stages[f'{stage_prefix}.reference_matching'] = 'error'
+
+            audio = self._apply_rock_fluidsynth_tone_shaping(
+                audio, sr, stage_prefix
+            )
 
             # Soft clip
             audio = soft_clip(audio, threshold=0.7)
