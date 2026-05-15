@@ -105,7 +105,7 @@ _GENRE_ALIASES: Dict[str, str] = {
     "cinematic": "cinematic",
     "film_score": "film_score",
     "soundtrack": "film_score",
-    # Jazz no-op family
+    # Jazz family
     "jazz": "jazz",
     "smooth_jazz": "smooth_jazz",
     "bebop": "bebop",
@@ -144,6 +144,10 @@ ROCK_TONE_SHELVES: Tuple[ToneShelf, ...] = (
     ToneShelf(frequency_hz=90.0, gain_db=-0.75, shelf_type="low"),
 )
 
+JAZZ_TONE_SHELVES: Tuple[ToneShelf, ...] = (
+    ToneShelf(frequency_hz=4000.0, gain_db=-5.0, shelf_type="high"),
+)
+
 DEFAULT_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     name="default",
     genre_family="default",
@@ -178,7 +182,7 @@ JAZZ_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     name="jazz",
     genre_family="jazz",
     aliases=tuple(sorted(JAZZ_FAMILY_GENRES)),
-    tone_shelves=(),
+    tone_shelves=JAZZ_TONE_SHELVES,
 )
 
 TRAP_MODERN_BEAT_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(

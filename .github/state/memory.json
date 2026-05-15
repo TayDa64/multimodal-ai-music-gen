@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Validate measured profile shelves through the actual integrated render chain after source-level fixes",
+        "context": "Task 054 showed the correct order for jazz brightness: first fix semantic/source controls (sax register, sax CC74, and piano comping register/CC74), then use measured jazz-only profile shelves, and finally verify through the real FluidSynth file-mastering chain. Offline/post-processed -4.5dB@4000Hz looked safe but the integrated render still warned at 2808.8 Hz; the final high_shelf=-5.0dB@4000Hz integrated proof cleared the strict 600-2800 Hz jazz centroid target at 2755.9 Hz without relaxing analyzer targets or changing audio_renderer.py.",
+        "timestamp": "2026-05-15T23:46:42Z"
+      },
+      {
         "pattern": "Prompt-level instrument cues must preserve semantic identity before mastering realism issues",
         "context": "Task 053 improved jazz horn realism by fixing saxophone prompt routing from generic brass/trumpet program 56 to sax program 65 with a local jazz horn velocity cap. The remaining brightness warning is a later measured mastering/breath slice, not a reason to mask wrong instrument routing with global EQ.",
         "timestamp": "2026-05-15T19:18:37Z"
@@ -1114,5 +1119,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-15T19:18:37Z"
+  "last_updated": "2026-05-15T23:46:42Z"
 }

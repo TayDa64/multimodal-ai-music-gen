@@ -175,6 +175,8 @@ ROCK_FAMILY_GENRES = {
 }
 
 JAZZ_HORN_MELODY_VELOCITY_CAP = 112
+JAZZ_SAX_MELODY_CC74_CAP = 78
+JAZZ_CHORD_CC74_CAP = 78
 
 SAX_MELODY_ALIASES = ('sax', 'saxophone', 'saxes', 'saxophones')
 ALTO_SAX_MELODY_ALIASES = ('alto_sax', 'alto_saxophone', 'alto sax', 'alto saxophone')
@@ -216,6 +218,39 @@ def _is_jazz_horn_melody(parsed: ParsedPrompt, horn_choice: Optional[Tuple[str, 
     if normalize_genre(getattr(parsed, 'genre', '') or '') != 'jazz':
         return False
     return bool(horn_choice) or _instrument_alias_present(parsed, BRASS_MELODY_ALIASES)
+
+
+def _is_sax_melody_choice(horn_choice: Optional[Tuple[str, int, str]]) -> bool:
+    return bool(horn_choice and horn_choice[0] in {'sax', 'alto_sax', 'tenor_sax'})
+
+
+def _is_jazz_sax_melody(parsed: ParsedPrompt, horn_choice: Optional[Tuple[str, int, str]]) -> bool:
+    return normalize_genre(getattr(parsed, 'genre', '') or '') == 'jazz' and _is_sax_melody_choice(horn_choice)
+
+
+def _is_keyboard_chord_instrument(resolved_instrument: Optional[str], program: Optional[int]) -> bool:
+    instrument = str(resolved_instrument or '').strip().lower().replace('-', '_').replace(' ', '_')
+    keyboard_aliases = {
+        'piano', 'acoustic_piano', 'grand_piano', 'acoustic_grand', 'acoustic_grand_piano',
+        'rhodes', 'electric_piano', 'electric_piano_1', 'electric_piano_2', 'epiano', 'e_piano',
+    }
+    if instrument in keyboard_aliases:
+        return True
+    try:
+        return int(program) in {0, 4, 5}
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_generic_jazz_keyboard_chord_comping(
+    parsed: ParsedPrompt,
+    resolved_instrument: Optional[str],
+    program: Optional[int],
+) -> bool:
+    return (
+        normalize_genre(getattr(parsed, 'genre', '') or '') == 'jazz'
+        and _is_keyboard_chord_instrument(resolved_instrument, program)
+    )
 
 
 def _has_bass_guitar_request(parsed: ParsedPrompt) -> bool:
@@ -2602,14 +2637,23 @@ class MidiGenerator:
 
         _chord_section_counts: Dict[str, int] = {}
         has_explicit_tension_arc = self._has_explicit_tension_arc(arrangement)
+        is_generic_jazz_keyboard_comping = _is_generic_jazz_keyboard_chord_comping(
+            parsed,
+            resolved_instrument,
+            program,
+        )
+        chord_cc74_cap = JAZZ_CHORD_CC74_CAP if is_generic_jazz_keyboard_comping else None
         for section in arrangement.sections:
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.90, 1.10)
             complexity = self._get_section_complexity(arrangement, section, parsed.genre or "pop")
             _chord_inst = (resolved_instrument or 'rhodes').lower()
-            register_lift = self._get_primary_chord_register_lift(
-                has_explicit_tension_arc,
-                tension,
+            register_lift = (
+                0 if is_generic_jazz_keyboard_comping
+                else self._get_primary_chord_register_lift(
+                    has_explicit_tension_arc,
+                    tension,
+                )
             )
 
             # Track section occurrences for variation (Sprint 6)
@@ -2705,7 +2749,8 @@ class MidiGenerator:
                     for s in arrangement.sections
                 ]
                 self._inject_cc_expression(track, arrangement, _section_ticks,
-                                           parsed.genre or 'pop', is_melody=False)
+                                           parsed.genre or 'pop', is_melody=False,
+                                           cc74_cap=chord_cc74_cap)
             except Exception as _e:
                 _midi_logger.debug("CC expression injection failed: %s", _e)
 
@@ -3155,6 +3200,8 @@ class MidiGenerator:
         track = MidiTrack()
         horn_choice = _explicit_horn_melody_choice(parsed)
         jazz_horn_velocity_cap = JAZZ_HORN_MELODY_VELOCITY_CAP if _is_jazz_horn_melody(parsed, horn_choice) else None
+        is_jazz_sax_melody = _is_jazz_sax_melody(parsed, horn_choice)
+        jazz_sax_cc74_cap = JAZZ_SAX_MELODY_CC74_CAP if is_jazz_sax_melody else None
         
         # Try to resolve instrument via service first (if available)
         program = None
@@ -3354,6 +3401,15 @@ class MidiGenerator:
                 # Apply section variation for repeated sections (Sprint 6)
                 melody = self._apply_section_variation(melody, st, section_counters[st])
 
+                if melody and is_jazz_sax_melody and horn_choice:
+                    # Keep explicit jazz sax leads in the warm sax register even when
+                    # motifs or ornamentation would otherwise inherit piano/synth octave 5.
+                    sax_range_key = horn_choice[0]
+                    melody = [
+                        (tick, dur, clamp_to_range(pitch, sax_range_key), vel)
+                        for tick, dur, pitch, vel in melody
+                    ]
+
                 for tick, dur, pitch, vel in melody:
                     all_notes.append(NoteEvent(
                         pitch=pitch,
@@ -3402,7 +3458,8 @@ class MidiGenerator:
                     for s in arrangement.sections
                 ]
                 self._inject_cc_expression(track, arrangement, _section_ticks,
-                                           parsed.genre or 'pop', is_melody=True)
+                                           parsed.genre or 'pop', is_melody=True,
+                                           cc74_cap=jazz_sax_cc74_cap)
             except Exception:
                 pass
 
@@ -3663,7 +3720,7 @@ class MidiGenerator:
         
         return result
 
-    def _inject_cc_expression(self, track, arrangement, section_ticks, genre, is_melody=False):
+    def _inject_cc_expression(self, track, arrangement, section_ticks, genre, is_melody=False, cc74_cap: Optional[int] = None):
         """Inject CC11/CC1/CC74 messages for expressive MIDI.
 
         CC11 (Expression): Phrase-level volume envelope shaped by tension arc
@@ -3754,6 +3811,8 @@ class MidiGenerator:
             # CC74 (Brightness): 40-127 based on tension × intensity
             cc74_val = int((40 + tension * 87) * intensity)
             cc74_val = max(0, min(127, cc74_val))
+            if cc74_cap is not None:
+                cc74_val = min(cc74_val, cc74_cap)
             cc_events.append(
                 (tick, Message('control_change', channel=channel, control=74,
                                value=cc74_val, time=0))

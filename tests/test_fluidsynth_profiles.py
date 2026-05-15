@@ -46,11 +46,10 @@ def test_rock_aliases_resolve_to_exact_strict_tone_shelves():
     assert shelves[1].gain_db == -0.75
 
 
-def test_initial_non_rock_profiles_are_discoverable_noops():
+def test_classical_and_trap_profiles_remain_discoverable_noops():
     expected = {
         "classical": ("classical", "classical"),
         "orchestral": ("classical", "classical"),
-        "jazz": ("jazz", "jazz"),
         "trap": ("trap_modern_beat", "modern_beat"),
         "trap soul": ("trap_modern_beat", "modern_beat"),
         "modern beat": ("trap_modern_beat", "modern_beat"),
@@ -62,3 +61,18 @@ def test_initial_non_rock_profiles_are_discoverable_noops():
         assert profile.genre_family == family
         assert profile.tone_shelves == ()
         assert profile_tone_shelves_diagnostic(profile) == ""
+
+
+def test_jazz_aliases_resolve_to_measured_brightness_shelf():
+    for genre in ["jazz", "smooth jazz", "bebop", "ethio jazz"]:
+        profile = get_fluidsynth_profile(genre)
+        assert profile.name == "jazz"
+        assert profile.genre_family == "jazz"
+        assert profile_diagnostic(profile) == "jazz:jazz"
+        assert profile_tone_shelves_diagnostic(profile) == "high_shelf=-5.0dB@4000Hz"
+
+    shelves = get_fluidsynth_profile("jazz").tone_shelves
+    assert len(shelves) == 1
+    assert shelves[0].shelf_type == "high"
+    assert shelves[0].frequency_hz == 4000.0
+    assert shelves[0].gain_db == -5.0

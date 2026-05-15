@@ -1,7 +1,77 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-15-jazz-horn-realism-sax-lead-polish-053",
+  "session_id": "session-2026-05-15-jazz-sax-breath-range-mastering-054",
   "files_touched": [
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T23:46:42Z",
+      "by_agent": "supervisor",
+      "changes": "Marked task 054 completed with final -5.0dB integrated FluidSynth proof."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T23:46:42Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 054 final runtime PASS and updated last validation."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T23:46:42Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded source-first integrated-render validation pattern from task 054."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-15T23:46:42Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded final task 054 -5.0dB integrated proof artifact paths and metrics."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T23:30:12Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded residual brightness measurement before final profile adjustment."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T23:30:12Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded failed post-source-fix runtime proof and measured -4.5dB@4000Hz remedy for task 054."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T22:03:49Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 054 pre-verification result."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T22:03:49Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded task 054 pre-verifier PARTIAL and advanced to decompose."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T21:58:34Z",
+      "by_agent": "supervisor",
+      "changes": "Started session context for task 054."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-15T21:58:34Z",
+      "by_agent": "supervisor",
+      "changes": "Opened task 054 for measured jazz sax brightness/breath/range follow-up."
+    },
     {
       "path": ".github\\state\\memory.json",
       "action": "modified",
@@ -3283,9 +3353,42 @@
       "description": "Documented task 053 post-change sax listening proof and moved old rock proof under the rock section.",
       "diff_summary": "Added paths for sax proof WAV/MIDI/report/summary and noted remaining brightness warning as follow-up.",
       "timestamp": "2026-05-15T19:18:37Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Opened task 054 for measured jazz sax brightness/breath/range follow-up.",
+      "diff_summary": "Updated current_session and prepended in-progress task with baseline evidence from task 053 sax render.",
+      "timestamp": "2026-05-15T21:58:34Z"
     }
   ],
   "verifications": [
+    {
+      "type": "runtime",
+      "target": "task 054 final integrated -5.0dB jazz profile render",
+      "result": "PASS",
+      "details": "Fresh FluidSynth render passed all gates: profile jazz:jazz, tone high_shelf=-5.0dB@4000Hz, renderer_path=fluidsynth, issues=[], centroid 2755.9 Hz within jazz 600-2800 target, score 1.0. Melody sax program 65 pitch_max 79 velocity_max 112 CC74 max 78; Chords piano pitch_max 75 CC74 max 78.",
+      "timestamp": "2026-05-15T23:46:42Z",
+      "evidence": {
+        "summary": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\jazz_sax_breath_range_mastering_final_profile5_summary.json",
+        "audio": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_164516.wav",
+        "midi": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_164516.mid",
+        "render_report": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_164516_render_report.json"
+      }
+    },
+    {
+      "type": "runtime",
+      "target": "task 054 integrated -4.5dB jazz profile render",
+      "result": "FAIL_BOUNDARY",
+      "details": "Render and source controls passed, but centroid 2808.8 Hz still emitted brightness warning. Next policy is -5.0dB@4000Hz for runtime margin.",
+      "timestamp": "2026-05-15T23:40:47Z"
+    },
+    {
+      "type": "runtime",
+      "target": "task 054 post-source-fix final render and measured residual shelf",
+      "result": "FAIL_THEN_MEASURED_REMEDY",
+      "details": "Final render with -3.0dB@4000Hz had centroid 2973.9 Hz despite sax/chord source controls. Fast/full analyzer measurement selected total high_shelf=-4.5dB@4000Hz; candidate full analyzer centroid 2468.2, score 1.0, issues null.",
+      "timestamp": "2026-05-15T23:30:12Z"
+    },
     {
       "timestamp": "2026-05-15T18:05:26Z",
       "task": "first-class-jazz-listening-render-052",
@@ -4272,6 +4375,13 @@
       "result": "PASS",
       "details": "Focused pytest 68 passed, get_errors clean, git diff --check clean, protected renderer/profile diff clean.",
       "timestamp": "2026-05-15T19:18:37Z"
+    },
+    {
+      "type": "pre",
+      "target": "jazz-sax-breath-range-mastering-054",
+      "result": "PARTIAL",
+      "details": "recursive-verifier found sax register fallback and high CC74 as likely brightness causes; recommended MIDI-level sax range/articulation before FluidSynth/profile shelves.",
+      "timestamp": "2026-05-15T22:03:49Z"
     }
   ],
   "sprint_75_files_touched": [
@@ -4455,6 +4565,15 @@
   },
   "errors_encountered": [
     {
+      "timestamp": "2026-05-15T23:40:47Z",
+      "task_id": "jazz-sax-breath-range-mastering-054",
+      "error": "Integrated -4.5dB@4000Hz render remained just above jazz centroid target.",
+      "details": "Renderer proof succeeded but strict brightness gate failed: centroid 2808.8 Hz, score 0.999, issue Spectral centroid 2809 Hz outside expected 600-2800 Hz.",
+      "resolution_plan": "Update measured jazz profile to high_shelf=-5.0dB@4000Hz and rerun integrated proof.",
+      "resolved_at": "2026-05-15T23:46:42Z",
+      "resolution": "Resolved by final integrated high_shelf=-5.0dB@4000Hz proof: centroid 2755.9 Hz, score 1.0, issues []."
+    },
+    {
       "timestamp": "2026-05-15T19:18:37Z",
       "task": "jazz-horn-realism-sax-lead-polish-053",
       "severity": "info",
@@ -4477,16 +4596,23 @@
     }
   ],
   "last_validation": {
-    "task_id": "jazz-horn-realism-sax-lead-polish-053",
-    "timestamp": "2026-05-15T19:18:37Z",
-    "type": "runtime_sax_render",
+    "task_id": "jazz-sax-breath-range-mastering-054",
+    "timestamp": "2026-05-15T23:46:42Z",
+    "type": "runtime_jazz_sax_brightness_render",
     "result": "PASS",
-    "summary_path": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\jazz_sax_lead_polish_summary.json",
-    "audio": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840.wav",
-    "midi": "output\\_diagnostics\\jazz_sax_lead_polish_20260515_120838\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_120840.mid",
-    "details": "Fresh sax-lead jazz render uses FluidSynth, profile jazz:jazz, Melody GM program 65, instrument:Sax, velocity_max=112, audio_analysis score=0.95."
+    "summary_path": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\jazz_sax_breath_range_mastering_final_profile5_summary.json",
+    "audio": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_164516.wav",
+    "midi": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_164516.mid",
+    "render_report": "output\\_diagnostics\\jazz_sax_breath_range_mastering_final_profile5_20260515_164513\\generic_jazz_sax_lead\\jazz_120.0bpm_Bflatmajor_20260515_164516_render_report.json",
+    "details": "Final exact generic jazz sax prompt render uses FluidSynth, profile jazz:jazz, tone high_shelf=-5.0dB@4000Hz, Melody GM program 65 with instrument:Sax, Melody pitch_max=79, Melody CC74 max=78, Chords pitch_max=75, Chords CC74 max=78, audio score=1.0, centroid=2755.9 Hz, issues=[]."
   },
   "changes": [
+    {
+      "file": "jazz-sax-breath-range-mastering-054",
+      "description": "Completed measured jazz sax brightness/range/mastering follow-up with source-first MIDI controls plus final jazz-only FluidSynth shelf.",
+      "diff_summary": "Sax ranges/CC74 and generic jazz comping warmth reduce bright source content; jazz profile now uses high_shelf=-5.0dB@4000Hz and final integrated FluidSynth proof cleared centroid target at 2755.9 Hz with score 1.0 and no issues.",
+      "timestamp": "2026-05-15T23:46:42Z"
+    },
     {
       "file": "external-fluidsynth-soundfont-proof-044",
       "description": "Completed local external FluidSynth/SoundFont proof without committing binaries: fixed Windows portable command behavior, added SF3 support, generated real FluidSynth WAV proof, and documented/state-recorded the milestone.",

@@ -77,7 +77,19 @@ INSTRUMENT_RANGES: Dict[str, InstrumentRange] = {
         chord_octave=3, melody_octave=4, bass_octave=None, role="harmony",
     ),
 
-    # ── Orchestral Woodwinds ──
+    # ── Orchestral Woodwinds / jazz saxes ──
+    "sax": InstrumentRange(
+        low=49, high=80, sweet_low=55, sweet_high=76,
+        chord_octave=3, melody_octave=4, bass_octave=None, role="melody",
+    ),
+    "alto_sax": InstrumentRange(
+        low=49, high=80, sweet_low=55, sweet_high=76,
+        chord_octave=3, melody_octave=4, bass_octave=None, role="melody",
+    ),
+    "tenor_sax": InstrumentRange(
+        low=44, high=77, sweet_low=50, sweet_high=72,
+        chord_octave=3, melody_octave=3, bass_octave=None, role="melody",
+    ),
     "flute": InstrumentRange(
         low=60, high=96, sweet_low=67, sweet_high=88,
         chord_octave=5, melody_octave=5, bass_octave=None, role="melody",
@@ -201,6 +213,15 @@ _ALIASES: Dict[str, str] = {
     "upright_bass": "contrabass",
     "horn": "french_horn",
     "french horn": "french_horn",
+    "saxophone": "sax",
+    "saxes": "sax",
+    "saxophones": "sax",
+    "alto sax": "alto_sax",
+    "alto_saxophone": "alto_sax",
+    "alto saxophone": "alto_sax",
+    "tenor sax": "tenor_sax",
+    "tenor_saxophone": "tenor_sax",
+    "tenor saxophone": "tenor_sax",
     "bass guitar": "bass",
     "electric_bass": "bass",
     "synth_bass": "808",

@@ -3,10 +3,17 @@
 from mido import MidiFile, MidiTrack
 
 from multimodal_gen.arranger import Arrangement, SECTION_CONFIGS, SectionType, SongSection
+from multimodal_gen.instrument_ranges import get_melody_octave, get_range
 from multimodal_gen.instrument_resolution import InstrumentResolutionService
-from multimodal_gen.midi_generator import JAZZ_HORN_MELODY_VELOCITY_CAP, MidiGenerator
+from multimodal_gen.midi_generator import (
+    JAZZ_CHORD_CC74_CAP,
+    JAZZ_HORN_MELODY_VELOCITY_CAP,
+    JAZZ_SAX_MELODY_CC74_CAP,
+    MidiGenerator,
+)
 from multimodal_gen.prompt_parser import ParsedPrompt
 from multimodal_gen.prompt_parser import PromptParser
+from multimodal_gen.tension_arc import TensionArc, TensionPoint
 from multimodal_gen.utils import ScaleType, TICKS_PER_BAR_4_4
 
 
@@ -77,6 +84,14 @@ def _text_markers(track: MidiTrack) -> list[str]:
 
 def _note_on_velocities(track: MidiTrack) -> list[int]:
     return [msg.velocity for msg in track if msg.type == "note_on" and msg.velocity > 0]
+
+
+def _note_on_pitches(track: MidiTrack) -> list[int]:
+    return [msg.note for msg in track if msg.type == "note_on" and msg.velocity > 0]
+
+
+def _cc_values(track: MidiTrack, control: int) -> list[int]:
+    return [msg.value for msg in track if msg.type == "control_change" and msg.control == control]
 
 
 def test_rock_guitar_prompt_creates_guitar_chord_track_not_rhodes():
@@ -163,10 +178,19 @@ def test_exact_jazz_sax_prompt_uses_sax_melody_program_and_capped_velocity():
         "acoustic piano comping, warm saxophone lead, 120 BPM in Bb major"
     )
 
-    mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), parsed)
+    arrangement = _one_bar_arrangement(SectionType.CHORUS)
+    arrangement.tension_arc = TensionArc(points=[TensionPoint(0.0, 0.95), TensionPoint(1.0, 0.95)])
+    mid = MidiGenerator(use_physics_humanization=False).generate(arrangement, parsed)
+    chords = _chords_track(mid)
     melody = _melody_track(mid)
+    chord_cc74_values = _cc_values(chords, 74)
+    chord_cc11_values = _cc_values(chords, 11)
     program = _channel_3_program(melody)
     velocities = _note_on_velocities(melody)
+    pitches = _note_on_pitches(melody)
+    cc1_values = _cc_values(melody, 1)
+    cc11_values = _cc_values(melody, 11)
+    cc74_values = _cc_values(melody, 74)
 
     assert program == 65
     assert program != 56
@@ -174,6 +198,38 @@ def test_exact_jazz_sax_prompt_uses_sax_melody_program_and_capped_velocity():
     assert velocities
     assert max(velocities) <= JAZZ_HORN_MELODY_VELOCITY_CAP
     assert JAZZ_HORN_MELODY_VELOCITY_CAP < 127
+    assert pitches
+    assert max(pitches) <= 80
+    assert cc1_values
+    assert cc11_values
+    assert cc74_values
+    assert max(cc74_values) <= JAZZ_SAX_MELODY_CC74_CAP
+    assert _channel_2_program(chords) == 0
+    assert "instrument:Piano" in _text_markers(chords)
+    assert max(_note_on_pitches(chords)) <= 76
+    assert chord_cc11_values
+    assert chord_cc74_values
+    assert max(chord_cc74_values) <= JAZZ_CHORD_CC74_CAP
+
+
+def test_jazz_tenor_sax_uses_lower_register_and_program_than_generic_sax():
+    parsed = ParsedPrompt(
+        genre="jazz",
+        bpm=120,
+        key="Bb",
+        scale_type=ScaleType.MAJOR,
+        instruments=["tenor_sax"],
+        drum_elements=["kick", "snare", "hihat", "ride"],
+        raw_prompt="small combo jazz with warm tenor saxophone lead",
+    )
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(SectionType.CHORUS), parsed)
+    melody = _melody_track(mid)
+
+    assert _channel_3_program(melody) == 66
+    assert "instrument:Tenor Sax" in _text_markers(melody)
+    assert max(_note_on_pitches(melody)) <= get_range("tenor sax").sweet_high
+    assert get_melody_octave("tenor sax") < get_melody_octave("sax")
 
 
 def test_jazz_trombone_and_flute_melody_programs_remain_distinct():
@@ -248,3 +304,15 @@ def test_instrument_resolution_saxophone_aliases_resolve_to_gm_sax_programs():
     assert service.resolve_instrument("tenor saxophone").program == 66
     assert service.get_instrument_for_program(65) == "alto_sax"
     assert service.get_instrument_for_program(66) == "tenor_sax"
+
+
+def test_instrument_range_saxophone_aliases_use_warm_jazz_lead_octaves():
+    for alias in ["sax", "saxophone", "saxes", "saxophones", "alto_sax", "alto sax", "alto_saxophone", "alto saxophone"]:
+        sax_range = get_range(alias)
+        assert sax_range.melody_octave == 4
+        assert sax_range.high == 80
+
+    for alias in ["tenor_sax", "tenor sax", "tenor_saxophone", "tenor saxophone"]:
+        tenor_range = get_range(alias)
+        assert tenor_range.melody_octave == 3
+        assert tenor_range.high < get_range("sax").high

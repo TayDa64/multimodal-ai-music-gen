@@ -13,6 +13,7 @@ $ErrorActionPreference = "Stop"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 $RockToneDiagnostic = "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz"
+$JazzToneDiagnostic = "high_shelf=-5.0dB@4000Hz"
 
 $Cases = @(
     [ordered]@{
@@ -47,9 +48,9 @@ $Cases = @(
         prompt = "small-combo jazz quartet with walking bass, ride cymbal, piano comping, 120 BPM in Bb major"
         expected_parsed_genres = @("jazz")
         expected_profile = "jazz:jazz"
-        expected_tone_shaping = $null
+        expected_tone_shaping = $JazzToneDiagnostic
         expected_rock_tone_shaping = $null
-        notes = "First-class generic jazz route; profile is intentionally a no-op measurement baseline."
+        notes = "First-class generic jazz route; profile uses the measured jazz brightness policy."
     }
 )
 
