@@ -15,6 +15,7 @@ Task 057 therefore makes no source, profile, analyzer, renderer, parser, strateg
 - Task 056 re-rendered the exact 1990s rock control across seeds `199001`, `199002`, and `199003` with direct `main.py`, 16 bars, isolated defaults/expansions, `FluidR3Mono_GM.sf3`, `renderer_path=fluidsynth`, `profile=rock:rock`, and tone `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`.
 - All three exact-rock runs passed with empty issues, but the worst margins are boundary-close: centroid margin `38.9 Hz` under the `4500 Hz` ceiling and sub-bass margin `0.0015` under the `0.16` ceiling.
 - This is not full rock-family masterclass completion. It proves one exact rock control is green and repeatable enough to avoid speculative tuning, while broader rock-family idioms still need measured baselines.
+- Task 058 has now completed the rock-family baseline measurement from this runbook. Aggregate status is `FAIL-MEASURED` from summary `output\_diagnostics\rock_family_baseline_057\run_20260516_014229\rock_family_baseline_058_summary.json`: `5` planned cases, `13` runs, `1` pass, `0` watch, `4` measured failures, `blocked=false`. `grunge` passed its first seed; `classic_rock`, `punk_rock`, `indie_rock`, and hard-rock-as-canonical-`rock` failed repeatably, primarily from excess sub-bass with additional centroid/brightness issues in classic, indie, and hard-rock-as-rock.
 
 ## Existing coverage inventory
 
@@ -59,11 +60,11 @@ Exact 1990s rock is marked `L3 / PASS-WATCH`, not L4, because Task 056 repeated 
 | Area | Current maturity | Conservative status | Evidence and caveats |
 | --- | --- | --- | --- |
 | Exact 1990s rock | L3 / `PASS-WATCH` | Stable v1, not robust L4 | Task 056 three-seed proof passed with `rock:rock`, exact tone, guitar/bass/live drums, and empty issues; boundary-close margins keep it on watch. |
-| `classic_rock` | L2 planned baseline | Route/profile/targets exist, dedicated quality baseline pending | Existing key participates in rock-family routing/profile/targets; Task 058 must measure the dedicated prompt before any quality claim. |
-| `grunge` | L2 planned baseline | Route/profile/targets exist, dedicated quality baseline pending | Existing key exists; Seattle/grunge idioms and mix behavior are unproven until measured. |
-| `punk_rock` | L2 planned baseline | Route/profile/targets exist, dedicated quality baseline pending | Existing key exists; fast power-chord behavior, live drums, and analyzer margins need baseline proof. |
-| `indie_rock` | L2 planned baseline | Route/profile/targets exist, dedicated quality baseline pending | Existing key exists; jangly guitar/indie arrangement quality is not proven by exact-rock control. |
-| Hard rock as `rock` | L1/L2 canonical-rock route | Must be expected as `rock`, not `hard_rock` | Prompt keyword currently routes to canonical `rock`; Task 058 should measure a hard-rock-as-rock case without claiming a separate implemented key. |
+| `classic_rock` | L2 measured failure / `FAIL-MEASURED` | Route/profile/targets exist, quality baseline failed repeatably | Task 058 seeds `57101`, `57201`, and `57301` all scored `0.68` with centroid outside `800-3800` and sub-bass above max `0.12`; deterministic failure is too bright and too much sub-bass. |
+| `grunge` | L3 first-seed baseline / `PASS` | First measured case is green, not robust L4 | Task 058 seed `57102` passed with score `1.0`, centroid `3976.1`, sub-bass `0.1616`, and `issues=0`; no repeats were required, but broader idiom/listening repeatability remains future work. |
+| `punk_rock` | L2 measured failure / `FAIL-MEASURED` | Route/profile/targets exist, quality baseline failed repeatably | Task 058 seeds `57103`, `57203`, and `57303` all scored `0.68`; hard failure is sub-bass above max `0.15`, while centroid is often high-boundary-close. |
+| `indie_rock` | L2 measured failure / `FAIL-MEASURED` | Route/profile/targets exist, quality baseline failed repeatably | Task 058 seeds `57104`, `57204`, and `57304` all scored `0.68`; deterministic failure is sub-bass above max `0.14`, with one repeat also over the `4200 Hz` centroid ceiling. |
+| Hard rock as `rock` | L2 measured failure / `FAIL-MEASURED` | Canonical-rock route exists but hard-rock-as-rock quality failed repeatably | Task 058 seeds `57105`, `57205`, and `57305` all scored `0.68`; sub-bass exceeded max `0.16` on every run and centroid was at/over the upper `rock` bound on two seeds. Do not claim a separate `hard_rock` key. |
 | Generic jazz sax | L3 baseline | Green single-slice quality proof, not broad jazz masterclass | Task 054 proved integrated `jazz:jazz` with `high_shelf=-5.0dB@4000Hz`, sax source controls, and empty issues; broader jazz and repeatability are separate work. |
 | Cinematic/classical | L2 matrix baseline | Profile matrix route exists, quality masterclass unproven | Existing profile matrix has a no-op classical profile baseline; orchestration realism and analyzer-green quality need dedicated baselines. |
 | Trap/modern beat | L2 matrix baseline | Profile matrix route exists, quality masterclass unproven | Existing profile matrix has a no-op modern-beat baseline; 808/drum quality and margins need priority measurement. |
@@ -126,6 +127,15 @@ Repeatability seed plan:
 | Punk rock | `57103` | `57203` | `57303` |
 | Indie rock | `57104` | `57204` | `57304` |
 | Hard-rock-as-rock | `57105` | `57205` | `57305` |
+
+Task 058 completion note:
+
+- Summary: `output\_diagnostics\rock_family_baseline_057\run_20260516_014229\rock_family_baseline_058_summary.json`
+- Run root: `output\_diagnostics\rock_family_baseline_057\run_20260516_014229`
+- Generated at: `2026-05-16T09:03:11Z`; repo head: `b2945a6`; preflight proof passed.
+- Common runtime posture matched this runbook: 16 bars, `renderer_path=fluidsynth`, `profile=rock:rock`, tone `high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz`, skipped default instruments/expansions, and required `assets\soundfonts\FluidR3Mono_GM.sf3`.
+- Aggregate result: `FAIL-MEASURED` (`case_count=5`, `planned_case_count=5`, `run_count=13`, `pass_count=1`, `watch_count=0`, `failure_count=4`, `blocked=false`, `systemic_block=null`).
+- Case result: `grunge_baseline` passed on seed `57102`; `classic_rock_baseline`, `punk_rock_baseline`, `indie_rock_baseline`, and `hard_rock_as_rock_baseline` failed repeatably on their planned seeds. The measured failures should drive Task 059 without analyzer relaxation.
 
 Suggested Task 058 order:
 

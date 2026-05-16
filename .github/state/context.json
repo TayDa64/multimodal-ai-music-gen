@@ -1,7 +1,77 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-16-cross-genre-maturity-matrix-057",
+  "session_id": "session-2026-05-16-rock-family-baseline-058",
   "files_touched": [
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:13:21Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 058 completed after post-verifier PASS and recorded final result."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:13:21Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 058 post-verifier PASS and final validation summary."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:13:21Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 058 closure decision and next-task guidance."
+    },
+    {
+      "path": "docs\\ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md",
+      "action": "created",
+      "timestamp": "2026-05-16T09:08:43Z",
+      "by_agent": "builder",
+      "changes": "Created Task 058 docs-only rock-family measurement aggregation report."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:08:43Z",
+      "by_agent": "builder",
+      "changes": "Appended concise Task 058 measured-result paragraph after Task 057."
+    },
+    {
+      "path": "docs\\CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:08:43Z",
+      "by_agent": "builder",
+      "changes": "Updated current status, maturity snapshot, and runbook note with Task 058 measured results."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:08:43Z",
+      "by_agent": "builder",
+      "changes": "Moved Task 058 to verify phase and recorded runtime measurements plus builder aggregation."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:08:43Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 058 docs/state aggregation files, changes, and runtime verification entry."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:08:43Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 058 rock-family measured-failure learning and Task 059 decision."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T08:40:15Z",
+      "by_agent": "supervisor",
+      "changes": "Opened Task 058 for rock-family first-seed FluidSynth baseline measurement."
+    },
     {
       "path": ".github\\state\\memory.json",
       "action": "modified",
@@ -2749,6 +2819,48 @@
   ],
   "changes_made": [
     {
+      "file": ".github/state/orchestration.json",
+      "description": "Closed Task 058 with post-verifier PASS and final FAIL-MEASURED runtime result.",
+      "diff_summary": "Task status moved from in_progress/verify to completed/aggregate; result, verification evidence, and recommended Task 059 next step recorded.",
+      "timestamp": "2026-05-16T09:13:21Z"
+    },
+    {
+      "file": "docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md",
+      "description": "Created Task 058 rock-family baseline measurement aggregation report.",
+      "diff_summary": "Recorded scope/guardrails, direct main.py FluidSynth harness posture, artifact paths, aggregate FAIL-MEASURED result, per-case status table, per-seed metrics, interpretation, and Task 059 recommendation without copying output diagnostics.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Appended Task 058 measured-result paragraph after Task 057.",
+      "diff_summary": "Linked the new Task 058 report and recorded summary path, aggregate status, grunge pass, four measured failures, dominant sub-bass failures, brightness notes, and no-tuning guardrail.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "file": "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+      "description": "Updated matrix with completed Task 058 measured baseline status.",
+      "diff_summary": "Current status, maturity snapshot rows, and Task 058 runbook note now reflect aggregate FAIL-MEASURED evidence and measured per-case outcomes.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Recorded Task 058 runtime measurements and builder aggregation for verifier.",
+      "diff_summary": "Task 058 remains in_progress with phase verify; runtime_measurements includes summary path, run root, aggregate, common runtime posture, per-case statuses, per-seed metrics, and guardrails.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "file": ".github/state/context.json",
+      "description": "Recorded Task 058 docs/state aggregation context.",
+      "diff_summary": "Added files_touched, changes_made, runtime verification entry, and last_validation details for the measured FAIL-MEASURED aggregate.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Recorded Task 058 rock-family measurement learning.",
+      "diff_summary": "Captured that broader rock-family is not complete despite exact-rock stability; grunge passes while classic/punk/indie/hard-rock-as-rock failures are dominated by sub-bass with brightness issues in classic/indie/hard.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
       "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "description": "Linked Task 057 maturity matrix from the rock/jazz upgrade plan.",
       "diff_summary": "Added a concise docs-only Task 057 paragraph after Task 056 without duplicating the full matrix.",
@@ -3492,6 +3604,27 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "rock-family-baseline-measurement-058",
+      "result": "PASS",
+      "details": "Post-verifier confirmed summary JSON exists and matches aggregate FAIL-MEASURED, all five first seeds were attempted, repeats ran only for failed cases, docs match metrics, git diff --check passed, and diff scope is docs/state only.",
+      "timestamp": "2026-05-16T09:13:21Z"
+    },
+    {
+      "type": "runtime",
+      "target": "rock-family-baseline-measurement-058",
+      "result": "FAIL-MEASURED",
+      "details": "Completed measurement summary output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json: preflight.proof_passed=true, aggregate case_count=5 planned_case_count=5 run_count=13 pass_count=1 watch_count=0 failure_count=4 blocked=false systemic_block=null. Grunge passed; classic_rock, punk_rock, indie_rock, and hard-rock-as-rock failed repeatably. Post-verifier pending.",
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "type": "pre",
+      "target": "rock-family-baseline-measurement-058",
+      "result": "MEASUREMENT_ONLY",
+      "details": "Pre-verifier confirmed Task 058 should run the Task 057 first-seed rock-family baselines with FluidSynth PATH/SoundFont preflight, no tuning, and repeats only for FAIL/WATCH cases.",
+      "timestamp": "2026-05-16T08:40:15Z"
+    },
     {
       "type": "post",
       "target": "cross-genre-maturity-matrix-baseline-plan-057",
@@ -4783,12 +4916,13 @@
     }
   ],
   "last_validation": {
-    "task_id": "cross-genre-maturity-matrix-baseline-plan-057",
-    "timestamp": "2026-05-16T08:21:24Z",
-    "type": "docs_state_post_verification",
-    "result": "PASS",
-    "summary_path": "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
-    "details": "Task 057 completed as docs/state-only maturity matrix planning. No source/profile/analyzer/runtime changes were made; Task 058 is the next measured rock-family baseline."
+    "task_id": "rock-family-baseline-measurement-058",
+    "timestamp": "2026-05-16T09:13:21Z",
+    "type": "post_verifier",
+    "result": "PASS_WITH_MEASURED_FAILURES",
+    "summary_path": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+    "run_root": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229",
+    "details": "Task 058 itself is complete and verified. The measured outcome is FAIL-MEASURED (not blocked): grunge passed; classic_rock, punk_rock, indie_rock, and hard-rock-as-rock failed repeatably. No tuning or protected source changes were made."
   },
   "changes": [
     {

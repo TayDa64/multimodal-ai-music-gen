@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Aggregate completed rock-family measurements before tuning subgenre fixes",
+        "context": "Task 058 captured a completed direct main.py FluidSynth rock-family baseline in docs/state only. The aggregate FAIL-MEASURED result showed exact-rock stability does not imply full rock-family completion: grunge passed, while classic_rock, punk_rock, indie_rock, and hard-rock-as-rock failed repeatably, dominated by sub-bass excess with centroid/brightness issues in classic/indie/hard.",
+        "timestamp": "2026-05-16T09:08:43Z"
+      },
+      {
         "pattern": "Use a maturity matrix to convert broad genre-quality goals into measured baseline tasks before tuning",
         "context": "Task 057 turned the broad request to complete rock-family masterclass coverage into a docs-only cross-genre maturity matrix with L0-L5 levels, conservative status snapshots, rock-family gap decomposition, Task 058 prompts/seeds/gates, and cross-genre priorities. This prevents speculative profile/source edits after a green-but-watchlisted exact-rock proof.",
         "timestamp": "2026-05-16T08:21:24Z"
@@ -515,6 +520,36 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Close Task 058 as a verified measurement-only FAIL-MEASURED baseline, not an implementation task.",
+      "rationale": "The post-verifier confirmed the run is complete, repeat policy was followed, and only docs/state files changed. The correct next step is a separate Task 059 remediation based on measured sub-bass and brightness/centroid failures.",
+      "alternatives_considered": [
+        "Tune during Task 058 after seeing failures",
+        "Relax analyzer thresholds",
+        "Treat exact-rock Task 056 as full rock-family completion"
+      ],
+      "timestamp": "2026-05-16T09:13:21Z"
+    },
+    {
+      "decision": "Use Task 058 measured failures to scope Task 059, without analyzer relaxation.",
+      "rationale": "The measurement evidence is concrete and repeatable for four failing rock-family cases while grunge passes. Future work should target measured sub-bass excess and brightness/centroid issues, not speculative tuning or looser targets.",
+      "alternatives_considered": [
+        "Claim rock-family completion from the exact-rock Task 056 pass",
+        "Relax analyzer sub-bass or centroid targets to make Task 058 pass",
+        "Tune all rock profiles without preserving the grunge pass and exact-rock controls"
+      ],
+      "timestamp": "2026-05-16T09:08:43Z"
+    },
+    {
+      "decision": "Start Task 058 as measurement-only rock-family first-seed baseline run.",
+      "rationale": "Task 057 established the maturity matrix and exact prompts/seeds/gates. The next safe step is measured first-seed evidence for each rock-family case before any tuning or implementation.",
+      "alternatives_considered": [
+        "Implement rock-family idiom changes before measurement",
+        "Run broad cross-genre baselines first",
+        "Repeat all seeds for every subgenre before first-seed triage"
+      ],
+      "timestamp": "2026-05-16T08:40:15Z"
+    },
     {
       "decision": "Close task 057 as docs/state-only and make Task 058 the first rock-family runtime baseline measurement.",
       "rationale": "The user wants masterclass genre coverage, but current proof supports planning and measured baselines before any subgenre tuning. The matrix defines gates and priority order so future implementation is evidence-driven.",
@@ -1037,6 +1072,11 @@
         "multimodal_gen\\midi_generator.py"
       ],
       "patterns": [
+        {
+          "pattern": "Broader rock-family is not complete despite exact-rock stability",
+          "context": "Task 058 measured the rock-family runbook: grunge passed seed 57102, but classic_rock, punk_rock, indie_rock, and hard-rock-as-rock were FAIL-MEASURED across repeat seeds. Dominant failure is sub-bass excess; classic also repeatedly exceeds centroid, indie is boundary-close/one over, and hard-rock-as-rock is at or over the rock centroid ceiling. Task 059 should target these measured failures without analyzer relaxation.",
+          "timestamp": "2026-05-16T09:08:43Z"
+        },
         "Ethiopian instruments: krar, masenqo, washint, begena, kebero",
         {
           "pattern": "Borderline low rock percussive ratio should be tolerated only when live-drum detectors agree",
@@ -1194,5 +1234,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-16T08:21:24Z"
+  "last_updated": "2026-05-16T09:13:21Z"
 }

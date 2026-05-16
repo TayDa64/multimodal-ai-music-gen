@@ -1,11 +1,650 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-cross-genre-maturity-matrix-057",
-    "started": "2026-05-16T08:14:48Z",
-    "user_request": "Proceed from exact-rock validation into rock-family masterclass coverage and create Task 057 cross-genre maturity matrix/baseline validation plan."
+    "id": "session-2026-05-16-rock-family-baseline-058",
+    "started": "2026-05-16T08:40:15Z",
+    "user_request": "Run Task 058 rock-family first-seed baselines for classic rock, grunge, punk rock, indie rock, and hard-rock-as-rock before any tuning."
   },
   "task_queue": [
+    {
+      "id": "rock-family-baseline-measurement-058",
+      "description": "Run rock-family first-seed FluidSynth baselines for classic_rock, grunge, punk_rock, indie_rock, and hard-rock-as-rock before any tuning; repeat only FAIL/WATCH cases.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "cross-genre-maturity-matrix-baseline-plan-057",
+        "rock-boundary-repeatability-validation-056"
+      ],
+      "files_to_modify": [
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json",
+        "docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md"
+      ],
+      "created": "2026-05-16T08:40:15Z",
+      "updated": "2026-05-16T09:13:21Z",
+      "pre_verifier": {
+        "verdict": "MEASUREMENT_ONLY",
+        "summary": "Proceed with Task 058 as first-seed rock-family FluidSynth baseline measurement before tuning. Preflight must ensure local FluidSynth PATH and SoundFont availability; continue all five first-seed cases unless a systemic environment/render block appears.",
+        "recommended_slice": "Run classic_rock, grunge, punk_rock, indie_rock, and hard-rock-as-rock first seeds from the Task 057 matrix; classify PASS, PASS-WATCH, FAIL-MEASURED, or BLOCKED; repeat only WATCH/failure cases.",
+        "guardrails": [
+          "Measurement only; no source/profile/analyzer/parser/strategy/script/test changes.",
+          "No analyzer target relaxation.",
+          "Do not tune from first-seed or green boundary-close data.",
+          "Hard rock remains expected parsed genre rock, not hard_rock.",
+          "Do not commit SoundFont, WAV, MIDI, or output diagnostics."
+        ],
+        "timestamp": "2026-05-16T08:40:15Z"
+      },
+      "validation_plan": {
+        "output_root_pattern": "output\\_diagnostics\\rock_family_baseline_057\\run_<timestamp>\\<case_id>\\seed_<seed>",
+        "common_flags": [
+          "--duration-bars 16",
+          "--no-banner",
+          "--skip-default-instruments",
+          "--skip-expansions",
+          "--require-soundfont",
+          "--soundfont assets\\soundfonts\\FluidR3Mono_GM.sf3",
+          "--require-audio"
+        ],
+        "watch_thresholds": {
+          "centroid_margin_hz_lt": 150,
+          "sub_bass_margin_lt": 0.01
+        },
+        "cases": [
+          {
+            "case_id": "classic_rock_baseline",
+            "expected_genre": "classic_rock",
+            "seed": 57101,
+            "repeat_seeds": [
+              57201,
+              57301
+            ],
+            "prompt": "classic rock band with crunchy electric guitar, organ, bass guitar, live drums, verse chorus bridge, 108 BPM in A minor"
+          },
+          {
+            "case_id": "grunge_baseline",
+            "expected_genre": "grunge",
+            "seed": 57102,
+            "repeat_seeds": [
+              57202,
+              57302
+            ],
+            "prompt": "grunge seattle sound band with crunchy guitars, bass guitar, live drum kit, verse chorus bridge, 108 BPM in E minor"
+          },
+          {
+            "case_id": "punk_rock_baseline",
+            "expected_genre": "punk_rock",
+            "seed": 57103,
+            "repeat_seeds": [
+              57203,
+              57303
+            ],
+            "prompt": "punk rock punk band punk song with fast power-chord electric guitar, bass guitar, live drums, verse chorus bridge, 168 BPM in A minor"
+          },
+          {
+            "case_id": "indie_rock_baseline",
+            "expected_genre": "indie_rock",
+            "seed": 57104,
+            "repeat_seeds": [
+              57204,
+              57304
+            ],
+            "prompt": "indie rock indie band with jangly electric guitar, bass guitar, live drums, verse chorus bridge, 112 BPM in D major"
+          },
+          {
+            "case_id": "hard_rock_as_rock_baseline",
+            "expected_genre": "rock",
+            "seed": 57105,
+            "repeat_seeds": [
+              57205,
+              57305
+            ],
+            "prompt": "hard rock band with heavy distorted electric guitar, bass guitar, live drums, verse chorus bridge, 118 BPM in E minor"
+          }
+        ]
+      },
+      "runtime_measurements": [
+        {
+          "timestamp": "2026-05-16T09:08:43Z",
+          "type": "rock_family_baseline_measurement_058",
+          "generated_at": "2026-05-16T09:03:11Z",
+          "repo_head": "b2945a6",
+          "summary": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+          "run_root": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229",
+          "preflight": {
+            "proof_passed": true
+          },
+          "aggregate": {
+            "overall_status": "FAIL-MEASURED",
+            "case_count": 5,
+            "planned_case_count": 5,
+            "run_count": 13,
+            "pass_count": 1,
+            "watch_count": 0,
+            "failure_count": 4,
+            "blocked": false,
+            "systemic_block": null
+          },
+          "common_runtime": {
+            "duration_bars": 16,
+            "renderer_path": "fluidsynth",
+            "profile": "rock:rock",
+            "tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+            "skip_default_instruments": true,
+            "skip_expansions": true,
+            "require_soundfont": true,
+            "soundfont": "assets\\soundfonts\\FluidR3Mono_GM.sf3"
+          },
+          "cases": [
+            {
+              "case_id": "classic_rock_baseline",
+              "expected_genre": "classic_rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57101,
+                57201,
+                57301
+              ],
+              "run_count": 3,
+              "interpretation": "Deterministic classic-rock failure: too bright and too much sub-bass."
+            },
+            {
+              "case_id": "grunge_baseline",
+              "expected_genre": "grunge",
+              "status": "PASS",
+              "seeds": [
+                57102
+              ],
+              "run_count": 1,
+              "interpretation": "First seed passed with score 1.0, centroid 3976.1, sub-bass 0.1616, and issues=0; no repeats required."
+            },
+            {
+              "case_id": "punk_rock_baseline",
+              "expected_genre": "punk_rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57103,
+                57203,
+                57303
+              ],
+              "run_count": 3,
+              "interpretation": "Deterministic punk-rock sub-bass failure; centroid often boundary-close high but hard failure is sub-bass."
+            },
+            {
+              "case_id": "indie_rock_baseline",
+              "expected_genre": "indie_rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57104,
+                57204,
+                57304
+              ],
+              "run_count": 3,
+              "interpretation": "Deterministic indie-rock sub-bass failure; brightness/centroid boundary-close or over bound."
+            },
+            {
+              "case_id": "hard_rock_as_rock_baseline",
+              "expected_genre": "rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57105,
+                57205,
+                57305
+              ],
+              "run_count": 3,
+              "interpretation": "Deterministic hard-rock-as-rock sub-bass failure with brightness/centroid at or over upper rock bound."
+            }
+          ],
+          "per_seed_metrics": [
+            {
+              "case_id": "classic_rock_baseline",
+              "seed": 57101,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4198.1,
+              "centroid_margin_hz": -398.1,
+              "sub_bass_energy_ratio": 0.1424,
+              "sub_bass_margin": -0.0224,
+              "issues": 2,
+              "failure_categories": [
+                "centroid outside 800-3800",
+                "sub-bass above max 0.12"
+              ]
+            },
+            {
+              "case_id": "classic_rock_baseline",
+              "seed": 57201,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4196.1,
+              "centroid_margin_hz": -396.1,
+              "sub_bass_energy_ratio": 0.1375,
+              "sub_bass_margin": -0.0175,
+              "issues": 2,
+              "failure_categories": [
+                "centroid outside 800-3800",
+                "sub-bass above max 0.12"
+              ]
+            },
+            {
+              "case_id": "classic_rock_baseline",
+              "seed": 57301,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4204.3,
+              "centroid_margin_hz": -404.3,
+              "sub_bass_energy_ratio": 0.1462,
+              "sub_bass_margin": -0.0262,
+              "issues": 2,
+              "failure_categories": [
+                "centroid outside 800-3800",
+                "sub-bass above max 0.12"
+              ]
+            },
+            {
+              "case_id": "grunge_baseline",
+              "seed": 57102,
+              "status": "PASS",
+              "score": 1.0,
+              "centroid_hz": 3976.1,
+              "centroid_margin_hz": 423.9,
+              "sub_bass_energy_ratio": 0.1616,
+              "sub_bass_margin": 0.0184,
+              "issues": 0,
+              "failure_categories": []
+            },
+            {
+              "case_id": "punk_rock_baseline",
+              "seed": 57103,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4938.0,
+              "centroid_margin_hz": 62.0,
+              "sub_bass_energy_ratio": 0.1828,
+              "sub_bass_margin": -0.0328,
+              "issues": 1,
+              "failure_categories": [
+                "sub-bass above max 0.15"
+              ]
+            },
+            {
+              "case_id": "punk_rock_baseline",
+              "seed": 57203,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4833.6,
+              "centroid_margin_hz": 166.4,
+              "sub_bass_energy_ratio": 0.1827,
+              "sub_bass_margin": -0.0327,
+              "issues": 1,
+              "failure_categories": [
+                "sub-bass above max 0.15"
+              ]
+            },
+            {
+              "case_id": "punk_rock_baseline",
+              "seed": 57303,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4911.8,
+              "centroid_margin_hz": 88.2,
+              "sub_bass_energy_ratio": 0.1842,
+              "sub_bass_margin": -0.0342,
+              "issues": 1,
+              "failure_categories": [
+                "sub-bass above max 0.15"
+              ]
+            },
+            {
+              "case_id": "indie_rock_baseline",
+              "seed": 57104,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4000.1,
+              "centroid_margin_hz": 199.9,
+              "sub_bass_energy_ratio": 0.1632,
+              "sub_bass_margin": -0.0232,
+              "issues": 1,
+              "failure_categories": [
+                "sub-bass above max 0.14"
+              ]
+            },
+            {
+              "case_id": "indie_rock_baseline",
+              "seed": 57204,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4233.4,
+              "centroid_margin_hz": -33.4,
+              "sub_bass_energy_ratio": 0.1635,
+              "sub_bass_margin": -0.0235,
+              "issues": 2,
+              "failure_categories": [
+                "centroid outside 800-4200",
+                "sub-bass above max 0.14"
+              ]
+            },
+            {
+              "case_id": "indie_rock_baseline",
+              "seed": 57304,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4192.9,
+              "centroid_margin_hz": 7.1,
+              "sub_bass_energy_ratio": 0.1626,
+              "sub_bass_margin": -0.0226,
+              "issues": 1,
+              "failure_categories": [
+                "sub-bass above max 0.14"
+              ]
+            },
+            {
+              "case_id": "hard_rock_as_rock_baseline",
+              "seed": 57105,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4605.1,
+              "centroid_margin_hz": -105.1,
+              "sub_bass_energy_ratio": 0.1905,
+              "sub_bass_margin": -0.0305,
+              "issues": 2,
+              "failure_categories": [
+                "centroid outside 1000-4500",
+                "sub-bass above max 0.16"
+              ]
+            },
+            {
+              "case_id": "hard_rock_as_rock_baseline",
+              "seed": 57205,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4480.5,
+              "centroid_margin_hz": 19.5,
+              "sub_bass_energy_ratio": 0.175,
+              "sub_bass_margin": -0.015,
+              "issues": 1,
+              "failure_categories": [
+                "sub-bass above max 0.16"
+              ]
+            },
+            {
+              "case_id": "hard_rock_as_rock_baseline",
+              "seed": 57305,
+              "status": "FAIL-MEASURED",
+              "score": 0.68,
+              "centroid_hz": 4501.4,
+              "centroid_margin_hz": -1.4,
+              "sub_bass_energy_ratio": 0.1711,
+              "sub_bass_margin": -0.0111,
+              "issues": 2,
+              "failure_categories": [
+                "centroid outside 1000-4500",
+                "sub-bass above max 0.16"
+              ]
+            }
+          ]
+        }
+      ],
+      "measurement_results": {
+        "summary": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+        "run_root": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229",
+        "overall_status": "FAIL-MEASURED",
+        "aggregate": {
+          "overall_status": "FAIL-MEASURED",
+          "case_count": 5,
+          "planned_case_count": 5,
+          "run_count": 13,
+          "pass_count": 1,
+          "watch_count": 0,
+          "failure_count": 4,
+          "blocked": false,
+          "systemic_block": null
+        },
+        "case_statuses": [
+          {
+            "case_id": "classic_rock_baseline",
+            "expected_genre": "classic_rock",
+            "status": "FAIL-MEASURED",
+            "seeds": [
+              57101,
+              57201,
+              57301
+            ]
+          },
+          {
+            "case_id": "grunge_baseline",
+            "expected_genre": "grunge",
+            "status": "PASS",
+            "seeds": [
+              57102
+            ]
+          },
+          {
+            "case_id": "punk_rock_baseline",
+            "expected_genre": "punk_rock",
+            "status": "FAIL-MEASURED",
+            "seeds": [
+              57103,
+              57203,
+              57303
+            ]
+          },
+          {
+            "case_id": "indie_rock_baseline",
+            "expected_genre": "indie_rock",
+            "status": "FAIL-MEASURED",
+            "seeds": [
+              57104,
+              57204,
+              57304
+            ]
+          },
+          {
+            "case_id": "hard_rock_as_rock_baseline",
+            "expected_genre": "rock",
+            "status": "FAIL-MEASURED",
+            "seeds": [
+              57105,
+              57205,
+              57305
+            ]
+          }
+        ],
+        "post_verifier_pending": true
+      },
+      "builder_aggregation": {
+        "timestamp": "2026-05-16T09:08:43Z",
+        "by_agent": "builder",
+        "scope": "Docs/state-only aggregation of completed Task 058 measurement run.",
+        "files_changed": [
+          "docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "guardrails": [
+          "Docs/state-only aggregation; no source/profile/analyzer/parser/strategy/script/test changes.",
+          "No tuning and no analyzer target relaxation.",
+          "No assets, SoundFonts, WAV, MIDI, render reports, or output diagnostics copied into tracked files.",
+          "Output diagnostics remain ignored/uncommitted."
+        ],
+        "next_recommended_task": "Task 059 should target measured rock-family sub-bass and brightness failures without analyzer relaxation, while preserving grunge and exact-rock controls."
+      },
+      "completed": "2026-05-16T09:13:21Z",
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-16T09:13:21Z",
+        "summary": "Read-only post-verifier confirmed summary JSON evidence, five first-seed cases, repeats only for failed cases, docs interpretation, docs/state-only diff, git diff --check exit 0, and no source/profile/analyzer/parser/strategy/script/test/asset/output-diagnostic modifications.",
+        "evidence": {
+          "summary_path": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+          "aggregate": {
+            "overall_status": "FAIL-MEASURED",
+            "case_count": 5,
+            "planned_case_count": 5,
+            "run_count": 13,
+            "pass_count": 1,
+            "watch_count": 0,
+            "failure_count": 4,
+            "blocked": false,
+            "systemic_block": null
+          },
+          "first_seeds_attempted": {
+            "classic_rock_baseline": 57101,
+            "grunge_baseline": 57102,
+            "punk_rock_baseline": 57103,
+            "indie_rock_baseline": 57104,
+            "hard_rock_as_rock_baseline": 57105
+          },
+          "repeat_policy": "Repeat seeds were present only for failed first-seed cases; grunge had no repeats because seed 57102 passed.",
+          "git_diff_check": "PASS (exit 0; only expected LF-to-CRLF warnings for state JSON files).",
+          "allowed_diff_scope": [
+            "docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md",
+            "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+            "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+            ".github/state/orchestration.json",
+            ".github/state/context.json",
+            ".github/state/memory.json"
+          ]
+        }
+      },
+      "result": {
+        "summary": "Task 058 completed as measurement-only rock-family baseline aggregation. Overall status is FAIL-MEASURED: grunge passed, while classic_rock, punk_rock, indie_rock, and hard-rock-as-canonical-rock failed repeatably before any tuning.",
+        "status": "FAIL-MEASURED",
+        "implementation": {
+          "files_changed": [
+            "docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md",
+            "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+            "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+            ".github/state/orchestration.json",
+            ".github/state/context.json",
+            ".github/state/memory.json"
+          ],
+          "code_changes": "None; docs/state-only measurement aggregation.",
+          "guardrails": [
+            "No source/profile/analyzer/parser/strategy/script/test/asset/output-diagnostic changes.",
+            "No analyzer target relaxation.",
+            "No tuning performed in Task 058.",
+            "Hard rock documented as canonical rock route, not separate hard_rock key.",
+            "SoundFont, WAV, MIDI, render reports, and output diagnostics remain ignored/uncommitted."
+          ]
+        },
+        "runtime": {
+          "summary_path": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+          "run_root": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229",
+          "preflight_proof_passed": true,
+          "aggregate": {
+            "overall_status": "FAIL-MEASURED",
+            "case_count": 5,
+            "planned_case_count": 5,
+            "run_count": 13,
+            "pass_count": 1,
+            "watch_count": 0,
+            "failure_count": 4,
+            "blocked": false,
+            "systemic_block": null
+          },
+          "cases": [
+            {
+              "case_id": "classic_rock_baseline",
+              "expected_genre": "classic_rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57101,
+                57201,
+                57301
+              ],
+              "interpretation": "Repeatable centroid/brightness and sub-bass failure."
+            },
+            {
+              "case_id": "grunge_baseline",
+              "expected_genre": "grunge",
+              "status": "PASS",
+              "seeds": [
+                57102
+              ],
+              "interpretation": "First seed passed; no repeats required."
+            },
+            {
+              "case_id": "punk_rock_baseline",
+              "expected_genre": "punk_rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57103,
+                57203,
+                57303
+              ],
+              "interpretation": "Repeatable sub-bass failure; centroid often high-boundary-close."
+            },
+            {
+              "case_id": "indie_rock_baseline",
+              "expected_genre": "indie_rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57104,
+                57204,
+                57304
+              ],
+              "interpretation": "Repeatable sub-bass failure with centroid boundary pressure/one over-bound repeat."
+            },
+            {
+              "case_id": "hard_rock_as_rock_baseline",
+              "expected_genre": "rock",
+              "status": "FAIL-MEASURED",
+              "seeds": [
+                57105,
+                57205,
+                57305
+              ],
+              "interpretation": "Repeatable sub-bass failure with centroid at/over rock high bound; expected canonical rock, not hard_rock."
+            }
+          ]
+        },
+        "verification": {
+          "verdict": "PASS",
+          "timestamp": "2026-05-16T09:13:21Z",
+          "summary": "Read-only post-verifier confirmed summary JSON evidence, five first-seed cases, repeats only for failed cases, docs interpretation, docs/state-only diff, git diff --check exit 0, and no source/profile/analyzer/parser/strategy/script/test/asset/output-diagnostic modifications.",
+          "evidence": {
+            "summary_path": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+            "aggregate": {
+              "overall_status": "FAIL-MEASURED",
+              "case_count": 5,
+              "planned_case_count": 5,
+              "run_count": 13,
+              "pass_count": 1,
+              "watch_count": 0,
+              "failure_count": 4,
+              "blocked": false,
+              "systemic_block": null
+            },
+            "first_seeds_attempted": {
+              "classic_rock_baseline": 57101,
+              "grunge_baseline": 57102,
+              "punk_rock_baseline": 57103,
+              "indie_rock_baseline": 57104,
+              "hard_rock_as_rock_baseline": 57105
+            },
+            "repeat_policy": "Repeat seeds were present only for failed first-seed cases; grunge had no repeats because seed 57102 passed.",
+            "git_diff_check": "PASS (exit 0; only expected LF-to-CRLF warnings for state JSON files).",
+            "allowed_diff_scope": [
+              "docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md",
+              "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+              "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+              ".github/state/orchestration.json",
+              ".github/state/context.json",
+              ".github/state/memory.json"
+            ]
+          }
+        },
+        "recommended_next": "Task 059 should diagnose and remediate measured rock-family sub-bass excess and centroid/brightness issues using the Task 058 failing seeds, while preserving grunge seed 57102 and exact-rock Task 056 controls."
+      }
+    },
     {
       "id": "cross-genre-maturity-matrix-baseline-plan-057",
       "description": "Create a cross-genre maturity matrix and baseline validation plan that decomposes rock-family masterclass gaps and prioritizes future genre refinement without speculative tuning.",
@@ -3326,6 +3965,12 @@
         "matrix_doc": "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
         "recommended_next": "Task 058 should run the rock-family baseline measurement from docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md: first-seed baselines for classic_rock, grunge, punk_rock, indie_rock, and hard-rock-as-rock, then repeat only FAIL/WATCH cases before any implementation."
       }
+    },
+    {
+      "id": "rock-family-baseline-measurement-058",
+      "status": "completed",
+      "completed": "2026-05-16T09:13:21Z",
+      "summary": "Task 058 rock-family baseline measurement completed as FAIL-MEASURED docs/state aggregation; see docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md."
     }
   ],
   "blocked_tasks": [],
@@ -3333,7 +3978,7 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-15T18:05:26Z",
+    "last_updated": "2026-05-16T09:08:43Z",
     "total_tasks_completed": 71,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
