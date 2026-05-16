@@ -1,11 +1,185 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-15-jazz-sax-breath-range-mastering-054",
-    "started": "2026-05-15T21:58:34Z",
-    "user_request": "Continue with measured jazz mastering/breath/articulation follow-up for remaining brightness warning, suspected brass/horn related."
+    "id": "session-2026-05-15-rock-jazz-post054-validation-055",
+    "started": "2026-05-16T06:05:28Z",
+    "user_request": "Continue after task 054 with the next safe measurement-first quality slice."
   },
   "task_queue": [
+    {
+      "id": "rock-jazz-post054-cross-genre-listening-validation-055",
+      "description": "Generate fresh post-054 paired rock/jazz FluidSynth listening and regression validation artifacts before choosing any new quality policy.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "jazz-sax-breath-range-mastering-054",
+        "fluidsynth-rock-strict-quality-047"
+      ],
+      "files_to_modify": [
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T06:05:28Z",
+      "updated": "2026-05-16T06:15:18Z",
+      "pre_verifier": {
+        "verdict": "MEASUREMENT_FIRST",
+        "summary": "After task 054 passed, the safest continuation is paired rock/jazz FluidSynth validation to prove the new jazz shelf coexists with the existing rock strict profile before any implementation.",
+        "recommended_slice": "Render an exact 1990s rock strict control and the exact generic jazz sax guard using the same SoundFont/isolation posture. Implement only if the artifacts expose a concrete regression or repeated quality gap.",
+        "guardrails": [
+          "No source implementation in this slice unless validation fails with a measured cause.",
+          "Do not relax analyzer targets.",
+          "Do not change audio_renderer.py or existing profile behavior from speculation.",
+          "Do not commit SoundFont, WAV, MIDI, or output diagnostics."
+        ],
+        "timestamp": "2026-05-16T06:05:28Z"
+      },
+      "validation_plan": {
+        "rock": {
+          "prompt": "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor",
+          "seed": 199001,
+          "duration_bars": 16,
+          "expected_profile": "rock:rock",
+          "expected_tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz"
+        },
+        "jazz": {
+          "prompt": "small-combo jazz quartet with walking upright bass, ride cymbal swing, acoustic piano comping, warm saxophone lead, 120 BPM in Bb major",
+          "seed": 54054,
+          "duration_bars": 16,
+          "expected_profile": "jazz:jazz",
+          "expected_tone_shaping": "high_shelf=-5.0dB@4000Hz"
+        }
+      },
+      "runtime_measurements": [
+        {
+          "timestamp": "2026-05-16T06:14:19Z",
+          "type": "paired_rock_jazz_post054_validation_pass",
+          "summary": "output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_jazz_post054_validation_summary.json",
+          "proof_passed": true,
+          "proof_failures": [],
+          "rock": {
+            "summary": "output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\smoke_summary.json",
+            "audio": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\rock_100.0bpm_Eminor_20260515_230656.wav",
+            "midi": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\rock_100.0bpm_Eminor_20260515_230656.mid",
+            "render_report": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\rock_100.0bpm_Eminor_20260515_230656_render_report.json",
+            "profile": "rock:rock",
+            "tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+            "score": 1.0,
+            "centroid_hz": 4461.1,
+            "sub_bass_energy_ratio": 0.1585,
+            "drums": {
+              "has_kick": true,
+              "has_snare_or_clap": true,
+              "has_hihats": true,
+              "percussive_ratio": 0.215
+            },
+            "issues": [],
+            "boundary_note": "Green but close to strict targets: centroid 4461.1/4500 Hz and sub-bass 0.1585/0.16."
+          },
+          "jazz": {
+            "audio": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\generic_jazz_sax_lead_retry2\\jazz_120.0bpm_Bflatmajor_20260515_231135.wav",
+            "midi": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\generic_jazz_sax_lead_retry2\\jazz_120.0bpm_Bflatmajor_20260515_231135.mid",
+            "render_report": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\generic_jazz_sax_lead_retry2\\jazz_120.0bpm_Bflatmajor_20260515_231135_render_report.json",
+            "profile": "jazz:jazz",
+            "tone_shaping": "high_shelf=-5.0dB@4000Hz",
+            "rock_tone_shaping": null,
+            "score": 1.0,
+            "centroid_hz": 2755.9,
+            "issues": [],
+            "source_controls": {
+              "melody_program": 65,
+              "melody_marker": "instrument:Sax",
+              "melody_pitch_max": 79,
+              "melody_velocity_max": 112,
+              "melody_cc74_max": 78,
+              "chord_program": 0,
+              "chord_marker": "instrument:Piano",
+              "chord_pitch_max": 75,
+              "chord_cc74_max": 78
+            }
+          },
+          "notes": [
+            "Rock control remains green but close to strict boundaries: centroid target max 4500 Hz and sub-bass max 0.16.",
+            "Jazz sax guard revalidates the post-054 shelf and source controls in a fresh artifact directory.",
+            "Two interrupted jazz attempts under generic_jazz_sax_lead and generic_jazz_sax_lead_retry produced MIDI-only partial artifacts; the successful proof uses generic_jazz_sax_lead_retry2."
+          ]
+        }
+      ],
+      "result": {
+        "summary": "Post-054 paired rock/jazz FluidSynth validation passed without source changes; jazz shelf remains safe and rock strict route remains green, though rock is boundary-close.",
+        "implementation": {
+          "files_changed": [
+            "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+            ".github/state/orchestration.json",
+            ".github/state/context.json",
+            ".github/state/memory.json"
+          ],
+          "code_changes": "None; measurement-only validation slice.",
+          "guardrails": [
+            "No audio_renderer.py/output_analyzer.py/source profile behavior changes.",
+            "No analyzer target relaxation.",
+            "No SoundFont, WAV, MIDI, or output diagnostics committed."
+          ]
+        },
+        "verification": {
+          "timestamp": "2026-05-16T06:14:19Z",
+          "type": "paired_rock_jazz_post054_validation_pass",
+          "summary": "output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_jazz_post054_validation_summary.json",
+          "proof_passed": true,
+          "proof_failures": [],
+          "rock": {
+            "summary": "output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\smoke_summary.json",
+            "audio": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\rock_100.0bpm_Eminor_20260515_230656.wav",
+            "midi": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\rock_100.0bpm_Eminor_20260515_230656.mid",
+            "render_report": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\rock_1990s_20260515_230638\\rock_100.0bpm_Eminor_20260515_230656_render_report.json",
+            "profile": "rock:rock",
+            "tone_shaping": "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz",
+            "score": 1.0,
+            "centroid_hz": 4461.1,
+            "sub_bass_energy_ratio": 0.1585,
+            "drums": {
+              "has_kick": true,
+              "has_snare_or_clap": true,
+              "has_hihats": true,
+              "percussive_ratio": 0.215
+            },
+            "issues": [],
+            "boundary_note": "Green but close to strict targets: centroid 4461.1/4500 Hz and sub-bass 0.1585/0.16."
+          },
+          "jazz": {
+            "audio": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\generic_jazz_sax_lead_retry2\\jazz_120.0bpm_Bflatmajor_20260515_231135.wav",
+            "midi": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\generic_jazz_sax_lead_retry2\\jazz_120.0bpm_Bflatmajor_20260515_231135.mid",
+            "render_report": "C:\\dev\\MUSE-ai\\MUSE\\output\\_diagnostics\\rock_jazz_post054_validation_055\\pair_20260515_230633\\generic_jazz_sax_lead_retry2\\jazz_120.0bpm_Bflatmajor_20260515_231135_render_report.json",
+            "profile": "jazz:jazz",
+            "tone_shaping": "high_shelf=-5.0dB@4000Hz",
+            "rock_tone_shaping": null,
+            "score": 1.0,
+            "centroid_hz": 2755.9,
+            "issues": [],
+            "source_controls": {
+              "melody_program": 65,
+              "melody_marker": "instrument:Sax",
+              "melody_pitch_max": 79,
+              "melody_velocity_max": 112,
+              "melody_cc74_max": 78,
+              "chord_program": 0,
+              "chord_marker": "instrument:Piano",
+              "chord_pitch_max": 75,
+              "chord_cc74_max": 78
+            }
+          },
+          "notes": [
+            "Rock control remains green but close to strict boundaries: centroid target max 4500 Hz and sub-bass max 0.16.",
+            "Jazz sax guard revalidates the post-054 shelf and source controls in a fresh artifact directory.",
+            "Two interrupted jazz attempts under generic_jazz_sax_lead and generic_jazz_sax_lead_retry produced MIDI-only partial artifacts; the successful proof uses generic_jazz_sax_lead_retry2."
+          ]
+        },
+        "recommended_next": "If continuing implementation, use measured rock-boundary validation first because exact rock remains passing but sits close to centroid/sub-bass strict ceilings; do not tune from one green-but-close result alone."
+      }
+    },
     {
       "id": "jazz-sax-breath-range-mastering-054",
       "description": "Reduce remaining generic jazz sax/horn brightness through measured sax lead range, breath/articulation, and only if justified local jazz horn mastering, while preserving task 053 sax routing and all non-jazz renderer/profile behavior.",
