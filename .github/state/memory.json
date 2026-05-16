@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Use a maturity matrix to convert broad genre-quality goals into measured baseline tasks before tuning",
+        "context": "Task 057 turned the broad request to complete rock-family masterclass coverage into a docs-only cross-genre maturity matrix with L0-L5 levels, conservative status snapshots, rock-family gap decomposition, Task 058 prompts/seeds/gates, and cross-genre priorities. This prevents speculative profile/source edits after a green-but-watchlisted exact-rock proof.",
+        "timestamp": "2026-05-16T08:21:24Z"
+      },
+      {
         "pattern": "Repeat boundary-close controls across fresh seeds before tuning green audio profiles",
         "context": "Task 056 regenerated exact 1990s rock seeds 199001, 199002, and 199003 after task 055 found a green but boundary-close rock control. All three passed with rock:rock profile, score 1.0, correct live drum flags, centroid <= 4461.1 Hz, and sub-bass <= 0.1585, so the right outcome was no implementation change while preserving the boundary-watch note.",
         "timestamp": "2026-05-16T07:39:07Z"
@@ -510,6 +515,26 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Close task 057 as docs/state-only and make Task 058 the first rock-family runtime baseline measurement.",
+      "rationale": "The user wants masterclass genre coverage, but current proof supports planning and measured baselines before any subgenre tuning. The matrix defines gates and priority order so future implementation is evidence-driven.",
+      "alternatives_considered": [
+        "Immediately implement rock guitar idioms",
+        "Run broad renders without a matrix",
+        "Claim rock-family completion from the exact 1990s control"
+      ],
+      "timestamp": "2026-05-16T08:21:24Z"
+    },
+    {
+      "decision": "Start task 057 as docs/state maturity matrix planning, not implementation or runtime tuning.",
+      "rationale": "Exact rock has a green repeatability proof but broader rock-family and cross-genre masterclass work needs a modular maturity matrix, baseline prompts, gates, and priority ordering before changing code or running broad measurements.",
+      "alternatives_considered": [
+        "Immediately tune rock subgenres",
+        "Run broad runtime renders before defining gates",
+        "Implement hard_rock as a new key in the planning task"
+      ],
+      "timestamp": "2026-05-16T08:14:48Z"
+    },
     {
       "decision": "Close task 056 as measurement-only; do not tune rock from passing repeatability data.",
       "rationale": "All fresh exact-rock controls passed strict FluidSynth gates. The tightest margins are still small, but repeated green measurements do not justify source/profile/analyzer changes.",
@@ -1169,5 +1194,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-16T07:39:07Z"
+  "last_updated": "2026-05-16T08:21:24Z"
 }

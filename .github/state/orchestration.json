@@ -1,11 +1,88 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-rock-boundary-repeatability-056",
-    "started": "2026-05-16T07:28:32Z",
-    "user_request": "Continue from post-054/055 validation by measuring rock boundary repeatability before any tuning."
+    "id": "session-2026-05-16-cross-genre-maturity-matrix-057",
+    "started": "2026-05-16T08:14:48Z",
+    "user_request": "Proceed from exact-rock validation into rock-family masterclass coverage and create Task 057 cross-genre maturity matrix/baseline validation plan."
   },
   "task_queue": [
+    {
+      "id": "cross-genre-maturity-matrix-baseline-plan-057",
+      "description": "Create a cross-genre maturity matrix and baseline validation plan that decomposes rock-family masterclass gaps and prioritizes future genre refinement without speculative tuning.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-boundary-repeatability-validation-056",
+        "jazz-sax-breath-range-mastering-054"
+      ],
+      "files_to_modify": [
+        "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T08:14:48Z",
+      "updated": "2026-05-16T08:21:24Z",
+      "pre_verifier": {
+        "verdict": "DOCS_STATE_ONLY",
+        "summary": "Create a maturity matrix/runbook before new rock-family implementation or broad runtime tuning. Exact rock is stable but boundary-watch; broader subgenres and idioms need scoped baseline measurement plans.",
+        "recommended_slice": "New matrix doc with maturity dimensions/levels, existing coverage inventory, rock-family prompts/seeds/flags/gates, cross-genre priority plan, guardrails, and verification plan; concise link from upgrade plan.",
+        "guardrails": [
+          "No source/profile/analyzer/script changes in Task 057.",
+          "No analyzer target relaxation.",
+          "Do not claim hard_rock is a separate implemented key; hard rock currently routes to rock.",
+          "Do not claim masterclass quality without runtime artifacts and repeatability evidence.",
+          "Do not commit SoundFont, WAV, MIDI, or output diagnostics."
+        ],
+        "timestamp": "2026-05-16T08:14:48Z"
+      },
+      "result": {
+        "summary": "Created docs-only cross-genre maturity matrix and baseline validation plan; exact 1990s rock is stable v1 / PASS-WATCH, broader rock-family masterclass work is decomposed into measured Task 058 baselines before tuning.",
+        "implementation": {
+          "files_changed": [
+            "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+            "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+            ".github/state/orchestration.json",
+            ".github/state/context.json",
+            ".github/state/memory.json"
+          ],
+          "code_changes": "None; docs/state-only planning slice.",
+          "guardrails": [
+            "No multimodal_gen, scripts, tests, assets, output, profile, renderer, parser, strategy, or analyzer changes.",
+            "No analyzer target relaxation.",
+            "No runtime proof or masterclass readiness claims without artifacts.",
+            "Hard rock documented as canonical rock route, not a separate hard_rock key.",
+            "No SoundFont, WAV, MIDI, or output diagnostics committed."
+          ]
+        },
+        "verification": {
+          "timestamp": "2026-05-16T08:21:24Z",
+          "type": "task_057_docs_post_verifier_pass",
+          "result": "PASS",
+          "evidence": {
+            "matrix_doc": "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+            "upgrade_plan_link": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+            "content_checks": [
+              "docs/planning-only scope",
+              "exact 1990s rock stable v1 / PASS-WATCH, not masterclass complete",
+              "existing coverage inventory and hard-rock-as-rock caveat",
+              "maturity dimensions and L0-L5 definitions",
+              "conservative current maturity snapshot",
+              "rock-family masterclass gap decomposition",
+              "Task 058 rock-family baseline runbook with prompts/seeds/flags/output root",
+              "acceptance gates and WATCH thresholds",
+              "cross-genre Tier A/Tier B plan",
+              "guardrails and PASS/FAIL criteria"
+            ],
+            "post_verifier": "PASS; no protected-path changes; git diff --check passed."
+          }
+        },
+        "recommended_next": "Task 058 should run the rock-family baseline measurement from docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md: first-seed baselines for classic_rock, grunge, punk_rock, indie_rock, and hard-rock-as-rock, then repeat only FAIL/WATCH cases before any implementation."
+      }
+    },
     {
       "id": "rock-boundary-repeatability-validation-056",
       "description": "Repeat exact 1990s rock strict FluidSynth controls across fresh seeds to validate boundary-close centroid/sub-bass behavior before any tuning.",
@@ -3234,6 +3311,20 @@
           "sub_bass_max": 0.1585,
           "sub_bass_min_margin": 0.0015
         }
+      }
+    },
+    {
+      "id": "cross-genre-maturity-matrix-baseline-plan-057",
+      "description": "Create cross-genre maturity matrix and baseline validation plan.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "created": "2026-05-16T08:14:48Z",
+      "updated": "2026-05-16T08:21:24Z",
+      "result": {
+        "summary": "Created docs-only cross-genre maturity matrix and baseline validation plan; exact 1990s rock is stable v1 / PASS-WATCH, broader rock-family masterclass work is decomposed into measured Task 058 baselines before tuning.",
+        "matrix_doc": "docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md",
+        "recommended_next": "Task 058 should run the rock-family baseline measurement from docs/CROSS_GENRE_MATURITY_MATRIX_2026-05-16.md: first-seed baselines for classic_rock, grunge, punk_rock, indie_rock, and hard-rock-as-rock, then repeat only FAIL/WATCH cases before any implementation."
       }
     }
   ],
