@@ -1,7 +1,49 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-16-classic-rock-hammond-organ-060",
+  "session_id": "session-2026-05-16-classic-rock-session-graph-061",
   "files_touched": [
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 061 session graph/manifest consistency fix and proof."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 061 metadata/MIDI contract learning and decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 061 files, tests, runtime proof, and latest validation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Opened and completed Task 061 with pre/post verifier evidence, implementation, tests, and runtime proof."
+    },
+    {
+      "path": "tests\\test_session_graph_classic_rock_hammond.py",
+      "action": "created",
+      "timestamp": "2026-05-16T15:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added focused session graph regressions for classic-rock Hammond positive and organic negative cases."
+    },
+    {
+      "path": "multimodal_gen\\session_graph.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Aligned rock-family explicit guitar/organ/bass session graph metadata with MIDI contract."
+    },
     {
       "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "action": "modified",
@@ -5249,15 +5291,21 @@
     }
   ],
   "last_validation": {
-    "task_id": "classic-rock-hammond-organ-workflow-060",
-    "timestamp": "2026-05-16T15:15:00Z",
+    "task_id": "classic-rock-session-graph-manifest-061",
+    "timestamp": "2026-05-16T15:45:00Z",
     "type": "workflow_runtime_post_verifier",
     "result": "PASS",
-    "summary_path": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060\\classic_rock_108.0bpm_Aminor_20260516_080241_render_report.json",
-    "run_root": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060",
-    "details": "Task 060 complete: classic-rock Hammond prompt direct main.py FluidSynth proof exited 0, parsed instruments include organ/guitar/bass, MIDI includes Chords GM 30 Guitar plus Organ GM 16, Bass GM 34, live drums, renderer_path=fluidsynth, profile=rock:rock, tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz, audio_analysis.passed=true."
+    "summary_path": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061\\classic_rock_108.0bpm_Aminor_20260516_083341_render_report.json",
+    "run_root": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061",
+    "details": "Task 061 complete: session manifest now has Guitar/chords/channel 2, Organ/pad/channel 4, exactly one Bass/channel 1, no Bass lead; direct main.py FluidSynth proof exited 0 with renderer_path=fluidsynth, profile=rock:rock, unchanged tone, and audio_analysis.passed=true."
   },
   "changes": [
+    {
+      "file": "classic-rock-session-graph-manifest-061",
+      "description": "Completed classic-rock Hammond session graph/manifest metadata consistency fix.",
+      "diff_summary": "SessionGraphBuilder now matches the Task 060 MIDI contract for explicit rock-family guitar/organ/bass prompts; added focused positive/negative tests and verified with a direct FluidSynth workflow render plus manifest inspection.",
+      "timestamp": "2026-05-16T15:45:00Z"
+    },
     {
       "file": "classic-rock-hammond-organ-workflow-060",
       "description": "Completed classic-rock Hammond organ workflow validation and semantic-instrumentation fix.",

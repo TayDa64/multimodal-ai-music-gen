@@ -1,11 +1,122 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-classic-rock-hammond-organ-060",
-    "started": "2026-05-16T15:15:00Z",
-    "user_request": "Test classic rock generation through the workflow, use the findings for guidance, then continue implementation."
+    "id": "session-2026-05-16-classic-rock-session-graph-061",
+    "started": "2026-05-16T15:45:00Z",
+    "user_request": "Continue implementations after Task 060; align classic-rock Hammond session graph/manifest metadata with the MIDI/audio workflow proof."
   },
   "task_queue": [
+    {
+      "id": "classic-rock-session-graph-manifest-061",
+      "description": "Fix classic-rock Hammond session graph and saved manifest metadata so it matches the rendered MIDI contract: Guitar owns the primary chords track, Organ is a separate pad/auxiliary track, and Bass is not duplicated as a lead.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "classic-rock-hammond-organ-workflow-060",
+        "rock-family-sub-bass-brightness-remediation-059"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/session_graph.py",
+        "tests/test_session_graph_classic_rock_hammond.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T15:45:00Z",
+      "updated": "2026-05-16T15:45:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Verifier confirmed the Task 060 MIDI was correct but session_manifest metadata still named the chords graph track Organ and duplicated Bass as a lead because SessionGraphBuilder._create_tracks was order/role based. Minimal target is session_graph.py plus focused tests."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/session_graph.py",
+          "tests/test_session_graph_classic_rock_hammond.py"
+        ],
+        "summary": "SessionGraphBuilder now gives explicit rock-family guitar the primary chords graph track, skips bass aliases already represented by the base Bass track, and adds explicit organ/Hammond as a separate Organ pad track on channel 4 with word-boundary raw-prompt cue detection.",
+        "guardrails_preserved": [
+          "No audio renderer, FluidSynth profile, output analyzer, MIDI generator, or prompt parser changes.",
+          "Task 060 MIDI regression remains green.",
+          "Organ raw cue detection uses word-boundary matching so organic does not trigger a Hammond/organ graph track.",
+          "Runtime diagnostics, WAV/MIDI/render reports, assets, and SoundFonts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_session_graph_classic_rock_hammond.py tests/test_midi_generator.py::test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed -q",
+          "result": "PASS: 3 passed"
+        },
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_session_graph_classic_rock_hammond.py tests/test_midi_generator.py::test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed tests/test_prompt_parser_key.py::test_classic_rock_hammond_prompt_preserves_organ_cue tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q",
+          "result": "PASS: 35 passed, 2 existing dependency warnings"
+        }
+      ],
+      "runtime_proof": {
+        "command": ".\\.venv\\Scripts\\python.exe .\\main.py \"classic rock anthem with crunchy electric guitar, Hammond organ, melodic bass guitar, live drums, verse chorus bridge, 108 BPM in A minor\" --output output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061 --duration-bars 16 --seed 60061 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061",
+        "render_report": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061\\classic_rock_108.0bpm_Aminor_20260516_083341_render_report.json",
+        "manifest": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061\\session_manifest.json",
+        "midi": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061\\classic_rock_108.0bpm_Aminor_20260516_083341.mid",
+        "audio": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061\\classic_rock_108.0bpm_Aminor_20260516_083341.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "skip_reason": null,
+        "profile": "rock:rock",
+        "tone_shaping": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 1.0,
+          "centroid_hz": 3534.1,
+          "sub_bass_energy_ratio": 0.0936,
+          "percussive_ratio": 0.172,
+          "onset_density": 4.1,
+          "has_kick": true,
+          "has_snare_or_clap": true,
+          "has_hihats": true
+        },
+        "manifest_tracks": [
+          {
+            "name": "Drums",
+            "role": "drums",
+            "channel": 9
+          },
+          {
+            "name": "Bass",
+            "role": "bass",
+            "channel": 1
+          },
+          {
+            "name": "Guitar",
+            "role": "chords",
+            "channel": 2
+          },
+          {
+            "name": "Organ",
+            "role": "pad",
+            "channel": 4
+          }
+        ],
+        "manifest_contract": {
+          "guitar_chords_channel_2": true,
+          "organ_pad_channel_4": true,
+          "bass_count": 1,
+          "bass_lead_count": 0
+        }
+      },
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-16T15:45:00Z",
+        "summary": "Read-only verifier confirmed focused tests, runtime manifest contract, audio proof, unchanged rock profile, and guardrails."
+      },
+      "result": {
+        "status": "completed",
+        "summary": "Classic-rock Hammond saved session metadata now agrees with the MIDI/audio proof: Guitar chords, separate Organ pad, one Bass, no Bass lead."
+      }
+    },
     {
       "id": "classic-rock-hammond-organ-workflow-060",
       "description": "Validate the classic-rock workflow with a semantically rich Hammond-organ prompt, then minimally preserve the explicit organ cue in parsing and MIDI while keeping the existing rock FluidSynth profile, guitar, bass, and live drums intact.",

@@ -1297,20 +1297,79 @@ class SessionGraphBuilder:
         }
         
         instruments = getattr(parsed, 'instruments', [])
+        instrument_names = [str(inst).strip().lower().replace('-', ' ') for inst in instruments]
+        raw_prompt = str(getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+        genre_norm = str(getattr(parsed, 'genre', '') or '').lower().replace(' ', '_').replace('-', '_')
+        rock_family_genres = {
+            'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
+        }
+        is_rock_family = genre_norm in rock_family_genres
+
+        def _is_guitar(inst: str) -> bool:
+            return 'guitar' in inst and 'bass' not in inst
+
+        def _is_bass(inst: str) -> bool:
+            return inst == 'bass' or 'bass guitar' in inst or 'electric bass' in inst
+
+        def _is_organ(inst: str) -> bool:
+            return any(cue in inst for cue in ('organ', 'hammond', 'drawbar', 'tonewheel'))
+
+        def _has_raw_organ_cue(prompt: str) -> bool:
+            import re
+
+            return any(
+                re.search(r'\b' + re.escape(cue) + r'\b', prompt)
+                for cue in ('organ', 'organs', 'hammond', 'drawbar organ', 'tonewheel organ')
+            )
+
+        explicit_guitar = is_rock_family and (
+            any(_is_guitar(inst) for inst in instrument_names)
+            or any(
+                cue in raw_prompt
+                for cue in ('electric guitar', 'crunchy guitar', 'rhythm guitar', 'lead guitar', 'rock guitar')
+            )
+        )
+        explicit_organ = (
+            is_rock_family
+            and any(_is_organ(inst) for inst in instrument_names)
+            and _has_raw_organ_cue(raw_prompt)
+        )
+
         created_roles = set()
+
+        if explicit_guitar:
+            track = graph.add_track("Guitar", Role.CHORDS.value, channel=channel)
+            track.color = self.default_track_colors.get(Role.CHORDS.value, "#808080")
+            created_roles.add(Role.CHORDS.value)
+            channel += 1
         
         for inst in instruments:
-            inst_lower = inst.lower()
+            inst_lower = str(inst).strip().lower().replace('-', ' ')
+
+            if explicit_guitar and _is_guitar(inst_lower):
+                continue
+            if is_rock_family and _is_bass(inst_lower):
+                continue
+            if explicit_organ and _is_organ(inst_lower):
+                continue
+
             role = instrument_roles.get(inst_lower, Role.LEAD.value)
             
             # Avoid duplicate role tracks (combine similar instruments)
             if role in created_roles:
                 continue
+
+            if explicit_organ and channel == 4:
+                channel += 1
             
             track = graph.add_track(inst.title(), role, channel=channel)
             track.color = self.default_track_colors.get(role, "#808080")
             created_roles.add(role)
             channel += 1
+
+        if explicit_organ:
+            track = graph.add_track("Organ", Role.PAD.value, channel=4)
+            track.color = self.default_track_colors.get(Role.PAD.value, "#808080")
         
         return graph
     

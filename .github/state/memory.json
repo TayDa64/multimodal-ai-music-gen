@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "After fixing MIDI semantics, validate saved session graph manifests for UI/metadata parity",
+        "context": "Task 061 followed Task 060's correct MIDI/audio Hammond proof and found the saved session_manifest still named the primary chords graph track Organ and duplicated Bass as lead. The safe fix was in SessionGraphBuilder only: explicit rock-family guitar owns the chords graph track, explicit organ/Hammond becomes a separate pad track, and bass aliases are not duplicated. Runtime proof passed with manifest Guitar/chords/ch2, Organ/pad/ch4, Bass/bass/ch1, renderer_path=fluidsynth, profile=rock:rock, and audio_analysis.passed=true.",
+        "timestamp": "2026-05-16T15:45:00Z"
+      },
+      {
         "pattern": "Treat audio-green prompt smokes as semantic instrumentation audits too",
         "context": "Task 060 showed the classic-rock Hammond prompt could pass renderer/audio analysis while dropping the explicit organ cue. The safe fix was not more mastering: preserve the prompt-level organ/Hammond alias in the parser, then add a separate explicit rock-family organ bed in MIDI so guitar chords and electric bass remain intact. Runtime proof passed with renderer_path=fluidsynth, profile=rock:rock, parsed instruments organ/guitar/bass, Chords GM 30 Guitar, Organ GM 16, Bass GM 34, and audio_analysis.passed=true.",
         "timestamp": "2026-05-16T15:15:00Z"
@@ -535,6 +540,17 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Align classic-rock Hammond session graph metadata with the MIDI contract in SessionGraphBuilder rather than changing renderer, parser, or MIDI generation.",
+      "rationale": "Task 060 had already made the MIDI/audio workflow correct. The remaining inconsistency was saved graph metadata for UI/session consumers, caused by order-based role assignment in _create_tracks. A session-graph-only fix preserves rendered behavior while making manifests truthful.",
+      "alternatives_considered": [
+        "Change MIDI generator track ordering again",
+        "Change prompt parser ordering to put guitar before organ",
+        "Ignore manifest mismatch because audio passed",
+        "Make broad UI changes instead of fixing the saved session graph source"
+      ],
+      "timestamp": "2026-05-16T15:45:00Z"
+    },
     {
       "decision": "Preserve explicit Hammond organ cues in classic_rock by adding parser aliases and an auxiliary organ MIDI bed, not by changing rock mastering.",
       "rationale": "The pre-fix classic-rock workflow smoke was spectrally green but semantically incomplete: Hammond organ was absent from parsed instruments and MIDI. Adding organ/Hammond aliases plus a raw-prompt-gated rock-family organ bed preserves the requested arrangement while retaining the Task 059 rock FluidSynth profile, guitar chord track, electric bass, live drums, and analyzer targets.",
