@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Repeat boundary-close controls across fresh seeds before tuning green audio profiles",
+        "context": "Task 056 regenerated exact 1990s rock seeds 199001, 199002, and 199003 after task 055 found a green but boundary-close rock control. All three passed with rock:rock profile, score 1.0, correct live drum flags, centroid <= 4461.1 Hz, and sub-bass <= 0.1585, so the right outcome was no implementation change while preserving the boundary-watch note.",
+        "timestamp": "2026-05-16T07:39:07Z"
+      },
+      {
         "pattern": "Post-change paired validation can close a measurement slice without source edits while identifying the next boundary risk",
         "context": "Task 055 re-rendered exact rock and jazz after the task 054 jazz shelf. Both passed with score 1.0 and correct FluidSynth profiles, so no implementation was justified. The measured next risk is rock being green but close to strict ceilings (centroid 4461.1/4500 Hz and sub-bass 0.1585/0.16), which should be validated with repeated rock controls before any tuning.",
         "timestamp": "2026-05-16T06:14:19Z"
@@ -505,6 +510,26 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Close task 056 as measurement-only; do not tune rock from passing repeatability data.",
+      "rationale": "All fresh exact-rock controls passed strict FluidSynth gates. The tightest margins are still small, but repeated green measurements do not justify source/profile/analyzer changes.",
+      "alternatives_considered": [
+        "Adjust rock high shelf or low shelf immediately",
+        "Relax rock analyzer targets",
+        "Open implementation task 057 despite all repeats passing"
+      ],
+      "timestamp": "2026-05-16T07:39:07Z"
+    },
+    {
+      "decision": "Start task 056 as measurement-only exact-rock repeatability validation.",
+      "rationale": "Task 055 identified rock as green but close to strict centroid/sub-bass ceilings; repeated fresh controls are needed before any source/profile tuning.",
+      "alternatives_considered": [
+        "Tune rock profile immediately",
+        "Run broad cross-genre matrix first",
+        "Treat one green-but-close measurement as sufficient"
+      ],
+      "timestamp": "2026-05-16T07:28:32Z"
+    },
     {
       "decision": "Close task 055 as measurement-only; do not implement new tuning from a passing paired validation.",
       "rationale": "Both exact rock and exact jazz passed strict gates. The only new signal is rock boundary proximity, which calls for repeated measurement before source/profile changes.",
@@ -1144,5 +1169,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-16T06:14:19Z"
+  "last_updated": "2026-05-16T07:39:07Z"
 }
