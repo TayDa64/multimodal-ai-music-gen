@@ -1815,7 +1815,7 @@ def run_generation(
     assets_gen = AssetsGenerator(str(output_dir / "samples"))
     
     try:
-        drum_samples = assets_gen.generate_drum_kit()  # No genre param
+        drum_samples = assets_gen.generate_drum_kit(parsed.drum_elements)
         results["samples"].extend(drum_samples.values())
         print_success(f"Generated {len(drum_samples)} drum samples")
         

@@ -1,11 +1,131 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-classic-rock-session-graph-061",
-    "started": "2026-05-16T15:45:00Z",
-    "user_request": "Continue implementations after Task 060; align classic-rock Hammond session graph/manifest metadata with the MIDI/audio workflow proof."
+    "id": "session-2026-05-16-classic-rock-sample-filter-062",
+    "started": "2026-05-16T16:25:00Z",
+    "user_request": "Continue implementations after Task 061 by aligning procedural sample artifacts and metadata with parsed rock drum intent."
   },
   "task_queue": [
+    {
+      "id": "classic-rock-filter-procedural-samples-062",
+      "description": "Filter procedural drum sample generation/listing by parsed drum intent so classic-rock outputs do not create or advertise absent generic 808/clap artifacts while preserving legacy full-kit fallback and requested trap 808/clap behavior.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "classic-rock-session-graph-manifest-061",
+        "classic-rock-hammond-organ-workflow-060",
+        "rock-family-sub-bass-brightness-remediation-059"
+      ],
+      "files_to_modify": [
+        "main.py",
+        "multimodal_gen/assets_gen.py",
+        "tests/test_assets_gen.py",
+        "tests/test_main_render_diagnostics.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T16:25:00Z",
+      "updated": "2026-05-16T16:25:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Verifier confirmed Task 061 runtime metadata still listed/generated generic 808_kick.wav and clap.wav because main.py always called AssetsGenerator.generate_drum_kit() without parsed-drum intent, while parser/MIDI/render/session proofs were already correct."
+      },
+      "implementation": {
+        "files_changed": [
+          "main.py",
+          "multimodal_gen/assets_gen.py",
+          "tests/test_assets_gen.py",
+          "tests/test_main_render_diagnostics.py"
+        ],
+        "summary": "AssetsGenerator.generate_drum_kit now accepts optional drum_elements. Omitted argument preserves the legacy full procedural kit; provided parsed drum elements generate only supported requested/defaulted samples. main.py passes parsed.drum_elements during workflow generation so sample files and project metadata match the parsed drum contract.",
+        "guardrails_preserved": [
+          "No FluidSynth profile, audio renderer, output analyzer, prompt parser, MIDI generator, or session graph changes.",
+          "No analyzer target changes.",
+          "generate_drum_kit() with no argument still creates the legacy full kit including 808 and clap.",
+          "Trap/requested drum filters still create 808_kick.wav and clap.wav when parsed/requested.",
+          "Runtime diagnostics, MIDI, WAV, render reports, project metadata, assets, and SoundFonts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_assets_gen.py tests/test_main_render_diagnostics.py -q",
+          "result": "PASS: 13 passed"
+        },
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_prompt_parser_key.py::test_classic_rock_hammond_prompt_preserves_organ_cue tests/test_prompt_parser_key.py::test_exact_1990s_rock_prompt_parses_as_band_defaults_without_trap_fallbacks tests/test_midi_generator.py::test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed tests/test_session_graph_classic_rock_hammond.py tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q",
+          "result": "PASS: 36 passed, 2 existing dependency warnings"
+        }
+      ],
+      "runtime_proof": {
+        "command": ".\\.venv\\Scripts\\python.exe .\\main.py \"classic rock anthem with crunchy electric guitar, Hammond organ, melodic bass guitar, live drums, verse chorus bridge, 108 BPM in A minor\" --output output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062 --duration-bars 16 --seed 60062 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062",
+        "render_report": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\classic_rock_108.0bpm_Aminor_20260516_085202_render_report.json",
+        "project_metadata": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\project_metadata.json",
+        "manifest": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\session_manifest.json",
+        "midi": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\classic_rock_108.0bpm_Aminor_20260516_085202.mid",
+        "audio": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\classic_rock_108.0bpm_Aminor_20260516_085202.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "skip_reason": null,
+        "profile": "rock:rock",
+        "tone_shaping": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 1.0,
+          "centroid_hz": 3517.2,
+          "sub_bass_energy_ratio": 0.0983,
+          "percussive_ratio": 0.179,
+          "onset_density": 3.88,
+          "has_kick": true,
+          "has_snare_or_clap": true,
+          "has_hihats": true
+        },
+        "parsed_drum_elements": [
+          "kick",
+          "snare",
+          "hihat",
+          "hihat_open",
+          "crash",
+          "ride",
+          "tom"
+        ],
+        "generated_samples": [
+          "kick.wav",
+          "snare.wav",
+          "hihat_closed.wav",
+          "hihat_open.wav"
+        ],
+        "absent_samples": [
+          "808_kick.wav",
+          "clap.wav"
+        ],
+        "project_metadata_sample_contract": {
+          "contains_808_kick": false,
+          "contains_clap": false,
+          "matches_supported_parsed_rock_drums": true
+        },
+        "manifest_contract": {
+          "guitar_chords_channel_2": true,
+          "organ_pad_channel_4": true,
+          "bass_count": 1,
+          "bass_lead_count": 0
+        }
+      },
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-16T16:25:00Z",
+        "summary": "Read-only verifier confirmed code scope, backward-compatible sample filtering, focused tests, direct FluidSynth runtime proof, absence of 808/clap samples in rock metadata, unchanged rock profile, and preserved Task 061 manifest contract."
+      },
+      "result": {
+        "status": "completed",
+        "summary": "Classic-rock workflow sample artifacts now match parsed drum intent: no absent 808/clap files or metadata entries, with full-kit fallback and requested 808/clap behavior preserved."
+      }
+    },
     {
       "id": "classic-rock-session-graph-manifest-061",
       "description": "Fix classic-rock Hammond session graph and saved manifest metadata so it matches the rendered MIDI contract: Guitar owns the primary chords track, Organ is a separate pad/auxiliary track, and Bass is not duplicated as a lead.",

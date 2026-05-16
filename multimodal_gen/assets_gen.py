@@ -16,7 +16,7 @@ Output: 44.1kHz, 16-bit WAV files.
 """
 
 import numpy as np
-from typing import Optional, Tuple, Dict, List
+from typing import Optional, Tuple, Dict, List, Iterable
 import os
 from dataclasses import dataclass
 from enum import Enum
@@ -2940,56 +2940,89 @@ class AssetsGenerator:
         
         os.makedirs(output_dir, exist_ok=True)
     
-    def generate_drum_kit(self) -> Dict[str, str]:
+    def generate_drum_kit(self, drum_elements: Optional[Iterable[str]] = None) -> Dict[str, str]:
         """
         Generate complete drum kit.
+
+        Args:
+            drum_elements: Optional parsed/requested drum elements. When omitted,
+                preserves the legacy full-kit behavior. When provided, only
+                supported requested elements are generated.
         
         Returns:
             Dict mapping drum name to file path
         """
         kit = {}
+
+        if drum_elements is None:
+            requested = ['808', 'kick', 'snare', 'clap', 'hihat', 'hihat_open', 'rim']
+        else:
+            aliases = {
+                '808': '808',
+                'kick': 'kick',
+                'snare': 'snare',
+                'clap': 'clap',
+                'hihat': 'hihat',
+                'hihat_closed': 'hihat',
+                'hihat_open': 'hihat_open',
+                'rim': 'rim',
+            }
+            source_elements = [drum_elements] if isinstance(drum_elements, str) else drum_elements
+            requested = []
+            for element in source_elements:
+                normalized = str(element).strip().lower().replace('-', '_').replace(' ', '_')
+                key = aliases.get(normalized)
+                if key and key not in requested:
+                    requested.append(key)
         
         # 808 kick/bass
-        audio = generate_808_kick()
-        path = os.path.join(self.output_dir, '808_kick.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['808'] = path
+        if '808' in requested:
+            audio = generate_808_kick()
+            path = os.path.join(self.output_dir, '808_kick.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['808'] = path
         
         # Punchy kick
-        audio = generate_kick()
-        path = os.path.join(self.output_dir, 'kick.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['kick'] = path
+        if 'kick' in requested:
+            audio = generate_kick()
+            path = os.path.join(self.output_dir, 'kick.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['kick'] = path
         
         # Snare
-        audio = generate_snare()
-        path = os.path.join(self.output_dir, 'snare.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['snare'] = path
+        if 'snare' in requested:
+            audio = generate_snare()
+            path = os.path.join(self.output_dir, 'snare.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['snare'] = path
         
         # Clap
-        audio = generate_clap()
-        path = os.path.join(self.output_dir, 'clap.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['clap'] = path
+        if 'clap' in requested:
+            audio = generate_clap()
+            path = os.path.join(self.output_dir, 'clap.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['clap'] = path
         
         # Closed hi-hat
-        audio = generate_hihat(is_open=False)
-        path = os.path.join(self.output_dir, 'hihat_closed.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['hihat'] = path
+        if 'hihat' in requested:
+            audio = generate_hihat(is_open=False)
+            path = os.path.join(self.output_dir, 'hihat_closed.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['hihat'] = path
         
         # Open hi-hat
-        audio = generate_hihat(is_open=True)
-        path = os.path.join(self.output_dir, 'hihat_open.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['hihat_open'] = path
+        if 'hihat_open' in requested:
+            audio = generate_hihat(is_open=True)
+            path = os.path.join(self.output_dir, 'hihat_open.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['hihat_open'] = path
         
         # Rim
-        audio = generate_rim()
-        path = os.path.join(self.output_dir, 'rim.wav')
-        save_wav(audio, path, self.sample_rate)
-        kit['rim'] = path
+        if 'rim' in requested:
+            audio = generate_rim()
+            path = os.path.join(self.output_dir, 'rim.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['rim'] = path
         
         return kit
     

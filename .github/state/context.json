@@ -1,7 +1,63 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-16-classic-rock-session-graph-061",
+  "session_id": "session-2026-05-16-classic-rock-sample-filter-062",
   "files_touched": [
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 062 procedural sample filtering and runtime proof."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 062 learning that generated artifacts/metadata must obey parsed intent, not legacy full-kit defaults."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 062 files, tests, runtime proof, and latest validation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Opened and completed Task 062 with pre/post verifier evidence, implementation, tests, and runtime proof."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added main workflow regression proving parsed drums are passed to procedural sample generation and metadata excludes absent 808/clap."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added AssetsGenerator optional drum filter regressions for legacy full kit, rock filtered kit, and requested 808/clap kit."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added backward-compatible optional parsed-drum filter to generate_drum_kit."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T16:25:00Z",
+      "by_agent": "supervisor",
+      "changes": "Passed parsed.drum_elements into procedural sample generation during workflow runs."
+    },
     {
       "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "action": "modified",
@@ -5291,15 +5347,21 @@
     }
   ],
   "last_validation": {
-    "task_id": "classic-rock-session-graph-manifest-061",
-    "timestamp": "2026-05-16T15:45:00Z",
+    "task_id": "classic-rock-filter-procedural-samples-062",
+    "timestamp": "2026-05-16T16:25:00Z",
     "type": "workflow_runtime_post_verifier",
     "result": "PASS",
-    "summary_path": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061\\classic_rock_108.0bpm_Aminor_20260516_083341_render_report.json",
-    "run_root": "output\\_diagnostics\\classic_rock_workflow_061\\session_graph_manifest_60061",
-    "details": "Task 061 complete: session manifest now has Guitar/chords/channel 2, Organ/pad/channel 4, exactly one Bass/channel 1, no Bass lead; direct main.py FluidSynth proof exited 0 with renderer_path=fluidsynth, profile=rock:rock, unchanged tone, and audio_analysis.passed=true."
+    "summary_path": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\classic_rock_108.0bpm_Aminor_20260516_085202_render_report.json",
+    "run_root": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062",
+    "details": "Task 062 complete: classic-rock Hammond direct main.py FluidSynth proof exited 0, generated only kick/snare/hihat_closed/hihat_open procedural samples, project metadata contains no 808_kick.wav or clap.wav, renderer_path=fluidsynth, profile=rock:rock, unchanged tone, audio_analysis.passed=true, and Task 061 session manifest contract remains intact."
   },
   "changes": [
+    {
+      "file": "classic-rock-filter-procedural-samples-062",
+      "description": "Completed procedural sample artifact filtering by parsed drum intent.",
+      "diff_summary": "main.py now passes parsed.drum_elements to AssetsGenerator; generate_drum_kit keeps legacy no-arg full kit but filters provided drum elements to supported requested samples; tests cover full-kit fallback, rock filtered samples, requested 808/clap preservation, and metadata output.",
+      "timestamp": "2026-05-16T16:25:00Z"
+    },
     {
       "file": "classic-rock-session-graph-manifest-061",
       "description": "Completed classic-rock Hammond session graph/manifest metadata consistency fix.",

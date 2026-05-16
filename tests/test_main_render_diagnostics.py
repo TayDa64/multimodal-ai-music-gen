@@ -47,10 +47,13 @@ class DummyArranger:
 
 
 class DummyAssetsGenerator:
+    calls = []
+
     def __init__(self, *_args, **_kwargs):
         pass
 
-    def generate_drum_kit(self):
+    def generate_drum_kit(self, drum_elements=None):
+        self.__class__.calls.append(list(drum_elements or []))
         return {}
 
 
@@ -355,6 +358,96 @@ def test_run_generation_skip_isolation_avoids_default_instruments_and_expansions
     assert cleared_services == [None]
     assert results["audio"] is None
     assert results["render_report"] == str(output_dir / "test_project_render_report.json")
+
+
+def test_run_generation_passes_parsed_drums_to_assets_and_metadata_excludes_absent_samples(monkeypatch, tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+
+    class CapturingAssetsGenerator(DummyAssetsGenerator):
+        calls = []
+
+        def __init__(self, output_dir, *_args, **_kwargs):
+            self.output_dir = Path(output_dir)
+            self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        def generate_drum_kit(self, drum_elements=None):
+            elements = list(drum_elements or [])
+            self.__class__.calls.append(elements)
+            samples = {}
+            for key, filename in {
+                "808": "808_kick.wav",
+                "kick": "kick.wav",
+                "snare": "snare.wav",
+                "clap": "clap.wav",
+                "hihat": "hihat_closed.wav",
+                "hihat_open": "hihat_open.wav",
+                "rim": "rim.wav",
+            }.items():
+                if key not in elements:
+                    continue
+                path = self.output_dir / filename
+                path.write_bytes(b"RIFF")
+                samples[key] = str(path)
+            return samples
+
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(main_module, "print_step", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_info", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_success", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_parsed_prompt", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "validate_generation", lambda *args, **kwargs: SimpleNamespace(valid=True, violations=[]))
+    monkeypatch.setattr(main_module, "Arranger", DummyArranger)
+    monkeypatch.setattr(main_module, "SessionGraphBuilder", FailingGraphBuilder)
+    monkeypatch.setattr(main_module, "MidiGenerator", DummyMidiGenerator)
+    monkeypatch.setattr(main_module, "AssetsGenerator", CapturingAssetsGenerator)
+    monkeypatch.setattr(main_module, "AudioRenderer", ExplodingRenderer)
+    monkeypatch.setattr(main_module, "generate_project_name", lambda _parsed: "test_project")
+    monkeypatch.setattr(main_module, "set_instrument_service", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_run_quality_gate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "HAS_STYLE_POLICY", False)
+    monkeypatch.setattr(main_module, "compile_policy", None)
+    monkeypatch.setattr(main_module, "HAS_AGENT_SYSTEM", False)
+    monkeypatch.setattr(main_module, "_HAS_QUALITY_VALIDATOR", False)
+    monkeypatch.setattr(main_module, "_HAS_FILE_ANALYSIS", False)
+    monkeypatch.setattr(main_module, "_HAS_STEM_SEPARATION", False)
+
+    import multimodal_gen.instrument_resolution as instrument_resolution_module
+
+    monkeypatch.setattr(
+        instrument_resolution_module,
+        "InstrumentResolutionService",
+        DummyInstrumentResolutionService,
+    )
+
+    results = main_module.run_generation(
+        prompt="classic rock Hammond organ with live drums at 100 BPM in E minor",
+        output_dir=output_dir,
+        verbose=False,
+        use_bwf=False,
+    )
+
+    assert CapturingAssetsGenerator.calls == [["kick", "snare", "hihat", "hihat_open", "crash", "ride", "tom"]]
+    sample_names = {Path(path).name for path in results["samples"]}
+    assert sample_names == {"kick.wav", "snare.wav", "hihat_closed.wav", "hihat_open.wav"}
+    assert "808_kick.wav" not in sample_names
+    assert "clap.wav" not in sample_names
+
+    metadata = json.loads(Path(results["project_metadata"]).read_text(encoding="utf-8"))
+    metadata_sample_names = {
+        Path(path).name
+        for path in metadata["current"]["outputs"]["samples"]
+    }
+    assert metadata["current"]["parsed"]["genre"] == "classic_rock"
+    assert "808" not in metadata["current"]["parsed"]["drum_elements"]
+    assert "clap" not in metadata["current"]["parsed"]["drum_elements"]
+    assert metadata_sample_names == sample_names
+    assert "808_kick.wav" not in metadata_sample_names
+    assert "clap.wav" not in metadata_sample_names
 
 
 def _missing_audio_results(tmp_path):
