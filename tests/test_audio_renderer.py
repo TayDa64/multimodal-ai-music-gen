@@ -15,6 +15,9 @@ from multimodal_gen.prompt_parser import ParsedPrompt
 from multimodal_gen.utils import ScaleType
 
 
+ROCK_TONE_DIAGNOSTIC = "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz"
+
+
 def _note(program: int, duration_samples: int = 2205) -> SynthNote:
     return SynthNote(
         pitch=64,
@@ -332,9 +335,8 @@ def test_rock_fluidsynth_tone_shaping_tames_bright_soundfont_balance():
     assert np.all(np.isfinite(shaped))
     assert _high_band_ratio(shaped[:, 0], 44100) < _high_band_ratio(bright_mono, 44100) * 0.45
     assert _sub_bass_power(shaped[:, 0], 44100) < _sub_bass_power(bright_mono, 44100)
-    assert renderer._pipeline_stages["fluidsynth_file_mastering.rock_tone_shaping"] == (
-        "high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz"
-    )
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.tone_shaping"] == ROCK_TONE_DIAGNOSTIC
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.rock_tone_shaping"] == ROCK_TONE_DIAGNOSTIC
     assert renderer._pipeline_stages["fluidsynth_file_mastering.profile"] == "rock:rock"
 
 

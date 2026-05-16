@@ -140,8 +140,8 @@ def normalize_genre(genre) -> str:
 
 
 ROCK_TONE_SHELVES: Tuple[ToneShelf, ...] = (
-    ToneShelf(frequency_hz=5000.0, gain_db=-6.0, shelf_type="high"),
-    ToneShelf(frequency_hz=90.0, gain_db=-0.75, shelf_type="low"),
+    ToneShelf(frequency_hz=4000.0, gain_db=-10.0, shelf_type="high"),
+    ToneShelf(frequency_hz=90.0, gain_db=-4.0, shelf_type="low"),
 )
 
 JAZZ_TONE_SHELVES: Tuple[ToneShelf, ...] = (

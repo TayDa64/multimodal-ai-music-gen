@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "After process interruptions, aggregate only valid render reports and rerun null rows directly with absolute SoundFont paths",
+        "context": "Task 059 full matrix produced six valid PASS reports, then null/no-report process interruptions; one indie retry had transient require_soundfont preflight. The accepted proof reran affected rows in smaller direct main.py batches using the absolute FluidR3Mono_GM.sf3 path, then aggregated 16 valid render reports with renderer_path=fluidsynth, profile=rock:rock, tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz, audio_analysis.passed=true, and no issues.",
+        "timestamp": "2026-05-16T14:46:47Z"
+      },
+      {
+        "pattern": "When rock-family failures share correct routing but repeated spectral failures, start with the existing FluidSynth profile hook",
+        "context": "Task 059 pre-verifier compared Task 058 failures with grunge/exact-rock controls and found parser/MIDI/render routing was correct. The smallest safe first slice is rock:rock profile shelf remediation in fluidsynth_profiles.py, preserving analyzer targets and avoiding parser/strategy/MIDI changes until profile-only proof is tested.",
+        "timestamp": "2026-05-16T09:24:26Z"
+      },
+      {
         "pattern": "Aggregate completed rock-family measurements before tuning subgenre fixes",
         "context": "Task 058 captured a completed direct main.py FluidSynth rock-family baseline in docs/state only. The aggregate FAIL-MEASURED result showed exact-rock stability does not imply full rock-family completion: grunge passed, while classic_rock, punk_rock, indie_rock, and hard-rock-as-rock failed repeatably, dominated by sub-bass excess with centroid/brightness issues in classic/indie/hard.",
         "timestamp": "2026-05-16T09:08:43Z"
@@ -520,6 +530,68 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Close Task 059 with the profile-only rock FluidSynth shelves high_shelf=-10.0dB@4000Hz and low_shelf=-4.0dB@90Hz.",
+      "rationale": "The effective recovered runtime matrix passed 16/16 rows across classic_rock, punk_rock, indie_rock, hard-rock-as-rock, grunge, and exact 1990s rock controls, with sub-bass max 0.1264 and centroid max 4337.2 while preserving analyzer targets and non-rock/jazz behavior.",
+      "alternatives_considered": [
+        "Relax analyzer bounds after Task 058 failures",
+        "Change parser/MIDI/rock strategy despite correct routing",
+        "Stop at pilot without repeat/control runtime proof",
+        "Treat process-interrupted null rows as musical failures without direct reruns"
+      ],
+      "timestamp": "2026-05-16T14:46:47Z"
+    },
+    {
+      "decision": "Promote Task 059 revised rock FluidSynth profile candidate to full repeat/control matrix.",
+      "rationale": "The pilot passed all first-seed failures and controls with profile=rock:rock, tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz, audio_analysis.passed=true, and no issues across 6/6 cases.",
+      "alternatives_considered": [
+        "Tune again before full proof",
+        "Stop at pilot without repeat seeds",
+        "Change parser/MIDI/strategy despite passing profile-only pilot"
+      ],
+      "timestamp": "2026-05-16T09:47:48Z"
+    },
+    {
+      "decision": "Use high_shelf=-10.0dB@4000Hz for the Task 059 rock-family follow-up while keeping low_shelf=-4.0dB@90Hz.",
+      "rationale": "The first pilot fixed sub-bass but classic_rock seed 57101 remained too bright at 3963.9 Hz versus the 3800 Hz ceiling, so only the existing rock high shelf was strengthened/lowered; focused profile/audio-renderer tests passed.",
+      "alternatives_considered": [
+        "Change the already-successful low shelf",
+        "Relax analyzer targets",
+        "Edit parser/strategy/MIDI/arranger/source routing before finishing profile-only proof"
+      ],
+      "timestamp": "2026-05-16T09:36:18Z"
+    },
+    {
+      "decision": "Adjust only the Task 059 high shelf after the first pilot candidate.",
+      "rationale": "The -4 dB low shelf at 90 Hz fixed classic-rock sub-bass, but -8 dB at 4500 Hz left classic-rock centroid above target. A narrower high-shelf adjustment is justified before the full runtime matrix.",
+      "alternatives_considered": [
+        "Run full matrix despite known classic centroid failure",
+        "Relax classic_rock centroid target",
+        "Change MIDI/parser/strategy before finishing profile-only proof"
+      ],
+      "timestamp": "2026-05-16T09:33:58Z"
+    },
+    {
+      "decision": "Task 059 first slice uses rock FluidSynth shelves high_shelf=-8.0dB@4500Hz and low_shelf=-4.0dB@90Hz.",
+      "rationale": "Task 058 repeated failures required a material low-shelf cut around 90 Hz for sub-bass excess and a modestly stronger/lower high shelf for classic/indie/hard centroid pressure; focused profile and renderer tests passed, while analyzer/parser/strategy/MIDI/scripts/assets/output diagnostics stayed untouched.",
+      "alternatives_considered": [
+        "Do nothing: rejected because Task 058 showed repeatable measured failures.",
+        "Analyzer target relaxation: rejected by guardrail and because routing was correct.",
+        "Parser/strategy/MIDI changes: deferred because pre-verifier found correct routing and grunge control passed.",
+        "Broader non-rock profile changes: rejected to preserve jazz and no-op profile behavior."
+      ],
+      "timestamp": "2026-05-16T09:29:41Z"
+    },
+    {
+      "decision": "Continue with Task 059 as a measured remediation slice for Task 058 rock-family failures.",
+      "rationale": "Task 058 produced repeatable concrete failures across four rock-family cases, so the next useful step is diagnosis and minimal remediation with grunge/exact-rock controls, not more planning or analyzer relaxation.",
+      "alternatives_considered": [
+        "Run unrelated cross-genre baselines first",
+        "Relax analyzer thresholds",
+        "Tune profiles without pre-verifier diagnosis"
+      ],
+      "timestamp": "2026-05-16T09:17:07Z"
+    },
     {
       "decision": "Close Task 058 as a verified measurement-only FAIL-MEASURED baseline, not an implementation task.",
       "rationale": "The post-verifier confirmed the run is complete, repeat policy was followed, and only docs/state files changed. The correct next step is a separate Task 059 remediation based on measured sub-bass and brightness/centroid failures.",
@@ -1234,5 +1306,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-16T09:13:21Z"
+  "last_updated": "2026-05-16T14:46:47Z"
 }

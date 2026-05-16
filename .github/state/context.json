@@ -1,7 +1,196 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-16-rock-family-baseline-058",
+  "session_id": "session-2026-05-16-rock-family-remediation-059",
   "files_touched": [
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T14:46:47Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 059 final profile-only rock-family remediation proof and effective summary path."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T14:46:47Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 final profile-only remediation decision and recovery pattern."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T14:46:47Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 final runtime aggregation, tests, guardrails, and interruption recovery notes."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T14:46:47Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 059 completed with effective 16-row runtime PASS, post-verifier PASS, and guardrail evidence."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:47:48Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 revised pilot PASS and full-matrix go decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:47:48Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 revised pilot runtime verification."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:50Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 follow-up prohibited-path guardrail proof."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:50Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 follow-up guardrail verification."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:18Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 follow-up high-shelf decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:18Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 follow-up files and verification."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:18Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 follow-up Builder summary and focused pytest proof."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:18Z",
+      "by_agent": "builder",
+      "changes": "Updated expected rock FluidSynth tone-shaping diagnostic."
+    },
+    {
+      "path": "tests\\test_fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:18Z",
+      "by_agent": "builder",
+      "changes": "Updated expected rock profile diagnostic and high-shelf numeric assertions."
+    },
+    {
+      "path": "multimodal_gen\\fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:36:18Z",
+      "by_agent": "builder",
+      "changes": "Adjusted only the rock high shelf to high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz; low shelf unchanged."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:33:58Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 pilot early-stop and moved back to implement for high-shelf adjustment."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:33:58Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 pilot result."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:29:41Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 selected rock FluidSynth shelf values after focused tests passed."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:29:41Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 Builder files and focused pytest proof."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:29:41Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 059 Builder summary and moved task to verify."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:29:41Z",
+      "by_agent": "builder",
+      "changes": "Updated rock FluidSynth tone-shaping diagnostics for both tone_shaping and rock_tone_shaping while preserving trap no-op assertion."
+    },
+    {
+      "path": "tests\\test_fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:29:41Z",
+      "by_agent": "builder",
+      "changes": "Updated rock profile expected diagnostic and expanded rock-family/1990s alias coverage; jazz and no-op profile assertions preserved."
+    },
+    {
+      "path": "multimodal_gen\\fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:29:41Z",
+      "by_agent": "builder",
+      "changes": "Updated only rock:rock FluidSynth shelves to high_shelf=-8.0dB@4500Hz;low_shelf=-4.0dB@90Hz."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:24:26Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 pre-verifier IMPLEMENTATION_READY and advanced to decompose."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:24:26Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 059 pre-verification result."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:17:07Z",
+      "by_agent": "supervisor",
+      "changes": "Opened Task 059 for measured rock-family sub-bass/brightness remediation after Task 058."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:17:07Z",
+      "by_agent": "supervisor",
+      "changes": "Started session context for Task 059."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T09:17:07Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded decision to continue into measured Task 059 remediation."
+    },
     {
       "path": ".github\\state\\orchestration.json",
       "action": "modified",
@@ -2819,6 +3008,30 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen/fluidsynth_profiles.py; tests/test_fluidsynth_profiles.py; tests/test_audio_renderer.py; docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md; .github/state/*.json",
+      "description": "Task 059 final rock-family FluidSynth profile-only remediation closure.",
+      "diff_summary": "Rock:rock tone is high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz; docs/state now record 16/16 effective FluidSynth runtime PASS and recovery of interrupted rows.",
+      "timestamp": "2026-05-16T14:46:47Z"
+    },
+    {
+      "file": "multimodal_gen/fluidsynth_profiles.py; tests/test_fluidsynth_profiles.py; tests/test_audio_renderer.py",
+      "description": "Task 059 follow-up strengthened only the rock FluidSynth high shelf after the pilot centroid failure.",
+      "diff_summary": "high_shelf=-8.0dB@4500Hz;low_shelf=-4.0dB@90Hz -> high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz; low shelf unchanged; focused diagnostics updated.",
+      "timestamp": "2026-05-16T09:36:18Z"
+    },
+    {
+      "file": "multimodal_gen/fluidsynth_profiles.py; tests/test_fluidsynth_profiles.py; tests/test_audio_renderer.py",
+      "description": "Task 059 profile-only rock FluidSynth remediation and focused diagnostic tests.",
+      "diff_summary": "Changed rock shelves from high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz to high_shelf=-8.0dB@4500Hz;low_shelf=-4.0dB@90Hz; updated focused expected diagnostics and alias coverage only.",
+      "timestamp": "2026-05-16T09:29:41Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Opened Task 059 remediation slice.",
+      "diff_summary": "Created rock-family-sub-bass-brightness-remediation-059 with guardrails, source evidence from Task 058, and validation controls.",
+      "timestamp": "2026-05-16T09:17:07Z"
+    },
+    {
       "file": ".github/state/orchestration.json",
       "description": "Closed Task 058 with post-verifier PASS and final FAIL-MEASURED runtime result.",
       "diff_summary": "Task status moved from in_progress/verify to completed/aggregate; result, verification evidence, and recommended Task 059 next step recorded.",
@@ -3604,6 +3817,62 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "PASS",
+      "details": "Focused pytest PASS (31 passed, 2 warnings); guardrail diff check PASS with no analyzer/parser/MIDI/strategy/arranger/scripts/assets/tracked-output changes; Task 059 completed.",
+      "timestamp": "2026-05-16T14:46:47Z"
+    },
+    {
+      "type": "runtime-effective",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "PASS",
+      "details": "Effective summary output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742\\rock_family_remediation_059_effective_summary.json: 16/16 PASS, centroid 3437.9-4337.2 Hz, sub-bass 0.0944-0.1264, tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz.",
+      "timestamp": "2026-05-16T14:46:47Z"
+    },
+    {
+      "type": "runtime-pilot",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "PASS",
+      "details": "Revised candidate high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz passed classic, punk, indie, hard-rock-as-rock, grunge control, and exact 1990s rock control pilot; 6/6 pass.",
+      "timestamp": "2026-05-16T09:47:48Z"
+    },
+    {
+      "type": "guardrail",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "PASS",
+      "details": "Prohibited-path diff check returned no paths for output_analyzer.py, parser, MIDI, strategy, arranger, scripts, assets, and output diagnostics; scoped diff names are only state plus fluidsynth profile/tests.",
+      "timestamp": "2026-05-16T09:36:50Z"
+    },
+    {
+      "type": "post",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "PASS",
+      "details": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q -> PASS: 31 passed, 2 warnings in 59.29s",
+      "timestamp": "2026-05-16T09:36:18Z"
+    },
+    {
+      "type": "runtime-pilot",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "FAIL_EARLY_STOPPED",
+      "details": "Candidate high_shelf=-8.0dB@4500Hz;low_shelf=-4.0dB@90Hz fixed classic-rock sub-bass on seed 57101 (0.0921) but centroid remained high at 3963.9 Hz vs max 3800; stopped pilot to adjust high shelf only.",
+      "timestamp": "2026-05-16T09:33:58Z"
+    },
+    {
+      "type": "builder-focused",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "PASS",
+      "details": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q -> 31 passed, 2 warnings in 56.26s",
+      "timestamp": "2026-05-16T09:29:41Z"
+    },
+    {
+      "type": "pre",
+      "target": "rock-family-sub-bass-brightness-remediation-059",
+      "result": "IMPLEMENTATION_READY",
+      "details": "Pre-verifier recommended a profile-only rock FluidSynth shelf remediation first. Artifacts show correct routing and repeated measured failures dominated by sub-bass excess; avoid analyzer relaxation and parser/strategy/MIDI changes in the first slice.",
+      "timestamp": "2026-05-16T09:24:26Z"
+    },
     {
       "type": "post",
       "target": "rock-family-baseline-measurement-058",
@@ -4877,6 +5146,14 @@
   },
   "errors_encountered": [
     {
+      "timestamp": "2026-05-16T14:46:47Z",
+      "task_id": "rock-family-sub-bass-brightness-remediation-059",
+      "severity": "info",
+      "error": "Full matrix wrapper/subprocess rows were interrupted after six valid PASS reports, and one indie retry row hit transient require_soundfont preflight.",
+      "details": "full_20260516_024840 produced six valid classic/punk PASS rows; later rows had null/no report artifacts rather than analyzer failures. retry_indie_20260516_072446 seed 57104 recorded renderer_path=none with skip_reason=require_soundfont.",
+      "resolution": "Reran interrupted rows in smaller direct main.py batches with the absolute SoundFont path. Effective summary uses only valid render reports and passed 16/16 rows."
+    },
+    {
       "timestamp": "2026-05-16T06:14:19Z",
       "task_id": "rock-jazz-post054-cross-genre-listening-validation-055",
       "severity": "info",
@@ -4916,13 +5193,13 @@
     }
   ],
   "last_validation": {
-    "task_id": "rock-family-baseline-measurement-058",
-    "timestamp": "2026-05-16T09:13:21Z",
+    "task_id": "rock-family-sub-bass-brightness-remediation-059",
+    "timestamp": "2026-05-16T14:46:47Z",
     "type": "post_verifier",
-    "result": "PASS_WITH_MEASURED_FAILURES",
-    "summary_path": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
-    "run_root": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229",
-    "details": "Task 058 itself is complete and verified. The measured outcome is FAIL-MEASURED (not blocked): grunge passed; classic_rock, punk_rock, indie_rock, and hard-rock-as-rock failed repeatably. No tuning or protected source changes were made."
+    "result": "PASS",
+    "summary_path": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742\\rock_family_remediation_059_effective_summary.json",
+    "run_root": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742",
+    "details": "Task 059 complete: profile-only rock:rock tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz; effective 16-row FluidSynth proof PASS with failure_count=0; focused tests and guardrails passed."
   },
   "changes": [
     {

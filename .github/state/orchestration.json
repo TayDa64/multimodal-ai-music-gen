@@ -1,11 +1,477 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-rock-family-baseline-058",
-    "started": "2026-05-16T08:40:15Z",
-    "user_request": "Run Task 058 rock-family first-seed baselines for classic rock, grunge, punk rock, indie rock, and hard-rock-as-rock before any tuning."
+    "id": "session-2026-05-16-rock-family-remediation-059",
+    "started": "2026-05-16T09:17:07Z",
+    "user_request": "Continue from Task 058 into the next measured remediation step for rock-family failures."
   },
   "task_queue": [
+    {
+      "id": "rock-family-sub-bass-brightness-remediation-059",
+      "description": "Diagnose and minimally remediate measured Task 058 rock-family failures: repeatable sub-bass excess in classic_rock, punk_rock, indie_rock, and hard-rock-as-rock, plus centroid/brightness issues in classic/indie/hard, while preserving grunge and exact-rock controls.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-family-baseline-measurement-058",
+        "rock-boundary-repeatability-validation-056",
+        "jazz-sax-breath-range-mastering-054"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/fluidsynth_profiles.py",
+        "multimodal_gen/audio_renderer.py",
+        "multimodal_gen/midi_generator.py",
+        "multimodal_gen/strategies/rock_strategy.py",
+        "multimodal_gen/prompt_parser.py",
+        "tests/",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T09:17:07Z",
+      "updated": "2026-05-16T14:46:47Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "timestamp": "2026-05-16T09:24:26Z",
+        "summary": "Pre-verifier confirmed Task 058 artifacts show correct parser/MIDI/FluidSynth routing; failing cases use GM electric bass program 34, live GM drums, renderer_path=fluidsynth, profile=rock:rock, and current tone high_shelf=-6.0dB@5000Hz;low_shelf=-0.75dB@90Hz. Dominant failures are repeated sub-bass excess with classic/indie/hard centroid pressure. Smallest safe first slice is profile-only rock FluidSynth shelf remediation, not analyzer relaxation or parser/strategy/MIDI changes.",
+        "evidence": {
+          "task_058_summary": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+          "task_056_summary": "output\\_diagnostics\\rock_boundary_repeatability_056\\repeat_20260516_002955\\rock_boundary_repeatability_summary.json",
+          "routing_findings": [
+            "Bass program is GM 34 Electric Bass Pick, not synth bass/808.",
+            "Chord program is GM 30 Distortion Guitar.",
+            "Melody program is GM 80 square lead and may contribute brightness, but sub-bass is dominant.",
+            "Live GM drum notes are present: kick 36, snare 38, hats 42/46, crash/ride 49/51.",
+            "Grunge passes with the same route/profile, so parser/MIDI routing is not broken."
+          ],
+          "source_map": [
+            "multimodal_gen/fluidsynth_profiles.py::ROCK_TONE_SHELVES / ROCK_FLUIDSYNTH_PROFILE",
+            "multimodal_gen/audio_renderer.py::_apply_fluidsynth_profile_tone_shaping (diagnostic/ordering only; avoid unless profile-only fails)",
+            "multimodal_gen/midi_generator.py rock-family bass/chord/melody routing (avoid first slice)",
+            "multimodal_gen/strategies/rock_strategy.py bass/drums semantics (avoid first slice)",
+            "multimodal_gen/output_analyzer.py target bounds (do not edit)"
+          ]
+        },
+        "recommended_slice": {
+          "primary_edit": "multimodal_gen/fluidsynth_profiles.py",
+          "tests": [
+            "tests/test_fluidsynth_profiles.py",
+            "tests/test_audio_renderer.py"
+          ],
+          "behavior": "Strengthen existing rock:rock low shelf materially below/around 90 Hz and modestly strengthen/lower high shelf cutoff to reduce Task 058 sub-bass and centroid failures.",
+          "avoid": [
+            "output_analyzer.py target relaxation",
+            "hard_rock key",
+            "jazz/non-rock profile changes",
+            "parser/strategy/MIDI changes unless profile-only proof fails"
+          ]
+        }
+      },
+      "source_evidence": {
+        "task_058_summary": "output\\_diagnostics\\rock_family_baseline_057\\run_20260516_014229\\rock_family_baseline_058_summary.json",
+        "task_058_outcome": "FAIL-MEASURED: grunge passed; classic_rock, punk_rock, indie_rock, and hard-rock-as-rock failed repeatably.",
+        "dominant_failures": [
+          "Sub-bass excess in all failing rock-family cases.",
+          "Centroid/brightness hard failures in classic_rock and hard-rock-as-rock; indie_rock one over-bound repeat and boundary pressure.",
+          "Punk_rock centroid often high-boundary-close but hard failure is sub-bass."
+        ]
+      },
+      "guardrails": [
+        "No analyzer target relaxation.",
+        "Do not tune blindly; implementation must cite Task 058 artifacts and pre-verifier diagnosis.",
+        "Preserve passing grunge seed 57102 behavior and exact-rock Task 056 controls.",
+        "Preserve jazz Task 054 profile behavior and no-op non-rock profiles.",
+        "Hard rock remains canonical rock, not a separate hard_rock key.",
+        "Do not commit SoundFont, WAV, MIDI, render reports, or output diagnostics."
+      ],
+      "validation_plan": {
+        "preflight": "Confirm local FluidSynth PATH and SoundFont availability before runtime proof.",
+        "rerun_cases": [
+          {
+            "case_id": "classic_rock_baseline",
+            "expected_genre": "classic_rock",
+            "seeds": [
+              57101,
+              57201,
+              57301
+            ]
+          },
+          {
+            "case_id": "punk_rock_baseline",
+            "expected_genre": "punk_rock",
+            "seeds": [
+              57103,
+              57203,
+              57303
+            ]
+          },
+          {
+            "case_id": "indie_rock_baseline",
+            "expected_genre": "indie_rock",
+            "seeds": [
+              57104,
+              57204,
+              57304
+            ]
+          },
+          {
+            "case_id": "hard_rock_as_rock_baseline",
+            "expected_genre": "rock",
+            "seeds": [
+              57105,
+              57205,
+              57305
+            ]
+          },
+          {
+            "case_id": "grunge_control",
+            "expected_genre": "grunge",
+            "seeds": [
+              57102
+            ]
+          },
+          {
+            "case_id": "exact_1990s_rock_control",
+            "expected_genre": "rock",
+            "seeds": [
+              199001,
+              199002,
+              199003
+            ]
+          }
+        ],
+        "common_flags": [
+          "--duration-bars 16",
+          "--no-banner",
+          "--skip-default-instruments",
+          "--skip-expansions",
+          "--require-soundfont",
+          "--soundfont assets\\soundfonts\\FluidR3Mono_GM.sf3",
+          "--require-audio"
+        ],
+        "acceptance": [
+          "Failing Task 058 cases should clear current analyzer bounds without target relaxation.",
+          "Grunge control seed 57102 remains pass.",
+          "Exact 1990s rock controls remain pass or explicitly documented if a trade-off appears.",
+          "Renderer/profile diagnostics remain explicit and accurate."
+        ]
+      },
+      "builder_summary": {
+        "timestamp": "2026-05-16T09:36:18Z",
+        "status": "IMPLEMENTED_FOLLOW_UP_FOCUSED_TESTS_PASS",
+        "scope": "profile-only rock FluidSynth high-shelf follow-up after classic_rock pilot early-stop",
+        "previous_tone_shaping": "high_shelf=-8.0dB@4500Hz;low_shelf=-4.0dB@90Hz",
+        "new_tone_shaping": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+        "files_changed": [
+          "multimodal_gen/fluidsynth_profiles.py",
+          "tests/test_fluidsynth_profiles.py",
+          "tests/test_audio_renderer.py"
+        ],
+        "guardrails_preserved": [
+          "low_shelf=-4.0dB@90Hz unchanged",
+          "output_analyzer.py unchanged; analyzer targets not relaxed",
+          "parser/strategy/MIDI/arranger/scripts/assets/output diagnostics not modified",
+          "jazz high_shelf=-5.0dB@4000Hz preserved",
+          "classical/trap/default profiles remain no-op"
+        ],
+        "tests": [
+          {
+            "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q",
+            "result": "PASS: 31 passed, 2 warnings in 59.29s"
+          }
+        ],
+        "guardrail_diff_check": "PASS: git diff --name-only for output_analyzer.py, parser, MIDI, strategy, arranger, scripts, assets, and output diagnostics returned no paths."
+      },
+      "runtime_measurements": [
+        {
+          "timestamp": "2026-05-16T14:46:47Z",
+          "type": "effective_full_matrix_recovered",
+          "run_root": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742",
+          "summary": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742\\rock_family_remediation_059_effective_summary.json",
+          "status": "PASS",
+          "candidate_tone": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+          "source_runs": [
+            "output\\_diagnostics\\rock_family_remediation_059\\full_20260516_024840",
+            "output\\_diagnostics\\rock_family_remediation_059\\retry_single_indie_57104_20260516_072902",
+            "output\\_diagnostics\\rock_family_remediation_059\\retry_indie_20260516_072446",
+            "output\\_diagnostics\\rock_family_remediation_059\\retry_remaining_20260516_073136"
+          ],
+          "aggregate": {
+            "run_count": 16,
+            "pass_count": 16,
+            "failure_count": 0,
+            "overall_status": "PASS",
+            "centroid_min_hz": 3437.9,
+            "centroid_max_hz": 4337.2,
+            "sub_bass_min": 0.0944,
+            "sub_bass_max": 0.1264
+          },
+          "metrics": [
+            {
+              "case_id": "classic_rock_repeat",
+              "seed": 57101,
+              "status": "PASS",
+              "parsed_genre": "classic_rock",
+              "centroid_hz": 3634.8,
+              "sub_bass_energy_ratio": 0.0952
+            },
+            {
+              "case_id": "classic_rock_repeat",
+              "seed": 57201,
+              "status": "PASS",
+              "parsed_genre": "classic_rock",
+              "centroid_hz": 3462.4,
+              "sub_bass_energy_ratio": 0.0944
+            },
+            {
+              "case_id": "classic_rock_repeat",
+              "seed": 57301,
+              "status": "PASS",
+              "parsed_genre": "classic_rock",
+              "centroid_hz": 3639.9,
+              "sub_bass_energy_ratio": 0.0975
+            },
+            {
+              "case_id": "punk_rock_repeat",
+              "seed": 57103,
+              "status": "PASS",
+              "parsed_genre": "punk_rock",
+              "centroid_hz": 4337.2,
+              "sub_bass_energy_ratio": 0.1204
+            },
+            {
+              "case_id": "punk_rock_repeat",
+              "seed": 57203,
+              "status": "PASS",
+              "parsed_genre": "punk_rock",
+              "centroid_hz": 4237.8,
+              "sub_bass_energy_ratio": 0.1235
+            },
+            {
+              "case_id": "punk_rock_repeat",
+              "seed": 57303,
+              "status": "PASS",
+              "parsed_genre": "punk_rock",
+              "centroid_hz": 4290.1,
+              "sub_bass_energy_ratio": 0.1264
+            },
+            {
+              "case_id": "indie_rock_repeat",
+              "seed": 57104,
+              "status": "PASS",
+              "parsed_genre": "indie_rock",
+              "centroid_hz": 3712.6,
+              "sub_bass_energy_ratio": 0.1157
+            },
+            {
+              "case_id": "indie_rock_repeat",
+              "seed": 57204,
+              "status": "PASS",
+              "parsed_genre": "indie_rock",
+              "centroid_hz": 3680.3,
+              "sub_bass_energy_ratio": 0.1112
+            },
+            {
+              "case_id": "indie_rock_repeat",
+              "seed": 57304,
+              "status": "PASS",
+              "parsed_genre": "indie_rock",
+              "centroid_hz": 3634.5,
+              "sub_bass_energy_ratio": 0.1084
+            },
+            {
+              "case_id": "hard_rock_as_rock_retry",
+              "seed": 57105,
+              "status": "PASS",
+              "parsed_genre": "rock",
+              "centroid_hz": 3982.8,
+              "sub_bass_energy_ratio": 0.1208
+            },
+            {
+              "case_id": "hard_rock_as_rock_retry",
+              "seed": 57205,
+              "status": "PASS",
+              "parsed_genre": "rock",
+              "centroid_hz": 3832.1,
+              "sub_bass_energy_ratio": 0.1195
+            },
+            {
+              "case_id": "hard_rock_as_rock_retry",
+              "seed": 57305,
+              "status": "PASS",
+              "parsed_genre": "rock",
+              "centroid_hz": 3938.0,
+              "sub_bass_energy_ratio": 0.1127
+            },
+            {
+              "case_id": "grunge_control_retry",
+              "seed": 57102,
+              "status": "PASS",
+              "parsed_genre": "grunge",
+              "centroid_hz": 3437.9,
+              "sub_bass_energy_ratio": 0.1089
+            },
+            {
+              "case_id": "exact_1990s_rock_control_retry",
+              "seed": 199001,
+              "status": "PASS",
+              "parsed_genre": "rock",
+              "centroid_hz": 3689.4,
+              "sub_bass_energy_ratio": 0.1084
+            },
+            {
+              "case_id": "exact_1990s_rock_control_retry",
+              "seed": 199002,
+              "status": "PASS",
+              "parsed_genre": "rock",
+              "centroid_hz": 3609.6,
+              "sub_bass_energy_ratio": 0.1016
+            },
+            {
+              "case_id": "exact_1990s_rock_control_retry",
+              "seed": 199003,
+              "status": "PASS",
+              "parsed_genre": "rock",
+              "centroid_hz": 3561.7,
+              "sub_bass_energy_ratio": 0.1055
+            }
+          ],
+          "recovery_notes": [
+            "full_20260516_024840 produced six valid classic/punk PASS rows before null/no-report process interruptions; interrupted rows were not counted as musical failures.",
+            "retry_indie_20260516_072446 seed 57104 produced an intermittent require_soundfont preflight row; retry_single_indie_57104_20260516_072902 with absolute SoundFont path passed and is used for that seed.",
+            "retry_remaining_20260516_073136 with absolute SoundFont path recovered hard-rock-as-rock, grunge control, and exact 1990s rock control rows."
+          ]
+        },
+        {
+          "timestamp": "2026-05-16T09:47:48Z",
+          "type": "pilot",
+          "run_root": "output\\_diagnostics\\rock_family_remediation_059\\pilot_20260516_023729",
+          "summary": "output\\_diagnostics\\rock_family_remediation_059\\pilot_20260516_023729\\rock_family_remediation_059_pilot_summary.json",
+          "status": "PASS",
+          "candidate_tone": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+          "aggregate": {
+            "run_count": 6,
+            "pass_count": 6,
+            "failure_count": 0,
+            "overall_status": "PASS"
+          },
+          "metrics": [
+            {
+              "case_id": "classic_rock_pilot",
+              "seed": 57101,
+              "status": "PASS",
+              "centroid_hz": 3634.8,
+              "sub_bass_energy_ratio": 0.0952
+            },
+            {
+              "case_id": "punk_rock_pilot",
+              "seed": 57103,
+              "status": "PASS",
+              "centroid_hz": 4319.1,
+              "sub_bass_energy_ratio": 0.1233
+            },
+            {
+              "case_id": "indie_rock_pilot",
+              "seed": 57104,
+              "status": "PASS",
+              "centroid_hz": 3712.6,
+              "sub_bass_energy_ratio": 0.1157
+            },
+            {
+              "case_id": "hard_rock_as_rock_pilot",
+              "seed": 57105,
+              "status": "PASS",
+              "centroid_hz": 3970.3,
+              "sub_bass_energy_ratio": 0.1297
+            },
+            {
+              "case_id": "grunge_control_pilot",
+              "seed": 57102,
+              "status": "PASS",
+              "centroid_hz": 3419.8,
+              "sub_bass_energy_ratio": 0.1115
+            },
+            {
+              "case_id": "exact_1990s_rock_control_pilot",
+              "seed": 199001,
+              "status": "PASS",
+              "centroid_hz": 3689.4,
+              "sub_bass_energy_ratio": 0.1084
+            }
+          ],
+          "decision": "Pilot passed all six first-seed/control cases; proceed to full repeat/control matrix."
+        },
+        {
+          "timestamp": "2026-05-16T09:33:58Z",
+          "type": "pilot_early_stop",
+          "run_root": "output\\_diagnostics\\rock_family_remediation_059\\pilot_20260516_023053",
+          "status": "FAIL_EARLY_STOPPED",
+          "reason": "First pilot case classic_rock seed 57101 fixed sub-bass (0.0921) but still failed centroid/brightness at 3963.9 Hz above max 3800; pilot was stopped before completion to make a narrower high-shelf adjustment.",
+          "candidate_tone": "high_shelf=-8.0dB@4500Hz;low_shelf=-4.0dB@90Hz"
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-16T14:46:47Z",
+        "summary": "Profile-only Task 059 remediation passed focused tests, guardrail diff checks, and an effective 16-row FluidSynth runtime matrix across classic, punk, indie, hard-rock-as-rock, grunge, and exact 1990s rock controls.",
+        "runtime_evidence": {
+          "summary": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742\\rock_family_remediation_059_effective_summary.json",
+          "aggregate": {
+            "run_count": 16,
+            "pass_count": 16,
+            "failure_count": 0,
+            "overall_status": "PASS",
+            "centroid_min_hz": 3437.9,
+            "centroid_max_hz": 4337.2,
+            "sub_bass_min": 0.0944,
+            "sub_bass_max": 0.1264
+          },
+          "candidate_tone": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+          "all_rows_renderer_path": "fluidsynth",
+          "all_rows_profile": "rock:rock",
+          "all_rows_audio_analysis_passed": true,
+          "all_rows_issues_empty": true
+        },
+        "tests": [
+          {
+            "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q",
+            "result": "PASS: 31 passed, 2 warnings"
+          }
+        ],
+        "guardrails": [
+          "No analyzer target relaxation; multimodal_gen/output_analyzer.py unchanged.",
+          "Parser, MIDI generator, rock strategy, arranger, scripts, assets, and tracked output diagnostics unchanged.",
+          "Jazz profile remains high_shelf=-5.0dB@4000Hz; classical/trap/default profiles remain no-op.",
+          "Only source/test implementation files changed: multimodal_gen/fluidsynth_profiles.py, tests/test_fluidsynth_profiles.py, tests/test_audio_renderer.py, plus docs/state."
+        ]
+      },
+      "result": {
+        "status": "PASS",
+        "summary": "Task 059 closes with profile-only rock FluidSynth shelves high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz and 16/16 effective runtime rows passing.",
+        "files_modified": [
+          "multimodal_gen\\fluidsynth_profiles.py",
+          "tests\\test_fluidsynth_profiles.py",
+          "tests\\test_audio_renderer.py",
+          "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github\\state\\orchestration.json",
+          ".github\\state\\context.json",
+          ".github\\state\\memory.json"
+        ],
+        "runtime_summary": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742\\rock_family_remediation_059_effective_summary.json",
+        "aggregate": {
+          "run_count": 16,
+          "pass_count": 16,
+          "failure_count": 0,
+          "overall_status": "PASS",
+          "centroid_min_hz": 3437.9,
+          "centroid_max_hz": 4337.2,
+          "sub_bass_min": 0.0944,
+          "sub_bass_max": 0.1264
+        }
+      }
+    },
     {
       "id": "rock-family-baseline-measurement-058",
       "description": "Run rock-family first-seed FluidSynth baselines for classic_rock, grunge, punk_rock, indie_rock, and hard-rock-as-rock before any tuning; repeat only FAIL/WATCH cases.",
@@ -3974,16 +4440,16 @@
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "aggregate",
+  "current_phase": "completed",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-16T09:08:43Z",
-    "total_tasks_completed": 71,
+    "last_updated": "2026-05-16T14:46:47Z",
+    "total_tasks_completed": 72,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "supervisor-review-runtime-matrix"
+    "next_phase": "next-measured-cross-genre-or-rock-family-maturity-slice"
   },
   "sprint_11": {
     "status": "COMPLETE",
