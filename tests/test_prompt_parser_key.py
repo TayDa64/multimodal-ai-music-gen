@@ -91,6 +91,23 @@ def test_warm_saxophone_jazz_prompt_preserves_explicit_sax_not_generic_brass():
     assert "brass" not in parsed.instruments
 
 
+def test_classic_rock_hammond_prompt_preserves_organ_cue():
+    parsed = PromptParser().parse(
+        "classic rock anthem with crunchy electric guitar, Hammond organ, "
+        "melodic bass guitar, live drums, verse chorus bridge, 108 BPM in A minor"
+    )
+
+    assert parsed.genre == "classic_rock"
+    assert parsed.bpm == 108
+    assert parsed.key == "A"
+    assert parsed.scale_type.name.lower() == "minor"
+    assert "guitar" in parsed.instruments
+    assert "bass" in parsed.instruments
+    assert "organ" in parsed.instruments
+    assert "choir" not in parsed.instruments
+    assert "808" not in parsed.drum_elements
+
+
 def test_explicit_jazz_horns_stay_distinct_while_brass_section_stays_generic():
     parser = PromptParser()
 

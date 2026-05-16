@@ -1,7 +1,63 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-16-rock-family-remediation-059",
+  "session_id": "session-2026-05-16-classic-rock-hammond-organ-060",
   "files_touched": [
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 060 classic-rock Hammond workflow smoke, semantic gap, fix, and runtime proof."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 060 semantic-instrumentation learning and Hammond preservation decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 060 files, tests, runtime proof, and latest validation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Opened and completed Task 060 with measurement-before-implementation, implementation, tests, runtime proof, and post-verifier PASS."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added regression that classic-rock Hammond prompt keeps guitar chords/bass and adds a separate GM organ bed."
+    },
+    {
+      "path": "tests\\test_prompt_parser_key.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added regression that classic-rock Hammond prompt preserves organ without choir/808 fallback."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added explicit rock-family organ bed routing gated by raw organ/Hammond prompt cues and preserved guitar chord routing."
+    },
+    {
+      "path": "multimodal_gen\\prompt_parser.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T15:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added organ/Hammond/drawbar/tonewheel instrument aliases."
+    },
     {
       "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "action": "modified",
@@ -5193,15 +5249,21 @@
     }
   ],
   "last_validation": {
-    "task_id": "rock-family-sub-bass-brightness-remediation-059",
-    "timestamp": "2026-05-16T14:46:47Z",
-    "type": "post_verifier",
+    "task_id": "classic-rock-hammond-organ-workflow-060",
+    "timestamp": "2026-05-16T15:15:00Z",
+    "type": "workflow_runtime_post_verifier",
     "result": "PASS",
-    "summary_path": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742\\rock_family_remediation_059_effective_summary.json",
-    "run_root": "output\\_diagnostics\\rock_family_remediation_059\\effective_20260516_0742",
-    "details": "Task 059 complete: profile-only rock:rock tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz; effective 16-row FluidSynth proof PASS with failure_count=0; focused tests and guardrails passed."
+    "summary_path": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060\\classic_rock_108.0bpm_Aminor_20260516_080241_render_report.json",
+    "run_root": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060",
+    "details": "Task 060 complete: classic-rock Hammond prompt direct main.py FluidSynth proof exited 0, parsed instruments include organ/guitar/bass, MIDI includes Chords GM 30 Guitar plus Organ GM 16, Bass GM 34, live drums, renderer_path=fluidsynth, profile=rock:rock, tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz, audio_analysis.passed=true."
   },
   "changes": [
+    {
+      "file": "classic-rock-hammond-organ-workflow-060",
+      "description": "Completed classic-rock Hammond organ workflow validation and semantic-instrumentation fix.",
+      "diff_summary": "Added organ/Hammond parser aliases and explicit rock-family auxiliary organ bed routing, with parser/MIDI regressions and a direct FluidSynth runtime proof showing parsed organ plus MIDI GM organ program 16 while preserving guitar/bass/live drums and Task 059 rock profile.",
+      "timestamp": "2026-05-16T15:15:00Z"
+    },
     {
       "file": "rock-jazz-post054-cross-genre-listening-validation-055",
       "description": "Completed post-054 paired rock/jazz FluidSynth listening validation without source changes.",

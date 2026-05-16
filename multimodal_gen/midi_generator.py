@@ -268,6 +268,25 @@ def _has_bass_guitar_request(parsed: ParsedPrompt) -> bool:
     )
 
 
+def _has_explicit_organ_request(parsed: ParsedPrompt) -> bool:
+    """Return True when the prompt/instruments explicitly request organ/Hammond keys."""
+    import re
+
+    aliases = {
+        'organ', 'organs', 'hammond', 'hammond_organ', 'hammond organ',
+        'drawbar_organ', 'drawbar organ', 'tonewheel_organ', 'tonewheel organ',
+    }
+    instruments_norm = {str(inst).strip().lower().replace('-', '_') for inst in getattr(parsed, 'instruments', [])}
+    instruments_spaced = {inst.replace('_', ' ') for inst in instruments_norm}
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    raw_has_organ_cue = any(
+        re.search(r'\b' + re.escape(phrase) + r'\b', raw_prompt)
+        for phrase in ('organ', 'organs', 'hammond', 'drawbar organ', 'tonewheel organ')
+    )
+
+    return (bool(instruments_norm & aliases) or bool(instruments_spaced & aliases)) and raw_has_organ_cue
+
+
 def _rock_family_bass_program(parsed: ParsedPrompt) -> Optional[int]:
     """Choose a GM electric-bass program for rock-family bass guitar contexts.
 
@@ -1795,9 +1814,10 @@ class MidiGenerator:
             for trk in secondary:
                 mid.tracks.append(trk)
 
-        # Optional: Organ bed for churchy trap keys
+        # Optional: Organ bed for churchy trap keys and explicit classic-rock Hammond cues.
         wants_church = any(m in parsed.style_modifiers for m in ['church', 'gospel', 'zaytoven']) or ('zaytoven' in (parsed.raw_prompt or '').lower())
-        if parsed.genre in ['trap', 'trap_soul'] and wants_church:
+        wants_rock_organ_bed = _genre_norm_for_chords in ROCK_FAMILY_GENRES and _has_explicit_organ_request(parsed)
+        if (parsed.genre in ['trap', 'trap_soul'] and wants_church) or wants_rock_organ_bed:
             organ_track = self._create_organ_track(arrangement, parsed, groove_template)
             if len(organ_track) > 1:
                 mid.tracks.append(organ_track)
@@ -2922,6 +2942,7 @@ class MidiGenerator:
         """Generate an organ bed (church feel) under the piano."""
         track = MidiTrack()
         track.append(MetaMessage('track_name', name='Organ', time=0))
+        track.append(MetaMessage('text', text='instrument:Organ', time=0))
         track.append(Message('program_change', program=16, channel=4, time=0))
 
         all_notes = []

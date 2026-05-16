@@ -1,11 +1,144 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-rock-family-remediation-059",
-    "started": "2026-05-16T09:17:07Z",
-    "user_request": "Continue from Task 058 into the next measured remediation step for rock-family failures."
+    "id": "session-2026-05-16-classic-rock-hammond-organ-060",
+    "started": "2026-05-16T15:15:00Z",
+    "user_request": "Test classic rock generation through the workflow, use the findings for guidance, then continue implementation."
   },
   "task_queue": [
+    {
+      "id": "classic-rock-hammond-organ-workflow-060",
+      "description": "Validate the classic-rock workflow with a semantically rich Hammond-organ prompt, then minimally preserve the explicit organ cue in parsing and MIDI while keeping the existing rock FluidSynth profile, guitar, bass, and live drums intact.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-family-sub-bass-brightness-remediation-059",
+        "cross-genre-maturity-matrix-baseline-plan-057"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/prompt_parser.py",
+        "multimodal_gen/midi_generator.py",
+        "tests/test_prompt_parser_key.py",
+        "tests/test_midi_generator.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T15:15:00Z",
+      "updated": "2026-05-16T15:15:00Z",
+      "measurement_before_implementation": {
+        "run_root": "output\\_diagnostics\\classic_rock_workflow_060\\run_20260516_075337",
+        "render_report": "output\\_diagnostics\\classic_rock_workflow_060\\run_20260516_075337\\classic_rock_108.0bpm_Aminor_20260516_075341_render_report.json",
+        "status": "AUDIO_PASS_SEMANTIC_GAP",
+        "findings": [
+          "Direct main.py FluidSynth run exited 0 and audio_analysis.passed=true with renderer_path=fluidsynth and profile=rock:rock.",
+          "The prompt explicitly requested Hammond organ, but parsed instruments were only guitar and bass.",
+          "MIDI contained Drums, Bass program 34, Chords program 30, and Melody program 80, but no organ GM program 16-23."
+        ]
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/prompt_parser.py",
+          "multimodal_gen/midi_generator.py",
+          "tests/test_prompt_parser_key.py",
+          "tests/test_midi_generator.py"
+        ],
+        "summary": "Added organ/Hammond/drawbar/tonewheel parser aliases and an explicit rock-family organ bed path that preserves the guitar chord track while adding a separate GM drawbar-organ track for prompts that actually mention organ/Hammond.",
+        "guardrails_preserved": [
+          "No analyzer target changes.",
+          "No FluidSynth profile changes; rock:rock remains high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz.",
+          "No jazz/classical/trap/default profile changes.",
+          "Guitar chord routing and rock-family electric bass routing remain intact.",
+          "Organ bed is gated by an explicit raw-prompt organ/Hammond cue to avoid adding default organ to every classic_rock generation."
+        ]
+      },
+      "tests": [
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_prompt_parser_key.py tests/test_midi_generator.py -q",
+          "result": "PASS: 25 passed"
+        },
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py tests/test_prompt_parser_key.py tests/test_midi_generator.py -q",
+          "result": "PASS: 56 passed, 2 existing dependency warnings"
+        }
+      ],
+      "runtime_proof": {
+        "command": ".\\.venv\\Scripts\\python.exe .\\main.py \"classic rock anthem with crunchy electric guitar, Hammond organ, melodic bass guitar, live drums, verse chorus bridge, 108 BPM in A minor\" --output output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060 --duration-bars 16 --seed 60060 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060",
+        "render_report": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060\\classic_rock_108.0bpm_Aminor_20260516_080241_render_report.json",
+        "midi": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060\\classic_rock_108.0bpm_Aminor_20260516_080241.mid",
+        "audio": "output\\_diagnostics\\classic_rock_workflow_060\\post_hammond_fix_60060\\classic_rock_108.0bpm_Aminor_20260516_080241.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "skip_reason": null,
+        "profile": "rock:rock",
+        "tone_shaping": "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz",
+        "parsed_genre": "classic_rock",
+        "parsed_instruments": [
+          "organ",
+          "guitar",
+          "bass"
+        ],
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 1.0,
+          "centroid_hz": 3564.4,
+          "sub_bass_energy_ratio": 0.1017,
+          "percussive_ratio": 0.181,
+          "onset_density": 3.85,
+          "has_kick": true,
+          "has_snare_or_clap": true,
+          "has_hihats": true
+        },
+        "midi_tracks": [
+          {
+            "name": "Drums",
+            "note_on": 298
+          },
+          {
+            "name": "Bass",
+            "program": 34,
+            "channel": 1,
+            "text": "instrument:Bass Guitar",
+            "note_on": 128
+          },
+          {
+            "name": "Chords",
+            "program": 30,
+            "channel": 2,
+            "text": "instrument:Guitar",
+            "note_on": 84
+          },
+          {
+            "name": "Organ",
+            "program": 16,
+            "channel": 4,
+            "text": "instrument:Organ",
+            "note_on": 32
+          },
+          {
+            "name": "Melody",
+            "program": 80,
+            "channel": 3,
+            "text": "instrument:Melody",
+            "note_on": 16
+          }
+        ]
+      },
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-16T15:15:00Z",
+        "summary": "Focused tests, renderer/profile guard tests, direct FluidSynth workflow proof, MIDI inspection, and git guardrails all passed. The classic-rock Hammond prompt now preserves organ in parsed instruments and MIDI while retaining guitar, bass, live drums, and the Task 059 rock profile."
+      },
+      "result": {
+        "status": "completed",
+        "summary": "Classic-rock workflow smoke is now audio-green and semantically preserves the explicit Hammond organ cue with a separate GM organ track."
+      }
+    },
     {
       "id": "rock-family-sub-bass-brightness-remediation-059",
       "description": "Diagnose and minimally remediate measured Task 058 rock-family failures: repeatable sub-bass excess in classic_rock, punk_rock, indie_rock, and hard-rock-as-rock, plus centroid/brightness issues in classic/indie/hard, while preserving grunge and exact-rock controls.",

@@ -574,6 +574,10 @@ INSTRUMENT_KEYWORDS: Dict[str, List[str]] = {
         'rhodes', 'fender rhodes', 'electric piano', 'wurly',
         'wurlitzer'
     ],
+    'organ': [
+        'organ', 'organs', 'hammond', 'hammond organ',
+        'drawbar organ', 'tonewheel organ'
+    ],
     'synth': [
         'synth', 'synthesizer', 'analog', 'digital synth', 'lead synth'
     ],

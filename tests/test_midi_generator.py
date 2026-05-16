@@ -53,6 +53,10 @@ def _melody_track(mid: MidiFile) -> MidiTrack:
     return _track_by_name(mid, "Melody")
 
 
+def _organ_track(mid: MidiFile) -> MidiTrack:
+    return _track_by_name(mid, "Organ")
+
+
 def _track_by_name(mid: MidiFile, name: str) -> MidiTrack:
     for track in mid.tracks:
         if any(msg.type == "track_name" and msg.name == name for msg in track):
@@ -76,6 +80,10 @@ def _channel_1_program(track: MidiTrack) -> int:
 
 def _channel_3_program(track: MidiTrack) -> int:
     return _channel_program(track, 3)
+
+
+def _channel_4_program(track: MidiTrack) -> int:
+    return _channel_program(track, 4)
 
 
 def _text_markers(track: MidiTrack) -> list[str]:
@@ -136,6 +144,30 @@ def test_exact_1990s_rock_prompt_bass_track_uses_electric_bass_guitar_not_synth_
     assert program in {33, 34}
     assert program not in {38, 39}
     assert "instrument:Bass Guitar" in text_markers
+
+
+def test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed():
+    parsed = PromptParser().parse(
+        "classic rock anthem with crunchy electric guitar, Hammond organ, "
+        "melodic bass guitar, live drums, verse chorus bridge, 108 BPM in A minor"
+    )
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    chords = _chords_track(mid)
+    organ = _organ_track(mid)
+    bass = _bass_track(mid)
+
+    assert parsed.genre == "classic_rock"
+    assert {"guitar", "bass", "organ"}.issubset(set(parsed.instruments))
+    assert _channel_2_program(chords) == 30
+    assert "instrument:Guitar" in _text_markers(chords)
+    assert _channel_4_program(organ) == 16
+    assert "instrument:Organ" in _text_markers(organ)
+    assert _note_on_pitches(organ)
+    assert _channel_1_program(bass) == 34
 
 
 def test_non_rock_bass_track_preserves_synth_bass_program():

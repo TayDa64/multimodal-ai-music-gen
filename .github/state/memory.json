@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Treat audio-green prompt smokes as semantic instrumentation audits too",
+        "context": "Task 060 showed the classic-rock Hammond prompt could pass renderer/audio analysis while dropping the explicit organ cue. The safe fix was not more mastering: preserve the prompt-level organ/Hammond alias in the parser, then add a separate explicit rock-family organ bed in MIDI so guitar chords and electric bass remain intact. Runtime proof passed with renderer_path=fluidsynth, profile=rock:rock, parsed instruments organ/guitar/bass, Chords GM 30 Guitar, Organ GM 16, Bass GM 34, and audio_analysis.passed=true.",
+        "timestamp": "2026-05-16T15:15:00Z"
+      },
+      {
         "pattern": "After process interruptions, aggregate only valid render reports and rerun null rows directly with absolute SoundFont paths",
         "context": "Task 059 full matrix produced six valid PASS reports, then null/no-report process interruptions; one indie retry had transient require_soundfont preflight. The accepted proof reran affected rows in smaller direct main.py batches using the absolute FluidR3Mono_GM.sf3 path, then aggregated 16 valid render reports with renderer_path=fluidsynth, profile=rock:rock, tone high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz, audio_analysis.passed=true, and no issues.",
         "timestamp": "2026-05-16T14:46:47Z"
@@ -530,6 +535,17 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Preserve explicit Hammond organ cues in classic_rock by adding parser aliases and an auxiliary organ MIDI bed, not by changing rock mastering.",
+      "rationale": "The pre-fix classic-rock workflow smoke was spectrally green but semantically incomplete: Hammond organ was absent from parsed instruments and MIDI. Adding organ/Hammond aliases plus a raw-prompt-gated rock-family organ bed preserves the requested arrangement while retaining the Task 059 rock FluidSynth profile, guitar chord track, electric bass, live drums, and analyzer targets.",
+      "alternatives_considered": [
+        "Change FluidSynth tone/profile despite audio already passing",
+        "Rely on classic_rock default organ only when no explicit instruments are parsed",
+        "Replace the guitar chord track with organ instead of adding an auxiliary bed",
+        "Add organ to every classic_rock generation even when the prompt does not mention organ/Hammond"
+      ],
+      "timestamp": "2026-05-16T15:15:00Z"
+    },
     {
       "decision": "Close Task 059 with the profile-only rock FluidSynth shelves high_shelf=-10.0dB@4000Hz and low_shelf=-4.0dB@90Hz.",
       "rationale": "The effective recovered runtime matrix passed 16/16 rows across classic_rock, punk_rock, indie_rock, hard-rock-as-rock, grunge, and exact 1990s rock controls, with sub-bass max 0.1264 and centroid max 4337.2 while preserving analyzer targets and non-rock/jazz behavior.",
