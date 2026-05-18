@@ -70,7 +70,13 @@ JAZZ_FAMILY_GENRES = frozenset({
     "jazz",
     "smooth_jazz",
     "bebop",
+})
+
+ETHIOPIAN_FAMILY_GENRES = frozenset({
+    "ethiopian",
     "ethio_jazz",
+    "ethiopian_traditional",
+    "eskista",
 })
 
 TRAP_MODERN_BEAT_FAMILY_GENRES = frozenset({
@@ -129,7 +135,11 @@ _GENRE_ALIASES: Dict[str, str] = {
     "jazz": "jazz",
     "smooth_jazz": "smooth_jazz",
     "bebop": "bebop",
+    # Ethiopian family no-op profile
+    "ethiopian": "ethiopian",
     "ethio_jazz": "ethio_jazz",
+    "ethiopian_traditional": "ethiopian_traditional",
+    "eskista": "eskista",
     # R&B / neo-soul no-op family
     "rnb": "rnb",
     "r_and_b": "rnb",
@@ -226,6 +236,13 @@ JAZZ_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     tone_shelves=JAZZ_TONE_SHELVES,
 )
 
+ETHIOPIAN_FAMILY_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
+    name="ethiopian_family",
+    genre_family="ethio_jazz",
+    aliases=tuple(sorted(ETHIOPIAN_FAMILY_GENRES)),
+    tone_shelves=(),
+)
+
 TRAP_MODERN_BEAT_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     name="trap_modern_beat",
     genre_family="modern_beat",
@@ -258,6 +275,7 @@ FLUIDSYNTH_RENDERER_PROFILES: Tuple[FluidSynthRendererProfile, ...] = (
     ROCK_FLUIDSYNTH_PROFILE,
     CLASSICAL_FLUIDSYNTH_PROFILE,
     JAZZ_FLUIDSYNTH_PROFILE,
+    ETHIOPIAN_FAMILY_FLUIDSYNTH_PROFILE,
     RNB_NEOSOUL_FLUIDSYNTH_PROFILE,
     LOFI_BOOM_BAP_FLUIDSYNTH_PROFILE,
     HOUSE_AMBIENT_POP_FLUIDSYNTH_PROFILE,

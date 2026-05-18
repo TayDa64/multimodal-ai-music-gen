@@ -1,11 +1,127 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-18-house-ambient-pop-067",
-    "started": "2026-05-18T18:20:00Z",
-    "user_request": "Continue with Tasks 066-068 before consolidation and UI/UX; Task 067 implements house/ambient/pop deterministic parity."
+    "id": "session-2026-05-18-ethiopian-family-068",
+    "started": "2026-05-18T18:35:00Z",
+    "user_request": "Complete Task 068 Ethiopian-family deterministic parity before consolidation and UI/UX."
   },
   "task_queue": [
+    {
+      "id": "ethiopian-family-deterministic-parity-068",
+      "description": "Align Ethiopian/ethio_jazz short arrangement, session metadata, percussion sample generation, and explicit no-op FluidSynth profile for the 16-bar Ethiopian jazz workflow without analyzer or renderer tuning.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "house-ambient-pop-deterministic-parity-067",
+        "cross-genre-maturity-matrix-baseline-plan-057"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/arranger.py",
+        "multimodal_gen/session_graph.py",
+        "multimodal_gen/fluidsynth_profiles.py",
+        "multimodal_gen/assets_gen.py",
+        "tests/test_arranger_ethiopian_family.py",
+        "tests/test_session_graph_ethiopian_family.py",
+        "tests/test_fluidsynth_profiles.py",
+        "tests/test_assets_gen.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-18T18:35:00Z",
+      "updated": "2026-05-18T18:35:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Baseline parsed ethio_jazz and produced audio_analysis.passed=true, but --duration-bars 16 inflated to 32 bars/8 sections, profile was jazz:jazz with a jazz shelf, manifest duplicated Bass as lead instead of the explicit melody, and parsed perc generated no sample artifacts."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/arranger.py",
+          "multimodal_gen/session_graph.py",
+          "multimodal_gen/fluidsynth_profiles.py",
+          "multimodal_gen/assets_gen.py",
+          "tests/test_arranger_ethiopian_family.py",
+          "tests/test_session_graph_ethiopian_family.py",
+          "tests/test_fluidsynth_profiles.py",
+          "tests/test_assets_gen.py"
+        ],
+        "summary": "Added Ethiopian-family preserved 4x4 short arc, stable Drums/Bass/Melody session graph branch, explicit no-op ethiopian_family:ethio_jazz FluidSynth profile, and perc/kebero procedural sample aliases.",
+        "guardrails_preserved": [
+          "No analyzer target relaxation.",
+          "No audio_renderer.py changes.",
+          "No midi_generator.py changes; explicit pentatonic Melody remains expected.",
+          "No tone shelves added for Ethiopian family.",
+          "Runtime diagnostics and audio/MIDI artifacts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest -p no:cacheprovider tests/test_arranger_ethiopian_family.py tests/test_session_graph_ethiopian_family.py tests/test_fluidsynth_profiles.py tests/test_assets_gen.py tests/test_arranger_motifs.py tests/test_arranger_house_ambient_pop.py tests/test_session_graph_house_ambient_pop.py tests/test_arranger_lofi_boom_bap.py tests/test_session_graph_lofi_boom_bap.py tests/test_arranger_rnb_neosoul.py tests/test_session_graph_rnb_neosoul.py -q",
+          "result": "PASS: 77 passed"
+        }
+      ],
+      "runtime_proof": {
+        "command": "python main.py \"Ethiopian jazz inspired groove with pentatonic melody, bass, hand percussion feel, 104 BPM in G minor\" --output output\\_diagnostics\\ethiopian_workflow_068\\post_contract_68068 --duration-bars 16 --seed 68068 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\ethiopian_workflow_068\\post_contract_68068",
+        "render_report": "output\\_diagnostics\\ethiopian_workflow_068\\post_contract_68068\\ethio_jazz_104.0bpm_Gminor_20260518_112600_render_report.json",
+        "manifest": "output\\_diagnostics\\ethiopian_workflow_068\\post_contract_68068\\session_manifest.json",
+        "midi": "output\\_diagnostics\\ethiopian_workflow_068\\post_contract_68068\\ethio_jazz_104.0bpm_Gminor_20260518_112600.mid",
+        "audio": "output\\_diagnostics\\ethiopian_workflow_068\\post_contract_68068\\ethio_jazz_104.0bpm_Gminor_20260518_112600.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "render_status_success": true,
+        "profile": "ethiopian_family:ethio_jazz",
+        "tone_shaping": null,
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 0.987,
+          "issues": [
+            "Drum presence 0.053 below expected 0.08 for ethio_jazz"
+          ]
+        },
+        "total_bars": 16,
+        "manifest_tracks": [
+          {
+            "name": "Drums",
+            "role": "drums",
+            "channel": 9
+          },
+          {
+            "name": "Bass",
+            "role": "bass",
+            "channel": 1
+          },
+          {
+            "name": "Melody",
+            "role": "lead",
+            "channel": 3
+          }
+        ],
+        "midi_contract": {
+          "track_names": [
+            "Meta",
+            "Drums",
+            "Bass",
+            "Melody"
+          ],
+          "bass_program_zero_based": 38,
+          "melody_program_zero_based": 80,
+          "explicit_pentatonic_melody_present": true
+        },
+        "samples": [
+          "shaker.wav"
+        ]
+      },
+      "post_verifier": {
+        "verdict": "PASS_MANUAL",
+        "timestamp": "2026-05-18T18:35:00Z",
+        "summary": "Focused tests passed and direct CLI proof confirmed 16 bars, ethiopian_family profile with no tone shelf, stable Drums/Bass/Melody manifest, expected explicit pentatonic MIDI Melody, and shaker sample generation."
+      }
+    },
     {
       "id": "house-ambient-pop-deterministic-parity-067",
       "description": "Align house/ambient/pop short arrangement, session metadata, and explicit no-op FluidSynth profile for the 16-bar atmospheric house pop workflow without analyzer or renderer tuning.",

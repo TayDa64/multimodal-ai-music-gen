@@ -2966,6 +2966,12 @@ class AssetsGenerator:
                 'hihat_closed': 'hihat',
                 'hihat_open': 'hihat_open',
                 'rim': 'rim',
+                'perc': 'shaker',
+                'percussion': 'shaker',
+                'hand_percussion': 'shaker',
+                'hand_perc': 'shaker',
+                'shaker': 'shaker',
+                'kebero': 'kebero',
             }
             source_elements = [drum_elements] if isinstance(drum_elements, str) else drum_elements
             requested = []
@@ -3023,6 +3029,24 @@ class AssetsGenerator:
             path = os.path.join(self.output_dir, 'rim.wav')
             save_wav(audio, path, self.sample_rate)
             kit['rim'] = path
+
+        # Ethiopian/hand percussion aliases used by parsed prompts.
+        if 'shaker' in requested:
+            audio = generate_shaker_hit(sample_rate=self.sample_rate)
+            path = os.path.join(self.output_dir, 'shaker.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['shaker'] = path
+
+        if 'kebero' in requested:
+            audio = generate_kebero_hit(pitch=50, sample_rate=self.sample_rate)
+            path = os.path.join(self.output_dir, 'kebero_bass.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['kebero_bass'] = path
+
+            audio = generate_kebero_hit(pitch=51, sample_rate=self.sample_rate)
+            path = os.path.join(self.output_dir, 'kebero_slap.wav')
+            save_wav(audio, path, self.sample_rate)
+            kit['kebero_slap'] = path
         
         return kit
     

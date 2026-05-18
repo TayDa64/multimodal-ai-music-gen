@@ -1,7 +1,91 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-18-house-ambient-pop-067",
+  "session_id": "session-2026-05-18-ethiopian-family-068",
   "files_touched": [
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 068 learning."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 068 files and verification."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 068 final proof."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 068 baseline, fix, and proof."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added perc/shaker and kebero sample-generation regressions."
+    },
+    {
+      "path": "tests\\test_fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added Ethiopian-family profile regression and separated ethio_jazz from generic jazz shelf."
+    },
+    {
+      "path": "tests\\test_session_graph_ethiopian_family.py",
+      "action": "created",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added Ethiopian-family session graph regressions."
+    },
+    {
+      "path": "tests\\test_arranger_ethiopian_family.py",
+      "action": "created",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added compact Ethiopian-family arrangement regressions."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Mapped perc/hand-percussion to shaker and kebero to hand-drum samples."
+    },
+    {
+      "path": "multimodal_gen\\fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added no-op ethiopian_family profile and kept generic jazz shelf separate."
+    },
+    {
+      "path": "multimodal_gen\\session_graph.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added Ethiopian-family Drums/Bass/Melody session graph branch and conservative explicit Ethiopian instrument roles."
+    },
+    {
+      "path": "multimodal_gen\\arranger.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T18:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added Ethiopian-family compact 16-bar template."
+    },
     {
       "path": ".github\\state\\memory.json",
       "action": "modified",
@@ -3603,6 +3687,12 @@
   ],
   "changes_made": [
     {
+      "file": "Task 068 Ethiopian-family deterministic parity",
+      "description": "Aligned arrangement, session graph, profile identity, and procedural percussion sample generation for Ethiopian jazz workflow.",
+      "diff_summary": "No analyzer, audio renderer, or MIDI generator changes; explicit pentatonic MIDI preserved.",
+      "timestamp": "2026-05-18T18:35:00Z"
+    },
+    {
       "file": "Task 067 house/ambient/pop deterministic parity",
       "description": "Aligned arrangement, session graph, and profile identity for atmospheric house pop workflow.",
       "diff_summary": "No analyzer, audio renderer, or MIDI generator changes; explicit hook MIDI preserved.",
@@ -4442,6 +4532,13 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Task 068 final workflow proof",
+      "result": "PASS",
+      "details": "77 tests passed; direct CLI FluidSynth run exited 0 and produced ethiopian_family:ethio_jazz render report with 16-bar manifest, expected Melody contract, and shaker sample.",
+      "timestamp": "2026-05-18T18:35:00Z"
+    },
     {
       "type": "post",
       "target": "Task 067 final workflow proof",

@@ -1283,6 +1283,9 @@ class SessionGraphBuilder:
         house_ambient_pop_family_genres = {
             'house', 'ambient', 'pop', 'dance_pop', 'electropop',
         }
+        ethiopian_family_genres = {
+            'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista',
+        }
 
         if genre_norm in orchestral_family_genres:
             return self._create_orchestral_tracks(graph, parsed, instrument_names, raw_prompt)
@@ -1294,6 +1297,8 @@ class SessionGraphBuilder:
             return self._create_lofi_boom_bap_tracks(graph, parsed, instrument_names, raw_prompt)
         if genre_norm in house_ambient_pop_family_genres:
             return self._create_house_ambient_pop_tracks(graph, parsed, instrument_names, raw_prompt)
+        if genre_norm in ethiopian_family_genres:
+            return self._create_ethiopian_family_tracks(graph, parsed, instrument_names, raw_prompt)
 
         channel = 0
         
@@ -1532,6 +1537,58 @@ class SessionGraphBuilder:
         if has_lead:
             lead_name = "Hook Synth" if has_hook or 'synth' in searchable else "Melody"
             _add_track(lead_name, Role.LEAD.value, 3)
+
+        return graph
+
+    def _create_ethiopian_family_tracks(
+        self,
+        graph: SessionGraph,
+        parsed,
+        instrument_names: List[str],
+        raw_prompt: str,
+    ) -> SessionGraph:
+        """Create Ethiopian-family tracks without generic duplicate leads."""
+        searchable = " ".join([raw_prompt] + instrument_names)
+
+        def _add_track(name: str, role: str, channel: int):
+            track = graph.add_track(name, role, channel=channel)
+            track.color = self.default_track_colors.get(role, "#808080")
+            return track
+
+        drums_track = _add_track("Drums", Role.DRUMS.value, 9)
+        drums_track.player_profile = getattr(parsed, 'humanization_profile', 'natural')
+
+        _add_track("Bass", Role.BASS.value, 1)
+
+        explicit_ethiopian_instruments = {
+            'krar': ("Krar", Role.ETHIOPIAN_STRING.value, 2),
+            'masenqo': ("Masenqo", Role.ETHIOPIAN_STRING.value, 2),
+            'begena': ("Begena", Role.ETHIOPIAN_STRING.value, 2),
+            'washint': ("Washint", Role.ETHIOPIAN_WIND.value, 3),
+            'kebero': ("Kebero", Role.ETHIOPIAN_DRUM.value, 4),
+        }
+        created_roles = {Role.DRUMS.value, Role.BASS.value}
+        reserved_channels = {1, 9}
+
+        for inst, (name, role, preferred_channel) in explicit_ethiopian_instruments.items():
+            if inst not in searchable or role in created_roles:
+                continue
+            channel = preferred_channel
+            while channel in reserved_channels:
+                channel += 1
+            _add_track(name, role, channel)
+            created_roles.add(role)
+            reserved_channels.add(channel)
+
+        melody_cues = (
+            'melody', 'melodic', 'pentatonic', 'lead', 'solo',
+            'improvisation', 'improv', 'horn', 'sax', 'saxophone',
+        )
+        if any(cue in searchable for cue in melody_cues) and Role.LEAD.value not in created_roles:
+            channel = 3
+            while channel in reserved_channels:
+                channel += 1
+            _add_track("Melody", Role.LEAD.value, channel)
 
         return graph
 

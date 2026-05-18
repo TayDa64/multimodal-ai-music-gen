@@ -113,8 +113,18 @@ def test_house_ambient_pop_profile_is_explicit_noop():
         assert profile_tone_shelves_diagnostic(profile) == ""
 
 
+def test_ethiopian_family_profile_is_explicit_noop():
+    for genre in ["ethiopian", "ethio jazz", "ethio_jazz", "ethiopian traditional", "eskista"]:
+        profile = get_fluidsynth_profile(genre)
+        assert profile.name == "ethiopian_family"
+        assert profile.genre_family == "ethio_jazz"
+        assert profile_diagnostic(profile) == "ethiopian_family:ethio_jazz"
+        assert profile.tone_shelves == ()
+        assert profile_tone_shelves_diagnostic(profile) == ""
+
+
 def test_jazz_aliases_resolve_to_measured_brightness_shelf():
-    for genre in ["jazz", "smooth jazz", "bebop", "ethio jazz"]:
+    for genre in ["jazz", "smooth jazz", "bebop"]:
         profile = get_fluidsynth_profile(genre)
         assert profile.name == "jazz"
         assert profile.genre_family == "jazz"

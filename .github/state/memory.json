@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For Ethiopian-family prompts, separate deterministic identity from generic jazz and preserve explicit pentatonic melody semantics",
+        "context": "Task 068 baseline was audio-green but inflated 16 bars to 32, used generic jazz:jazz with a high shelf, duplicated Bass as lead in the manifest, and generated no sample artifact for parsed perc. The safe slice added an Ethiopian 4x4 compact arc, explicit ethiopian_family:ethio_jazz no-op profile, stable Drums/Bass/Melody UI contract, and perc-to-shaker sample generation while leaving renderer/analyzer/MIDI untouched. Drum-presence warning remains later quality data.",
+        "timestamp": "2026-05-18T18:35:00Z"
+      },
+      {
         "pattern": "For house/ambient/pop, fix short-form, UI track semantics, and no-op profile identity before tone tuning",
         "context": "Task 067 baseline was audio-green but had deterministic parity gaps: 16 bars inflated to 28, FluidSynth profile was default:default, and manifest Pad/Hook Synth roles/channels were misleading versus MIDI. The safe slice added a compact 4x4 arc, stable Drums/Bass/Pad/Hook Synth manifest contract, and house_ambient_pop:house no-op profile while leaving renderer, analyzer, and MIDI generation unchanged. Brightness remains later quality data.",
         "timestamp": "2026-05-18T18:20:00Z"
@@ -575,6 +580,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Do not tune Ethiopian drum-presence warning in Task 068.",
+      "rationale": "Audio analysis passed and the assigned scope covered deterministic arrangement/profile/session/sample parity; tuning drum loudness or analyzer thresholds would exceed scope.",
+      "alternatives_considered": [
+        "Relax drum-presence analyzer target",
+        "Change audio renderer mixing",
+        "Modify MIDI drum generation"
+      ],
+      "timestamp": "2026-05-18T18:35:00Z"
+    },
     {
       "decision": "Defer house brightness tuning after Task 067.",
       "rationale": "Audio analysis passed and the measured gaps were deterministic arrangement/profile/session parity, not a failed quality gate.",
@@ -1445,5 +1460,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T18:20:00Z"
+  "last_updated": "2026-05-18T18:35:00Z"
 }

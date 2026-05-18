@@ -56,6 +56,26 @@ def test_generate_drum_kit_trap_request_includes_808_and_clap(tmp_path):
     assert 'clap.wav' in _sample_names(kit)
 
 
+def test_generate_drum_kit_perc_request_writes_shaker_sample(tmp_path):
+    generator = AssetsGenerator(str(tmp_path))
+
+    kit = generator.generate_drum_kit(['perc'])
+
+    assert list(kit) == ['shaker']
+    assert _sample_names(kit) == {'shaker.wav'}
+    assert (tmp_path / 'shaker.wav').exists()
+    assert not (tmp_path / 'kick.wav').exists()
+
+
+def test_generate_drum_kit_kebero_request_writes_hand_drum_samples(tmp_path):
+    generator = AssetsGenerator(str(tmp_path))
+
+    kit = generator.generate_drum_kit(['kebero'])
+
+    assert list(kit) == ['kebero_bass', 'kebero_slap']
+    assert _sample_names(kit) == {'kebero_bass.wav', 'kebero_slap.wav'}
+
+
 def test_texture_instance_wrappers_write_legacy_file_names(tmp_path):
     generator = AssetsGenerator(str(tmp_path))
 
