@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For lofi/boom-bap/G-Funk, unblock texture wrappers and align arrangement/session/MIDI/profile parity before tone tuning",
+        "context": "Task 066 baseline exposed deterministic parity gaps: 16 bars inflated to 24, CLI texture sample generation called missing AssetsGenerator.generate_vinyl_crackle, and MIDI emitted an unrequested default Melody while the manifest used Drums/Bass/Keys/Vinyl. The safe slice added wrappers, a compact 4x4 arc, stable UI-facing tracks, lofi-family melody suppression unless explicit, and lofi_boom_bap:boom_bap no-op profile. Brightness/drum-presence warnings remain measured quality follow-up data.",
+        "timestamp": "2026-05-18T13:30:00Z"
+      },
+      {
         "pattern": "For R&B/neo-soul, fix short-form, metadata, MIDI identity, and explicit no-op profile before tuning quality warnings",
         "context": "Task 065 baseline already parsed neo_soul, generated non-trap laid-back samples, rendered through FluidSynth, and passed audio analysis, but inflated to 32 bars, duplicated Bass as lead in manifest, used synth bass program 38, added unrequested synth Melody, and reported default:default profile. The safe slice added a compact R&B arc, Drums/Bass/Rhodes manifest, electric-bass program 33, no default Melody unless explicit, and rnb_neosoul:neo_soul no-op profile while preserving analyzer targets.",
         "timestamp": "2026-05-18T10:30:00Z"
@@ -560,6 +565,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Keep Task 066 as deterministic parity only and defer boom-bap tone/drum-presence tuning.",
+      "rationale": "The final proof passed audio analysis but retained warnings, while the measured implementation gaps were workflow semantics and UI/MIDI parity.",
+      "alternatives_considered": [
+        "Analyzer target relaxation",
+        "Audio renderer/mastering changes",
+        "Tone shelves for lofi_boom_bap"
+      ],
+      "timestamp": "2026-05-18T13:30:00Z"
+    },
     {
       "decision": "Selected R&B / neo-soul / trap-soul as Task 065 after trap/modern Task 064 and limited the first implementation to deterministic routing, metadata, arrangement, and profile identity.",
       "rationale": "The cross-genre maturity matrix lists R&B / neo-soul / trap-soul as Tier B priority #3. Runtime baseline passed audio analysis but exposed deterministic semantic gaps; tuning drum detector or EQ first would have hidden metadata/MIDI identity problems.",
@@ -1400,5 +1415,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T10:30:00Z"
+  "last_updated": "2026-05-18T13:30:00Z"
 }

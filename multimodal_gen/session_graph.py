@@ -1277,6 +1277,9 @@ class SessionGraphBuilder:
         rnb_family_genres = {
             'rnb', 'neo_soul', 'trap_soul',
         }
+        lofi_boom_bap_family_genres = {
+            'lofi', 'lo_fi', 'boom_bap', 'g_funk',
+        }
 
         if genre_norm in orchestral_family_genres:
             return self._create_orchestral_tracks(graph, parsed, instrument_names, raw_prompt)
@@ -1284,6 +1287,8 @@ class SessionGraphBuilder:
             return self._create_trap_modern_tracks(graph, parsed, instrument_names, raw_prompt)
         if genre_norm in rnb_family_genres:
             return self._create_rnb_tracks(graph, parsed, instrument_names, raw_prompt)
+        if genre_norm in lofi_boom_bap_family_genres:
+            return self._create_lofi_boom_bap_tracks(graph, parsed, instrument_names, raw_prompt)
 
         channel = 0
         
@@ -1454,6 +1459,39 @@ class SessionGraphBuilder:
         has_melody = any(cue in searchable for cue in melody_cues)
         genre_name = str(getattr(parsed, 'genre', '') or '').lower()
         if has_melody or genre_name in {'trap', 'modern_beat', 'trap_modern_beat'}:
+            _add_track("Melody", Role.LEAD.value, 3)
+
+        return graph
+
+    def _create_lofi_boom_bap_tracks(
+        self,
+        graph: SessionGraph,
+        parsed,
+        instrument_names: List[str],
+        raw_prompt: str,
+    ) -> SessionGraph:
+        """Create lofi/boom-bap/G-Funk tracks without phantom leads."""
+        searchable = " ".join([raw_prompt] + instrument_names)
+
+        def _add_track(name: str, role: str, channel: int):
+            track = graph.add_track(name, role, channel=channel)
+            track.color = self.default_track_colors.get(role, "#808080")
+            return track
+
+        drums_track = _add_track("Drums", Role.DRUMS.value, 9)
+        drums_track.player_profile = getattr(parsed, 'humanization_profile', 'natural')
+
+        _add_track("Bass", Role.BASS.value, 1)
+
+        keys_name = "Piano"
+        if any(cue in searchable for cue in ('keys', 'rhodes', 'electric piano', 'mellow keys', 'warm keys')):
+            keys_name = "Keys"
+        _add_track(keys_name, Role.CHORDS.value, 2)
+
+        if any(cue in searchable for cue in ('vinyl', 'texture', 'crackle', 'rain', 'tape hiss')):
+            _add_track("Vinyl", Role.TEXTURE.value, 4)
+
+        if any(cue in searchable for cue in ('lead', 'melody', 'hook')):
             _add_track("Melody", Role.LEAD.value, 3)
 
         return graph

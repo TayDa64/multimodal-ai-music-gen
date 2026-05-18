@@ -178,6 +178,10 @@ RNB_FAMILY_GENRES = {
     'rnb', 'neo_soul', 'trap_soul'
 }
 
+LOFI_FAMILY_GENRES = {
+    'lofi', 'boom_bap', 'g_funk'
+}
+
 JAZZ_HORN_MELODY_VELOCITY_CAP = 112
 JAZZ_SAX_MELODY_CC74_CAP = 78
 JAZZ_CHORD_CC74_CAP = 78
@@ -234,6 +238,10 @@ def _is_jazz_sax_melody(parsed: ParsedPrompt, horn_choice: Optional[Tuple[str, i
 
 def _is_rnb_family(parsed: ParsedPrompt) -> bool:
     return normalize_genre(getattr(parsed, 'genre', '') or '') in RNB_FAMILY_GENRES
+
+
+def _is_lofi_family(parsed: ParsedPrompt) -> bool:
+    return normalize_genre(getattr(parsed, 'genre', '') or '') in LOFI_FAMILY_GENRES
 
 
 def _has_explicit_melody_cue(parsed: ParsedPrompt) -> bool:
@@ -1864,7 +1872,12 @@ class MidiGenerator:
         ]
         has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
         suppress_rnb_default_melody = _is_rnb_family(parsed) and not _has_explicit_melody_cue(parsed)
-        if (parsed.genre not in ['ambient', 'lofi'] or has_melody_inst) and not suppress_rnb_default_melody:
+        suppress_lofi_default_melody = _is_lofi_family(parsed) and not _has_explicit_melody_cue(parsed)
+        if (
+            (parsed.genre not in ['ambient', 'lofi'] or has_melody_inst)
+            and not suppress_rnb_default_melody
+            and not suppress_lofi_default_melody
+        ):
             melody_track = self._create_melody_track(arrangement, parsed, groove_template)
             if len(melody_track) > 1:  # Has notes beyond track name
                 mid.tracks.append(melody_track)

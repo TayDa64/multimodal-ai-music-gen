@@ -93,6 +93,16 @@ def test_rnb_neosoul_profile_is_explicit_noop():
         assert profile_tone_shelves_diagnostic(profile) == ""
 
 
+def test_lofi_boom_bap_profile_is_explicit_noop():
+    for genre in ["lofi", "lo-fi", "lo fi", "boom bap", "boom_bap", "g funk", "g_funk"]:
+        profile = get_fluidsynth_profile(genre)
+        assert profile.name == "lofi_boom_bap"
+        assert profile.genre_family == "boom_bap"
+        assert profile_diagnostic(profile) == "lofi_boom_bap:boom_bap"
+        assert profile.tone_shelves == ()
+        assert profile_tone_shelves_diagnostic(profile) == ""
+
+
 def test_jazz_aliases_resolve_to_measured_brightness_shelf():
     for genre in ["jazz", "smooth jazz", "bebop", "ethio jazz"]:
         profile = get_fluidsynth_profile(genre)

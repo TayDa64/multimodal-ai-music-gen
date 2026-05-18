@@ -468,6 +468,13 @@ RNB_FAMILY_GENRES = {
     'trap_soul',
 }
 
+LOFI_BOOM_BAP_FAMILY_GENRES = {
+    'lofi',
+    'lo_fi',
+    'boom_bap',
+    'g_funk',
+}
+
 ROCK_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.INTRO, 4),
     (SectionType.VERSE, 8),
@@ -505,6 +512,13 @@ RNB_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.CHORUS, 4),
     (SectionType.BRIDGE, 4),
     (SectionType.CHORUS, 4),
+]
+
+LOFI_BOOM_BAP_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.INTRO, 4),
+    (SectionType.VERSE, 4),
+    (SectionType.VARIATION, 4),
+    (SectionType.VERSE, 4),
 ]
 
 JAZZ_TEMPLATE: List[Tuple[SectionType, int]] = [
@@ -897,6 +911,9 @@ class Arranger:
         if _genre_norm in RNB_FAMILY_GENRES and 0 < target_bars <= 16:
             self._preserve_template_bars = True
             return RNB_SHORT_TEMPLATE.copy()
+        if _genre_norm in LOFI_BOOM_BAP_FAMILY_GENRES and 0 < target_bars <= 16:
+            self._preserve_template_bars = True
+            return LOFI_BOOM_BAP_SHORT_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 8:
             return JAZZ_SMOKE_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 16:

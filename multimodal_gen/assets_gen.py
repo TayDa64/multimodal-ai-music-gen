@@ -3057,6 +3057,25 @@ class AssetsGenerator:
         textures['tape'] = path
         
         return textures
+
+    def generate_vinyl_crackle(self, duration: float = 30.0, density: float = 0.3) -> str:
+        """Generate a vinyl crackle texture and return its file path.
+
+        Backward-compatible instance wrapper for callers that expect
+        ``AssetsGenerator.generate_vinyl_crackle()`` while preserving the
+        module-level synthesis function.
+        """
+        audio = generate_vinyl_crackle(duration, density=density, sample_rate=self.sample_rate)
+        path = os.path.join(self.output_dir, 'vinyl_crackle.wav')
+        save_wav(audio, path, self.sample_rate, stereo=True)
+        return path
+
+    def generate_rain_texture(self, duration: float = 30.0, intensity: float = 0.5) -> str:
+        """Generate a rain ambience texture and return its file path."""
+        audio = generate_rain(duration, intensity=intensity, sample_rate=self.sample_rate)
+        path = os.path.join(self.output_dir, 'rain.wav')
+        save_wav(audio, path, self.sample_rate, stereo=True)
+        return path
     
     def generate_all(self, texture_duration: float = 180.0) -> Dict[str, Dict[str, str]]:
         """Generate all assets."""

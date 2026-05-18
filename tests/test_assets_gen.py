@@ -56,6 +56,18 @@ def test_generate_drum_kit_trap_request_includes_808_and_clap(tmp_path):
     assert 'clap.wav' in _sample_names(kit)
 
 
+def test_texture_instance_wrappers_write_legacy_file_names(tmp_path):
+    generator = AssetsGenerator(str(tmp_path))
+
+    vinyl_path = generator.generate_vinyl_crackle(duration=0.05)
+    rain_path = generator.generate_rain_texture(duration=0.05)
+
+    assert Path(vinyl_path).name == 'vinyl_crackle.wav'
+    assert Path(rain_path).name == 'rain.wav'
+    assert Path(vinyl_path).exists()
+    assert Path(rain_path).exists()
+
+
 def test_generate_organ_tone_short_note_does_not_crash():
     audio = generate_organ_tone(440, duration=0.001, velocity=0.8)
 
