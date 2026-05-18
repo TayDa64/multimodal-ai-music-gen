@@ -1013,6 +1013,45 @@ Results:
 
 Recommendation 2 is now honest in the UI, but not fully real-time processed. A future real-time FX/mastering slice should first harden `MixerGraph` routing and thread-safety, then route **only** unmastered live MIDI/sampler preview through the graph while keeping backend-mastered WAV playback untouched.
 
+## Transport status readability polish — 2026-05-18
+
+Status: **implemented and verified** as the first post-consolidation UI/UX polish slice after Tasks 066–068.
+
+### What changed
+
+- `juce/Source/UI/TransportComponent.h/.cpp`
+  - Added a small `setStatusText()` helper so transport status text, colour, and tooltip stay synchronized.
+  - Preserved the exact truthful playback labels introduced by the FX/mastering honesty slice: backend WAV playback remains `mastered audio/reference`, and MIDI-only playback remains `unmastered MIDI preview/fallback`.
+  - Changed the status label to left-aligned text so the important prefix is visible first when space is constrained.
+  - Replaced the old fixed `140px` status-label allocation with a bounded dynamic width that can expand up to `320px` while preserving fixed BPM and Test Tone controls.
+  - The full status string is now available as the label tooltip when visible text is clipped.
+
+### Preserved behavior
+
+- No backend, Python server, OSC protocol, audio renderer, `AudioEngine`, `MixerGraph`, or mastering routing behavior changed.
+- No `mixerGraph.processBlock()` route was added.
+- The running Release app/server were not stopped during implementation; this polish appears after rebuild/relaunch.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+Select-String -Path juce\Source\UI\TransportComponent.cpp,juce\Source\UI\TransportComponent.h -Pattern "withWidth\(140\.0f\)|statusLabel\.setTooltip|setStatusText|mastered audio/reference|unmastered MIDI preview/fallback"
+Select-String -Path juce\Source\Audio\AudioEngine.cpp -Pattern "mixerGraph\.processBlock"
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+.\.venv\Scripts\python.exe -m pytest -p no:cacheprovider tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+```
+
+Results:
+
+- VS Code diagnostics for `TransportComponent.h/.cpp`: no errors.
+- `git diff --check`: `PASS`.
+- Static checks: no old `withWidth(140.0f)` status allocation remains; `statusLabel.setTooltip` is centralized in `setStatusText`; mastered/unmastered labels remain present; `AudioEngine.cpp` still has no `mixerGraph.processBlock` route.
+- Debug JUCE build: `PASS` via MSBuild, with existing warning noise only.
+- Protocol/smoke/golden guard tests: `67 passed`, with 6 existing librosa warnings.
+
 ## Rock app instrument preview parity implementation — 2026-05-14
 
 Status: **implemented and verified** for recommendation 3.

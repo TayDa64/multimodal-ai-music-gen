@@ -155,9 +155,8 @@ void TransportComponent::setupSliders()
                         currentPosition = 0.0;
                         updateTimeDisplay();
                         updateButtonStates();
-                        statusLabel.setText("Loaded unmastered MIDI preview/fallback: " + file.getFileName(),
-                                            juce::dontSendNotification);
-                        statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+                        setStatusText("Loaded unmastered MIDI preview/fallback: " + file.getFileName(),
+                                      AppColours::success);
                         
                         // Disable test tone when loading MIDI
                         testToneButton.setToggleState(false, juce::dontSendNotification);
@@ -165,8 +164,7 @@ void TransportComponent::setupSliders()
                     }
                     else
                     {
-                        statusLabel.setText("Failed to load MIDI", juce::dontSendNotification);
-                        statusLabel.setColour(juce::Label::textColourId, AppColours::error);
+                        setStatusText("Failed to load MIDI", AppColours::error);
                     }
                 }
             });
@@ -215,14 +213,20 @@ void TransportComponent::setupLabels()
     addAndMakeVisible(durationDisplay);
     
     // Status label (shows playback status like "Ready", "Playing", "Loaded: file.mid")
-    statusLabel.setText("Ready", juce::dontSendNotification);
-    statusLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
-    statusLabel.setJustificationType(juce::Justification::centredRight);
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    setStatusText("Ready", AppColours::textSecondary);
     addAndMakeVisible(statusLabel);
     
     // Connection indicator - REMOVED (now shown only in main status bar)
     // This avoids duplicate status indicators which confuse users
     connectionIndicator.setVisible(false);
+}
+
+void TransportComponent::setStatusText(const juce::String& text, juce::Colour colour)
+{
+    statusLabel.setText(text, juce::dontSendNotification);
+    statusLabel.setColour(juce::Label::textColourId, colour);
+    statusLabel.setTooltip(text);
 }
 
 //==============================================================================
@@ -267,8 +271,20 @@ void TransportComponent::resized()
     auto leftSection = bounds.removeFromLeft(leftSectionWidth);
     leftFlex.performLayout(leftSection.withY(centerY).withHeight(buttonHeight));
     
-    // Right section - Status, BPM, test tone
-    int rightSectionWidth = juce::jmin(360, bounds.getWidth() / 3);
+    // Right section - Status, BPM, test tone. Keep BPM/test-tone fixed and let
+    // the truthful mastered/unmastered status label expand when room permits.
+    const int fixedRightControlsWidth = 35 + 100 + 8 + 90 + 8;
+    const int minStatusLabelWidth = 180;
+    const int maxStatusLabelWidth = 320;
+    const int minCenterSectionWidth = 220;
+    const int minRightSectionWidth = fixedRightControlsWidth + minStatusLabelWidth;
+    const int maxRightSectionWidth = fixedRightControlsWidth + maxStatusLabelWidth;
+    const int availableForRight = bounds.getWidth() - minCenterSectionWidth;
+    int rightSectionWidth = juce::jlimit(minRightSectionWidth,
+                                        maxRightSectionWidth,
+                                        juce::jmax(minRightSectionWidth, availableForRight));
+    rightSectionWidth = juce::jmin(rightSectionWidth, bounds.getWidth());
+    const float statusLabelWidth = (float)juce::jmax(0, rightSectionWidth - fixedRightControlsWidth);
     auto rightSection = bounds.removeFromRight(rightSectionWidth);
     
     juce::FlexBox rightFlex = Layout::createRowFlex(juce::FlexBox::JustifyContent::flexEnd);
@@ -277,7 +293,7 @@ void TransportComponent::resized()
     rightFlex.items.add(juce::FlexItem().withWidth(8.0f));
     rightFlex.items.add(juce::FlexItem(testToneButton).withWidth(90.0f).withHeight(20.0f));
     rightFlex.items.add(juce::FlexItem().withWidth(8.0f));
-    rightFlex.items.add(juce::FlexItem(statusLabel).withWidth(140.0f).withHeight(20.0f));
+    rightFlex.items.add(juce::FlexItem(statusLabel).withWidth(statusLabelWidth).withHeight(20.0f));
     rightFlex.performLayout(rightSection.withY(centerY + 4).withHeight(20));
     
     // Center section - time display and position slider
@@ -353,8 +369,7 @@ void TransportComponent::playClicked()
     
     if (!hasLoadedAudio && !hasMidi)
     {
-        statusLabel.setText("No audio or MIDI loaded - generate or load a file first", juce::dontSendNotification);
-        statusLabel.setColour(juce::Label::textColourId, AppColours::error);
+        setStatusText("No audio or MIDI loaded - generate or load a file first", AppColours::error);
         return;
     }
     
@@ -362,11 +377,11 @@ void TransportComponent::playClicked()
     isPlaying = true;
     updateButtonStates();
     
-    statusLabel.setText(juce::String(hasLoadedAudio
-                                         ? "Playing mastered audio/reference... (dur: "
-                                         : "Playing unmastered MIDI preview/fallback... (dur: ")
-                            + juce::String(duration, 1) + "s)", juce::dontSendNotification);
-    statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+    setStatusText(juce::String(hasLoadedAudio
+                                   ? "Playing mastered audio/reference... (dur: "
+                                   : "Playing unmastered MIDI preview/fallback... (dur: ")
+                      + juce::String(duration, 1) + "s)",
+                  AppColours::success);
     
     listeners.call(&TransportComponent::Listener::transportPlayRequested);
 }
@@ -393,17 +408,16 @@ void TransportComponent::stopClicked()
 void TransportComponent::onGenerationStarted()
 {
     juce::MessageManager::callAsync([this] {
-        statusLabel.setText("Generating...", juce::dontSendNotification);
-        statusLabel.setColour(juce::Label::textColourId, AppColours::primary);
+        setStatusText("Generating...", AppColours::primary);
     });
 }
 
 void TransportComponent::onGenerationProgress(const GenerationProgress& progress)
 {
     juce::MessageManager::callAsync([this, progress] {
-        statusLabel.setText(progress.stepName + " (" + 
-                           juce::String((int)(progress.progress * 100)) + "%)",
-                           juce::dontSendNotification);
+        setStatusText(progress.stepName + " (" +
+                          juce::String((int)(progress.progress * 100)) + "%)",
+                      AppColours::primary);
     });
 }
 
@@ -415,8 +429,7 @@ void TransportComponent::onGenerationCompleted(const juce::File& outputFile)
         const juce::String readyPrefix = outputIsAudio
             ? "Ready mastered audio/reference: "
             : (outputIsMidi ? "Ready unmastered MIDI preview/fallback: " : "Ready: ");
-        statusLabel.setText(readyPrefix + outputFile.getFileName(), juce::dontSendNotification);
-        statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+        setStatusText(readyPrefix + outputFile.getFileName(), AppColours::success);
         
         // Get actual duration from AudioEngine if MIDI or audio is loaded
         if (audioEngine.hasAudioFileLoaded() || audioEngine.hasMidiLoaded())
@@ -438,8 +451,7 @@ void TransportComponent::onGenerationCompleted(const juce::File& outputFile)
 void TransportComponent::onGenerationError(const juce::String& error)
 {
     juce::MessageManager::callAsync([this, error] {
-        statusLabel.setText("Error: " + error, juce::dontSendNotification);
-        statusLabel.setColour(juce::Label::textColourId, AppColours::error);
+        setStatusText("Error: " + error, AppColours::error);
     });
 }
 
@@ -511,11 +523,11 @@ void TransportComponent::timerCallback()
         updateTimeDisplay();
         
         // Show detailed playback debug status with honest mastering-path labeling.
-        statusLabel.setText(juce::String(hasLoadedAudio
-                                             ? "Playing mastered audio/reference: "
-                                             : "Playing unmastered MIDI preview/fallback: ")
-                                + audioEngine.getPlaybackDebugStatus(),
-                            juce::dontSendNotification);
+        setStatusText(juce::String(hasLoadedAudio
+                                       ? "Playing mastered audio/reference: "
+                                       : "Playing unmastered MIDI preview/fallback: ")
+                          + audioEngine.getPlaybackDebugStatus(),
+                      AppColours::success);
     }
     
     // Check if button states need update (e.g. if MIDI was loaded externally)
@@ -527,17 +539,15 @@ void TransportComponent::timerCallback()
         // Update status when playable media is loaded
         if (hasLoadedAudio)
         {
-            statusLabel.setText("Mastered audio/reference loaded: "
-                                   + juce::String(audioEngine.getTotalDuration(), 1) + "s",
-                               juce::dontSendNotification);
-            statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+            setStatusText("Mastered audio/reference loaded: "
+                              + juce::String(audioEngine.getTotalDuration(), 1) + "s",
+                          AppColours::success);
         }
         else if (hasMidi)
         {
-            statusLabel.setText("Unmastered MIDI preview/fallback loaded: "
-                                   + juce::String(audioEngine.getTotalDuration(), 1) + "s",
-                               juce::dontSendNotification);
-            statusLabel.setColour(juce::Label::textColourId, AppColours::success);
+            setStatusText("Unmastered MIDI preview/fallback loaded: "
+                              + juce::String(audioEngine.getTotalDuration(), 1) + "s",
+                          AppColours::success);
         }
     }
 }

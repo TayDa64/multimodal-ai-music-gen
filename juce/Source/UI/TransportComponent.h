@@ -57,6 +57,7 @@ private:
     void setupButtons();
     void setupSliders();
     void setupLabels();
+    void setStatusText(const juce::String& text, juce::Colour colour);
     void updateButtonStates();
     void updateTimeDisplay();
     
