@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "MPC-inspired UI polish should start with additive tokens plus track-associated control paint/layout",
+        "context": "For the Akai MPC reference request, the safe first slice avoided backend/audio/protocol changes and improved professionalism by adding reusable MPC-style colour/layout tokens, then applying them only to TrackHeaderComponent paint/resized for compact track-associated controls, selected/accent edging, and clearer control wells. This advances the left/border control feel without touching callbacks, ValueTree, serialization, or audio flow.",
+        "timestamp": "2026-05-18T20:05:00Z"
+      },
+      {
         "pattern": "Transport status honesty also needs readable layout and full-text tooltip support",
         "context": "After app playback/status labels were made truthful, the long mastered audio/reference and unmastered MIDI preview/fallback strings could still be hard to read in the fixed 140px right-aligned Transport slot. The safe UI-only slice centralizes status updates, preserves exact wording, left-aligns the label, uses bounded dynamic width, and assigns the full status as a tooltip without touching backend, AudioEngine, MixerGraph, or protocol behavior.",
         "timestamp": "2026-05-18T19:20:00Z"

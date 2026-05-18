@@ -1,11 +1,92 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-18-transport-status-readability-ui-069",
-    "started": "2026-05-18T19:20:00Z",
-    "user_request": "Continue UI/UX advancements while the launched app/server remain running for user screen capture; start with the documented Transport status readability path."
+    "id": "session-2026-05-18-mpc-inspired-track-controls-ui-070",
+    "started": "2026-05-18T20:05:00Z",
+    "user_request": "Advance the MUSE UI using the Akai MPC reference: professional dark compact border controls, left/bottom control feel, track-associated controls, and no loss of established functionality."
   },
   "task_queue": [
+    {
+      "id": "mpc-inspired-track-controls-ui-070",
+      "description": "Add an MPC-inspired compact professional visual treatment to track-associated controls using additive theme/layout tokens and TrackHeader paint/layout only.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "transport-status-readability-ui-069",
+        "cross-genre-session-manifest-consolidation-after-068"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/Theme/ColourScheme.h",
+        "juce/Source/UI/Theme/LayoutConstants.h",
+        "juce/Source/UI/TrackList/TrackHeaderComponent.cpp",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-18T20:05:00Z",
+      "updated": "2026-05-18T20:05:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/UI/Theme/ColourScheme.h",
+          "juce/Source/UI/Theme/LayoutConstants.h",
+          "juce/Source/UI/TrackList/TrackHeaderComponent.cpp"
+        ],
+        "summary": "Added additive MPC-style colour/layout tokens and applied them to TrackHeaderComponent for a compact high-contrast control strip, coloured track-number box, selected/accent edge, and tighter track-associated name/instrument/M/S controls.",
+        "guardrails_preserved": [
+          "No backend/Python/server/protocol changes.",
+          "No AudioEngine or MixerGraph behavior changes.",
+          "No public API, callback, listener registration, ValueTree property, serialization, or generation flow changes.",
+          "Running Release app and server were not stopped during the UI slice.",
+          "Runtime diagnostics and local SoundFont artifacts remain ignored/uncommitted."
+        ]
+      },
+      "tests": [
+        {
+          "command": "VS Code diagnostics for ColourScheme.h, LayoutConstants.h, TrackHeaderComponent.cpp",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "git diff --check",
+          "result": "PASS"
+        },
+        {
+          "command": "Static scope check: git diff --name-only and backend/audio/protocol diff guard",
+          "result": "PASS: source diff limited to UI theme/layout/TrackHeader files"
+        },
+        {
+          "command": "Static behavior check for callbacks/listeners/ValueTree/audio-route tokens and trackNumberBounds usage",
+          "result": "PASS: callback/data behavior preserved; trackNumberBounds is paint-only"
+        },
+        {
+          "command": "MSBuild.exe juce/build/MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal",
+          "result": "PASS: Debug JUCE app built"
+        },
+        {
+          "command": "python -m pytest -p no:cacheprovider tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q",
+          "result": "PASS: 67 passed, 6 existing librosa warnings"
+        }
+      ],
+      "artifact_guard": {
+        "command": "git status --ignored --short output\\_diagnostics assets\\soundfonts",
+        "result": [
+          "!! assets/soundfonts/FluidR3Mono_GM.sf3",
+          "!! output/_diagnostics/"
+        ]
+      },
+      "runtime_context": {
+        "server_terminal_id": "59e12811-145a-47e5-b588-e2add6f49aef",
+        "release_app_pid": 34772,
+        "note": "Running Release app predates this uncommitted UI change and was left running; rebuild/relaunch is required to see this polish."
+      },
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-18T20:05:00Z",
+        "summary": "Independent verifier confirmed UI-only scope, no callback/listener/ValueTree behavior changes, build success, and fit to the MPC-inspired compact track-controls request."
+      }
+    },
     {
       "id": "transport-status-readability-ui-069",
       "description": "Make long honest Transport mastered/unmastered playback status labels readable without changing backend, protocol, renderer, AudioEngine, or MixerGraph behavior.",

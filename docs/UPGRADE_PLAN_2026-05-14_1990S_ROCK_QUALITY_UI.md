@@ -1052,6 +1052,47 @@ Results:
 - Debug JUCE build: `PASS` via MSBuild, with existing warning noise only.
 - Protocol/smoke/golden guard tests: `67 passed`, with 6 existing librosa warnings.
 
+## MPC-inspired compact track controls polish — 2026-05-18
+
+Status: **implemented and verified** as a small UI-only professionalization slice inspired by the Akai MPC reference screenshot.
+
+### What changed
+
+- `juce/Source/UI/Theme/ColourScheme.h`
+  - Added additive MPC-style accent/control tokens for compact bordered controls and selected-track emphasis: `mpcAccent`, `mpcAccentStrong`, `mpcAmber`, `mpcControlBg`, `mpcControlRaised`, and `mpcControlBorder`.
+- `juce/Source/UI/Theme/LayoutConstants.h`
+  - Added additive track-header sizing tokens for compact border-control styling: track number width, inner padding, M/S button size/gap, and compact row height.
+- `juce/Source/UI/TrackList/TrackHeaderComponent.cpp`
+  - Applied a darker, rounded, higher-contrast control strip treatment to each track header.
+  - Added a compact coloured track-number box and a thin selected/accent edge, matching the MPC-style left-border control feel.
+  - Tightened name, instrument selector, piano-roll, mute, and solo control layout while preserving existing hit targets and callback wiring.
+
+### Preserved behavior
+
+- No backend, Python server, OSC/protocol, audio renderer, `AudioEngine`, `MixerGraph`, project serialization, or generation behavior changed.
+- No public API, listener registration, ValueTree property name, mute/solo/select/instrument callback, or track data flow changed.
+- This is a visual shell polish only; the currently running Release app must be rebuilt/relaunched to show it.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+git diff --check
+Select-String -Path juce\Source\UI\Theme\ColourScheme.h,juce\Source\UI\Theme\LayoutConstants.h,juce\Source\UI\TrackList\TrackHeaderComponent.cpp -Pattern "mpcAccent|mpcControl|trackHeaderCompact|trackHeaderButton|onClick|ValueTree|Listener|processBlock|AudioEngine|OSCBridge"
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+.\.venv\Scripts\python.exe -m pytest -p no:cacheprovider tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+```
+
+Results:
+
+- VS Code diagnostics for the three changed UI files: no errors.
+- `git diff --check`: `PASS`.
+- Static scope check: only `ColourScheme.h`, `LayoutConstants.h`, and `TrackHeaderComponent.cpp` changed before docs/state updates; no backend/audio/protocol diff.
+- Static behavior check: callback/listener/ValueTree behavior remained intact; `trackNumberBounds` remains paint-only.
+- Debug JUCE build: `PASS` via MSBuild.
+- Protocol/smoke/golden guard tests: `67 passed`, with 6 existing librosa warnings.
+
 ## Rock app instrument preview parity implementation — 2026-05-14
 
 Status: **implemented and verified** for recommendation 3.

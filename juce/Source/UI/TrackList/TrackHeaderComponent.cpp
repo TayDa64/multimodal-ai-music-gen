@@ -10,6 +10,7 @@
 
 #include "TrackHeaderComponent.h"
 #include "../Theme/ThemeManager.h"
+#include "../Theme/LayoutConstants.h"
 
 namespace UI
 {
@@ -25,8 +26,9 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     
     // Name label (editable on double-click, single line) - MPC style compact
     nameLabel.setText(trackName, juce::dontSendNotification);
-    nameLabel.setFont(juce::Font(10.0f));
-    nameLabel.setColour(juce::Label::textColourId, ThemeManager::getCurrentScheme().text);
+    nameLabel.setFont(juce::Font(Layout::fontSizeSM).boldened());
+    nameLabel.setColour(juce::Label::textColourId, AppColours::textPrimary);
+    nameLabel.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     nameLabel.setEditable(false, true);  // Double-click to edit
     nameLabel.setMinimumHorizontalScale(1.0f);
     nameLabel.setJustificationType(juce::Justification::centredLeft);
@@ -37,16 +39,18 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     instrumentCombo.setTextWhenNothingSelected("Select Instrument...");
     instrumentCombo.addItem("Default (Sine)", 1);
     instrumentCombo.setSelectedId(1, juce::dontSendNotification);
-    instrumentCombo.setColour(juce::ComboBox::backgroundColourId, ThemeManager::getSurface().brighter(0.1f));
-    instrumentCombo.setColour(juce::ComboBox::textColourId, ThemeManager::getCurrentScheme().textSecondary);
-    instrumentCombo.setColour(juce::ComboBox::outlineColourId, juce::Colours::transparentBlack);
+    instrumentCombo.setColour(juce::ComboBox::backgroundColourId, AppColours::mpcControlBg);
+    instrumentCombo.setColour(juce::ComboBox::textColourId, AppColours::textPrimary);
+    instrumentCombo.setColour(juce::ComboBox::outlineColourId, AppColours::mpcControlBorder.withAlpha(0.85f));
+    instrumentCombo.setColour(juce::ComboBox::focusedOutlineColourId, AppColours::mpcAccentStrong);
+    instrumentCombo.setColour(juce::ComboBox::arrowColourId, AppColours::mpcAccentStrong);
     instrumentCombo.onChange = [this]() { onInstrumentSelected(); };
     addAndMakeVisible(instrumentCombo);
     
     // Piano Roll button - opens this track in Piano Roll view
     expandButton.setButtonText(juce::String(juce::CharPointer_UTF8("\xe2\x96\xb6")));  // Always show ▶ (play/edit icon)
-    expandButton.setColour(juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
-    expandButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
+    expandButton.setColour(juce::TextButton::buttonColourId, AppColours::mpcControlRaised);
+    expandButton.setColour(juce::TextButton::textColourOffId, AppColours::mpcAccentStrong);
     expandButton.setTooltip("Edit in Piano Roll");
     expandButton.onClick = [this]() {
         // Signal to open Piano Roll for this track (expanded=true means "open piano roll")
@@ -55,9 +59,9 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     addAndMakeVisible(expandButton);
     
     // Arm button (record enable) - hidden by default in compact mode, shown on hover/expand
-    armButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface());
+    armButton.setColour(juce::TextButton::buttonColourId, AppColours::mpcControlRaised);
     armButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::red);
-    armButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
+    armButton.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
     armButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     armButton.setClickingTogglesState(true);
     armButton.setTooltip("Record Arm");
@@ -70,9 +74,9 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     addAndMakeVisible(armButton);
     
     // Mute button - MPC style compact (small inline toggle)
-    muteButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface().brighter(0.05f));
-    muteButton.setColour(juce::TextButton::buttonOnColourId, juce::Colour(0xFFFF6B00));  // Orange when active
-    muteButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
+    muteButton.setColour(juce::TextButton::buttonColourId, AppColours::mpcControlRaised);
+    muteButton.setColour(juce::TextButton::buttonOnColourId, AppColours::mpcAmber);  // Amber when active
+    muteButton.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
     muteButton.setColour(juce::TextButton::textColourOnId, juce::Colours::white);
     muteButton.setClickingTogglesState(true);
     muteButton.setTooltip("Mute");
@@ -84,9 +88,9 @@ TrackHeaderComponent::TrackHeaderComponent(int index)
     addAndMakeVisible(muteButton);
     
     // Solo button - MPC style compact (small inline toggle)
-    soloButton.setColour(juce::TextButton::buttonColourId, ThemeManager::getSurface().brighter(0.05f));
-    soloButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::yellow);
-    soloButton.setColour(juce::TextButton::textColourOffId, ThemeManager::getCurrentScheme().textSecondary);
+    soloButton.setColour(juce::TextButton::buttonColourId, AppColours::mpcControlRaised);
+    soloButton.setColour(juce::TextButton::buttonOnColourId, AppColours::mpcAccentStrong);
+    soloButton.setColour(juce::TextButton::textColourOffId, AppColours::textSecondary);
     soloButton.setColour(juce::TextButton::textColourOnId, juce::Colours::black);
     soloButton.setClickingTogglesState(true);
     soloButton.setTooltip("Solo");
@@ -185,34 +189,48 @@ void TrackHeaderComponent::removeListener(Listener* listener)
 void TrackHeaderComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds();
+    auto rowBounds = bounds.toFloat().reduced(1.0f, 1.0f);
     
-    // Background - darker for MPC look
-    juce::Colour bgColour = ThemeManager::getSurface().darker(0.1f);
+    // Background - compact, high-contrast MPC-style control strip
+    juce::Colour bgColour = AppColours::surfaceSunken;
     if (selected)
-        bgColour = ThemeManager::getCurrentScheme().accent.withAlpha(0.2f);
+        bgColour = AppColours::rowSelected;
     
-    g.setColour(bgColour);
-    g.fillRect(bounds);
+    g.setGradientFill(juce::ColourGradient(bgColour.brighter(0.08f), rowBounds.getTopLeft(),
+                                           bgColour.darker(0.18f), rowBounds.getBottomLeft(), false));
+    g.fillRoundedRectangle(rowBounds, Layout::borderRadiusSM);
     
     // Track number box with track color (MPC style)
-    trackNumberBounds = bounds.removeFromLeft(24);
-    g.setColour(trackColour);
-    g.fillRect(trackNumberBounds);
+    trackNumberBounds = bounds.removeFromLeft(Layout::trackHeaderNumberWidth).reduced(2, 3);
+    g.setColour(trackColour.darker(0.12f));
+    g.fillRoundedRectangle(trackNumberBounds.toFloat(), Layout::borderRadiusSM);
+    g.setColour(trackColour.brighter(0.25f));
+    g.drawRoundedRectangle(trackNumberBounds.toFloat().reduced(0.5f), Layout::borderRadiusSM, 1.0f);
     
     // Track number text (white on colored background)
     g.setColour(juce::Colours::white);
-    g.setFont(juce::Font(10.0f).boldened());
+    g.setFont(juce::Font(Layout::fontSizeSM).boldened());
     g.drawText(juce::String(trackIndex + 1), trackNumberBounds, juce::Justification::centred);
+
+    // Central accent line and compact control well around per-track controls
+    const auto contentBounds = getLocalBounds().withTrimmedLeft(Layout::trackHeaderNumberWidth).reduced(4, 5);
+    g.setColour(AppColours::mpcControlBg.withAlpha(0.72f));
+    g.fillRoundedRectangle(contentBounds.toFloat(), Layout::borderRadiusSM);
+    g.setColour((selected ? AppColours::mpcAccentStrong : AppColours::mpcControlBorder).withAlpha(selected ? 0.9f : 0.55f));
+    g.drawRoundedRectangle(contentBounds.toFloat().reduced(0.5f), Layout::borderRadiusSM, 1.0f);
+
+    g.setColour((selected ? AppColours::mpcAccentStrong : trackColour).withAlpha(0.85f));
+    g.fillRect(contentBounds.withWidth(3));
     
     // Subtle bottom border like MPC
-    g.setColour(ThemeManager::getCurrentScheme().outline.withAlpha(0.3f));
+    g.setColour(AppColours::mpcControlBorder.withAlpha(0.65f));
     g.drawHorizontalLine(getHeight() - 1, 0.0f, (float)getWidth());
     
     // Selection highlight
     if (selected)
     {
-        g.setColour(ThemeManager::getCurrentScheme().accent.withAlpha(0.5f));
-        g.drawRect(getLocalBounds(), 1);
+        g.setColour(AppColours::mpcAccentStrong.withAlpha(0.72f));
+        g.drawRoundedRectangle(rowBounds.reduced(0.5f), Layout::borderRadiusSM, 1.5f);
     }
 }
 
@@ -222,16 +240,16 @@ void TrackHeaderComponent::resized()
     int height = bounds.getHeight();
     
     // Skip track number box area (painted)
-    bounds.removeFromLeft(24);
+    bounds.removeFromLeft(Layout::trackHeaderNumberWidth);
     
-    // Small padding
-    bounds.removeFromLeft(4);
+    // Small padding inside the compact control well
+    bounds.reduce(Layout::trackHeaderInnerPadding, 5);
     
-    // M/S buttons on the right - MPC style tiny toggles (16x16)
-    auto buttonArea = bounds.removeFromRight(40);
-    int buttonSize = 16;
+    // M/S buttons on the right - MPC style compact bordered toggles
+    const int buttonSize = Layout::trackHeaderButtonSize;
+    const int buttonPadding = Layout::trackHeaderButtonGap;
+    auto buttonArea = bounds.removeFromRight((buttonSize * 2) + buttonPadding + 2);
     int buttonY = (height - buttonSize) / 2;
-    int buttonPadding = 4;
     
     int x = buttonArea.getX();
     muteButton.setBounds(x, buttonY, buttonSize, buttonSize);
@@ -242,15 +260,16 @@ void TrackHeaderComponent::resized()
     armButton.setBounds(0, 0, 0, 0);
     
     // Expand button (small, before name)
-    expandButton.setBounds(bounds.removeFromLeft(16).reduced(0, (height - 14) / 2));
+    expandButton.setBounds(bounds.removeFromLeft(buttonSize).withHeight(buttonSize).withY(buttonY));
+    bounds.removeFromLeft(Layout::trackHeaderButtonGap);
     
-    // Split remaining space: track name (45%) and instrument dropdown (55%)
-    int nameWidth = (int)(bounds.getWidth() * 0.45f);
-    int comboWidth = bounds.getWidth() - nameWidth - 4;
+    // Split remaining space: compact track name plus wider instrument dropdown.
+    int nameWidth = juce::jlimit(42, juce::jmax(42, bounds.getWidth() - 52), (int)(bounds.getWidth() * 0.42f));
+    int comboWidth = juce::jmax(0, bounds.getWidth() - nameWidth - Layout::trackHeaderButtonGap);
     
-    nameLabel.setBounds(bounds.removeFromLeft(nameWidth).reduced(2, (height - 16) / 2));
-    bounds.removeFromLeft(4);  // gap
-    instrumentCombo.setBounds(bounds.removeFromLeft(comboWidth).reduced(0, (height - 18) / 2));
+    nameLabel.setBounds(bounds.removeFromLeft(nameWidth).withHeight(Layout::trackHeaderCompactRowHeight).withY((height - Layout::trackHeaderCompactRowHeight) / 2));
+    bounds.removeFromLeft(Layout::trackHeaderButtonGap);  // gap
+    instrumentCombo.setBounds(bounds.removeFromLeft(comboWidth).withHeight(Layout::trackHeaderCompactRowHeight).withY((height - Layout::trackHeaderCompactRowHeight) / 2));
 }
 
 void TrackHeaderComponent::mouseDown(const juce::MouseEvent& event)

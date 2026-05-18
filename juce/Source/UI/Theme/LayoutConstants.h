@@ -120,6 +120,11 @@ namespace Layout
     constexpr int badgeHeight = 18;
     constexpr int badgeMinWidth = 44;
     constexpr int badgePaddingX = 8;
+    constexpr int trackHeaderNumberWidth = 28;
+    constexpr int trackHeaderInnerPadding = 6;
+    constexpr int trackHeaderButtonSize = 18;
+    constexpr int trackHeaderButtonGap = 4;
+    constexpr int trackHeaderCompactRowHeight = 22;
     
     //==============================================================================
     // Border Radii

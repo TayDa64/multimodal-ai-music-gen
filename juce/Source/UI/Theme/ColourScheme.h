@@ -36,6 +36,9 @@ namespace AppColours
     
     inline const juce::Colour secondary       { 0xFF9B59B6 };  // Secondary (purple)
     inline const juce::Colour accent          { 0xFFE67E22 };  // Accent (orange)
+    inline const juce::Colour mpcAccent       { 0xFF00D4AA };  // MPC-inspired central cyan/green accent
+    inline const juce::Colour mpcAccentStrong { 0xFF18F0C8 };  // Brighter accent for selected control edges
+    inline const juce::Colour mpcAmber        { 0xFFFFB74D };  // Warm pad/control highlight
     
     // Text colours
     inline const juce::Colour textPrimary     { 0xFFCCCCCC };  // Primary text
@@ -58,6 +61,9 @@ namespace AppColours
     inline const juce::Colour buttonBg        { 0xFF3E3E42 };  // Button background
     inline const juce::Colour buttonHover     { 0xFF505050 };  // Button hover
     inline const juce::Colour buttonPressed   { 0xFF1E1E1E };  // Button pressed
+    inline const juce::Colour mpcControlBg    { 0xFF16171B };  // Compact bordered MPC control well
+    inline const juce::Colour mpcControlRaised{ 0xFF24262C };  // Compact raised control surface
+    inline const juce::Colour mpcControlBorder{ 0xFF4A4D55 };  // High-contrast compact control border
     inline const juce::Colour rowHover        { 0xFF34343C };  // List/card hover state
     inline const juce::Colour rowSelected     { 0xFF263B54 };  // Selected list/card state
     inline const juce::Colour rowSelectedEdge { 0xFF5DADE2 };  // Selected row outline
