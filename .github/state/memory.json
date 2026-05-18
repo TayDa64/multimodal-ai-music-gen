@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For trap/modern-beat, fix deterministic arrangement and manifest parity before tuning analyzer/profile warnings",
+        "context": "Task 064 baseline already parsed trap, generated requested 808/snare/hihat samples, rendered through FluidSynth with trap_modern_beat:modern_beat, and audio_analysis passed, but 16 bars inflated to 28 and session_manifest exposed a phantom 808 lead. The safe first slice added a compact trap short arc and a trap-specific session graph branch with Drums ch9, Bass ch1, Melody ch3, while keeping brightness/drum-presence warnings as later measured quality work.",
+        "timestamp": "2026-05-18T08:52:00Z"
+      },
+      {
         "pattern": "Use the cross-genre maturity matrix to rotate away from a green genre into the next measured family",
         "context": "Task 063 followed the user's instruction not to linger on rock. Since rock-family was green through Task 062 and generic jazz sax had focused proof, the matrix Tier B priority selected cinematic/classical. The safe slice was not mastering/analyzer tuning because FluidSynth audio was already green; it was orchestral session metadata and short-arrangement parity: preserve Strings/Brass/Choir/Timpani, avoid phantom Bass, keep classical:classical no-op tone shaping, and prove a 16-bar workflow render.",
         "timestamp": "2026-05-16T17:10:00Z"
@@ -550,6 +555,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Selected trap/modern beat as Task 064 after cinematic/classical Task 063 and limited the implementation to short-form arrangement and session metadata parity.",
+      "rationale": "The cross-genre maturity matrix lists Trap/modern beat as Tier B priority #2. Runtime baseline showed renderer/profile/parser/MIDI were already functioning, so analyzer/profile tuning would have been speculative and riskier than fixing deterministic UI/session metadata and duration semantics.",
+      "alternatives_considered": [
+        "Tune trap FluidSynth profile for brightness",
+        "Relax trap drum-presence analyzer warning",
+        "Modify MIDI drum rendering for snare detection"
+      ],
+      "timestamp": "2026-05-18T08:52:00Z"
+    },
     {
       "decision": "For Task 063, fix cinematic/classical orchestral session graph and short-arrangement behavior before any classical renderer/profile/analyzer tuning.",
       "rationale": "The baseline showed parser and MIDI already preserved explicit orchestral instruments and FluidSynth audio passed with the no-op classical profile. The real inconsistency was UI/session metadata and short-form arrangement duration. A session_graph/arranger/strategy-alias slice improves modular genre/instrument behavior without disturbing rock, jazz, trap, renderer profiles, or analyzer thresholds.",
@@ -1370,5 +1385,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-16T14:46:47Z"
+  "last_updated": "2026-05-18T08:52:00Z"
 }

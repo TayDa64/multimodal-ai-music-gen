@@ -1271,9 +1271,14 @@ class SessionGraphBuilder:
             'cinematic', 'classical', 'orchestral', 'film_score',
             'soundtrack', 'epic', 'symphonic',
         }
+        trap_modern_family_genres = {
+            'trap', 'modern_beat', 'trap_modern_beat',
+        }
 
         if genre_norm in orchestral_family_genres:
             return self._create_orchestral_tracks(graph, parsed, instrument_names, raw_prompt)
+        if genre_norm in trap_modern_family_genres:
+            return self._create_trap_modern_tracks(graph, parsed, instrument_names, raw_prompt)
 
         channel = 0
         
@@ -1379,6 +1384,37 @@ class SessionGraphBuilder:
             track = graph.add_track("Organ", Role.PAD.value, channel=4)
             track.color = self.default_track_colors.get(Role.PAD.value, "#808080")
         
+        return graph
+
+    def _create_trap_modern_tracks(
+        self,
+        graph: SessionGraph,
+        parsed,
+        instrument_names: List[str],
+        raw_prompt: str,
+    ) -> SessionGraph:
+        """Create trap/modern-beat tracks aligned with the MIDI contract."""
+        searchable = " ".join([raw_prompt] + instrument_names)
+
+        def _add_track(name: str, role: str, channel: int):
+            track = graph.add_track(name, role, channel=channel)
+            track.color = self.default_track_colors.get(role, "#808080")
+            return track
+
+        drums_track = _add_track("Drums", Role.DRUMS.value, 9)
+        drums_track.player_profile = getattr(parsed, 'humanization_profile', 'natural')
+
+        _add_track("Bass", Role.BASS.value, 1)
+
+        melody_cues = (
+            'melody', 'melodic', 'sparse melody', 'synth lead',
+            'lead synth', 'trap melody', 'synth_lead', 'lead',
+        )
+        has_melody = any(cue in searchable for cue in melody_cues)
+        genre_name = str(getattr(parsed, 'genre', '') or '').lower()
+        if has_melody or genre_name in {'trap', 'modern_beat', 'trap_modern_beat'}:
+            _add_track("Melody", Role.LEAD.value, 3)
+
         return graph
 
     def _create_orchestral_tracks(

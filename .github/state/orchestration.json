@@ -1,11 +1,147 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-cinematic-classical-063",
-    "started": "2026-05-16T17:10:00Z",
-    "user_request": "Do not linger on rock; proceed to the next highest-priority modular genre/instrument implementation. Selected cinematic/classical from the cross-genre maturity matrix."
+    "id": "session-2026-05-18-trap-modern-064",
+    "started": "2026-05-18T08:52:00Z",
+    "user_request": "Continue with the next highest-priority implementation. Selected trap/modern beat from the cross-genre maturity matrix after Task 063."
   },
   "task_queue": [
+    {
+      "id": "trap-modern-manifest-arrangement-064",
+      "description": "Move to Tier B priority #2 by aligning trap/modern-beat short-form arrangement and session metadata with explicit 808 bass, snare, hi-hat rolls, and sparse melody workflow proof.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "cinematic-classical-orchestral-manifest-063",
+        "cross-genre-maturity-matrix-baseline-plan-057"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/arranger.py",
+        "multimodal_gen/session_graph.py",
+        "tests/test_arranger_trap_modern.py",
+        "tests/test_session_graph_trap_modern.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-18T08:52:00Z",
+      "updated": "2026-05-18T08:52:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Direct baseline for the trap/modern-beat prompt showed parser, MIDI, FluidSynth render, requested procedural samples, and trap_modern_beat:modern_beat profile were green enough, but --duration-bars 16 inflated to 28 bars and session_manifest created a misleading 808 lead track instead of the MIDI Bass ch1 plus Melody ch3 contract. Audio passed with brightness and drum-presence warnings retained as later measurement data."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/arranger.py",
+          "multimodal_gen/session_graph.py",
+          "tests/test_arranger_trap_modern.py",
+          "tests/test_session_graph_trap_modern.py"
+        ],
+        "summary": "Arranger now provides a <=16-bar trap/modern-beat compact arc. SessionGraphBuilder now uses a trap/modern-beat branch that records Drums ch9, Bass ch1 for 808/bass semantics, and Melody ch3 while avoiding a phantom 808 lead track.",
+        "guardrails_preserved": [
+          "No audio renderer, output analyzer, FluidSynth profile, prompt parser, or MIDI generator changes.",
+          "No analyzer target relaxation; trap brightness and drum-presence warnings remain measured follow-up data.",
+          "Cinematic/classical, classic-rock Hammond, assets, main render diagnostics, FluidSynth profile, and audio renderer guard tests remain green.",
+          "Runtime diagnostics, MIDI, WAV, render reports, project metadata, assets, and SoundFonts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_arranger_trap_modern.py tests/test_session_graph_trap_modern.py tests/test_arranger_cinematic_classical.py tests/test_session_graph_cinematic_classical.py tests/test_session_graph_classic_rock_hammond.py tests/test_assets_gen.py tests/test_main_render_diagnostics.py -q",
+          "result": "PASS: 24 passed"
+        },
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py tests/test_prompt_parser_key.py::test_classic_rock_hammond_prompt_preserves_organ_cue tests/test_midi_generator.py::test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed -q",
+          "result": "PASS: 33 passed, 2 existing dependency warnings"
+        }
+      ],
+      "runtime_proof": {
+        "command": ".\\.venv\\Scripts\\python.exe .\\main.py \"dark trap modern beat with 808 bass, snare, hihat rolls, sparse melody, 140 BPM in C minor\" --output output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064 --duration-bars 16 --seed 64064 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064",
+        "render_report": "output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064\\trap_140.0bpm_Cminor_20260518_085051_render_report.json",
+        "project_metadata": "output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064\\project_metadata.json",
+        "manifest": "output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064\\session_manifest.json",
+        "midi": "output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064\\trap_140.0bpm_Cminor_20260518_085051.mid",
+        "audio": "output\\_diagnostics\\trap_modern_workflow_064\\post_manifest_64064\\trap_140.0bpm_Cminor_20260518_085051.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "render_status_success": true,
+        "skip_reason": null,
+        "profile": "trap_modern_beat:modern_beat",
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 0.752,
+          "centroid_hz": 5940.6,
+          "sub_bass_energy_ratio": 0.7388,
+          "percussive_ratio": 0.12,
+          "onset_density": 5.61,
+          "issues": [
+            "Spectral centroid 5941 Hz outside expected 1500-4000 Hz",
+            "Drum presence 0.120 below expected 0.20 for trap"
+          ]
+        },
+        "project_sections": [
+          {
+            "name": "intro",
+            "bars": 4
+          },
+          {
+            "name": "drop",
+            "bars": 4
+          },
+          {
+            "name": "variation",
+            "bars": 4
+          },
+          {
+            "name": "drop",
+            "bars": 4
+          }
+        ],
+        "total_bars": 16,
+        "manifest_tracks": [
+          {
+            "name": "Drums",
+            "role": "drums",
+            "channel": 9
+          },
+          {
+            "name": "Bass",
+            "role": "bass",
+            "channel": 1
+          },
+          {
+            "name": "Melody",
+            "role": "lead",
+            "channel": 3
+          }
+        ],
+        "samples": [
+          "808_kick.wav",
+          "snare.wav",
+          "hihat_closed.wav"
+        ],
+        "manifest_contract": {
+          "drums_channel_9": true,
+          "bass_channel_1": true,
+          "melody_channel_3": true,
+          "phantom_808_lead_present": false
+        }
+      },
+      "post_verifier": {
+        "verdict": "PASS_MANUAL",
+        "timestamp": "2026-05-18T08:52:00Z",
+        "summary": "Supervisor performed direct verification: focused and guard tests passed, diff/checks were clean, editor diagnostics were clean, runtime artifact inspection confirmed 16-bar trap short arc, Drums/Bass/Melody manifest contract, requested sample files, and FluidSynth audio pass. Remaining analyzer warnings are documented as later quality follow-up, not relaxed."
+      },
+      "result": {
+        "status": "completed",
+        "summary": "Trap/modern-beat workflow now preserves compact 16-bar intent and aligns session metadata with MIDI semantics for 808 bass, drums, and sparse melody."
+      }
+    },
     {
       "id": "cinematic-classical-orchestral-manifest-063",
       "description": "Move beyond rock into the next cross-genre Tier B priority by aligning cinematic/classical orchestral session metadata and short-form arrangement behavior with explicit strings, brass, choir, and timpani MIDI/audio proof.",
@@ -4961,7 +5097,7 @@
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "completed",
+  "current_phase": "complete",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
