@@ -87,6 +87,14 @@ LOFI_BOOM_BAP_FAMILY_GENRES = frozenset({
     "g_funk",
 })
 
+HOUSE_AMBIENT_POP_FAMILY_GENRES = frozenset({
+    "house",
+    "ambient",
+    "pop",
+    "dance_pop",
+    "electropop",
+})
+
 RNB_NEOSOUL_FAMILY_GENRES = frozenset({
     "rnb",
     "r_and_b",
@@ -139,6 +147,14 @@ _GENRE_ALIASES: Dict[str, str] = {
     "g_funk": "g_funk",
     "gfunk": "g_funk",
     "west_coast": "g_funk",
+    # House / ambient / pop no-op family
+    "house": "house",
+    "ambient": "ambient",
+    "pop": "pop",
+    "dance_pop": "dance_pop",
+    "dancepop": "dance_pop",
+    "electropop": "electropop",
+    "electro_pop": "electropop",
     # Trap / modern beat no-op family
     "trap": "trap",
     "drill": "drill",
@@ -231,12 +247,20 @@ LOFI_BOOM_BAP_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     tone_shelves=(),
 )
 
+HOUSE_AMBIENT_POP_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
+    name="house_ambient_pop",
+    genre_family="house",
+    aliases=tuple(sorted(HOUSE_AMBIENT_POP_FAMILY_GENRES | {"dancepop", "electro_pop"})),
+    tone_shelves=(),
+)
+
 FLUIDSYNTH_RENDERER_PROFILES: Tuple[FluidSynthRendererProfile, ...] = (
     ROCK_FLUIDSYNTH_PROFILE,
     CLASSICAL_FLUIDSYNTH_PROFILE,
     JAZZ_FLUIDSYNTH_PROFILE,
     RNB_NEOSOUL_FLUIDSYNTH_PROFILE,
     LOFI_BOOM_BAP_FLUIDSYNTH_PROFILE,
+    HOUSE_AMBIENT_POP_FLUIDSYNTH_PROFILE,
     TRAP_MODERN_BEAT_FLUIDSYNTH_PROFILE,
 )
 

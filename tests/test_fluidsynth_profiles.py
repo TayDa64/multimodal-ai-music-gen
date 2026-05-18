@@ -103,6 +103,16 @@ def test_lofi_boom_bap_profile_is_explicit_noop():
         assert profile_tone_shelves_diagnostic(profile) == ""
 
 
+def test_house_ambient_pop_profile_is_explicit_noop():
+    for genre in ["house", "ambient", "pop", "dance pop", "dance_pop", "electro pop", "electropop"]:
+        profile = get_fluidsynth_profile(genre)
+        assert profile.name == "house_ambient_pop"
+        assert profile.genre_family == "house"
+        assert profile_diagnostic(profile) == "house_ambient_pop:house"
+        assert profile.tone_shelves == ()
+        assert profile_tone_shelves_diagnostic(profile) == ""
+
+
 def test_jazz_aliases_resolve_to_measured_brightness_shelf():
     for genre in ["jazz", "smooth jazz", "bebop", "ethio jazz"]:
         profile = get_fluidsynth_profile(genre)

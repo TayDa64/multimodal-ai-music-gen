@@ -1280,6 +1280,9 @@ class SessionGraphBuilder:
         lofi_boom_bap_family_genres = {
             'lofi', 'lo_fi', 'boom_bap', 'g_funk',
         }
+        house_ambient_pop_family_genres = {
+            'house', 'ambient', 'pop', 'dance_pop', 'electropop',
+        }
 
         if genre_norm in orchestral_family_genres:
             return self._create_orchestral_tracks(graph, parsed, instrument_names, raw_prompt)
@@ -1289,6 +1292,8 @@ class SessionGraphBuilder:
             return self._create_rnb_tracks(graph, parsed, instrument_names, raw_prompt)
         if genre_norm in lofi_boom_bap_family_genres:
             return self._create_lofi_boom_bap_tracks(graph, parsed, instrument_names, raw_prompt)
+        if genre_norm in house_ambient_pop_family_genres:
+            return self._create_house_ambient_pop_tracks(graph, parsed, instrument_names, raw_prompt)
 
         channel = 0
         
@@ -1493,6 +1498,40 @@ class SessionGraphBuilder:
 
         if any(cue in searchable for cue in ('lead', 'melody', 'hook')):
             _add_track("Melody", Role.LEAD.value, 3)
+
+        return graph
+
+    def _create_house_ambient_pop_tracks(
+        self,
+        graph: SessionGraph,
+        parsed,
+        instrument_names: List[str],
+        raw_prompt: str,
+    ) -> SessionGraph:
+        """Create house/ambient/pop tracks aligned with the MIDI contract."""
+        searchable = " ".join([raw_prompt] + instrument_names)
+
+        def _add_track(name: str, role: str, channel: int):
+            track = graph.add_track(name, role, channel=channel)
+            track.color = self.default_track_colors.get(role, "#808080")
+            return track
+
+        drums_track = _add_track("Drums", Role.DRUMS.value, 9)
+        drums_track.player_profile = getattr(parsed, 'humanization_profile', 'natural')
+
+        _add_track("Bass", Role.BASS.value, 1)
+
+        has_pad = any(cue in searchable for cue in ('pad', 'pads', 'ambient', 'atmospheric'))
+        if has_pad:
+            _add_track("Pad", Role.PAD.value, 2)
+        else:
+            _add_track("Chords", Role.CHORDS.value, 2)
+
+        has_hook = any(cue in searchable for cue in ('hook', 'hook synth', 'synth hook'))
+        has_lead = has_hook or any(cue in searchable for cue in ('synth', 'lead', 'melody'))
+        if has_lead:
+            lead_name = "Hook Synth" if has_hook or 'synth' in searchable else "Melody"
+            _add_track(lead_name, Role.LEAD.value, 3)
 
         return graph
 

@@ -475,6 +475,14 @@ LOFI_BOOM_BAP_FAMILY_GENRES = {
     'g_funk',
 }
 
+HOUSE_AMBIENT_POP_FAMILY_GENRES = {
+    'house',
+    'ambient',
+    'pop',
+    'dance_pop',
+    'electropop',
+}
+
 ROCK_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.INTRO, 4),
     (SectionType.VERSE, 8),
@@ -519,6 +527,13 @@ LOFI_BOOM_BAP_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.VERSE, 4),
     (SectionType.VARIATION, 4),
     (SectionType.VERSE, 4),
+]
+
+HOUSE_AMBIENT_POP_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.INTRO, 4),
+    (SectionType.BUILDUP, 4),
+    (SectionType.DROP, 4),
+    (SectionType.OUTRO, 4),
 ]
 
 JAZZ_TEMPLATE: List[Tuple[SectionType, int]] = [
@@ -621,6 +636,17 @@ ARRANGEMENT_TEMPLATES: Dict[str, List[Tuple[SectionType, int]]] = {
         (SectionType.BREAKDOWN, 8),
         (SectionType.VERSE, 16),
         (SectionType.OUTRO, 8),
+    ],
+    'pop': [
+        (SectionType.INTRO, 4),
+        (SectionType.VERSE, 8),
+        (SectionType.PRE_CHORUS, 4),
+        (SectionType.CHORUS, 8),
+        (SectionType.VERSE, 8),
+        (SectionType.CHORUS, 8),
+        (SectionType.BRIDGE, 4),
+        (SectionType.CHORUS, 8),
+        (SectionType.OUTRO, 4),
     ],
     # Ethiopian arrangements - typically feature call-and-response patterns
     'ethiopian': [
@@ -914,6 +940,9 @@ class Arranger:
         if _genre_norm in LOFI_BOOM_BAP_FAMILY_GENRES and 0 < target_bars <= 16:
             self._preserve_template_bars = True
             return LOFI_BOOM_BAP_SHORT_TEMPLATE.copy()
+        if _genre_norm in HOUSE_AMBIENT_POP_FAMILY_GENRES and 0 < target_bars <= 16:
+            self._preserve_template_bars = True
+            return HOUSE_AMBIENT_POP_SHORT_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 8:
             return JAZZ_SMOKE_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 16:

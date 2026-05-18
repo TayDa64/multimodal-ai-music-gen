@@ -1,11 +1,133 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-18-lofi-boom-bap-066",
-    "started": "2026-05-18T13:30:00Z",
-    "user_request": "Continue with Tasks 066-068 before consolidation and UI/UX; Task 066 implements lofi/boom_bap/g_funk deterministic parity."
+    "id": "session-2026-05-18-house-ambient-pop-067",
+    "started": "2026-05-18T18:20:00Z",
+    "user_request": "Continue with Tasks 066-068 before consolidation and UI/UX; Task 067 implements house/ambient/pop deterministic parity."
   },
   "task_queue": [
+    {
+      "id": "house-ambient-pop-deterministic-parity-067",
+      "description": "Align house/ambient/pop short arrangement, session metadata, and explicit no-op FluidSynth profile for the 16-bar atmospheric house pop workflow without analyzer or renderer tuning.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "lofi-boom-bap-deterministic-parity-066",
+        "cross-genre-maturity-matrix-baseline-plan-057"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/arranger.py",
+        "multimodal_gen/session_graph.py",
+        "multimodal_gen/fluidsynth_profiles.py",
+        "tests/test_arranger_house_ambient_pop.py",
+        "tests/test_session_graph_house_ambient_pop.py",
+        "tests/test_fluidsynth_profiles.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-18T18:20:00Z",
+      "updated": "2026-05-18T18:20:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Baseline parsed house and produced audio_analysis.passed=true, but --duration-bars 16 inflated to 28 bars/7 sections, session_manifest swapped/mislabeled pad and hook-synth channel semantics, and FluidSynth profile was default:default."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/arranger.py",
+          "multimodal_gen/session_graph.py",
+          "multimodal_gen/fluidsynth_profiles.py",
+          "tests/test_arranger_house_ambient_pop.py",
+          "tests/test_session_graph_house_ambient_pop.py",
+          "tests/test_fluidsynth_profiles.py"
+        ],
+        "summary": "Added house/ambient/pop preserved 4x4 short arc, stable Drums/Bass/Pad/Hook Synth session graph branch aligned to MIDI channels, and explicit no-op house_ambient_pop:house FluidSynth profile.",
+        "guardrails_preserved": [
+          "No analyzer target relaxation.",
+          "No audio_renderer.py changes.",
+          "No midi_generator.py changes; explicit hook synth Melody remains expected.",
+          "No tone shelves added for house/ambient/pop.",
+          "Runtime diagnostics and audio/MIDI artifacts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest -p no:cacheprovider tests/test_arranger_house_ambient_pop.py tests/test_session_graph_house_ambient_pop.py tests/test_fluidsynth_profiles.py tests/test_arranger_trap_modern.py tests/test_session_graph_trap_modern.py tests/test_arranger_rnb_neosoul.py tests/test_session_graph_rnb_neosoul.py tests/test_arranger_lofi_boom_bap.py tests/test_session_graph_lofi_boom_bap.py tests/test_midi_generator_rnb_neosoul.py tests/test_midi_generator_lofi_boom_bap.py tests/test_midi_generator.py -q",
+          "result": "PASS: 39 passed"
+        }
+      ],
+      "runtime_proof": {
+        "command": "python main.py \"atmospheric house pop track with pads, four-on-floor drums, bass, hook synth, 124 BPM in A minor\" --output output\\_diagnostics\\house_ambient_pop_workflow_067\\post_contract_67067 --duration-bars 16 --seed 67067 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\house_ambient_pop_workflow_067\\post_contract_67067",
+        "render_report": "output\\_diagnostics\\house_ambient_pop_workflow_067\\post_contract_67067\\house_124.0bpm_Aminor_20260518_111543_render_report.json",
+        "manifest": "output\\_diagnostics\\house_ambient_pop_workflow_067\\post_contract_67067\\session_manifest.json",
+        "midi": "output\\_diagnostics\\house_ambient_pop_workflow_067\\post_contract_67067\\house_124.0bpm_Aminor_20260518_111543.mid",
+        "audio": "output\\_diagnostics\\house_ambient_pop_workflow_067\\post_contract_67067\\house_124.0bpm_Aminor_20260518_111543.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "render_status_success": true,
+        "profile": "house_ambient_pop:house",
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 0.857,
+          "centroid_hz": 6307,
+          "issues": [
+            "Spectral centroid 6307 Hz outside expected 1200-4200 Hz"
+          ]
+        },
+        "total_bars": 16,
+        "manifest_tracks": [
+          {
+            "name": "Drums",
+            "role": "drums",
+            "channel": 9
+          },
+          {
+            "name": "Bass",
+            "role": "bass",
+            "channel": 1
+          },
+          {
+            "name": "Pad",
+            "role": "pad",
+            "channel": 2
+          },
+          {
+            "name": "Hook Synth",
+            "role": "lead",
+            "channel": 3
+          }
+        ],
+        "midi_contract": {
+          "track_names": [
+            "Meta",
+            "Drums",
+            "Bass",
+            "Chords",
+            "Melody"
+          ],
+          "bass_program_zero_based": 38,
+          "chords_program_zero_based": 89,
+          "melody_program_zero_based": 80,
+          "explicit_hook_melody_present": true
+        },
+        "samples": [
+          "kick.wav",
+          "clap.wav",
+          "hihat_closed.wav",
+          "hihat_open.wav"
+        ]
+      },
+      "post_verifier": {
+        "verdict": "PASS_MANUAL",
+        "timestamp": "2026-05-18T18:20:00Z",
+        "summary": "Focused tests passed, editor diagnostics were clean, and direct CLI proof confirmed 16 bars, house_ambient_pop profile, stable Drums/Bass/Pad/Hook Synth manifest, and expected explicit hook-synth MIDI Melody."
+      }
+    },
     {
       "id": "lofi-boom-bap-deterministic-parity-066",
       "description": "Align lofi/boom_bap/g_funk texture generation, short arrangement, session metadata, MIDI melody semantics, and explicit no-op FluidSynth profile for the 16-bar boom-bap workflow.",

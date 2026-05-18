@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For house/ambient/pop, fix short-form, UI track semantics, and no-op profile identity before tone tuning",
+        "context": "Task 067 baseline was audio-green but had deterministic parity gaps: 16 bars inflated to 28, FluidSynth profile was default:default, and manifest Pad/Hook Synth roles/channels were misleading versus MIDI. The safe slice added a compact 4x4 arc, stable Drums/Bass/Pad/Hook Synth manifest contract, and house_ambient_pop:house no-op profile while leaving renderer, analyzer, and MIDI generation unchanged. Brightness remains later quality data.",
+        "timestamp": "2026-05-18T18:20:00Z"
+      },
+      {
+        "pattern": "For house/ambient/pop, fix deterministic short-form, UI track semantics, and explicit no-op profile before tone tuning",
+        "context": "Task 067 baseline already parsed the atmospheric house pop prompt and passed direct FluidSynth audio analysis with only a brightness warning, but inflated 16 bars to 28, reported default:default profile, and exposed misleading Pad/Chords/Hook Synth manifest channels. The safe slice added a preserved 4x4 compact arc, Drums/Bass/Pad-or-Chords/Hook-Synth session graph branch aligned to MIDI channels, and house_ambient_pop:house no-op profile while leaving analyzer, renderer, and MIDI generation untouched.",
+        "timestamp": "2026-05-18T18:14:47Z"
+      },
+      {
         "pattern": "For lofi/boom-bap/G-Funk, unblock texture wrappers and align arrangement/session/MIDI/profile parity before tone tuning",
         "context": "Task 066 baseline exposed deterministic parity gaps: 16 bars inflated to 24, CLI texture sample generation called missing AssetsGenerator.generate_vinyl_crackle, and MIDI emitted an unrequested default Melody while the manifest used Drums/Bass/Keys/Vinyl. The safe slice added wrappers, a compact 4x4 arc, stable UI-facing tracks, lofi-family melody suppression unless explicit, and lofi_boom_bap:boom_bap no-op profile. Brightness/drum-presence warnings remain measured quality follow-up data.",
         "timestamp": "2026-05-18T13:30:00Z"
@@ -565,6 +575,26 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Defer house brightness tuning after Task 067.",
+      "rationale": "Audio analysis passed and the measured gaps were deterministic arrangement/profile/session parity, not a failed quality gate.",
+      "alternatives_considered": [
+        "Tone shelf for house_ambient_pop",
+        "Analyzer target relaxation",
+        "MIDI generator changes"
+      ],
+      "timestamp": "2026-05-18T18:20:00Z"
+    },
+    {
+      "decision": "Do not tune the house/ambient/pop brightness warning in Task 067.",
+      "rationale": "Measured baseline audio_analysis passed and the assigned scope only covered deterministic arrangement/profile/session parity; adding shelves or analyzer changes would exceed scope.",
+      "alternatives_considered": [
+        "Add high shelf for house brightness",
+        "Relax analyzer centroid target",
+        "Modify MIDI generator"
+      ],
+      "timestamp": "2026-05-18T18:14:47Z"
+    },
     {
       "decision": "Keep Task 066 as deterministic parity only and defer boom-bap tone/drum-presence tuning.",
       "rationale": "The final proof passed audio analysis but retained warnings, while the measured implementation gaps were workflow semantics and UI/MIDI parity.",
@@ -1415,5 +1445,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T13:30:00Z"
+  "last_updated": "2026-05-18T18:20:00Z"
 }
