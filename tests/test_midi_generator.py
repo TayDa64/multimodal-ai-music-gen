@@ -170,15 +170,15 @@ def test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed():
     assert _channel_1_program(bass) == 34
 
 
-def test_non_rock_bass_track_preserves_synth_bass_program():
+def test_generic_non_rock_bass_track_preserves_synth_bass_program():
     parsed = ParsedPrompt(
-        genre="rnb",
+        genre="pop",
         bpm=88,
         key="D",
         scale_type=ScaleType.MINOR,
-        instruments=["rhodes", "bass"],
+        instruments=["synth", "bass"],
         drum_elements=["kick", "snare", "hihat"],
-        raw_prompt="warm rnb rhodes and bass groove",
+        raw_prompt="warm pop synth and bass groove",
     )
 
     mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(), parsed)

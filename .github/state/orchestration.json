@@ -1,11 +1,169 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-18-trap-modern-064",
-    "started": "2026-05-18T08:52:00Z",
-    "user_request": "Continue with the next highest-priority implementation. Selected trap/modern beat from the cross-genre maturity matrix after Task 063."
+    "id": "session-2026-05-18-rnb-neosoul-065",
+    "started": "2026-05-18T10:30:00Z",
+    "user_request": "Continue with the next highest-priority implementation. Selected R&B / neo-soul / trap-soul from the cross-genre maturity matrix after Task 064."
   },
   "task_queue": [
+    {
+      "id": "rnb-neosoul-manifest-midi-profile-065",
+      "description": "Move to Tier B priority #3 by aligning R&B/neo-soul/trap-soul short arrangement, session metadata, MIDI bass/melody semantics, and explicit no-op FluidSynth profile with warm electric piano, bass, laid-back drums, and lush chords workflow proof.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "trap-modern-manifest-arrangement-064",
+        "cross-genre-maturity-matrix-baseline-plan-057"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/arranger.py",
+        "multimodal_gen/session_graph.py",
+        "multimodal_gen/midi_generator.py",
+        "multimodal_gen/fluidsynth_profiles.py",
+        "tests/test_arranger_rnb_neosoul.py",
+        "tests/test_session_graph_rnb_neosoul.py",
+        "tests/test_midi_generator_rnb_neosoul.py",
+        "tests/test_fluidsynth_profiles.py",
+        "tests/test_midi_generator.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-18T10:30:00Z",
+      "updated": "2026-05-18T10:30:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Direct baseline for the neo-soul R&B prompt showed parser, requested samples, FluidSynth render, and audio_analysis were green, but --duration-bars 16 inflated to 32 bars, session_manifest duplicated Bass as lead and mislabeled Rhodes/electric-piano chords, MIDI used synth bass program 38 and added an unrequested synth Melody track, and FluidSynth profile was default:default."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/arranger.py",
+          "multimodal_gen/session_graph.py",
+          "multimodal_gen/midi_generator.py",
+          "multimodal_gen/fluidsynth_profiles.py",
+          "tests/test_arranger_rnb_neosoul.py",
+          "tests/test_session_graph_rnb_neosoul.py",
+          "tests/test_midi_generator_rnb_neosoul.py",
+          "tests/test_fluidsynth_profiles.py",
+          "tests/test_midi_generator.py"
+        ],
+        "summary": "Arranger now provides an R&B-family <=16-bar verse/chorus/bridge/chorus arc. SessionGraphBuilder now records Drums, Bass, and Rhodes/Electric Piano chords without duplicate Bass lead or default Melody. MidiGenerator routes R&B-family bass to electric bass program 33 and suppresses default melody unless explicitly cued. FluidSynth profiles now include a no-op rnb_neosoul:neo_soul profile family.",
+        "guardrails_preserved": [
+          "No audio renderer or output analyzer changes and no analyzer target relaxation.",
+          "No R&B tone shelves were added; rnb_neosoul profile is explicit and no-op.",
+          "Trap/modern, cinematic/classical, classic-rock Hammond, assets/main diagnostics, and FluidSynth profile guards remain green.",
+          "Runtime diagnostics, MIDI, WAV, render reports, project metadata, assets, and SoundFonts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_arranger_rnb_neosoul.py tests/test_session_graph_rnb_neosoul.py tests/test_midi_generator_rnb_neosoul.py tests/test_fluidsynth_profiles.py tests/test_arranger_trap_modern.py tests/test_session_graph_trap_modern.py tests/test_midi_generator.py::test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed tests/test_audio_renderer.py::test_trap_fluidsynth_profile_does_not_apply_rock_tone_shaping -q",
+          "result": "PASS: 18 passed"
+        },
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_assets_gen.py tests/test_main_render_diagnostics.py tests/test_session_graph_cinematic_classical.py tests/test_arranger_cinematic_classical.py tests/test_session_graph_classic_rock_hammond.py -q",
+          "result": "PASS: 20 passed"
+        }
+      ],
+      "runtime_proof": {
+        "command": ".\\.venv\\Scripts\\python.exe .\\main.py \"neo-soul R&B groove with warm electric piano, bass, laid-back drums, lush chords, 82 BPM in F minor\" --output output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065 --duration-bars 16 --seed 65065 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065",
+        "render_report": "output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065\\neo_soul_82.0bpm_Fminor_20260518_102914_render_report.json",
+        "project_metadata": "output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065\\project_metadata.json",
+        "manifest": "output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065\\session_manifest.json",
+        "midi": "output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065\\neo_soul_82.0bpm_Fminor_20260518_102914.mid",
+        "audio": "output\\_diagnostics\\rnb_neosoul_workflow_065\\post_contract_65065\\neo_soul_82.0bpm_Fminor_20260518_102914.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "render_status_success": true,
+        "skip_reason": null,
+        "profile": "rnb_neosoul:neo_soul",
+        "tone_shaping": null,
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 0.994,
+          "centroid_hz": 2788.7,
+          "sub_bass_energy_ratio": 0.7443,
+          "percussive_ratio": 0.067,
+          "onset_density": 2.31,
+          "issues": [
+            "Drum presence 0.067 below expected 0.08 for neo_soul"
+          ]
+        },
+        "project_sections": [
+          {
+            "name": "verse",
+            "bars": 4
+          },
+          {
+            "name": "chorus",
+            "bars": 4
+          },
+          {
+            "name": "bridge",
+            "bars": 4
+          },
+          {
+            "name": "chorus",
+            "bars": 4
+          }
+        ],
+        "total_bars": 16,
+        "manifest_tracks": [
+          {
+            "name": "Drums",
+            "role": "drums",
+            "channel": 9
+          },
+          {
+            "name": "Bass",
+            "role": "bass",
+            "channel": 1
+          },
+          {
+            "name": "Rhodes",
+            "role": "chords",
+            "channel": 2
+          }
+        ],
+        "midi_contract": {
+          "track_names": [
+            "Meta",
+            "Drums",
+            "Bass",
+            "Chords"
+          ],
+          "bass_program_zero_based": 33,
+          "chords_program_zero_based": 4,
+          "melody_track_present": false
+        },
+        "samples": [
+          "kick.wav",
+          "snare.wav",
+          "hihat_closed.wav"
+        ],
+        "manifest_contract": {
+          "drums_channel_9": true,
+          "bass_channel_1": true,
+          "rhodes_chords_channel_2": true,
+          "duplicate_bass_lead_present": false,
+          "default_melody_present": false
+        }
+      },
+      "post_verifier": {
+        "verdict": "PASS_MANUAL",
+        "timestamp": "2026-05-18T10:30:00Z",
+        "summary": "Supervisor performed direct verification: focused and guard tests passed, diff/checks were clean, editor diagnostics were clean, and runtime artifact inspection confirmed 16-bar R&B arc, rnb_neosoul profile, Drums/Bass/Rhodes manifest contract, MIDI electric bass program 33, Rhodes chords program 4, no Melody track, and no 808/clap sample leakage. Low drum-presence warning remains documented follow-up data."
+      },
+      "result": {
+        "status": "completed",
+        "summary": "R&B/neo-soul workflow now preserves compact 16-bar intent, explicit no-op profile identity, electric-bass/Rhodes MIDI semantics, and UI/session metadata without phantom lead tracks."
+      }
+    },
     {
       "id": "trap-modern-manifest-arrangement-064",
       "description": "Move to Tier B priority #2 by aligning trap/modern-beat short-form arrangement and session metadata with explicit 808 bass, snare, hi-hat rolls, and sparse melody workflow proof.",

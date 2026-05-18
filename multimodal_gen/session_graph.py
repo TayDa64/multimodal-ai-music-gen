@@ -1274,11 +1274,16 @@ class SessionGraphBuilder:
         trap_modern_family_genres = {
             'trap', 'modern_beat', 'trap_modern_beat',
         }
+        rnb_family_genres = {
+            'rnb', 'neo_soul', 'trap_soul',
+        }
 
         if genre_norm in orchestral_family_genres:
             return self._create_orchestral_tracks(graph, parsed, instrument_names, raw_prompt)
         if genre_norm in trap_modern_family_genres:
             return self._create_trap_modern_tracks(graph, parsed, instrument_names, raw_prompt)
+        if genre_norm in rnb_family_genres:
+            return self._create_rnb_tracks(graph, parsed, instrument_names, raw_prompt)
 
         channel = 0
         
@@ -1384,6 +1389,42 @@ class SessionGraphBuilder:
             track = graph.add_track("Organ", Role.PAD.value, channel=4)
             track.color = self.default_track_colors.get(Role.PAD.value, "#808080")
         
+        return graph
+
+    def _create_rnb_tracks(
+        self,
+        graph: SessionGraph,
+        parsed,
+        instrument_names: List[str],
+        raw_prompt: str,
+    ) -> SessionGraph:
+        """Create R&B/neo-soul tracks aligned with the MIDI contract."""
+        import re
+
+        searchable = " ".join([raw_prompt] + instrument_names)
+
+        def _has_cue(cues: Tuple[str, ...]) -> bool:
+            return any(
+                re.search(r'\b' + re.escape(cue) + r'\b', searchable)
+                for cue in cues
+            )
+
+        def _add_track(name: str, role: str, channel: int):
+            track = graph.add_track(name, role, channel=channel)
+            track.color = self.default_track_colors.get(role, "#808080")
+            return track
+
+        drums_track = _add_track("Drums", Role.DRUMS.value, 9)
+        drums_track.player_profile = getattr(parsed, 'humanization_profile', 'natural')
+
+        _add_track("Bass", Role.BASS.value, 1)
+
+        chord_name = "Rhodes" if _has_cue(('rhodes', 'electric piano', 'epiano', 'e piano')) else "Electric Piano"
+        _add_track(chord_name, Role.CHORDS.value, 2)
+
+        if _has_cue(('melody', 'lead', 'hook', 'vocal chop', 'vocal chops')):
+            _add_track("Melody", Role.LEAD.value, 3)
+
         return graph
 
     def _create_trap_modern_tracks(

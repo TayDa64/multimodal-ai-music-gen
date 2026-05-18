@@ -75,11 +75,17 @@ JAZZ_FAMILY_GENRES = frozenset({
 
 TRAP_MODERN_BEAT_FAMILY_GENRES = frozenset({
     "trap",
-    "trap_soul",
     "drill",
     "hip_hop",
     "boom_bap",
     "modern_beat",
+})
+
+RNB_NEOSOUL_FAMILY_GENRES = frozenset({
+    "rnb",
+    "r_and_b",
+    "neo_soul",
+    "trap_soul",
 })
 
 _GENRE_ALIASES: Dict[str, str] = {
@@ -110,10 +116,16 @@ _GENRE_ALIASES: Dict[str, str] = {
     "smooth_jazz": "smooth_jazz",
     "bebop": "bebop",
     "ethio_jazz": "ethio_jazz",
-    # Trap / modern beat no-op family
-    "trap": "trap",
+    # R&B / neo-soul no-op family
+    "rnb": "rnb",
+    "r_and_b": "rnb",
+    "randb": "rnb",
+    "neo_soul": "neo_soul",
+    "neosoul": "neo_soul",
     "trap_soul": "trap_soul",
     "trapsoul": "trap_soul",
+    # Trap / modern beat no-op family
+    "trap": "trap",
     "drill": "drill",
     "hip_hop": "hip_hop",
     "hiphop": "hip_hop",
@@ -192,10 +204,18 @@ TRAP_MODERN_BEAT_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     tone_shelves=(),
 )
 
+RNB_NEOSOUL_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
+    name="rnb_neosoul",
+    genre_family="neo_soul",
+    aliases=tuple(sorted(RNB_NEOSOUL_FAMILY_GENRES | {"r&b"})),
+    tone_shelves=(),
+)
+
 FLUIDSYNTH_RENDERER_PROFILES: Tuple[FluidSynthRendererProfile, ...] = (
     ROCK_FLUIDSYNTH_PROFILE,
     CLASSICAL_FLUIDSYNTH_PROFILE,
     JAZZ_FLUIDSYNTH_PROFILE,
+    RNB_NEOSOUL_FLUIDSYNTH_PROFILE,
     TRAP_MODERN_BEAT_FLUIDSYNTH_PROFILE,
 )
 

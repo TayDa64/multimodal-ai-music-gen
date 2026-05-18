@@ -462,6 +462,12 @@ TRAP_MODERN_BEAT_FAMILY_GENRES = {
     'trap_modern_beat',
 }
 
+RNB_FAMILY_GENRES = {
+    'rnb',
+    'neo_soul',
+    'trap_soul',
+}
+
 ROCK_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.INTRO, 4),
     (SectionType.VERSE, 8),
@@ -492,6 +498,13 @@ TRAP_MODERN_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.DROP, 4),
     (SectionType.VARIATION, 4),
     (SectionType.DROP, 4),
+]
+
+RNB_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.VERSE, 4),
+    (SectionType.CHORUS, 4),
+    (SectionType.BRIDGE, 4),
+    (SectionType.CHORUS, 4),
 ]
 
 JAZZ_TEMPLATE: List[Tuple[SectionType, int]] = [
@@ -881,6 +894,9 @@ class Arranger:
         if _genre_norm in TRAP_MODERN_BEAT_FAMILY_GENRES and 0 < target_bars <= 16:
             self._preserve_template_bars = True
             return TRAP_MODERN_SHORT_TEMPLATE.copy()
+        if _genre_norm in RNB_FAMILY_GENRES and 0 < target_bars <= 16:
+            self._preserve_template_bars = True
+            return RNB_SHORT_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 8:
             return JAZZ_SMOKE_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 16:

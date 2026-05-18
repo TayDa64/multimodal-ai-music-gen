@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For R&B/neo-soul, fix short-form, metadata, MIDI identity, and explicit no-op profile before tuning quality warnings",
+        "context": "Task 065 baseline already parsed neo_soul, generated non-trap laid-back samples, rendered through FluidSynth, and passed audio analysis, but inflated to 32 bars, duplicated Bass as lead in manifest, used synth bass program 38, added unrequested synth Melody, and reported default:default profile. The safe slice added a compact R&B arc, Drums/Bass/Rhodes manifest, electric-bass program 33, no default Melody unless explicit, and rnb_neosoul:neo_soul no-op profile while preserving analyzer targets.",
+        "timestamp": "2026-05-18T10:30:00Z"
+      },
+      {
         "pattern": "For trap/modern-beat, fix deterministic arrangement and manifest parity before tuning analyzer/profile warnings",
         "context": "Task 064 baseline already parsed trap, generated requested 808/snare/hihat samples, rendered through FluidSynth with trap_modern_beat:modern_beat, and audio_analysis passed, but 16 bars inflated to 28 and session_manifest exposed a phantom 808 lead. The safe first slice added a compact trap short arc and a trap-specific session graph branch with Drums ch9, Bass ch1, Melody ch3, while keeping brightness/drum-presence warnings as later measured quality work.",
         "timestamp": "2026-05-18T08:52:00Z"
@@ -555,6 +560,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Selected R&B / neo-soul / trap-soul as Task 065 after trap/modern Task 064 and limited the first implementation to deterministic routing, metadata, arrangement, and profile identity.",
+      "rationale": "The cross-genre maturity matrix lists R&B / neo-soul / trap-soul as Tier B priority #3. Runtime baseline passed audio analysis but exposed deterministic semantic gaps; tuning drum detector or EQ first would have hidden metadata/MIDI identity problems.",
+      "alternatives_considered": [
+        "Tune R&B FluidSynth shelves",
+        "Relax or change neo_soul drum-presence analyzer warning",
+        "Leave default profile and only fix bars"
+      ],
+      "timestamp": "2026-05-18T10:30:00Z"
+    },
     {
       "decision": "Selected trap/modern beat as Task 064 after cinematic/classical Task 063 and limited the implementation to short-form arrangement and session metadata parity.",
       "rationale": "The cross-genre maturity matrix lists Trap/modern beat as Tier B priority #2. Runtime baseline showed renderer/profile/parser/MIDI were already functioning, so analyzer/profile tuning would have been speculative and riskier than fixing deterministic UI/session metadata and duration semantics.",
@@ -1385,5 +1400,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T08:52:00Z"
+  "last_updated": "2026-05-18T10:30:00Z"
 }

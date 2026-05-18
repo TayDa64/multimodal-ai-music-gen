@@ -174,6 +174,10 @@ ROCK_FAMILY_GENRES = {
     'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
 }
 
+RNB_FAMILY_GENRES = {
+    'rnb', 'neo_soul', 'trap_soul'
+}
+
 JAZZ_HORN_MELODY_VELOCITY_CAP = 112
 JAZZ_SAX_MELODY_CC74_CAP = 78
 JAZZ_CHORD_CC74_CAP = 78
@@ -226,6 +230,24 @@ def _is_sax_melody_choice(horn_choice: Optional[Tuple[str, int, str]]) -> bool:
 
 def _is_jazz_sax_melody(parsed: ParsedPrompt, horn_choice: Optional[Tuple[str, int, str]]) -> bool:
     return normalize_genre(getattr(parsed, 'genre', '') or '') == 'jazz' and _is_sax_melody_choice(horn_choice)
+
+
+def _is_rnb_family(parsed: ParsedPrompt) -> bool:
+    return normalize_genre(getattr(parsed, 'genre', '') or '') in RNB_FAMILY_GENRES
+
+
+def _has_explicit_melody_cue(parsed: ParsedPrompt) -> bool:
+    """Return True when prompt or parsed instruments explicitly request a lead line."""
+    import re
+
+    cues = ('melody', 'lead', 'hook', 'vocal chop', 'vocal chops')
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    instruments = " ".join(
+        str(inst).strip().lower().replace('-', ' ').replace('_', ' ')
+        for inst in getattr(parsed, 'instruments', [])
+    )
+    searchable = f"{raw_prompt} {instruments}"
+    return any(re.search(r'\b' + re.escape(cue) + r'\b', searchable) for cue in cues)
 
 
 def _is_keyboard_chord_instrument(resolved_instrument: Optional[str], program: Optional[int]) -> bool:
@@ -324,6 +346,19 @@ def _jazz_acoustic_bass_program(parsed: ParsedPrompt) -> Optional[int]:
         phrase in raw_prompt for phrase in ('walking bass', 'upright bass', 'acoustic bass', 'double bass')
     ):
         return 32  # Acoustic Bass, 0-based GM program
+    return None
+
+
+def _rnb_family_bass_program(parsed: ParsedPrompt) -> Optional[int]:
+    """Route R&B/neo-soul/trap-soul bass to GM electric bass, not synth bass."""
+    if not _is_rnb_family(parsed):
+        return None
+
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    instruments_norm = {str(inst).strip().lower().replace('-', '_') for inst in getattr(parsed, 'instruments', [])}
+    instruments_spaced = {inst.replace('_', ' ') for inst in instruments_norm}
+    if 'bass' in instruments_norm or 'bass' in instruments_spaced or 'bass' in raw_prompt:
+        return 33  # Electric Bass (finger), 0-based GM program
     return None
 
 
@@ -1828,7 +1863,8 @@ class MidiGenerator:
             'tenor_sax', 'alto_sax', 'sax', 'saxophone', 'trumpet', 'trombone', 'brass',
         ]
         has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
-        if parsed.genre not in ['ambient', 'lofi'] or has_melody_inst:
+        suppress_rnb_default_melody = _is_rnb_family(parsed) and not _has_explicit_melody_cue(parsed)
+        if (parsed.genre not in ['ambient', 'lofi'] or has_melody_inst) and not suppress_rnb_default_melody:
             melody_track = self._create_melody_track(arrangement, parsed, groove_template)
             if len(melody_track) > 1:  # Has notes beyond track name
                 mid.tracks.append(melody_track)
@@ -2413,7 +2449,12 @@ class MidiGenerator:
         
         # Program change: preserve synth bass for non-rock, but route rock-family
         # bass guitar prompts to GM electric bass so renderers don't treat them as 808s.
-        bass_program = _rock_family_bass_program(parsed) or _jazz_acoustic_bass_program(parsed) or 38
+        bass_program = (
+            _rock_family_bass_program(parsed)
+            or _jazz_acoustic_bass_program(parsed)
+            or _rnb_family_bass_program(parsed)
+            or 38
+        )
         track.append(Message('program_change', program=bass_program, channel=1, time=0))
         if bass_program in (33, 34):
             track.append(MetaMessage('text', text='instrument:Bass Guitar', time=0))

@@ -14,6 +14,7 @@ def test_normalize_genre_handles_common_lookup_aliases():
     assert normalize_genre("alternative-rock") == "alternative_rock"
     assert normalize_genre("1990s Rock") == "rock"
     assert normalize_genre("Trap-Soul") == "trap_soul"
+    assert normalize_genre("R&B") == "rnb"
     assert normalize_genre(None) == ""
 
 
@@ -71,7 +72,6 @@ def test_classical_and_trap_profiles_remain_discoverable_noops():
         "classical": ("classical", "classical"),
         "orchestral": ("classical", "classical"),
         "trap": ("trap_modern_beat", "modern_beat"),
-        "trap soul": ("trap_modern_beat", "modern_beat"),
         "modern beat": ("trap_modern_beat", "modern_beat"),
     }
 
@@ -79,6 +79,16 @@ def test_classical_and_trap_profiles_remain_discoverable_noops():
         profile = get_fluidsynth_profile(genre)
         assert profile.name == name
         assert profile.genre_family == family
+        assert profile.tone_shelves == ()
+        assert profile_tone_shelves_diagnostic(profile) == ""
+
+
+def test_rnb_neosoul_profile_is_explicit_noop():
+    for genre in ["rnb", "R&B", "neo soul", "neo_soul", "trap soul", "trap_soul"]:
+        profile = get_fluidsynth_profile(genre)
+        assert profile.name == "rnb_neosoul"
+        assert profile.genre_family == "neo_soul"
+        assert profile_diagnostic(profile) == "rnb_neosoul:neo_soul"
         assert profile.tone_shelves == ()
         assert profile_tone_shelves_diagnostic(profile) == ""
 
