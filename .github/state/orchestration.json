@@ -1,11 +1,93 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-18-mpc-inspired-track-controls-ui-070",
-    "started": "2026-05-18T20:05:00Z",
-    "user_request": "Advance the MUSE UI using the Akai MPC reference: professional dark compact border controls, left/bottom control feel, track-associated controls, and no loss of established functionality."
+    "id": "session-2026-05-18-instrument-display-name-cleanup-071",
+    "started": "2026-05-18T20:35:00Z",
+    "user_request": "Remove leading RnB-/Inst- source-pack prefixes from user-facing instrument choices without losing established functionality, and assess whether simdjson should be added for startup parsing."
   },
   "task_queue": [
+    {
+      "id": "instrument-display-name-cleanup-071",
+      "description": "Add display-only instrument labels that remove leading RnB-/Inst- source-pack prefixes while preserving canonical instrument names, paths, ids, categories, loading, matching, and generation behavior; defer simdjson pending measured JSON bottleneck evidence.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "mpc-inspired-track-controls-ui-070",
+        "cross-genre-session-manifest-consolidation-after-068"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/server/worker.py",
+        "juce/Source/UI/InstrumentBrowserPanel.h",
+        "juce/Source/UI/ExpansionBrowserPanel.h",
+        "tests/test_instrument_manager.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-18T20:35:00Z",
+      "updated": "2026-05-18T20:35:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Probe found instrument scan payloads and JUCE browser parsing used canonical `name` directly for labels. Safe fix is additive display-name data plus UI fallback sanitization; do not change instrument_manager category detection or matching. simdjson is not justified without measurement proving JSON parsing dominates startup."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/server/worker.py",
+          "juce/Source/UI/InstrumentBrowserPanel.h",
+          "juce/Source/UI/ExpansionBrowserPanel.h",
+          "tests/test_instrument_manager.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md"
+        ],
+        "summary": "Added a conservative backend instrument_display_name helper and additive scan `display_name`, preserved original `name` and path/id/category fields, updated JUCE instrument and expansion browser parsing to prefer `display_name` while retaining `originalName`, added regressions for RnB-/Inst- cleanup and canonical payload preservation, and documented simdjson deferral.",
+        "guardrails_preserved": [
+          "Canonical backend instrument `name` remains unchanged in scan payloads.",
+          "Instrument filename, id, path, absolute_path, category, category detection, caches, matching, audio loading, and generation behavior remain unchanged.",
+          "JUCE still loads/uses selected instruments by path/absolutePath; only the visible label/friendly name is cleaned.",
+          "No changes to multimodal_gen/instrument_manager.py category detection or recommendation behavior.",
+          "No simdjson dependency added; parser change is deferred pending performance measurement.",
+          "Running Release app/server were not stopped or restarted during this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "VS Code diagnostics for juce/Source/UI/InstrumentBrowserPanel.h and juce/Source/UI/ExpansionBrowserPanel.h",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "git diff --check",
+          "result": "PASS"
+        },
+        {
+          "command": "python -m pytest -p no:cacheprovider tests/test_instrument_manager.py -q",
+          "result": "PASS: 6 passed in 2.14s"
+        },
+        {
+          "command": "MSBuild.exe juce/build/MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal",
+          "result": "PASS: Debug JUCE app built; existing C4100/C4996 warning noise only"
+        },
+        {
+          "command": "python -m pytest -p no:cacheprovider tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q",
+          "result": "PASS: 67 passed, 6 existing librosa warnings"
+        },
+        {
+          "command": "Static scope check: git diff --name-only and Select-String for display_name/originalName/absolute_path/absolutePath",
+          "result": "PASS: diff limited to instrument display-label layer, docs, and focused tests before state update"
+        }
+      ],
+      "runtime_context": {
+        "server_terminal_id": "c33b1d2a-8372-45f7-8b25-66853ccfc379",
+        "release_app_pid": 34928,
+        "note": "Running Release app predates this display-name change; rebuild/relaunch is required to see cleaned labels in the live UI."
+      },
+      "post_verifier": {
+        "verdict": "PASS_MANUAL",
+        "timestamp": "2026-05-18T20:35:00Z",
+        "summary": "Manual aggregate verification confirmed additive display_name behavior, canonical field preservation, C++ diagnostics/build success, focused Python regressions, and protocol/golden guard pass."
+      }
+    },
     {
       "id": "mpc-inspired-track-controls-ui-070",
       "description": "Add an MPC-inspired compact professional visual treatment to track-associated controls using additive theme/layout tokens and TrackHeader paint/layout only.",
@@ -5821,7 +5903,7 @@
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "complete",
+  "current_phase": "aggregate",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {

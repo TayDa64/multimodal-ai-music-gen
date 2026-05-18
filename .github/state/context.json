@@ -1,7 +1,63 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-18-mpc-inspired-track-controls-ui-070",
+  "session_id": "session-2026-05-18-instrument-display-name-cleanup-071",
   "files_touched": [
+    {
+      "path": "multimodal_gen\\server\\worker.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added conservative instrument_display_name helper and additive scan display_name while preserving canonical name/path/id/category fields."
+    },
+    {
+      "path": "juce\\Source\\UI\\InstrumentBrowserPanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Preserved originalName and used display_name or fallback sanitization for user-facing InstrumentInfo.name labels."
+    },
+    {
+      "path": "juce\\Source\\UI\\ExpansionBrowserPanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Preserved originalName and used display_name or fallback sanitization for expansion instrument labels."
+    },
+    {
+      "path": "tests\\test_instrument_manager.py",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added regressions for RnB-/Inst- display cleanup and scan payload canonical-name preservation."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 071 display-name cleanup and simdjson deferral rationale."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 071 display-name cleanup proof."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 071 touched files and verifications."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-18T20:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 071 display-label and parser-dependency learning."
+    },
     {
       "path": "juce\\Source\\UI\\Theme\\ColourScheme.h",
       "action": "modified",
@@ -3806,6 +3862,30 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen/server/worker.py",
+      "description": "Added display-only source-prefix stripping helper and additive scan display_name.",
+      "diff_summary": "Imported re, added _LEADING_SOURCE_PREFIX_RE and instrument_display_name(), and added display_name next to unchanged name in InstrumentScanWorker payload.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "file": "juce/Source/UI/InstrumentBrowserPanel.h and juce/Source/UI/ExpansionBrowserPanel.h",
+      "description": "Separated canonical/original instrument name from visible display label.",
+      "diff_summary": "Added originalName fields; fromJSON now preserves name as originalName and sets visible name from display_name or conservative local sanitization, leaving id/path/absolute_path/category parsing unchanged.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "file": "tests/test_instrument_manager.py",
+      "description": "Added focused regressions for display labels and scan serialization.",
+      "diff_summary": "Tests assert RnB-/Inst- prefixes are stripped only at the leading source-prefix position, non-prefixed names remain unchanged, and scan payloads retain canonical name/path/absolute_path/category while adding display_name.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Documented display-name cleanup and simdjson decision.",
+      "diff_summary": "Added Task 071 note: display_name is additive and simdjson is deferred because startup appears dominated by scanning/OSC transport rather than measured JSON parsing.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
       "file": "Post-Task-068 consolidation checkpoint",
       "description": "Verified recent genre-family arrangement/session UI contracts and ignored artifact status before UI/UX work.",
       "diff_summary": "docs/state only; no source behavior changes",
@@ -4657,6 +4737,41 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "C++ diagnostics for InstrumentBrowserPanel.h and ExpansionBrowserPanel.h",
+      "result": "PASS",
+      "details": "No errors found.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check passed.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused instrument tests",
+      "result": "PASS",
+      "details": "tests/test_instrument_manager.py: 6 passed in 2.14s.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE Debug build",
+      "result": "PASS",
+      "details": "MSBuild Debug x64 produced AI Music Generator.exe with existing C4100/C4996 warning noise only.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Protocol/golden guard tests",
+      "result": "PASS",
+      "details": "tests/test_protocol.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py: 67 passed, 6 existing librosa warnings.",
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
     {
       "type": "consolidation",
       "target": "Recent genre-family arrangement/session manifest contracts",
@@ -6068,6 +6183,21 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-before-instrument-display-name-cleanup-071",
+      "description": "HEAD before additive display_name cleanup and state update.",
+      "files": [
+        "multimodal_gen/server/worker.py",
+        "juce/Source/UI/InstrumentBrowserPanel.h",
+        "juce/Source/UI/ExpansionBrowserPanel.h",
+        "tests/test_instrument_manager.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
     {
       "id": "rollback-003",
       "description": "Before Ethiopian 6/8 time signature fix",

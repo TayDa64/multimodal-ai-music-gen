@@ -62,6 +62,7 @@ struct ExpansionInstrumentInfo
 {
     juce::String id;
     juce::String name;
+    juce::String originalName;
     juce::String path;
     juce::String expansion;
     juce::String category;
@@ -74,7 +75,8 @@ struct ExpansionInstrumentInfo
     {
         ExpansionInstrumentInfo info;
         info.id = json.getProperty("id", "").toString();
-        info.name = json.getProperty("name", "").toString();
+        info.originalName = json.getProperty("name", "").toString();
+        info.name = json.getProperty("display_name", sanitiseDisplayName(info.originalName)).toString();
         info.path = json.getProperty("path", "").toString();
         info.expansion = json.getProperty("expansion", "").toString();
         info.category = json.getProperty("category", "").toString();
@@ -88,6 +90,31 @@ struct ExpansionInstrumentInfo
         }
         
         return info;
+    }
+
+    static juce::String sanitiseDisplayName(juce::String name)
+    {
+        auto displayName = name;
+        bool stripped = true;
+        while (stripped && displayName.isNotEmpty())
+        {
+            stripped = false;
+            auto lower = displayName.toLowerCase();
+            for (const auto& prefix : { juce::String("rnb"), juce::String("inst") })
+            {
+                if (lower.startsWith(prefix) && displayName.length() > prefix.length())
+                {
+                    const auto separator = displayName[prefix.length()];
+                    if (separator == '-' || separator == '_' || separator == ' ')
+                    {
+                        displayName = displayName.substring(prefix.length() + 1);
+                        stripped = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return displayName;
     }
 };
 

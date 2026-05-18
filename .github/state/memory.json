@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Clean sample-pack prefixes with additive display labels, never by mutating canonical instrument identity",
+        "context": "For instrument packs with source prefixes like RnB- and Inst-, the safe UX fix is to emit a display-only label and preserve original name, filename, id, path, absolute_path, category detection, matching, caches, and loading. UI fallbacks may sanitize older manifests, but generation/audio behavior must continue to use preserved paths/ids.",
+        "timestamp": "2026-05-18T20:35:00Z"
+      },
+      {
         "pattern": "MPC-inspired UI polish should start with additive tokens plus track-associated control paint/layout",
         "context": "For the Akai MPC reference request, the safe first slice avoided backend/audio/protocol changes and improved professionalism by adding reusable MPC-style colour/layout tokens, then applying them only to TrackHeaderComponent paint/resized for compact track-associated controls, selected/accent edging, and clearer control wells. This advances the left/border control feel without touching callbacks, ValueTree, serialization, or audio flow.",
         "timestamp": "2026-05-18T20:05:00Z"
@@ -595,6 +600,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Do not add simdjson for instrument startup until JSON parsing is measured as a significant bottleneck.",
+      "rationale": "Observed startup work is dominated by filesystem/audio/profile scanning and OSC chunking/manifest transport, and the current fix changes only display labels. Adding a new JSON dependency without profiling would risk complexity without proven benefit.",
+      "alternatives_considered": [
+        "Add simdjson immediately for all instrument manifest parsing.",
+        "Mutate canonical instrument names to remove pack prefixes.",
+        "Strip broader category words such as Guitar/Pad/Bass from display names."
+      ],
+      "timestamp": "2026-05-18T20:35:00Z"
+    },
     {
       "decision": "Do not tune Ethiopian drum-presence warning in Task 068.",
       "rationale": "Audio analysis passed and the assigned scope covered deterministic arrangement/profile/session/sample parity; tuning drum loudness or analyzer thresholds would exceed scope.",
@@ -1475,5 +1490,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T18:45:00Z"
+  "last_updated": "2026-05-18T20:35:00Z"
 }

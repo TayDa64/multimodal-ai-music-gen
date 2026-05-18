@@ -166,6 +166,8 @@ Task `ethiopian-family-deterministic-parity-068` completes the Tier B backend ro
 
 Post-Task-068 consolidation checkpoint verified the recent backend genre-family UI contract before UI/UX work begins. The focused checkpoint ran arranger/session graph contract tests for cinematic/classical, trap/modern beat, R&B/neo-soul, lofi/boom-bap/G-Funk, house/ambient/pop, and Ethiopian-family workflows (`25 passed`). This confirms stable UI-facing `session_manifest.json` track names, roles, and channels across the recent families without reintroducing 16-bar inflation. `git status --ignored --short output\_diagnostics assets\soundfonts` confirmed generated diagnostics and the local `FluidR3Mono_GM.sf3` SoundFont remain ignored/uncommitted.
 
+Task `instrument-display-name-cleanup-071` keeps instrument identity and loading paths intact while improving user-facing labels. The backend instrument scan now emits an additive `display_name` that strips only repeated leading source-pack prefixes such as `RnB-` and `Inst-`; original `name`, filename, id, path, absolute_path, category detection, caches, matching, audio loading, and generation behavior remain unchanged. The JUCE instrument and expansion browsers prefer `display_name` when present and conservatively fall back to the same display-only sanitization for older manifests. `simdjson` remains deferred pending measurement: the current observed startup/scan cost is dominated by filesystem/audio/profile scanning and OSC payload chunking/manifest transport, not a proven JSON parsing bottleneck, so adding a new JSON dependency would be premature.
+
 
 ### Failed runner attempt
 

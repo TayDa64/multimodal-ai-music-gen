@@ -25,6 +25,7 @@ struct InstrumentInfo
 {
     juce::String id;              // Unique identifier
     juce::String name;            // Display name
+    juce::String originalName;    // Backend/original name, preserved for diagnostics
     juce::String filename;        // Original filename
     juce::String path;            // Relative path
     juce::String absolutePath;    // Full system path
@@ -49,7 +50,8 @@ struct InstrumentInfo
     {
         InstrumentInfo info;
         info.id = json.getProperty("id", "").toString();
-        info.name = json.getProperty("name", "").toString();
+        info.originalName = json.getProperty("name", "").toString();
+        info.name = json.getProperty("display_name", sanitiseDisplayName(info.originalName)).toString();
         info.filename = json.getProperty("filename", "").toString();
         info.path = json.getProperty("path", "").toString();
         info.absolutePath = json.getProperty("absolute_path", "").toString();
@@ -75,6 +77,31 @@ struct InstrumentInfo
         }
         
         return info;
+    }
+
+    static juce::String sanitiseDisplayName(juce::String name)
+    {
+        auto displayName = name;
+        bool stripped = true;
+        while (stripped && displayName.isNotEmpty())
+        {
+            stripped = false;
+            auto lower = displayName.toLowerCase();
+            for (const auto& prefix : { juce::String("rnb"), juce::String("inst") })
+            {
+                if (lower.startsWith(prefix) && displayName.length() > prefix.length())
+                {
+                    const auto separator = displayName[prefix.length()];
+                    if (separator == '-' || separator == '_' || separator == ' ')
+                    {
+                        displayName = displayName.substring(prefix.length() + 1);
+                        stripped = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return displayName;
     }
 };
 

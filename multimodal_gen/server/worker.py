@@ -12,6 +12,7 @@ import threading
 import traceback
 import uuid
 import json
+import re
 from concurrent.futures import ThreadPoolExecutor, Future
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -166,6 +167,26 @@ class GenerationResult:
 
 # Type alias for progress callback
 ProgressCallback = Callable[[str, float, str], None]
+
+
+_LEADING_SOURCE_PREFIX_RE = re.compile(r"^(?:rnb|inst)[\-_\s]+", re.IGNORECASE)
+
+
+def instrument_display_name(name: Any) -> str:
+    """Return a UI label with only leading source-pack prefixes removed.
+
+    The original instrument name remains authoritative for identity, matching,
+    filenames, paths, caches, and audio loading.  This helper is deliberately
+    conservative: it strips repeated leading ``RnB``/``Inst`` prefixes only
+    when they are followed by a separator, and leaves musical category words
+    such as Guitar/Pad/Bass intact.
+    """
+    display_name = "" if name is None else str(name)
+    previous = None
+    while display_name and display_name != previous:
+        previous = display_name
+        display_name = _LEADING_SOURCE_PREFIX_RE.sub("", display_name, count=1)
+    return display_name
 
 
 def build_run_generation_kwargs(
@@ -758,6 +779,7 @@ class InstrumentScanWorker:
                     inst_data = {
                         "id": str(uuid.uuid4()),
                         "name": inst.name,
+                        "display_name": instrument_display_name(inst.name),
                         "filename": Path(inst.path).name,
                         "path": inst.path,
                         "absolute_path": inst.path,
