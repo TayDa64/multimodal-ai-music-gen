@@ -1,7 +1,70 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-16-classic-rock-sample-filter-062",
+  "session_id": "session-2026-05-16-cinematic-classical-063",
   "files_touched": [
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Documented Task 063 cinematic/classical orchestral manifest and short-arrangement proof."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 063 learning about moving genre work via matrix priority and preserving orchestral section metadata."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 063 files, tests, runtime proof, and manual post-verification."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Opened and completed Task 063 with baseline, implementation, tests, runtime proof, and manual post-verifier evidence."
+    },
+    {
+      "path": "tests\\test_arranger_cinematic_classical.py",
+      "action": "created",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added cinematic/classical 16-bar short-arc and classical strategy alias regressions."
+    },
+    {
+      "path": "tests\\test_session_graph_cinematic_classical.py",
+      "action": "created",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added orchestral session graph/manifest parity regressions for Strings/Brass/Choir/Timpani and no phantom Bass."
+    },
+    {
+      "path": "multimodal_gen\\strategies\\cinematic_strategy.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added classical to CinematicStrategy supported genres."
+    },
+    {
+      "path": "multimodal_gen\\arranger.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added cinematic/classical orchestral-family short template for <=16-bar requests."
+    },
+    {
+      "path": "multimodal_gen\\session_graph.py",
+      "action": "modified",
+      "timestamp": "2026-05-16T17:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Added orchestral-family session graph branch that preserves explicit orchestral tracks and avoids phantom Bass."
+    },
     {
       "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "action": "modified",
@@ -5347,15 +5410,21 @@
     }
   ],
   "last_validation": {
-    "task_id": "classic-rock-filter-procedural-samples-062",
-    "timestamp": "2026-05-16T16:25:00Z",
-    "type": "workflow_runtime_post_verifier",
+    "task_id": "cinematic-classical-orchestral-manifest-063",
+    "timestamp": "2026-05-16T17:10:00Z",
+    "type": "workflow_runtime_manual_post_verifier",
     "result": "PASS",
-    "summary_path": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062\\classic_rock_108.0bpm_Aminor_20260516_085202_render_report.json",
-    "run_root": "output\\_diagnostics\\classic_rock_workflow_062\\filtered_samples_60062",
-    "details": "Task 062 complete: classic-rock Hammond direct main.py FluidSynth proof exited 0, generated only kick/snare/hihat_closed/hihat_open procedural samples, project metadata contains no 808_kick.wav or clap.wav, renderer_path=fluidsynth, profile=rock:rock, unchanged tone, audio_analysis.passed=true, and Task 061 session manifest contract remains intact."
+    "summary_path": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063\\cinematic_96.0bpm_Dminor_20260516_104540_render_report.json",
+    "run_root": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063",
+    "details": "Task 063 complete: cinematic/classical direct main.py FluidSynth proof exited 0, produced 16 bars intro/verse/buildup/chorus, session manifest contains Drums ch9, Strings pad ch2, Brass lead ch5, Choir pad ch6, Timpani percussion ch8 and no Bass track, renderer_path=fluidsynth, profile=classical:classical, no tone shaping, audio_analysis.passed=true, and guard tests passed."
   },
   "changes": [
+    {
+      "file": "cinematic-classical-orchestral-manifest-063",
+      "description": "Completed next-priority cinematic/classical orchestral metadata and arrangement slice.",
+      "diff_summary": "SessionGraphBuilder now preserves orchestral section tracks without role de-duplication, Arranger honors <=16-bar cinematic/classical requests with a short orchestral arc, and CinematicStrategy owns pure classical prompts; tests and runtime proof validate behavior without renderer/analyzer/profile/parser/MIDI changes.",
+      "timestamp": "2026-05-16T17:10:00Z"
+    },
     {
       "file": "classic-rock-filter-procedural-samples-062",
       "description": "Completed procedural sample artifact filtering by parsed drum intent.",

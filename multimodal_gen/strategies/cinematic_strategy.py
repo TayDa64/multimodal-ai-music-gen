@@ -33,7 +33,7 @@ class CinematicStrategy(GenreStrategy):
     @property
     def supported_genres(self) -> List[str]:
         return [
-            'cinematic', 'orchestral', 'film_score',
+            'cinematic', 'classical', 'orchestral', 'film_score',
             'soundtrack', 'epic', 'symphonic',
         ]
 

@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Use the cross-genre maturity matrix to rotate away from a green genre into the next measured family",
+        "context": "Task 063 followed the user's instruction not to linger on rock. Since rock-family was green through Task 062 and generic jazz sax had focused proof, the matrix Tier B priority selected cinematic/classical. The safe slice was not mastering/analyzer tuning because FluidSynth audio was already green; it was orchestral session metadata and short-arrangement parity: preserve Strings/Brass/Choir/Timpani, avoid phantom Bass, keep classical:classical no-op tone shaping, and prove a 16-bar workflow render.",
+        "timestamp": "2026-05-16T17:10:00Z"
+      },
+      {
         "pattern": "Validate generated side artifacts and project metadata against parsed intent, not just rendered audio",
         "context": "Task 062 followed a green classic-rock Hammond render and fixed stale procedural sample artifacts: main.py always generated the legacy full drum kit, so project metadata listed 808_kick.wav and clap.wav even though parsed rock drums excluded them. The safe fix passed parsed.drum_elements into a backward-compatible optional AssetsGenerator filter: no-arg full kit remains for fallback, requested trap 808/clap are preserved, and classic-rock metadata now lists only kick/snare/hihat_closed/hihat_open while FluidSynth/audio/session proofs remain green.",
         "timestamp": "2026-05-16T16:25:00Z"
@@ -545,6 +550,17 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "For Task 063, fix cinematic/classical orchestral session graph and short-arrangement behavior before any classical renderer/profile/analyzer tuning.",
+      "rationale": "The baseline showed parser and MIDI already preserved explicit orchestral instruments and FluidSynth audio passed with the no-op classical profile. The real inconsistency was UI/session metadata and short-form arrangement duration. A session_graph/arranger/strategy-alias slice improves modular genre/instrument behavior without disturbing rock, jazz, trap, renderer profiles, or analyzer thresholds.",
+      "alternatives_considered": [
+        "Add classical FluidSynth tone shelves immediately",
+        "Relax or change cinematic analyzer targets",
+        "Modify prompt parser or MIDI generator despite green parsing/MIDI proof",
+        "Continue rock-family tuning despite green Task 062 proof"
+      ],
+      "timestamp": "2026-05-16T17:10:00Z"
+    },
     {
       "decision": "Filter workflow procedural sample generation by parsed drum_elements while preserving generate_drum_kit() no-argument full-kit fallback.",
       "rationale": "The inconsistency was not in parser, MIDI, renderer, or analyzer; it was a side-artifact/default-sample listing path in main.py. Adding an optional filter to AssetsGenerator and using it from workflow generation makes metadata truthful without removing legacy procedural fallback behavior or requested 808/clap support.",

@@ -1,11 +1,168 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-16-classic-rock-sample-filter-062",
-    "started": "2026-05-16T16:25:00Z",
-    "user_request": "Continue implementations after Task 061 by aligning procedural sample artifacts and metadata with parsed rock drum intent."
+    "id": "session-2026-05-16-cinematic-classical-063",
+    "started": "2026-05-16T17:10:00Z",
+    "user_request": "Do not linger on rock; proceed to the next highest-priority modular genre/instrument implementation. Selected cinematic/classical from the cross-genre maturity matrix."
   },
   "task_queue": [
+    {
+      "id": "cinematic-classical-orchestral-manifest-063",
+      "description": "Move beyond rock into the next cross-genre Tier B priority by aligning cinematic/classical orchestral session metadata and short-form arrangement behavior with explicit strings, brass, choir, and timpani MIDI/audio proof.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "classic-rock-filter-procedural-samples-062",
+        "cross-genre-maturity-matrix-baseline-plan-057",
+        "generic-jazz-runtime-route-051"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/session_graph.py",
+        "multimodal_gen/arranger.py",
+        "multimodal_gen/strategies/cinematic_strategy.py",
+        "tests/test_session_graph_cinematic_classical.py",
+        "tests/test_arranger_cinematic_classical.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-16T17:10:00Z",
+      "updated": "2026-05-16T17:10:00Z",
+      "pre_verifier": {
+        "verdict": "IMPLEMENTATION_READY",
+        "summary": "Read-only baseline for the cinematic orchestral prompt showed parser, MIDI, FluidSynth render, and classical:classical no-op profile were already green, but session_manifest omitted Choir/Timpani, added phantom Bass, mismatched orchestral channels, and --duration-bars 16 inflated to 32 bars. Minimal source target was session_graph.py plus cinematic/classical short arrangement and classical strategy alias."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/session_graph.py",
+          "multimodal_gen/arranger.py",
+          "multimodal_gen/strategies/cinematic_strategy.py",
+          "tests/test_session_graph_cinematic_classical.py",
+          "tests/test_arranger_cinematic_classical.py"
+        ],
+        "summary": "SessionGraphBuilder now uses an orchestral-family branch that preserves explicit Strings, Brass, Choir, and Timpani tracks without role de-duplication and avoids phantom Bass unless explicitly requested. Arranger now provides a 16-bar cinematic/classical short arc. CinematicStrategy now supports pure classical prompts.",
+        "guardrails_preserved": [
+          "No audio renderer, output analyzer, FluidSynth profile, prompt parser, or MIDI generator changes.",
+          "No analyzer target relaxation and no classical tone shelves; classical:classical remains no-op tone shaping.",
+          "Rock Tasks 060-062 regression tests remain green.",
+          "Trap requested 808/clap sample behavior remains covered by existing tests.",
+          "Runtime diagnostics, MIDI, WAV, render reports, project metadata, assets, and SoundFonts remain ignored/untracked."
+        ]
+      },
+      "tests": [
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_session_graph_cinematic_classical.py tests/test_arranger_cinematic_classical.py tests/test_session_graph_classic_rock_hammond.py tests/test_assets_gen.py tests/test_main_render_diagnostics.py -q",
+          "result": "PASS: 20 passed"
+        },
+        {
+          "command": "$env:PYTHONDONTWRITEBYTECODE='1'; .\\.venv\\Scripts\\python.exe -m pytest -p no:cacheprovider tests/test_prompt_parser_key.py::test_classic_rock_hammond_prompt_preserves_organ_cue tests/test_midi_generator.py::test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py -q",
+          "result": "PASS: 33 passed, 2 existing dependency warnings"
+        }
+      ],
+      "runtime_proof": {
+        "command": ".\\.venv\\Scripts\\python.exe .\\main.py \"cinematic orchestral film score with strings, brass, choir, timpani, evolving sections, 96 BPM in D minor\" --output output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063 --duration-bars 16 --seed 63063 --no-banner --skip-default-instruments --skip-expansions --require-soundfont --soundfont C:\\dev\\MUSE-ai\\MUSE\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-audio",
+        "exit_code": 0,
+        "run_root": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063",
+        "render_report": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063\\cinematic_96.0bpm_Dminor_20260516_104540_render_report.json",
+        "project_metadata": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063\\project_metadata.json",
+        "manifest": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063\\session_manifest.json",
+        "midi": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063\\cinematic_96.0bpm_Dminor_20260516_104540.mid",
+        "audio": "output\\_diagnostics\\cinematic_classical_workflow_063\\post_orchestral_manifest_63063\\cinematic_96.0bpm_Dminor_20260516_104540.wav",
+        "renderer_path": "fluidsynth",
+        "fluidsynth_success": true,
+        "render_status_success": true,
+        "skip_reason": null,
+        "profile": "classical:classical",
+        "tone_shaping": null,
+        "rock_tone_shaping": null,
+        "audio_analysis": {
+          "passed": true,
+          "genre_match_score": 1.0,
+          "centroid_hz": 2357.4,
+          "sub_bass_energy_ratio": 0.4504,
+          "percussive_ratio": 0.118,
+          "onset_density": 1.31
+        },
+        "project_sections": [
+          {
+            "name": "intro",
+            "bars": 4
+          },
+          {
+            "name": "verse",
+            "bars": 4
+          },
+          {
+            "name": "buildup",
+            "bars": 4
+          },
+          {
+            "name": "chorus",
+            "bars": 4
+          }
+        ],
+        "total_bars": 16,
+        "manifest_tracks": [
+          {
+            "name": "Drums",
+            "role": "drums",
+            "channel": 9
+          },
+          {
+            "name": "Strings",
+            "role": "pad",
+            "channel": 2
+          },
+          {
+            "name": "Brass",
+            "role": "lead",
+            "channel": 5
+          },
+          {
+            "name": "Choir",
+            "role": "pad",
+            "channel": 6
+          },
+          {
+            "name": "Timpani",
+            "role": "percussion",
+            "channel": 8
+          }
+        ],
+        "manifest_contract": {
+          "strings_pad_channel_2": true,
+          "brass_lead_channel_5": true,
+          "choir_pad_channel_6": true,
+          "timpani_percussion_channel_8": true,
+          "bass_track_present": false
+        },
+        "midi_contract": {
+          "strings_marker_present": true,
+          "brass_marker_present": true,
+          "choir_marker_present": true,
+          "timpani_marker_present": true,
+          "gm_programs_one_based": {
+            "strings": 49,
+            "brass": 62,
+            "choir": 53,
+            "timpani": 48
+          },
+          "note": "MIDI proof uses one-based GM program numbers from raw inspection; code-level expectations remain equivalent to zero-based mido programs 48/61/52/47."
+        }
+      },
+      "post_verifier": {
+        "verdict": "PASS_MANUAL",
+        "timestamp": "2026-05-16T17:10:00Z",
+        "summary": "Recursive verifier could not run due weekly subagent rate limit, so supervisor performed direct read-only verification: changed-file scope correct, prohibited files untouched, focused and guard tests passed, git diff --check clean, editor diagnostics clean, and runtime artifact inspection confirmed 16-bar orchestral manifest/MIDI/audio proof."
+      },
+      "result": {
+        "status": "completed",
+        "summary": "Cinematic/classical workflow now preserves orchestral UI/session metadata and 16-bar short-form intent while keeping FluidSynth classical profile no-op and audio green."
+      }
+    },
     {
       "id": "classic-rock-filter-procedural-samples-062",
       "description": "Filter procedural drum sample generation/listing by parsed drum intent so classic-rock outputs do not create or advertise absent generic 808/clap artifacts while preserving legacy full-kit fallback and requested trap 808/clap behavior.",

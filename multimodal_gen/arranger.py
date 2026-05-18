@@ -446,6 +446,16 @@ ROCK_FAMILY_GENRES = {
     'indie_rock',
 }
 
+ORCHESTRAL_FAMILY_GENRES = {
+    'cinematic',
+    'classical',
+    'orchestral',
+    'film_score',
+    'soundtrack',
+    'epic',
+    'symphonic',
+}
+
 ROCK_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.INTRO, 4),
     (SectionType.VERSE, 8),
@@ -461,6 +471,13 @@ ROCK_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
     (SectionType.VERSE, 4),
     (SectionType.CHORUS, 4),
     (SectionType.BRIDGE, 4),
+    (SectionType.CHORUS, 4),
+]
+
+ORCHESTRAL_SHORT_TEMPLATE: List[Tuple[SectionType, int]] = [
+    (SectionType.INTRO, 4),
+    (SectionType.VERSE, 4),
+    (SectionType.BUILDUP, 4),
     (SectionType.CHORUS, 4),
 ]
 
@@ -669,6 +686,7 @@ class Arranger:
         self.min_bars = min_bars
         self.max_bars = max_bars
         self._min_bars_override: Optional[int] = None
+        self._preserve_template_bars = False
         
         # Initialize config loader for template-driven arrangements
         self.config_loader: Optional["ConfigLoader"] = None
@@ -697,6 +715,7 @@ class Arranger:
         """
         # Allow explicit bar-count requests to bypass the global minimum
         self._min_bars_override = getattr(parsed, "target_bars", None)
+        self._preserve_template_bars = False
 
         # Get template for genre
         template = self._get_template(parsed.genre, parsed.section_hints)
@@ -843,6 +862,9 @@ class Arranger:
             target_bars = 0
         if _genre_norm in ROCK_FAMILY_GENRES and 0 < target_bars <= 16:
             return ROCK_SHORT_TEMPLATE.copy()
+        if _genre_norm in ORCHESTRAL_FAMILY_GENRES and 0 < target_bars <= 16:
+            self._preserve_template_bars = True
+            return ORCHESTRAL_SHORT_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 8:
             return JAZZ_SMOKE_TEMPLATE.copy()
         if _genre_norm == 'jazz' and 0 < target_bars <= 16:
@@ -893,6 +915,8 @@ class Arranger:
     ) -> List[Tuple[SectionType, int]]:
         """Adjust template bars to meet target duration."""
         if self.target_duration is None:
+            return template
+        if self._preserve_template_bars:
             return template
         
         # Calculate current duration

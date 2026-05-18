@@ -1263,6 +1263,18 @@ class SessionGraphBuilder:
     
     def _create_tracks(self, graph: SessionGraph, parsed) -> SessionGraph:
         """Create tracks based on parsed instruments and genre."""
+        instruments = getattr(parsed, 'instruments', [])
+        instrument_names = [str(inst).strip().lower().replace('-', ' ') for inst in instruments]
+        raw_prompt = str(getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+        genre_norm = str(getattr(parsed, 'genre', '') or '').lower().replace(' ', '_').replace('-', '_')
+        orchestral_family_genres = {
+            'cinematic', 'classical', 'orchestral', 'film_score',
+            'soundtrack', 'epic', 'symphonic',
+        }
+
+        if genre_norm in orchestral_family_genres:
+            return self._create_orchestral_tracks(graph, parsed, instrument_names, raw_prompt)
+
         channel = 0
         
         # Always create drums track (channel 9 for GM compatibility)
@@ -1296,10 +1308,6 @@ class SessionGraphBuilder:
             "kebero": Role.ETHIOPIAN_DRUM.value,
         }
         
-        instruments = getattr(parsed, 'instruments', [])
-        instrument_names = [str(inst).strip().lower().replace('-', ' ') for inst in instruments]
-        raw_prompt = str(getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
-        genre_norm = str(getattr(parsed, 'genre', '') or '').lower().replace(' ', '_').replace('-', '_')
         rock_family_genres = {
             'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
         }
@@ -1371,6 +1379,80 @@ class SessionGraphBuilder:
             track = graph.add_track("Organ", Role.PAD.value, channel=4)
             track.color = self.default_track_colors.get(Role.PAD.value, "#808080")
         
+        return graph
+
+    def _create_orchestral_tracks(
+        self,
+        graph: SessionGraph,
+        parsed,
+        instrument_names: List[str],
+        raw_prompt: str,
+    ) -> SessionGraph:
+        """Create explicit orchestral-family tracks without role de-duplication."""
+        import re
+
+        searchable = " ".join([raw_prompt] + instrument_names)
+        drum_elements = {
+            str(elem).strip().lower().replace('-', '_').replace(' ', '_')
+            for elem in getattr(parsed, 'drum_elements', [])
+        }
+
+        def _has_cue(cues: Tuple[str, ...]) -> bool:
+            return any(
+                re.search(r'\b' + re.escape(cue) + r'\b', searchable)
+                for cue in cues
+            )
+
+        def _add_track(name: str, role: str, channel: int):
+            track = graph.add_track(name, role, channel=channel)
+            track.color = self.default_track_colors.get(role, "#808080")
+            return track
+
+        has_timpani = (
+            'timpani_drum' in drum_elements
+            or _has_cue(('timpani', 'kettledrum', 'kettledrums', 'orchestral timpani'))
+        )
+        has_orchestral_percussion = _has_cue((
+            'percussion', 'orchestral percussion', 'cymbal', 'cymbals',
+            'triangle', 'gong', 'chimes', 'tubular bells',
+        ))
+
+        if drum_elements or has_timpani or has_orchestral_percussion:
+            drums_track = _add_track("Drums", Role.DRUMS.value, 9)
+            drums_track.player_profile = getattr(parsed, 'humanization_profile', 'natural')
+
+        if _has_cue((
+            'bass', 'bass guitar', 'contrabass', 'double bass', 'string bass',
+            'orchestral bass', 'low strings', 'low string', 'basses', 'upright bass',
+        )):
+            _add_track("Bass", Role.BASS.value, 1)
+
+        if _has_cue((
+            'strings', 'string section', 'orchestral strings', 'violin',
+            'violins', 'viola', 'violas', 'cello', 'cellos', 'orchestra',
+            'orchestral',
+        )):
+            _add_track("Strings", Role.PAD.value, 2)
+
+        if _has_cue(('woodwinds', 'woodwind', 'flute', 'oboe', 'clarinet')):
+            _add_track("Woodwinds", Role.COUNTER_MELODY.value, 4)
+
+        if _has_cue((
+            'brass', 'brass section', 'horns', 'horn section', 'trumpet',
+            'trumpets', 'trombone', 'trombones', 'french horn', 'french horns',
+            'horn',
+        )):
+            _add_track("Brass", Role.LEAD.value, 5)
+
+        if _has_cue(('choir', 'choral', 'soprano', 'alto', 'tenor', 'baritone')):
+            _add_track("Choir", Role.PAD.value, 6)
+
+        if _has_cue(('harp', 'concert harp', 'pedal harp', 'harp arpeggios')):
+            _add_track("Harp", Role.CHORDS.value, 7)
+
+        if has_timpani:
+            _add_track("Timpani", Role.PERCUSSION.value, 8)
+
         return graph
     
     def build_from_arrangement(self, graph: SessionGraph, arrangement) -> SessionGraph:
