@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Before UI/UX work, consolidate recent genre families with arranger/session graph contract tests plus ignored-artifact status",
+        "context": "After Tasks 063-068, the safest UI/UX handoff is a no-audio checkpoint that proves stable session_manifest-facing track names/roles/channels across cinematic/classical, trap, R&B, lofi, house, and Ethiopian families, and separately confirms output diagnostics and local SoundFonts remain ignored.",
+        "timestamp": "2026-05-18T18:45:00Z"
+      },
+      {
         "pattern": "For Ethiopian-family prompts, separate deterministic identity from generic jazz and preserve explicit pentatonic melody semantics",
         "context": "Task 068 baseline was audio-green but inflated 16 bars to 32, used generic jazz:jazz with a high shelf, duplicated Bass as lead in the manifest, and generated no sample artifact for parsed perc. The safe slice added an Ethiopian 4x4 compact arc, explicit ethiopian_family:ethio_jazz no-op profile, stable Drums/Bass/Melody UI contract, and perc-to-shaker sample generation while leaving renderer/analyzer/MIDI untouched. Drum-presence warning remains later quality data.",
         "timestamp": "2026-05-18T18:35:00Z"
@@ -1460,5 +1465,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T18:35:00Z"
+  "last_updated": "2026-05-18T18:45:00Z"
 }
