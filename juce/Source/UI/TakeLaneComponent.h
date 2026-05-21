@@ -188,6 +188,9 @@ public:
     
     /** Get number of tracks with takes. */
     int getNumTracks() const { return trackContainers.size(); }
+
+    /** Update the local workflow status shown inside the panel. */
+    void setStatusMessage(const juce::String& text, juce::Colour colour = juce::Colours::grey);
     
     //==============================================================================
     void addListener(Listener* listener);
@@ -195,9 +198,11 @@ public:
     
 private:
     juce::Label titleLabel;
-    juce::TextButton renderButton { "Render Selected" };
-    juce::TextButton commitButton { "Commit Comp" };
-    juce::TextButton revertButton { "Revert Comp" };
+    juce::TextButton renderButton { "Render Current Comp" };
+    juce::TextButton commitButton { "Commit Local Comp" };
+    juce::TextButton revertButton { "Revert Local Comp" };
+    juce::Label helperLabel;
+    juce::Label statusLabel;
     juce::Label emptyLabel;
     
     juce::OwnedArray<TrackTakeLaneContainer> trackContainers;

@@ -84,6 +84,16 @@ namespace
 InstrumentCard::InstrumentCard(const InstrumentInfo& info)
     : instrumentInfo(info)
 {
+    juce::String tooltip = info.name;
+    if (auto source = sourceBadgeFor(info); source.isNotEmpty())
+        tooltip << "\nSource badge: " << source;
+    if (info.originalName.isNotEmpty() && info.originalName != info.name)
+        tooltip << "\nOriginal name: " << info.originalName;
+    if (info.absolutePath.isNotEmpty())
+        tooltip << "\nPath: " << info.absolutePath;
+    tooltip << "\nManual browse selection only — no smart fallback is implied here.";
+    setTooltip(tooltip);
+
     favoriteButton.setColour(juce::TextButton::buttonColourId, AppColours::surfaceRaised);
     favoriteButton.setColour(juce::TextButton::buttonOnColourId, AppColours::surfaceHighlight);
     favoriteButton.setColour(juce::TextButton::textColourOnId, AppColours::warning);
@@ -640,10 +650,16 @@ InstrumentBrowserPanel::InstrumentBrowserPanel(juce::AudioDeviceManager& deviceM
 
     searchLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
 
+    helperLabel.setFont(juce::Font(11.0f));
+    helperLabel.setColour(juce::Label::textColourId, AppColours::textSecondary.withAlpha(0.95f));
+    helperLabel.setJustificationType(juce::Justification::centredLeft);
+    helperLabel.setTooltip("Source badges show where a sample came from (Library, Expansion, Local). Manual browsing here does not imply a fallback/default match succeeded elsewhere.");
+    addAndMakeVisible(helperLabel);
+
     statusLabel.setFont(juce::Font(12.0f));
     statusLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     statusLabel.setJustificationType(juce::Justification::centredLeft);
-    statusLabel.setText("Ready", juce::dontSendNotification);
+    statusLabel.setText("Ready for manual browse", juce::dontSendNotification);
     addAndMakeVisible(statusLabel);
 
     addAndMakeVisible(searchLabel);
@@ -747,6 +763,8 @@ void InstrumentBrowserPanel::resized()
     int tabHeight = juce::jmax(32, juce::jmin(40, bounds.getHeight() / 10));
     categoryTabs.setBounds(bounds.removeFromTop(tabHeight));
 
+    helperLabel.setBounds(bounds.removeFromTop(18).reduced(Layout::paddingMD, 0));
+
     // Preview panel (bottom) - adaptive height based on available space
     int previewHeight = juce::jmax(100, juce::jmin(150, bounds.getHeight() / 3));
     previewPanel.setBounds(bounds.removeFromBottom(previewHeight));
@@ -831,9 +849,9 @@ void InstrumentBrowserPanel::loadFromJSON(const juce::String& json)
 
     const int count = (int) parsedJSON.getProperty("count", 0);
     if (count > 0)
-        statusLabel.setText("Loaded " + juce::String(count) + " instruments", juce::dontSendNotification);
+        statusLabel.setText("Loaded " + juce::String(count) + " manual-browse instruments", juce::dontSendNotification);
     else
-        statusLabel.setText("Loaded", juce::dontSendNotification);
+        statusLabel.setText("No scanned instruments yet — use Scan to build the manual browse list", juce::dontSendNotification);
 
     // If current category isn't present, fall back to the first available category.
     if (instrumentsByCategory.find(currentCategory) == instrumentsByCategory.end() && !instrumentsByCategory.empty())
@@ -844,7 +862,7 @@ void InstrumentBrowserPanel::loadFromJSON(const juce::String& json)
 
 void InstrumentBrowserPanel::requestInstrumentData()
 {
-    statusLabel.setText("Scanning...", juce::dontSendNotification);
+    statusLabel.setText("Scanning library for manual browse choices...", juce::dontSendNotification);
     scanButton.setEnabled(false);
     // Request data from backend via listener
     listeners.call([&](Listener& l) { l.requestLibraryInstruments(); });
@@ -876,10 +894,21 @@ void InstrumentBrowserPanel::categorySelected(const juce::String& category)
 void InstrumentBrowserPanel::instrumentSelected(const InstrumentInfo& info)
 {
     previewPanel.setInstrument(info);
+
+    auto source = sourceBadgeFor(info);
+    auto status = "Previewing manual browse selection: " + info.name;
+    if (source.isNotEmpty())
+        status << " (" << source << ")";
+    statusLabel.setText(status, juce::dontSendNotification);
 }
 
 void InstrumentBrowserPanel::instrumentActivated(const InstrumentInfo& info)
 {
+    auto source = sourceBadgeFor(info);
+    auto status = "Chosen from manual browse: " + info.name;
+    if (source.isNotEmpty())
+        status << " (" << source << ")";
+    statusLabel.setText(status, juce::dontSendNotification);
     listeners.call([&](Listener& l) { l.instrumentChosen(info); });
 }
 
@@ -890,14 +919,19 @@ void InstrumentBrowserPanel::updateInstrumentList()
     if (it != instrumentsByCategory.end())
     {
         instrumentList.setEmptyStateMessage("No " + displayCategoryName(currentCategory).toLowerCase()
-                                            + " instruments loaded. Click Scan to refresh the library.");
+                                            + " instruments are available for manual browse. Click Scan to refresh the library.");
         instrumentList.setInstruments(it->second);
+        statusLabel.setText("Browsing " + juce::String(it->second.size()) + " "
+                            + displayCategoryName(currentCategory).toLowerCase() + " instruments",
+                            juce::dontSendNotification);
     }
     else
     {
-        instrumentList.setEmptyStateMessage("No instruments loaded for " + displayCategoryName(currentCategory)
-                                            + ". Click Scan to refresh the library.");
+        instrumentList.setEmptyStateMessage("No instruments are currently loaded for " + displayCategoryName(currentCategory)
+                                            + ". Click Scan to refresh the library. No fallback/default instrument is assumed.");
         instrumentList.clearInstruments();
+        statusLabel.setText("No manual-browse instruments loaded for " + displayCategoryName(currentCategory),
+                            juce::dontSendNotification);
     }
 
     applyFilters();
@@ -911,17 +945,22 @@ void InstrumentBrowserPanel::applyFilters()
     auto it = instrumentsByCategory.find(currentCategory);
     if (it == instrumentsByCategory.end())
     {
-        instrumentList.setEmptyStateMessage("No instruments loaded for " + displayCategoryName(currentCategory)
-                                            + ". Click Scan to refresh the library.");
+        instrumentList.setEmptyStateMessage("No instruments are currently loaded for " + displayCategoryName(currentCategory)
+                                            + ". Click Scan to refresh the library. No fallback/default instrument is assumed.");
         instrumentList.clearInstruments();
+        statusLabel.setText("No manual-browse instruments loaded for " + displayCategoryName(currentCategory),
+                            juce::dontSendNotification);
         return;
     }
 
     if (searchFilter.isEmpty() && genreFilter.isEmpty())
     {
         instrumentList.setEmptyStateMessage("No " + displayCategoryName(currentCategory).toLowerCase()
-                                            + " instruments loaded. Click Scan to refresh the library.");
+                                            + " instruments are available for manual browse. Click Scan to refresh the library.");
         instrumentList.setInstruments(it->second);
+        statusLabel.setText("Browsing " + juce::String(it->second.size()) + " "
+                            + displayCategoryName(currentCategory).toLowerCase() + " instruments",
+                            juce::dontSendNotification);
         return;
     }
 
@@ -941,6 +980,8 @@ void InstrumentBrowserPanel::applyFilters()
             filtered.add(inst);
     }
 
-    instrumentList.setEmptyStateMessage("No instruments match the current search or genre filter.");
+    instrumentList.setEmptyStateMessage("No instruments match the current search or genre filter. Try another category or keep browsing manually — no fallback/default instrument was selected.");
     instrumentList.setInstruments(filtered);
+    statusLabel.setText("Showing " + juce::String(filtered.size()) + " filtered manual-browse results",
+                        juce::dontSendNotification);
 }

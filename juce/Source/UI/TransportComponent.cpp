@@ -39,17 +39,20 @@ void TransportComponent::setupButtons()
 {
     // Play button
     playButton.setColour(juce::TextButton::buttonColourId, AppColours::success);
+    playButton.setTooltip("Play the loaded audio file/reference or dry MIDI preview.");
     playButton.onClick = [this] { playClicked(); };
     addAndMakeVisible(playButton);
     
     // Pause button
     pauseButton.setColour(juce::TextButton::buttonColourId, AppColours::warning);
+    pauseButton.setTooltip("Pause the current audio file/reference or dry MIDI preview.");
     pauseButton.onClick = [this] { pauseClicked(); };
     pauseButton.setEnabled(false);
     addAndMakeVisible(pauseButton);
     
     // Stop button
     stopButton.setColour(juce::TextButton::buttonColourId, AppColours::error);
+    stopButton.setTooltip("Stop playback and return to the start of the current audio file/reference or dry MIDI preview.");
     stopButton.onClick = [this] { stopClicked(); };
     stopButton.setEnabled(false);
     addAndMakeVisible(stopButton);
@@ -57,6 +60,7 @@ void TransportComponent::setupButtons()
     // Loop button
     loopButton.setColour(juce::ToggleButton::textColourId, AppColours::textSecondary);
     loopButton.setColour(juce::ToggleButton::tickColourId, AppColours::primary);
+    loopButton.setTooltip("Loop the currently loaded preview/reference.");
     loopButton.onClick = [this] {
         audioEngine.setLooping(loopButton.getToggleState());
     };
@@ -119,6 +123,7 @@ void TransportComponent::setupSliders()
     // Test tone toggle (for verifying audio output works)
     testToneButton.setColour(juce::ToggleButton::textColourId, AppColours::textSecondary);
     testToneButton.setColour(juce::ToggleButton::tickColourId, AppColours::primary);
+    testToneButton.setTooltip("Play a dry test tone through the audio device. This does not use live FX or mastering.");
     testToneButton.onClick = [this] {
         bool enabled = testToneButton.getToggleState();
         audioEngine.setTestToneEnabled(enabled);
@@ -135,6 +140,7 @@ void TransportComponent::setupSliders()
     
     // Load MIDI button (for testing MIDI playback)
     loadMidiButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
+    loadMidiButton.setTooltip("Load a MIDI file for dry/unmastered preview only (no live FX/mastering).");
     loadMidiButton.onClick = [this] {
         // Open file chooser for MIDI files
         auto chooser = std::make_shared<juce::FileChooser>(
@@ -217,6 +223,13 @@ void TransportComponent::setupLabels()
     statusLabel.setJustificationType(juce::Justification::centredLeft);
     setStatusText("Ready", AppColours::textSecondary);
     addAndMakeVisible(statusLabel);
+
+    capabilityLabel.setFont(juce::Font(10.0f));
+    capabilityLabel.setColour(juce::Label::textColourId, AppColours::textSecondary.withAlpha(0.9f));
+    capabilityLabel.setJustificationType(juce::Justification::centredLeft);
+    capabilityLabel.setText(getCapabilityHelperText(), juce::dontSendNotification);
+    capabilityLabel.setTooltip(buildStatusTooltip("Playback scope reference"));
+    addAndMakeVisible(capabilityLabel);
     
     // Connection indicator - REMOVED (now shown only in main status bar)
     // This avoids duplicate status indicators which confuse users
@@ -227,7 +240,21 @@ void TransportComponent::setStatusText(const juce::String& text, juce::Colour co
 {
     statusLabel.setText(text, juce::dontSendNotification);
     statusLabel.setColour(juce::Label::textColourId, colour);
-    statusLabel.setTooltip(text);
+    statusLabel.setTooltip(buildStatusTooltip(text));
+}
+
+juce::String TransportComponent::getCapabilityHelperText() const
+{
+    return "Scope: backend WAV/reference = mastered offline | live MIDI = dry/no live FX/mastering | external audio = generic reference";
+}
+
+juce::String TransportComponent::buildStatusTooltip(const juce::String& status) const
+{
+    return status
+        + "\n\nPlayback scope:\n"
+        + "- Backend-generated WAV/reference = mastered offline path\n"
+        + "- Live MIDI preview = dry/unmastered with no live FX/mastering\n"
+        + "- External loaded audio = generic audio file/reference unless provenance is known";
 }
 
 //==============================================================================
@@ -244,7 +271,10 @@ void TransportComponent::paint(juce::Graphics& g)
 
 void TransportComponent::resized()
 {
-    auto bounds = getLocalBounds().reduced(Layout::paddingMD, Layout::paddingSM);
+    auto bounds = getLocalBounds().reduced(Layout::paddingMD, 2);
+    auto helperArea = bounds.removeFromBottom(12);
+    capabilityLabel.setBounds(helperArea);
+
     const int buttonHeight = Layout::buttonHeightMD;
     const int buttonWidth = 60;
     const int smallButtonWidth = 50;
@@ -379,7 +409,7 @@ void TransportComponent::playClicked()
     updateButtonStates();
     
     setStatusText(juce::String(hasLoadedAudio
-                                   ? "Playing audio file/reference... (dur: "
+                                   ? "Playing loaded audio file/reference... (dur: "
                                    : "Playing dry/unmastered MIDI preview... (dur: ")
                       + juce::String(duration, 1)
                       + (hasLoadedAudio ? "s)" : "s, no live FX/mastering)"),
@@ -529,7 +559,7 @@ void TransportComponent::timerCallback()
         
         // Show detailed playback debug status with honest mastering-path labeling.
         setStatusText(juce::String(hasLoadedAudio
-                                       ? "Playing audio file/reference: "
+                                       ? "Playing loaded audio file/reference: "
                                        : "Playing dry/unmastered MIDI preview (no live FX/mastering): ")
                           + audioEngine.getPlaybackDebugStatus(),
                       AppColours::success);
@@ -544,7 +574,7 @@ void TransportComponent::timerCallback()
         // Update status when playable media is loaded
         if (hasLoadedAudio)
         {
-            setStatusText("Audio file/reference loaded: "
+            setStatusText("Loaded audio file/reference: "
                               + juce::String(audioEngine.getTotalDuration(), 1) + "s",
                           AppColours::success);
         }

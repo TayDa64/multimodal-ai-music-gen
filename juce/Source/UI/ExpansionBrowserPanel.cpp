@@ -139,6 +139,22 @@ ExpansionListComponent::~ExpansionListComponent()
     clearExpansions();
 }
 
+void ExpansionListComponent::paint(juce::Graphics& g)
+{
+    g.fillAll(ThemeManager::getCurrentScheme().windowBackground);
+}
+
+void ExpansionListComponent::paintOverChildren(juce::Graphics& g)
+{
+    if (!cards.isEmpty())
+        return;
+
+    auto bounds = getLocalBounds().reduced(16);
+    g.setColour(ThemeManager::getCurrentScheme().textSecondary);
+    g.setFont(juce::Font(12.0f));
+    g.drawFittedText(emptyStateMessage, bounds, juce::Justification::centred, 4);
+}
+
 void ExpansionListComponent::resized()
 {
     viewport.setBounds(getLocalBounds());
@@ -163,6 +179,13 @@ void ExpansionListComponent::clearExpansions()
 {
     selectedCard = nullptr;
     cards.clear();
+    repaint();
+}
+
+void ExpansionListComponent::setEmptyStateMessage(const juce::String& message)
+{
+    emptyStateMessage = message;
+    repaint();
 }
 
 const ExpansionInfo* ExpansionListComponent::getSelectedExpansion() const
@@ -237,6 +260,22 @@ ExpansionInstrumentList::ExpansionInstrumentList()
 
 ExpansionInstrumentList::~ExpansionInstrumentList() = default;
 
+void ExpansionInstrumentList::paint(juce::Graphics& g)
+{
+    g.fillAll(ThemeManager::getCurrentScheme().windowBackground);
+}
+
+void ExpansionInstrumentList::paintOverChildren(juce::Graphics& g)
+{
+    if (!filteredInstruments.isEmpty())
+        return;
+
+    auto bounds = getLocalBounds().reduced(18);
+    g.setColour(ThemeManager::getCurrentScheme().textSecondary);
+    g.setFont(juce::Font(12.0f));
+    g.drawFittedText(emptyStateMessage, bounds, juce::Justification::centred, 4);
+}
+
 void ExpansionInstrumentList::resized()
 {
     table.setBounds(getLocalBounds());
@@ -253,12 +292,19 @@ void ExpansionInstrumentList::clearInstruments()
     allInstruments.clear();
     filteredInstruments.clear();
     table.updateContent();
+    repaint();
 }
 
 void ExpansionInstrumentList::setFilter(const juce::String& filter)
 {
     filterText = filter;
     applyFilter();
+}
+
+void ExpansionInstrumentList::setEmptyStateMessage(const juce::String& message)
+{
+    emptyStateMessage = message;
+    repaint();
 }
 
 void ExpansionInstrumentList::applyFilter()
@@ -283,9 +329,15 @@ void ExpansionInstrumentList::applyFilter()
             }
         }
     }
+
+    if (allInstruments.isEmpty() && filterText.isEmpty())
+        emptyStateMessage = "Select an expansion to browse its instruments.";
+    else if (filteredInstruments.isEmpty() && !filterText.isEmpty())
+        emptyStateMessage = "No expansion instruments match the current search. Try manual browse or another pack.";
     
     table.updateContent();
     table.repaint();
+    repaint();
 }
 
 int ExpansionInstrumentList::getNumRows()
@@ -429,22 +481,43 @@ void ResolutionTestPanel::resized()
     resultNoteLabel.setBounds(bounds.removeFromTop(14));
 }
 
+void ResolutionTestPanel::showPending(const juce::String& instrument, const juce::String& genre)
+{
+    resultNameLabel.setColour(juce::Label::textColourId, ThemeManager::getCurrentScheme().accent);
+    resultNameLabel.setText("Resolving \"" + instrument + "\"...", juce::dontSendNotification);
+    resultMatchLabel.setText("Checking for a matched or fallback/default expansion result for genre: " + genre,
+                             juce::dontSendNotification);
+    resultPathLabel.setText("", juce::dontSendNotification);
+    resultNoteLabel.setText("", juce::dontSendNotification);
+}
+
 void ResolutionTestPanel::showResult(const ResolvedInstrumentInfo& result)
 {
+    const auto matchType = result.matchType.toLowerCase();
+    const bool isFallbackLike = matchType == "default" || matchType.contains("fallback");
+
     if (result.path.isEmpty())
     {
-        resultNameLabel.setText("No match found", juce::dontSendNotification);
-        resultMatchLabel.setText("", juce::dontSendNotification);
+        resultNameLabel.setColour(juce::Label::textColourId, juce::Colours::orange);
+        resultNameLabel.setText("No expansion match found", juce::dontSendNotification);
+        resultMatchLabel.setText("No match — manual browse needed", juce::dontSendNotification);
         resultPathLabel.setText("", juce::dontSendNotification);
-        resultNoteLabel.setText(result.note, juce::dontSendNotification);
+        resultNoteLabel.setText(result.note.isNotEmpty() ? result.note
+                                                         : "Try another search term or browse the expansion/instrument lists manually.",
+                                juce::dontSendNotification);
         return;
     }
     
-    resultNameLabel.setText(result.name + " (" + result.source + ")", juce::dontSendNotification);
+    resultNameLabel.setColour(juce::Label::textColourId,
+                              isFallbackLike ? juce::Colours::orange : ThemeManager::getCurrentScheme().accent);
+    resultNameLabel.setText((isFallbackLike ? "Fallback/default suggestion: " : "Matched: ")
+                            + result.name + " (" + result.source + ")",
+                            juce::dontSendNotification);
     
     // Format match type with confidence
-    juce::String matchStr = result.matchType.toUpperCase() + " match (" + 
-                            juce::String(result.confidence * 100, 0) + "%)";
+    juce::String matchStr = isFallbackLike
+        ? ("Fallback/default result (" + juce::String(result.confidence * 100, 0) + "%) — manual browse may still be needed")
+        : ("Matched via " + result.matchType + " (" + juce::String(result.confidence * 100, 0) + "%)");
     resultMatchLabel.setText(matchStr, juce::dontSendNotification);
     
     // Truncate path for display
@@ -453,7 +526,19 @@ void ResolutionTestPanel::showResult(const ResolvedInstrumentInfo& result)
         displayPath = "..." + displayPath.substring(displayPath.length() - 57);
     resultPathLabel.setText(displayPath, juce::dontSendNotification);
     
-    resultNoteLabel.setText(result.note, juce::dontSendNotification);
+    auto note = result.note;
+    if (note.isEmpty() && isFallbackLike)
+        note = "Fallback/default result — browse the expansion lists manually if this is not the instrument you wanted.";
+    resultNoteLabel.setText(note, juce::dontSendNotification);
+}
+
+void ResolutionTestPanel::showFailure(const juce::String& message)
+{
+    resultNameLabel.setColour(juce::Label::textColourId, juce::Colours::red);
+    resultNameLabel.setText("Resolution failed", juce::dontSendNotification);
+    resultMatchLabel.setText("No match result returned", juce::dontSendNotification);
+    resultPathLabel.setText("", juce::dontSendNotification);
+    resultNoteLabel.setText(message, juce::dontSendNotification);
 }
 
 void ResolutionTestPanel::clear()
@@ -468,7 +553,10 @@ void ResolutionTestPanel::onTestClicked()
 {
     auto instrument = instrumentInput.getText().trim();
     if (instrument.isEmpty())
+    {
+        showFailure("Enter an instrument name to test resolution. Fallback/default suggestions are shown only after a real query.");
         return;
+    }
     
     auto genre = genreCombo.getText();
     
@@ -497,6 +585,12 @@ ExpansionBrowserPanel::ExpansionBrowserPanel()
     searchBox.setTextToShowWhenEmpty("Search instruments...", juce::Colours::grey);
     searchBox.onTextChange = [this] { onSearchChanged(); };
     addAndMakeVisible(searchBox);
+
+    statusLabel.setFont(juce::Font(11.0f));
+    statusLabel.setColour(juce::Label::textColourId, ThemeManager::getCurrentScheme().textSecondary);
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    statusLabel.setTooltip(statusLabel.getText());
+    addAndMakeVisible(statusLabel);
     
     // Lists
     expansionList.addListener(this);
@@ -536,6 +630,8 @@ void ExpansionBrowserPanel::resized()
     // Search on right side
     auto searchArea = toolbar.removeFromRight(200);
     searchBox.setBounds(searchArea.withTrimmedLeft(50));
+
+    statusLabel.setBounds(bounds.removeFromTop(20).reduced(4, 0));
     
     bounds.removeFromTop(8);
     
@@ -566,13 +662,25 @@ void ExpansionBrowserPanel::loadExpansionsFromJSON(const juce::String& json)
         }
     }
     
+    expansionList.setEmptyStateMessage("No expansions loaded. Import an expansion or scan a folder to populate this list.");
     expansionList.setExpansions(expansions);
     
     // Auto-select first expansion
     if (!expansions.isEmpty())
     {
         selectedExpansionId = expansions[0].id;
+        statusLabel.setText("Loaded " + juce::String(expansions.size()) + " expansions. Select one to browse its instruments.", juce::dontSendNotification);
+        statusLabel.setTooltip(statusLabel.getText());
         listeners.call(&ExpansionBrowserPanel::Listener::requestInstrumentsOSC, selectedExpansionId);
+    }
+    else
+    {
+        selectedExpansionId.clear();
+        instrumentList.clearInstruments();
+        instrumentList.setEmptyStateMessage("No expansion is selected yet. Import or scan expansions to browse instruments.");
+        resolutionPanel.clear();
+        statusLabel.setText("No expansions found. Import a pack or scan a folder; resolution cannot match anything yet.", juce::dontSendNotification);
+        statusLabel.setTooltip(statusLabel.getText());
     }
 }
 
@@ -590,6 +698,18 @@ void ExpansionBrowserPanel::loadInstrumentsFromJSON(const juce::String& json)
         }
     }
     
+    if (instruments.isEmpty())
+    {
+        instrumentList.setEmptyStateMessage("The selected expansion has no instruments. Manual browse or another pack may be needed.");
+        statusLabel.setText("Selected expansion has no instruments. Manual browse or another pack may be needed.", juce::dontSendNotification);
+    }
+    else
+    {
+        instrumentList.setEmptyStateMessage("Search this expansion or select a different one if you need another source.");
+        statusLabel.setText("Loaded " + juce::String(instruments.size()) + " instruments from the selected expansion.", juce::dontSendNotification);
+    }
+
+    statusLabel.setTooltip(statusLabel.getText());
     instrumentList.setInstruments(instruments);
 }
 
@@ -598,6 +718,31 @@ void ExpansionBrowserPanel::showResolutionResult(const juce::String& json)
     auto parsed = juce::JSON::parse(json);
     auto result = ResolvedInstrumentInfo::fromJSON(parsed);
     resolutionPanel.showResult(result);
+
+    const auto matchType = result.matchType.toLowerCase();
+    const bool isFallbackLike = matchType == "default" || matchType.contains("fallback");
+    if (result.path.isEmpty())
+        statusLabel.setText("Resolution: no match found — manual browse needed.", juce::dontSendNotification);
+    else if (isFallbackLike)
+        statusLabel.setText("Resolution: fallback/default suggestion returned — manual browse may still be needed.", juce::dontSendNotification);
+    else
+        statusLabel.setText("Resolution: matched " + result.name + " via " + result.matchType + ".", juce::dontSendNotification);
+
+    statusLabel.setTooltip(statusLabel.getText());
+}
+
+void ExpansionBrowserPanel::showResolutionPending(const juce::String& instrument, const juce::String& genre)
+{
+    resolutionPanel.showPending(instrument, genre);
+    statusLabel.setText("Resolving \"" + instrument + "\" for genre " + genre + "...", juce::dontSendNotification);
+    statusLabel.setTooltip(statusLabel.getText());
+}
+
+void ExpansionBrowserPanel::showResolutionFailure(const juce::String& message)
+{
+    resolutionPanel.showFailure(message);
+    statusLabel.setText("Resolution failed. See the result note for details.", juce::dontSendNotification);
+    statusLabel.setTooltip(message);
 }
 
 void ExpansionBrowserPanel::requestExpansionList()
@@ -608,12 +753,16 @@ void ExpansionBrowserPanel::requestExpansionList()
 void ExpansionBrowserPanel::requestExpansionInstruments(const juce::String& expansionId)
 {
     selectedExpansionId = expansionId;
+    statusLabel.setText("Loading instruments for the selected expansion...", juce::dontSendNotification);
+    statusLabel.setTooltip(statusLabel.getText());
     listeners.call(&ExpansionBrowserPanel::Listener::requestInstrumentsOSC, expansionId);
 }
 
 void ExpansionBrowserPanel::expansionSelected(const ExpansionInfo& info)
 {
     selectedExpansionId = info.id;
+    statusLabel.setText("Selected expansion: " + info.name + ". Loading instruments...", juce::dontSendNotification);
+    statusLabel.setTooltip(statusLabel.getText());
     listeners.call(&ExpansionBrowserPanel::Listener::requestInstrumentsOSC, info.id);
 }
 
@@ -627,12 +776,16 @@ void ExpansionBrowserPanel::instrumentSelected(const ExpansionInstrumentInfo& in
 {
     // Could preview the instrument here
     DBG("Instrument selected: " + info.name);
+    statusLabel.setText("Manual browse selection: " + info.name + " (" + info.expansion + ")", juce::dontSendNotification);
+    statusLabel.setTooltip(statusLabel.getText());
 }
 
 void ExpansionBrowserPanel::instrumentActivated(const ExpansionInstrumentInfo& info)
 {
     // Could play preview or add to project
     DBG("Instrument activated: " + info.name + " at " + info.path);
+    statusLabel.setText("Activated expansion instrument: " + info.name + " (manual browse)", juce::dontSendNotification);
+    statusLabel.setTooltip(statusLabel.getText());
 }
 
 void ExpansionBrowserPanel::resolveRequested(const juce::String& instrument, const juce::String& genre)
@@ -682,11 +835,18 @@ void ExpansionBrowserPanel::onScanClicked()
 
 void ExpansionBrowserPanel::onRefreshClicked()
 {
+    statusLabel.setText("Refreshing expansion list...", juce::dontSendNotification);
+    statusLabel.setTooltip(statusLabel.getText());
     requestExpansionList();
 }
 
 void ExpansionBrowserPanel::onSearchChanged()
 {
     instrumentList.setFilter(searchBox.getText());
+    if (searchBox.getText().trim().isNotEmpty())
+    {
+        statusLabel.setText("Filtering instruments in the selected expansion...", juce::dontSendNotification);
+        statusLabel.setTooltip(statusLabel.getText());
+    }
 }
 

@@ -53,6 +53,7 @@ namespace UI
         std::function<void(int)> onTrackSelected;
 
     private:
+        juce::Label scopeNoticeLabel;
         juce::OwnedArray<ChannelStrip> strips;
         juce::Viewport viewport;
         juce::Component container;

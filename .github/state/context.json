@@ -5,6 +5,125 @@
     {
       "path": ".github\\state\\orchestration.json",
       "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Tasks 077-081 as completed with implementation/tests/post-verifier details, advanced metadata.next_phase to Task 082, and raised total_tasks_completed to 82."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended the combined 077-081 touched JUCE files, UI-pass summaries, exact verifier proofs, and before/after rollback points."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable post-gate UI-polish rule favoring additive helper/status text and panel-local mastering analysis summaries over faux capability."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Shared additive UI-only status/help plumbing now keeps playback scope, mastering reference analysis summaries, take wording, and browser fallback messaging truthful without backend/protocol changes."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added declarations supporting the shared additive UI-only helper/status updates used across the 077-081 panel polish slice."
+    },
+    {
+      "path": "juce\\Source\\UI\\TransportComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added persistent playback scope helper text clarifying backend WAV/reference output versus dry live MIDI preview and generic external audio."
+    },
+    {
+      "path": "juce\\Source\\UI\\TransportComponent.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added supporting declarations/state for persistent playback scope helper text in Transport."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mastering\\MasteringSuitePanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added panel-local Reference Analyze queued/analyzing/success/failure summary UX while unsupported apply and spectrum actions remain unavailable."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mastering\\MasteringSuitePanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added state/declarations for panel-local Mastering reference analysis summary UX."
+    },
+    {
+      "path": "juce\\Source\\UI\\TakeLaneComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added truthful take workflow helper/status text with render-current-comp wording and explicit local-only commit/revert semantics."
+    },
+    {
+      "path": "juce\\Source\\UI\\TakeLaneComponent.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added supporting declarations/state for the take workflow helper/status UX."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mixer\\MixerComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added persistent mixer/FX scope helper text so offline/backend render parity is clear and live preview parity is not implied."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mixer\\MixerComponent.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added supporting declarations/state for persistent mixer/FX scope helper text."
+    },
+    {
+      "path": "juce\\Source\\UI\\InstrumentBrowserPanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added explicit helper/fallback/no-match/manual browse messaging that does not imply archived smart-selection success."
+    },
+    {
+      "path": "juce\\Source\\UI\\InstrumentBrowserPanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added supporting declarations/state for explicit browser helper/fallback messaging."
+    },
+    {
+      "path": "juce\\Source\\UI\\ExpansionBrowserPanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added expansion helper/fallback/no-match messaging and manual browse guidance without implying smart-selection success."
+    },
+    {
+      "path": "juce\\Source\\UI\\ExpansionBrowserPanel.h",
+      "action": "modified",
+      "timestamp": "2026-05-21T20:48:00Z",
+      "by_agent": "builder",
+      "changes": "Added supporting declarations/state for explicit expansion helper/fallback messaging."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
       "timestamp": "2026-05-21T19:25:58Z",
       "by_agent": "builder",
       "changes": "Recorded Task 076 as completed/PASS with the combined pytest checkpoint and JUCE Debug build proof, moved the workflow back to implementation, and pointed next_phase to Task 077 while leaving Task 082 dependent on Tasks 077-081."
@@ -4073,6 +4192,54 @@
   "changes_made": [
     {
       "file": ".github/state/orchestration.json",
+      "description": "Recorded Tasks 077-081 as completed and advanced the workflow to Task 082.",
+      "diff_summary": "Marked Tasks 077-081 completed with implementation/tests/post-verifier details, preserved current_phase=implement, set metadata.next_phase=final-mpc-inspired-ui-pass-082, and raised total_tasks_completed from 77 to 82.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": ".github/state/context.json",
+      "description": "Recorded the combined Tasks 077-081 UI aggregation, exact verifier proofs, and rollback anchors.",
+      "diff_summary": "Prepended all 14 touched JUCE files plus the modified state files, the combined UI-pass summaries, the exact diagnostics/diff-check/build/checkpoint proofs, and before/after rollback points for the completion aggregation.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Captured the durable post-gate UI-polish rule for truthful additive helper/status UX.",
+      "diff_summary": "Added a successful pattern and decision that once backend truthfulness is closed, safer UI polish is additive persistent helper/status text in Transport/Mixer/Takes/Browsers plus panel-local Mastering reference analysis hints/results, without implying auto-apply or real spectrum/apply workflows.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": "juce/Source/MainComponent.{cpp,h} and juce/Source/UI/TransportComponent.{cpp,h}",
+      "description": "Completed Task 077 playback/capability visibility polish.",
+      "diff_summary": "Added persistent playback scope helper text clarifying backend WAV/reference playback versus dry live MIDI preview and generic external audio, keeping disabled/live-unavailable capability surfaces obvious without mislabeling arbitrary loaded audio as backend-mastered.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": "juce/Source/UI/Mastering/MasteringSuitePanel.{cpp,h}",
+      "description": "Completed Task 078 panel-local Mastering results UX polish.",
+      "diff_summary": "Added panel-local Reference Analyze queued/analyzing/success/failure summary UX and honest unsupported-action messaging while leaving apply/spectrum workflows unavailable and without backend/protocol changes.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": "juce/Source/UI/InstrumentBrowserPanel.{cpp,h} and juce/Source/UI/ExpansionBrowserPanel.{cpp,h}",
+      "description": "Completed Task 079 browser smart-selection messaging polish.",
+      "diff_summary": "Added explicit helper/fallback/no-match/manual browse messaging that stays honest when smart selection falls back and does not imply archived smart-selection success.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": "juce/Source/UI/TakeLaneComponent.{cpp,h}",
+      "description": "Completed Task 080 take workflow helper/status polish.",
+      "diff_summary": "Added truthful render-current-comp/helper wording and explicit local-only commit/revert semantics so take workflow affordances stay panel-local and honest.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": "juce/Source/UI/Mixer/MixerComponent.{cpp,h}",
+      "description": "Completed Task 081 mixer/FX scope polish.",
+      "diff_summary": "Added persistent mixer/FX scope helper text that keeps offline/backend render parity explicit and avoids implying live preview FX/mastering parity.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
       "description": "Recorded Task 076 checkpoint completion and advanced the workflow back to implementation.",
       "diff_summary": "Marked post-072-075-runtime-regression-checkpoint-076 completed with the exact 81-pass pytest checkpoint and JUCE Debug MSBuild proof, set current_phase=implement, moved metadata.next_phase to playback-capability-visibility-ui-077, and preserved Task 082's dependency on Tasks 077-081.",
       "timestamp": "2026-05-21T19:25:58Z"
@@ -5091,6 +5258,48 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Tasks 077-081 JUCE diagnostics on touched files",
+      "result": "PASS",
+      "details": "VS Code diagnostics / get_errors on all 14 touched JUCE files (MainComponent, TransportComponent, MasteringSuitePanel, TakeLaneComponent, MixerComponent, InstrumentBrowserPanel, and ExpansionBrowserPanel .cpp/.h pairs): PASS: no errors found.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Tasks 077-081 whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check: PASS.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Tasks 077-081 JUCE Debug build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal => PASS: built juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Tasks 077-081 JUCE Release build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal => PASS: built juce\\build\\MultimodalMusicGen_artefacts\\Release\\AI Music Generator.exe.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 076 checkpoint rerun after Tasks 077-081",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q => PASS: 81 passed, 6 warnings in 8.89s.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "type": "post-verifier",
+      "target": "Tasks 077-081 combined UI completion verdict",
+      "result": "PASS_WITH_NITS",
+      "details": "077 pass: persistent playback/capability visibility is clearer without falsely labeling arbitrary loaded audio as backend-mastered; 078 pass with nit: Mastering panel now has panel-local analyze states and summary, but queued vs running is combined and shared analyze plumbing still exists underneath; 079 pass: fallback/no-match/manual browse messaging is now explicit and honest; 080 pass: take render/commit/revert workflow wording is now honest and panel-local; 081 pass: mixer/FX scope is persistently explicit and does not imply live preview parity; the Task 076 checkpoint rerun passed, so Task 082 is now unblocked.",
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
     {
       "type": "post",
       "target": "Task 076 pre-UI runtime checkpoint pytest aggregation",
@@ -6705,6 +6914,26 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-before-tasks-077-081-completion-aggregation",
+      "description": "State before recording the combined Tasks 077-081 UI completion, verifier proof bundle, and Task 082 unblocking.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
+    {
+      "id": "rollback-after-tasks-077-081-completion-aggregation",
+      "description": "State immediately after recording the combined Tasks 077-081 UI completion, verifier proof bundle, and Task 082 as the next pending phase.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
     {
       "id": "rollback-before-task-076-completion-aggregation",
       "description": "State before recording Task 076 pre-UI runtime checkpoint completion and unlocking the post-gate UI backlog.",

@@ -204,11 +204,15 @@ class ExpansionListComponent : public juce::Component,
 public:
     ExpansionListComponent();
     ~ExpansionListComponent() override;
+
+    void paint(juce::Graphics& g) override;
+    void paintOverChildren(juce::Graphics& g) override;
     
     void resized() override;
     
     void setExpansions(const juce::Array<ExpansionInfo>& expansions);
     void clearExpansions();
+    void setEmptyStateMessage(const juce::String& message);
     
     const ExpansionInfo* getSelectedExpansion() const;
     void clearSelection();
@@ -233,6 +237,7 @@ private:
     juce::OwnedArray<ExpansionCard> cards;
     ExpansionCard* selectedCard = nullptr;
     juce::ListenerList<Listener> listeners;
+    juce::String emptyStateMessage { "No expansions loaded. Import an expansion or scan a folder to populate this list." };
     
     juce::Viewport viewport;
     juce::Component contentComponent;
@@ -250,12 +255,16 @@ class ExpansionInstrumentList : public juce::Component,
 public:
     ExpansionInstrumentList();
     ~ExpansionInstrumentList() override;
+
+    void paint(juce::Graphics& g) override;
+    void paintOverChildren(juce::Graphics& g) override;
     
     void resized() override;
     
     void setInstruments(const juce::Array<ExpansionInstrumentInfo>& instruments);
     void clearInstruments();
     void setFilter(const juce::String& filter);
+    void setEmptyStateMessage(const juce::String& message);
     
     // TableListBoxModel
     int getNumRows() override;
@@ -281,6 +290,7 @@ private:
     juce::Array<ExpansionInstrumentInfo> allInstruments;
     juce::Array<ExpansionInstrumentInfo> filteredInstruments;
     juce::String filterText;
+    juce::String emptyStateMessage { "Select an expansion to browse its instruments." };
     
     juce::ListenerList<Listener> listeners;
     
@@ -302,6 +312,8 @@ public:
     void resized() override;
     
     void showResult(const ResolvedInstrumentInfo& result);
+    void showPending(const juce::String& instrument, const juce::String& genre);
+    void showFailure(const juce::String& message);
     void clear();
     
     /** Listener for test requests */
@@ -380,6 +392,8 @@ public:
     
     /** Show resolution result */
     void showResolutionResult(const juce::String& json);
+    void showResolutionPending(const juce::String& instrument, const juce::String& genre);
+    void showResolutionFailure(const juce::String& message);
     
     /** Request expansion list from Python backend */
     void requestExpansionList();
@@ -430,6 +444,7 @@ private:
     juce::TextButton refreshButton { "Refresh" };
     juce::TextEditor searchBox;
     juce::Label searchLabel { {}, "Search:" };
+    juce::Label statusLabel { {}, "Import/scan to load expansions. Resolution results call out matched, fallback/default/manual browse, or no match." };
     
     // Main content
     ExpansionListComponent expansionList;

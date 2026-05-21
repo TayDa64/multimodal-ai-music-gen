@@ -317,6 +317,24 @@ void MasteringSuitePanel::updateMeters(float lufsShort, float lufsIntegrated, fl
     currentTruePeakR = truePeakR;
 }
 
+void MasteringSuitePanel::setReferenceAnalysisPending(const juce::String& referenceName)
+{
+    if (referencePanel)
+        referencePanel->setAnalysisPending(referenceName);
+}
+
+void MasteringSuitePanel::setReferenceAnalysisResult(const juce::String& summary, const juce::String& detail)
+{
+    if (referencePanel)
+        referencePanel->setAnalysisResult(summary, detail);
+}
+
+void MasteringSuitePanel::setReferenceAnalysisFailure(const juce::String& message)
+{
+    if (referencePanel)
+        referencePanel->setAnalysisFailure(message);
+}
+
 void MasteringSuitePanel::timerCallback()
 {
     // Update meter displays
@@ -1192,6 +1210,18 @@ ReferenceMatchingPanel::ReferenceMatchingPanel()
     subtitleLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     subtitleLabel.setText("Analyze via /analyze for hints; no in-panel spectrum/apply path", juce::dontSendNotification);
     addAndMakeVisible(subtitleLabel);
+
+    analysisStateLabel.setFont(juce::Font(11.0f, juce::Font::bold));
+    analysisStateLabel.setColour(juce::Label::textColourId, AppColours::warning);
+    analysisStateLabel.setJustificationType(juce::Justification::centredLeft);
+    analysisStateLabel.setTooltip("Reference Analyze returns hints only. It does not auto-apply settings.");
+    addAndMakeVisible(analysisStateLabel);
+
+    analysisSummaryLabel.setFont(juce::Font(11.0f));
+    analysisSummaryLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    analysisSummaryLabel.setJustificationType(juce::Justification::topLeft);
+    analysisSummaryLabel.setTooltip("Reference Analyze returns hints only. Apply matching and in-panel spectrum comparison remain unavailable in this build.");
+    addAndMakeVisible(analysisSummaryLabel);
     
     loadRefButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
     loadRefButton.setTooltip("Loads a reference file for the existing /analyze flow. In-panel spectrum comparison is unavailable in this build.");
@@ -1209,6 +1239,12 @@ ReferenceMatchingPanel::ReferenceMatchingPanel()
                 loadedReference = file;
                 refFileLabel.setText(file.getFileName(), juce::dontSendNotification);
                 referenceAnalyzed = false;
+                analysisStateLabel.setText("Reference loaded", juce::dontSendNotification);
+                analysisStateLabel.setColour(juce::Label::textColourId, AppColours::primary);
+                auto summary = "Ready to analyze \"" + file.getFileName()
+                               + "\" for hints only. No auto-apply, no in-panel spectrum comparison.";
+                analysisSummaryLabel.setText(summary, juce::dontSendNotification);
+                analysisSummaryLabel.setTooltip(summary);
             }
         });
     };
@@ -1257,9 +1293,16 @@ ReferenceMatchingPanel::ReferenceMatchingPanel()
     analyzeButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
     analyzeButton.onClick = [this]() {
         if (loadedReference.existsAsFile() && onAnalyzeReference)
+        {
+            setAnalysisPending(loadedReference.getFileName());
             onAnalyzeReference(loadedReference);
+        }
+        else
+        {
+            setAnalysisFailure("Load a reference file before running Analyze. Hints do not auto-apply settings.");
+        }
     };
-    analyzeButton.setTooltip("Runs the existing /analyze file flow on the selected reference to extract hints. It does not populate an in-panel spectrum comparison view.");
+    analyzeButton.setTooltip("Runs the existing /analyze file flow on the selected reference to extract hints only. It does not auto-apply settings or populate an in-panel spectrum comparison view.");
     addAndMakeVisible(analyzeButton);
     
     applyButton.setColour(juce::TextButton::buttonColourId, AppColours::success);
@@ -1284,6 +1327,12 @@ void ReferenceMatchingPanel::filesDropped(const juce::StringArray& files, int /*
         loadedReference = juce::File(files[0]);
         refFileLabel.setText(loadedReference.getFileName(), juce::dontSendNotification);
         referenceAnalyzed = false;
+        analysisStateLabel.setText("Reference loaded", juce::dontSendNotification);
+        analysisStateLabel.setColour(juce::Label::textColourId, AppColours::primary);
+        auto summary = "Ready to analyze \"" + loadedReference.getFileName()
+                       + "\" for hints only. No auto-apply, no in-panel spectrum comparison.";
+        analysisSummaryLabel.setText(summary, juce::dontSendNotification);
+        analysisSummaryLabel.setTooltip(summary);
     }
 }
 
@@ -1304,13 +1353,15 @@ void ReferenceMatchingPanel::paint(juce::Graphics& g)
     }
     
     // Availability note area for the future spectrum comparison view
-    spectrumArea = getLocalBounds().withTrimmedTop(200).reduced(12).removeFromTop(100);
+    spectrumArea = getLocalBounds().withTrimmedTop(analysisSummaryLabel.getBottom() + 8)
+                                  .reduced(12)
+                                  .removeFromTop(90);
     g.setColour(juce::Colours::black.withAlpha(0.3f));
     g.fillRoundedRectangle(spectrumArea.toFloat(), 4.0f);
 
     g.setColour(AppColours::textSecondary);
     g.setFont(12.0f);
-    g.drawFittedText("Analyze extracts reference hints via the existing /analyze flow.\nIn-panel spectrum comparison is unavailable in this build.",
+    g.drawFittedText("Analyze extracts reference hints via the existing /analyze flow.\nSpectrum comparison and Apply Matching remain unavailable in this build.",
                      spectrumArea.reduced(12),
                      juce::Justification::centred,
                      3);
@@ -1348,10 +1399,15 @@ void ReferenceMatchingPanel::resized()
     matchDynamicsButton.setBounds(optionsRow2.removeFromLeft(150));
     matchStereoButton.setBounds(optionsRow2.removeFromLeft(150));
     
-    bounds.removeFromTop(12);
+    bounds.removeFromTop(10);
+
+    analysisStateLabel.setBounds(bounds.removeFromTop(18));
+    analysisSummaryLabel.setBounds(bounds.removeFromTop(40));
+
+    bounds.removeFromTop(8);
     
     // Spectrum area is drawn in paint()
-    bounds.removeFromTop(110);
+    bounds.removeFromTop(100);
     
     // Buttons
     auto buttonRow = bounds.removeFromTop(32);
@@ -1381,7 +1437,15 @@ void ReferenceMatchingPanel::loadFromJSON(const juce::var& json)
     {
         loadedReference = juce::File(refPath);
         if (loadedReference.existsAsFile())
+        {
             refFileLabel.setText(loadedReference.getFileName(), juce::dontSendNotification);
+            analysisStateLabel.setText("Reference loaded", juce::dontSendNotification);
+            analysisStateLabel.setColour(juce::Label::textColourId, AppColours::primary);
+            auto summary = "Saved reference \"" + loadedReference.getFileName()
+                           + "\" is ready for hints-only analysis. No auto-apply or spectrum compare path is available.";
+            analysisSummaryLabel.setText(summary, juce::dontSendNotification);
+            analysisSummaryLabel.setTooltip(summary);
+        }
     }
     
     matchAmountSlider.setValue(json.getProperty("matchAmount", 100.0));
@@ -1389,6 +1453,46 @@ void ReferenceMatchingPanel::loadFromJSON(const juce::var& json)
     matchLoudnessButton.setToggleState(json.getProperty("matchLoudness", true), juce::dontSendNotification);
     matchDynamicsButton.setToggleState(json.getProperty("matchDynamics", false), juce::dontSendNotification);
     matchStereoButton.setToggleState(json.getProperty("matchStereo", false), juce::dontSendNotification);
+}
+
+void ReferenceMatchingPanel::setAnalysisPending(const juce::String& referenceName)
+{
+    referenceAnalyzed = false;
+    analysisStateLabel.setText("Queued / analyzing", juce::dontSendNotification);
+    analysisStateLabel.setColour(juce::Label::textColourId, AppColours::warning);
+
+    auto summary = "Analyzing \"" + referenceName
+                   + "\" for reference hints only. No auto-apply, no in-panel spectrum compare.";
+    analysisSummaryLabel.setText(summary, juce::dontSendNotification);
+    analysisSummaryLabel.setTooltip(summary);
+}
+
+void ReferenceMatchingPanel::setAnalysisResult(const juce::String& summary, const juce::String& detail)
+{
+    referenceAnalyzed = true;
+    analysisStateLabel.setText("Reference hints ready", juce::dontSendNotification);
+    analysisStateLabel.setColour(juce::Label::textColourId, AppColours::success);
+
+    auto summaryText = summary;
+    if (detail.isNotEmpty())
+        summaryText << "\n" << detail;
+
+    analysisSummaryLabel.setText(summaryText, juce::dontSendNotification);
+    analysisSummaryLabel.setTooltip(summaryText + "\n\nHints only — nothing has been auto-applied.");
+}
+
+void ReferenceMatchingPanel::setAnalysisFailure(const juce::String& message)
+{
+    referenceAnalyzed = false;
+    analysisStateLabel.setText("Reference analyze failed", juce::dontSendNotification);
+    analysisStateLabel.setColour(juce::Label::textColourId, AppColours::error);
+
+    auto summary = message;
+    if (!summary.endsWithChar('.'))
+        summary << ".";
+    summary << " Hints only — apply matching and spectrum comparison remain unavailable.";
+    analysisSummaryLabel.setText(summary, juce::dontSendNotification);
+    analysisSummaryLabel.setTooltip(summary);
 }
 
 //==============================================================================

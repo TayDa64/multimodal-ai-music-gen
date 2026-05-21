@@ -6,6 +6,14 @@ namespace UI
 {
     MixerComponent::MixerComponent()
     {
+        scopeNoticeLabel.setFont(juce::Font(11.0f));
+        scopeNoticeLabel.setColour(juce::Label::textColourId, AppColours::textSecondary.withAlpha(0.9f));
+        scopeNoticeLabel.setJustificationType(juce::Justification::centredLeft);
+        scopeNoticeLabel.setText("Scope: FX chain affects backend/offline render parity; live MIDI preview stays dry/unmastered.",
+                                 juce::dontSendNotification);
+        scopeNoticeLabel.setTooltip("Mixer and FX settings target backend/offline render parity. Live MIDI preview remains dry/unmastered with no live mastering path in this build.");
+        addAndMakeVisible(scopeNoticeLabel);
+
         addAndMakeVisible(viewport);
         viewport.setViewedComponent(&container, false);
         viewport.setScrollBarsShown(true, true); // Allow both horizontal and vertical scrolling
@@ -39,6 +47,10 @@ namespace UI
     void MixerComponent::resized()
     {
         auto area = getLocalBounds();
+
+        auto noticeArea = area.removeFromTop(20).reduced(8, 0);
+        scopeNoticeLabel.setBounds(noticeArea);
+        area.removeFromTop(4);
         
         // Reserve space for master strip on the right (80px + 2px separator)
         static constexpr int masterStripWidth = 82;

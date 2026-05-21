@@ -91,6 +91,12 @@ public:
     //==============================================================================
     // Metering (called from audio thread via message manager)
     void updateMeters(float lufsShort, float lufsIntegrated, float truePeakL, float truePeakR);
+
+    //==============================================================================
+    // Reference Analyze workflow state
+    void setReferenceAnalysisPending(const juce::String& referenceName);
+    void setReferenceAnalysisResult(const juce::String& summary, const juce::String& detail);
+    void setReferenceAnalysisFailure(const juce::String& message);
     
 private:
     void timerCallback() override;
@@ -392,6 +398,10 @@ public:
     
     juce::var toJSON() const;
     void loadFromJSON(const juce::var& json);
+
+    void setAnalysisPending(const juce::String& referenceName);
+    void setAnalysisResult(const juce::String& summary, const juce::String& detail);
+    void setAnalysisFailure(const juce::String& message);
     
     std::function<void(const juce::File&)> onAnalyzeReference;
     std::function<void()> onSettingsChanged;
@@ -413,6 +423,9 @@ private:
     
     juce::TextButton analyzeButton { "Analyze" };
     juce::TextButton applyButton { "Apply Matching" };
+
+    juce::Label analysisStateLabel { {}, "Ready" };
+    juce::Label analysisSummaryLabel { {}, "Analyze returns hints only; no auto-apply, no in-panel spectrum/apply path." };
     
     // Spectrum visualization placeholder
     juce::Rectangle<int> spectrumArea;

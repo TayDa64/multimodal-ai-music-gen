@@ -283,6 +283,9 @@ private:
 
     // Take comping: snapshot of original per-track notes (keyed by track index).
     std::map<int, juce::ValueTree> takeCompSnapshots;
+    bool masteringReferenceAnalysisPending = false;
+    bool takeRenderPending = false;
+    bool expansionResolvePending = false;
     
     //==============================================================================
     void startPythonServer();

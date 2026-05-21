@@ -141,6 +141,7 @@ struct InstrumentCategory
     Single instrument card for the browser list.
 */
 class InstrumentCard : public juce::Component
+                     , public juce::SettableTooltipClient
 {
 public:
     InstrumentCard(const InstrumentInfo& info);
@@ -401,6 +402,7 @@ private:
     juce::TextEditor searchBox;
     juce::Label searchLabel { {}, "Search" };
     juce::TextButton scanButton { "Scan" };
+    juce::Label helperLabel { {}, "Badges show origin only (Library / Expansion / Local). Browsing here is manual; empty/no-match states do not imply a smart fallback success." };
     juce::Label statusLabel { {}, "" };
     
     // Category tabs

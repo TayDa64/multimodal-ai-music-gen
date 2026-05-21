@@ -58,6 +58,8 @@ private:
     void setupSliders();
     void setupLabels();
     void setStatusText(const juce::String& text, juce::Colour colour);
+    juce::String getCapabilityHelperText() const;
+    juce::String buildStatusTooltip(const juce::String& status) const;
     void updateButtonStates();
     void updateTimeDisplay();
     
@@ -118,6 +120,7 @@ private:
     
     // Status
     juce::Label statusLabel;
+    juce::Label capabilityLabel;
     juce::Label connectionIndicator;
     
     // State

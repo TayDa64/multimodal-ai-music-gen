@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Once the backend truthfulness gate is closed, the safest post-gate JUCE polish is additive persistent helper/status text in Transport/Mixer/Takes/Browsers plus panel-local Mastering reference-analysis hints/results, not new faux capability.",
+        "context": "Tasks 077-081 validated that after Tasks 072-076 closed the real-or-honest backend contract gap, the safe UI-only slice was to add persistent scope/helper text and panel-local analysis summaries across MainComponent, TransportComponent, MasteringSuitePanel, TakeLaneComponent, MixerComponent, InstrumentBrowserPanel, and ExpansionBrowserPanel. This made backend WAV/reference versus dry live MIDI preview versus generic external audio explicit, clarified local-only commit/revert semantics and smart-selection fallback/no-match behavior, and kept unsupported Mastering apply/spectrum flows unavailable. No backend/protocol changes were needed.",
+        "timestamp": "2026-05-21T20:48:00Z"
+      },
+      {
         "pattern": "Before resuming post-gate UI polish after Tasks 072-075, close the pre-UI honesty/runtime gate with a combined protocol/smoke pytest checkpoint plus a JUCE Debug build.",
         "context": "Task 076 proved the durable checkpoint should be one combined run of tests/test_protocol.py, tests/test_sprint11_batch_c.py, tests/test_smoke_1990s_rock_contract.py, and tests/test_golden_prompts_smoke.py together with a JUCE Debug MSBuild of juce/build/MultimodalMusicGen.sln. Only after both pass should Tasks 077-081 resume; Task 082 stays blocked until Tasks 077-081 are complete.",
         "timestamp": "2026-05-21T19:25:58Z"
@@ -625,6 +630,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "After the backend truthfulness gate closed, complete Tasks 077-081 as additive JUCE helper/status UX instead of introducing any new implied capability.",
+      "rationale": "Tasks 072-076 already made playback, mastering-reference analysis, take rendering, and smart-selection surfaces real or honestly unavailable. The lowest-risk next move was therefore persistent helper/status text in Transport, Mixer, Takes, and Browsers plus panel-local Mastering reference-analysis summaries/results, which improves clarity without implying live FX/mastering parity, archived smart-selection success, auto-apply behavior, or real spectrum/apply workflows. This also leaves Task 082 free for the final integrated polish pass instead of re-opening backend semantics.",
+      "alternatives_considered": [
+        "Add new implied live-preview FX/mastering or smart-selection capabilities in the UI without backend support.",
+        "Use generic/shared Mastering results messaging instead of panel-local honest hints/results.",
+        "Defer the post-gate clarity pass entirely until Task 082."
+      ],
+      "timestamp": "2026-05-21T20:48:00Z"
+    },
     {
       "decision": "Close the pre-UI gate with a combined protocol/smoke pytest checkpoint plus a JUCE Debug build before resuming UI polish.",
       "rationale": "Tasks 072-075 fixed honesty/runtime gaps across mastering, live preview wording, smart-selection cleanup, and take rendering. The safest next move is to aggregate those fixes with one protocol/smoke pytest checkpoint and one JUCE Debug build so the UI backlog only resumes after both Python contract coverage and the JUCE app build remain green. This unlocks Tasks 077-081, while final Task 082 still depends on those five post-gate UI items.",
@@ -1575,5 +1590,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-21T19:25:58Z"
+  "last_updated": "2026-05-21T20:48:00Z"
 }

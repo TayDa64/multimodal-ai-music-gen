@@ -9,6 +9,7 @@
 */
 
 #include "TakeLaneComponent.h"
+#include "Theme/ColourScheme.h"
 
 //==============================================================================
 // TakeLaneItem
@@ -391,20 +392,38 @@ TakeLanePanel::TakeLanePanel()
     titleLabel.setFont(juce::Font(Layout::fontSizeXL).boldened());
     titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(titleLabel);
+
+    helperLabel.setText("Render sends the current selected-takes comp arrangement only. Commit/Revert affect local comp state only.",
+                        juce::dontSendNotification);
+    helperLabel.setFont(juce::Font(Layout::fontSizeSM));
+    helperLabel.setColour(juce::Label::textColourId, juce::Colours::lightgrey.withAlpha(0.9f));
+    helperLabel.setJustificationType(juce::Justification::centredLeft);
+    helperLabel.setTooltip("Render Current Comp requests a backend render of the current selected-takes arrangement only. Commit/Revert only affect local comp state in the app.");
+    addAndMakeVisible(helperLabel);
+
+    statusLabel.setFont(juce::Font(Layout::fontSizeSM, juce::Font::bold));
+    statusLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    statusLabel.setJustificationType(juce::Justification::centredLeft);
+    statusLabel.setText("Select takes per track to build the local comp.", juce::dontSendNotification);
+    statusLabel.setTooltip("Select takes per track to build the local comp.");
+    addAndMakeVisible(statusLabel);
     
     renderButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff27ae60));
+    renderButton.setTooltip("Render the current selected-takes comp arrangement through the existing backend contract. This is not arbitrary row export.");
     renderButton.onClick = [this]() { handleRenderClicked(); };
     addAndMakeVisible(renderButton);
 
     commitButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff2980b9));
+    commitButton.setTooltip("Commit the current local comp state in the app. This does not publish or export audio.");
     commitButton.onClick = [this]() { handleCommitClicked(); };
     addAndMakeVisible(commitButton);
 
     revertButton.setColour(juce::TextButton::buttonColourId, juce::Colour(0xff8e44ad));
+    revertButton.setTooltip("Revert the local comp state back to the pre-selection notes. This does not undo a backend render/export.");
     revertButton.onClick = [this]() { handleRevertClicked(); };
     addAndMakeVisible(revertButton);
     
-    emptyLabel.setText("Generate music with multiple takes to see options here.\nSet 'Takes' > 1 in generation settings.", 
+    emptyLabel.setText("Generate music with multiple takes to see options here.\nThis panel builds a local comp; Render Current Comp sends only that arrangement.",
                        juce::dontSendNotification);
     emptyLabel.setFont(Layout::fontSizeMD);
     emptyLabel.setColour(juce::Label::textColourId, juce::Colours::grey);
@@ -430,11 +449,17 @@ void TakeLanePanel::resized()
     auto bounds = getLocalBounds();
     
     // Header
-    auto headerBounds = bounds.removeFromTop(40);
-    titleLabel.setBounds(headerBounds.removeFromLeft(200).reduced(Layout::paddingMD));
-    renderButton.setBounds(headerBounds.removeFromRight(140).reduced(Layout::paddingMD));
-    revertButton.setBounds(headerBounds.removeFromRight(120).reduced(Layout::paddingMD));
-    commitButton.setBounds(headerBounds.removeFromRight(120).reduced(Layout::paddingMD));
+    auto headerBounds = bounds.removeFromTop(68).reduced(Layout::paddingMD, Layout::paddingSM);
+    auto buttonRow = headerBounds.removeFromTop(32);
+    titleLabel.setBounds(buttonRow.removeFromLeft(180));
+    renderButton.setBounds(buttonRow.removeFromRight(180).reduced(0, 1));
+    buttonRow.removeFromRight(Layout::paddingSM);
+    revertButton.setBounds(buttonRow.removeFromRight(140).reduced(0, 1));
+    buttonRow.removeFromRight(Layout::paddingSM);
+    commitButton.setBounds(buttonRow.removeFromRight(140).reduced(0, 1));
+
+    helperLabel.setBounds(headerBounds.removeFromTop(14));
+    statusLabel.setBounds(headerBounds.removeFromTop(16));
     
     // Main content area
     bounds.reduce(Layout::paddingMD, 0);
@@ -507,6 +532,15 @@ void TakeLanePanel::setAvailableTakes(const juce::String& takesJson)
             containerHolder.addAndMakeVisible(container);
         }
     }
+
+    if (trackContainers.isEmpty())
+    {
+        setStatusMessage("No takes available yet. Generate with Takes > 1 to build a local comp.", AppColours::textSecondary);
+    }
+    else
+    {
+        setStatusMessage("Takes ready. Select one take per track to update the local comp.", AppColours::textSecondary);
+    }
     
     resized();
 }
@@ -514,6 +548,7 @@ void TakeLanePanel::setAvailableTakes(const juce::String& takesJson)
 void TakeLanePanel::clearAllTakes()
 {
     trackContainers.clear();
+    setStatusMessage("Select takes per track to build the local comp.", AppColours::textSecondary);
     resized();
 }
 
@@ -527,6 +562,15 @@ void TakeLanePanel::confirmTakeSelection(const juce::String& track, const juce::
             break;
         }
     }
+
+    setStatusMessage("Current comp selection confirmed: " + track + " / " + takeId, AppColours::success);
+}
+
+void TakeLanePanel::setStatusMessage(const juce::String& text, juce::Colour colour)
+{
+    statusLabel.setText(text, juce::dontSendNotification);
+    statusLabel.setColour(juce::Label::textColourId, colour);
+    statusLabel.setTooltip(text);
 }
 
 void TakeLanePanel::addListener(Listener* listener)
@@ -541,6 +585,8 @@ void TakeLanePanel::removeListener(Listener* listener)
 
 void TakeLanePanel::handleTrackTakeSelected(const juce::String& track, const juce::String& takeId, const juce::String& midiPath)
 {
+    setStatusMessage("Selected " + takeId + " for " + track + " in the local comp.", AppColours::primary);
+
     listeners.call([track, takeId, midiPath](Listener& l)
     {
         l.takeSelected(track, takeId, midiPath);
@@ -565,6 +611,8 @@ void TakeLanePanel::handleStopRequested(const juce::String& track)
 
 void TakeLanePanel::handleRenderClicked()
 {
+    setStatusMessage("Queued render of the current comp arrangement...", AppColours::warning);
+
     listeners.call([](Listener& l)
     {
         l.renderTakesRequested();
@@ -573,6 +621,8 @@ void TakeLanePanel::handleRenderClicked()
 
 void TakeLanePanel::handleCommitClicked()
 {
+    setStatusMessage("Committed the current local comp state.", AppColours::success);
+
     listeners.call([](Listener& l)
     {
         l.commitCompRequested();
@@ -581,6 +631,8 @@ void TakeLanePanel::handleCommitClicked()
 
 void TakeLanePanel::handleRevertClicked()
 {
+    setStatusMessage("Reverting to the previous local comp state...", AppColours::warning);
+
     listeners.call([](Listener& l)
     {
         l.revertCompRequested();

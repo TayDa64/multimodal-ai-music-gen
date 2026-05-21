@@ -147,6 +147,54 @@ juce::String formatGenerationStatus(MainComponent::GenerationStatus status,
         out += " @ " + timeLabel;
     return out;
 }
+
+juce::String analysisDisplayKey(const AnalyzeResult& result)
+{
+    if (result.key.isEmpty())
+        return {};
+
+    auto key = result.key;
+    if (result.mode == "minor")
+        key << "m";
+    else if (result.mode.isNotEmpty() && result.mode != "major")
+        key << " " << result.mode;
+    return key;
+}
+
+juce::String buildAnalyzeSummary(const AnalyzeResult& result)
+{
+    juce::StringArray parts;
+    if (result.bpm > 0.0f)
+        parts.add("BPM " + juce::String(result.bpm, 1));
+    if (auto key = analysisDisplayKey(result); key.isNotEmpty())
+        parts.add("Key " + key);
+    if (result.estimatedGenre.isNotEmpty())
+        parts.add("Genre " + result.estimatedGenre);
+    if (result.styleTags.size() > 0)
+        parts.add("Tags " + result.styleTags.joinIntoString(", "));
+
+    if (parts.isEmpty())
+        return "Reference hints returned via /analyze.";
+
+    return parts.joinIntoString(" • ");
+}
+
+juce::String buildAnalyzeDetail(const AnalyzeResult& result)
+{
+    if (result.promptHints.isNotEmpty())
+        return "Prompt hints: " + result.promptHints;
+
+    if (result.styleTags.size() > 0)
+        return "Hints only — no settings have been auto-applied.";
+
+    return "Hints only — no auto-apply, no in-panel spectrum/apply path.";
+}
+
+bool isResolutionFallbackLike(const ResolvedInstrumentInfo& result)
+{
+    const auto matchType = result.matchType.toLowerCase();
+    return matchType == "default" || matchType.contains("fallback");
+}
 }
 
 //==============================================================================
@@ -1222,7 +1270,52 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
 void MainComponent::onError(int code, const juce::String& message)
 {
     juce::ignoreUnused(code);
+
+    if (takeRenderPending)
+    {
+        takeRenderPending = false;
+        currentStatus = "Current comp render failed";
+
+        juce::MessageManager::callAsync([this, message]()
+        {
+            if (takeLanePanel)
+                takeLanePanel->setStatusMessage("Current comp render failed: " + message, AppColours::error);
+            repaint();
+        });
+        return;
+    }
+
+    if (expansionResolvePending)
+    {
+        expansionResolvePending = false;
+        currentStatus = "Expansion resolution failed";
+
+        juce::MessageManager::callAsync([this, message]()
+        {
+            if (expansionBrowser)
+                expansionBrowser->showResolutionFailure(message);
+            repaint();
+        });
+        return;
+    }
+
     currentStatus = "Error: " + message;
+
+    if (!appState.isGenerating())
+    {
+        juce::MessageManager::callAsync([this, message]()
+        {
+            juce::AlertWindow::showMessageBoxAsync(
+                juce::MessageBoxIconType::WarningIcon,
+                "Backend Error",
+                message
+            );
+
+            repaint();
+        });
+        return;
+    }
+
     generationStatus = GenerationStatus::Error;
     
     juce::MessageManager::callAsync([this, message]()
@@ -1245,6 +1338,9 @@ void MainComponent::onError(int code, const juce::String& message)
 
 void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
 {
+    const bool isMasteringReferenceAnalyze = masteringReferenceAnalysisPending;
+    masteringReferenceAnalysisPending = false;
+
     currentStatus = "Analysis complete";
     
     // Store last analysis result for potential apply action
@@ -1294,6 +1390,29 @@ void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
             << " (" << result.bpm << " BPM, " << fullKey << ", " << result.estimatedGenre << ")");
     }
 
+    const auto summary = buildAnalyzeSummary(result);
+    const auto detail = buildAnalyzeDetail(result);
+
+    if (isMasteringReferenceAnalyze)
+    {
+        currentStatus = result.success ? "Reference hints ready (not auto-applied)"
+                                       : "Reference analyze failed";
+
+        juce::MessageManager::callAsync([this, result, summary, detail]()
+        {
+            if (masteringSuitePanel)
+            {
+                if (result.success)
+                    masteringSuitePanel->setReferenceAnalysisResult(summary, detail);
+                else
+                    masteringSuitePanel->setReferenceAnalysisFailure("Analyze returned no usable reference hints.");
+            }
+
+            repaint();
+        });
+        return;
+    }
+
     juce::MessageManager::callAsync([this, result]()
     {
         juce::String msg;
@@ -1335,7 +1454,23 @@ void MainComponent::onAnalyzeResultReceived(const AnalyzeResult& result)
 
 void MainComponent::onAnalyzeError(int code, const juce::String& message)
 {
+    const bool isMasteringReferenceAnalyze = masteringReferenceAnalysisPending;
+    masteringReferenceAnalysisPending = false;
+
     currentStatus = "Analyze error";
+
+    if (isMasteringReferenceAnalyze)
+    {
+        juce::MessageManager::callAsync([this, message]()
+        {
+            if (masteringSuitePanel)
+                masteringSuitePanel->setReferenceAnalysisFailure(message);
+
+            currentStatus = "Reference analyze failed";
+            repaint();
+        });
+        return;
+    }
 
     juce::MessageManager::callAsync([this, code, message]()
     {
@@ -1507,6 +1642,8 @@ void MainComponent::fileSelected(const juce::File& file)
 
 void MainComponent::analyzeFileRequested(const juce::File& file)
 {
+    masteringReferenceAnalysisPending = false;
+
     if (!ensureBackendConnected("Analyze"))
         return;
 
@@ -1627,12 +1764,22 @@ void MainComponent::applyMasteringRequested(const juce::String& processorType, c
 
 void MainComponent::analyzeReferenceRequested(const juce::File& file)
 {
+    masteringReferenceAnalysisPending = false;
+
     if (!ensureBackendConnected("Analyze reference"))
+    {
+        if (masteringSuitePanel)
+            masteringSuitePanel->setReferenceAnalysisFailure("Backend unavailable. Reference Analyze needs the server connection.");
         return;
+    }
     
     DBG("Reference analysis requested for: " << file.getFullPathName());
 
-    currentStatus = "Analyzing reference: " + file.getFileName();
+    masteringReferenceAnalysisPending = true;
+    if (masteringSuitePanel)
+        masteringSuitePanel->setReferenceAnalysisPending(file.getFileName());
+
+    currentStatus = "Analyzing reference hints: " + file.getFileName();
     oscBridge->sendAnalyzeFile(file, false);
     repaint();
 }
@@ -1792,6 +1939,8 @@ void MainComponent::trackLoadSFZRequested(int trackIndex)
 
 void MainComponent::analyzeUrlRequested(const juce::String& url)
 {
+    masteringReferenceAnalysisPending = false;
+
     if (!ensureBackendConnected("Analyze URL"))
         return;
 
@@ -1958,10 +2107,18 @@ void MainComponent::requestInstrumentsOSC(const juce::String& expansionId)
 
 void MainComponent::requestResolveOSC(const juce::String& instrument, const juce::String& genre)
 {
+    expansionResolvePending = false;
+
     if (!ensureBackendConnected("Resolve expansion instrument"))
         return;
 
     DBG("MainComponent: Resolving instrument: " + instrument + " for genre: " + genre);
+
+    expansionResolvePending = true;
+    if (expansionBrowser)
+        expansionBrowser->showResolutionPending(instrument, genre);
+
+    currentStatus = "Resolving expansion instrument: " + instrument;
     oscBridge->sendExpansionResolve(instrument, genre);
 }
 
@@ -2032,10 +2189,23 @@ void MainComponent::onExpansionInstrumentsReceived(const juce::String& json)
 void MainComponent::onExpansionResolveReceived(const juce::String& json)
 {
     DBG("MainComponent: Received resolution result");
+    expansionResolvePending = false;
     
     juce::MessageManager::callAsync([this, json]() {
+        auto parsed = juce::JSON::parse(json);
+        auto result = ResolvedInstrumentInfo::fromJSON(parsed);
+
         if (expansionBrowser)
             expansionBrowser->showResolutionResult(json);
+
+        if (result.path.isEmpty())
+            currentStatus = "Expansion resolve: no match found";
+        else if (isResolutionFallbackLike(result))
+            currentStatus = "Expansion resolve: fallback/default suggestion returned";
+        else
+            currentStatus = "Expansion resolve: matched " + result.name;
+
+        repaint();
     });
 }
 
@@ -2049,6 +2219,7 @@ void MainComponent::onTakesAvailable(const juce::String& json)
         if (takeLanePanel)
         {
             takeLanePanel->setAvailableTakes(json);
+            takeLanePanel->setStatusMessage("Takes ready. Select one take per track to shape the local comp.", AppColours::textSecondary);
             
             // Auto-show the takes panel when takes become available
             if (takeLanePanel->hasTakes() && !bottomPanelVisible)
@@ -2065,9 +2236,13 @@ void MainComponent::onTakeSelected(const juce::String& track, const juce::String
     
     juce::MessageManager::callAsync([this, track, takeId]() {
         if (takeLanePanel)
+        {
             takeLanePanel->confirmTakeSelection(track, takeId);
+            takeLanePanel->setStatusMessage("Current comp selection confirmed: " + track + " / " + takeId,
+                                            AppColours::success);
+        }
         
-        currentStatus = "Take selected: " + track + " / " + takeId;
+        currentStatus = "Current comp selection confirmed: " + track + " / " + takeId;
         repaint();
     });
 }
@@ -2075,6 +2250,7 @@ void MainComponent::onTakeSelected(const juce::String& track, const juce::String
 void MainComponent::onTakeRendered(const juce::String& track, const juce::String& outputPath)
 {
     DBG("MainComponent: Take rendered - " << track << " -> " << outputPath);
+    takeRenderPending = false;
     
     juce::MessageManager::callAsync([this, track, outputPath]() {
         // Load the rendered audio
@@ -2082,9 +2258,23 @@ void MainComponent::onTakeRendered(const juce::String& track, const juce::String
         if (audioFile.existsAsFile())
         {
             audioEngine.loadAudioFile(audioFile);
+
+            if (takeLanePanel)
+            {
+                takeLanePanel->setStatusMessage("Current comp render ready: " + audioFile.getFileName(),
+                                                AppColours::success);
+            }
+
+            currentStatus = "Current comp render ready: " + audioFile.getFileName();
         }
-        
-        currentStatus = "Take rendered: " + track;
+        else
+        {
+            if (takeLanePanel)
+                takeLanePanel->setStatusMessage("Current comp render reported, but output file was not found.", AppColours::warning);
+
+            currentStatus = "Current comp render reported without an output file";
+        }
+
         repaint();
     });
 }
@@ -2110,8 +2300,16 @@ void MainComponent::takeSelected(const juce::String& track, const juce::String& 
         oscBridge->sendSelectTake(track, takeId);
 
     currentStatus = applied
-        ? ("Comp applied: " + track + " / " + takeId)
-        : ("Selecting take: " + track + " / " + takeId);
+        ? ("Local comp updated: " + track + " / " + takeId)
+        : ("Selected take for local comp: " + track + " / " + takeId);
+
+    if (takeLanePanel)
+    {
+        takeLanePanel->setStatusMessage(applied
+                                            ? ("Local comp updated: " + track + " / " + takeId)
+                                            : ("Selected take for local comp: " + track + " / " + takeId),
+                                        applied ? AppColours::primary : AppColours::warning);
+    }
     repaint();
 }
 
@@ -2179,6 +2377,16 @@ void MainComponent::takeStopRequested(const juce::String& track)
 void MainComponent::renderTakesRequested()
 {
     DBG("MainComponent: User requested render of selected takes");
+
+    takeRenderPending = false;
+
+    if (!ensureBackendConnected("Render current comp"))
+    {
+        if (takeLanePanel)
+            takeLanePanel->setStatusMessage("Backend unavailable: Render Current Comp needs the server connection.",
+                                            AppColours::warning);
+        return;
+    }
     
     if (oscBridge)
     {
@@ -2194,16 +2402,26 @@ void MainComponent::renderTakesRequested()
         request.outputPath = outputDir.getFullPathName();
         
         oscBridge->sendRenderTake(request);
+        takeRenderPending = true;
         
-        currentStatus = "Rendering takes...";
+        if (takeLanePanel)
+            takeLanePanel->setStatusMessage("Queued backend render of the current comp arrangement...", AppColours::warning);
+
+        currentStatus = "Rendering current comp arrangement...";
         repaint();
+    }
+    else if (takeLanePanel)
+    {
+        takeLanePanel->setStatusMessage("Backend unavailable: no render transport is connected.", AppColours::warning);
     }
 }
 
 void MainComponent::commitCompRequested()
 {
     takeCompSnapshots.clear();
-    currentStatus = "Comp committed";
+    currentStatus = "Local comp state committed";
+    if (takeLanePanel)
+        takeLanePanel->setStatusMessage("Local comp state committed.", AppColours::success);
     repaint();
 }
 
@@ -2214,7 +2432,9 @@ void MainComponent::revertCompRequested()
         projectState.restoreNotesForTrack(kv.first, kv.second);
 
     takeCompSnapshots.clear();
-    currentStatus = "Comp reverted";
+    currentStatus = "Local comp state reverted";
+    if (takeLanePanel)
+        takeLanePanel->setStatusMessage("Reverted to the previous local comp state.", AppColours::warning);
     repaint();
 }
 
@@ -2612,7 +2832,7 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
         if (audioEngine.isPlaying())
         {
             if (audioEngine.hasAudioFileLoaded())
-                currentStatus = "Playing audio file/reference";
+                currentStatus = "Playing loaded audio file/reference";
             else if (audioEngine.hasMidiLoaded())
                 currentStatus = "Playing dry/unmastered MIDI preview (no live FX/mastering)";
             else
@@ -2621,7 +2841,7 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
         else
         {
             if (audioEngine.hasAudioFileLoaded())
-                currentStatus = "Paused audio file/reference";
+                currentStatus = "Paused loaded audio file/reference";
             else if (audioEngine.hasMidiLoaded())
                 currentStatus = "Paused dry/unmastered MIDI preview (no live FX/mastering)";
             else

@@ -266,9 +266,9 @@
     {
       "id": "playback-capability-visibility-ui-077",
       "description": "After Task 076, polish playback/capability visibility so mastered reference playback, unmastered preview, live FX availability, and disabled actions are obvious in the UI.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "post-072-075-runtime-regression-checkpoint-076",
@@ -281,14 +281,39 @@
         "juce/Source/UI/Mastering/MasteringSuitePanel.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T20:48:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/MainComponent.cpp",
+          "juce/Source/MainComponent.h",
+          "juce/Source/UI/TransportComponent.cpp",
+          "juce/Source/UI/TransportComponent.h"
+        ],
+        "summary": "Added additive playback-capability helper/status copy so backend WAV/reference playback, dry live MIDI preview, and generic loaded external audio are clearly distinguished without mislabeling arbitrary loaded audio as backend-mastered.",
+        "guardrails_preserved": [
+          "Persistent helper text clarifies scope instead of inventing new playback or mastering capability.",
+          "Generic external audio is not labeled as backend-mastered/reference output.",
+          "Live preview remains explicitly dry/unmastered with no backend/protocol changes in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "Combined Tasks 077-081 verifier bundle",
+          "result": "PASS: exact proofs were recorded for diagnostics on all 14 touched JUCE files, git diff --check, JUCE Debug and Release MSBuild, and the Task 076 checkpoint rerun (81 passed, 6 warnings in 8.89s)."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T20:48:00Z",
+        "summary": "Combined Tasks 077-081 verifier verdict was PASS_WITH_NITS overall because Task 078 retained one UX nit. For Task 077 specifically, persistent playback/capability visibility is clearer without falsely labeling arbitrary loaded audio as backend-mastered."
+      }
     },
     {
       "id": "mastering-suite-results-ux-078",
       "description": "After Task 076, add trustworthy Mastering Suite results UX for queued/running/success/failure states and returned analysis/mastering summaries.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "post-072-075-runtime-regression-checkpoint-076",
@@ -301,14 +326,37 @@
         "juce/Source/UI/FloatingToolWindow.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T20:48:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
+          "juce/Source/UI/Mastering/MasteringSuitePanel.h"
+        ],
+        "summary": "Added panel-local Reference Analyze queued/analyzing/success/failure summary UX in MasteringSuitePanel while keeping unsupported apply and spectrum workflows unavailable.",
+        "guardrails_preserved": [
+          "Reference Analyze results stay panel-local and honest instead of implying a new mastering backend contract.",
+          "Unsupported apply and real spectrum workflows remain unavailable in this slice.",
+          "No backend/protocol changes were made for mastering actions."
+        ]
+      },
+      "tests": [
+        {
+          "command": "Combined Tasks 077-081 verifier bundle",
+          "result": "PASS: exact proofs were recorded for diagnostics on all 14 touched JUCE files, git diff --check, JUCE Debug and Release MSBuild, and the Task 076 checkpoint rerun (81 passed, 6 warnings in 8.89s)."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_NITS",
+        "timestamp": "2026-05-21T20:48:00Z",
+        "summary": "Mastering panel now has panel-local analyze states and summary, but queued vs running is combined and shared analyze plumbing still exists underneath. The overall Tasks 077-081 verifier verdict was PASS_WITH_NITS."
+      }
     },
     {
       "id": "instrument-browser-smart-selection-ui-079",
       "description": "After Task 076, polish the instrument browser and smart-selection workflow only after the stale instrument_index path is removed or replaced with a supported resolver flow.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "post-072-075-runtime-regression-checkpoint-076",
@@ -322,14 +370,39 @@
         "juce/Source/MainComponent.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T20:48:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/UI/InstrumentBrowserPanel.cpp",
+          "juce/Source/UI/InstrumentBrowserPanel.h",
+          "juce/Source/UI/ExpansionBrowserPanel.cpp",
+          "juce/Source/UI/ExpansionBrowserPanel.h"
+        ],
+        "summary": "Added explicit instrument and expansion helper/fallback/no-match/manual browse messaging that stays honest when smart selection falls back and never implies archived smart-selection success.",
+        "guardrails_preserved": [
+          "Fallback and no-match messaging does not imply the removed archived smart-selection path succeeded.",
+          "Manual browse remains explicit rather than being framed as automatic resolution success.",
+          "No backend/protocol changes were made in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "Combined Tasks 077-081 verifier bundle",
+          "result": "PASS: exact proofs were recorded for diagnostics on all 14 touched JUCE files, git diff --check, JUCE Debug and Release MSBuild, and the Task 076 checkpoint rerun (81 passed, 6 warnings in 8.89s)."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T20:48:00Z",
+        "summary": "Combined Tasks 077-081 verifier verdict was PASS_WITH_NITS overall because Task 078 retained one UX nit. For Task 079 specifically, fallback/no-match/manual browse messaging is now explicit and honest."
+      }
     },
     {
       "id": "takes-arrangement-workflow-ui-080",
       "description": "After Task 076, polish takes and arrangement workflow feedback only once take rendering is real and the UI can report truthful render/comp state.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "post-072-075-runtime-regression-checkpoint-076",
@@ -343,14 +416,37 @@
         "juce/Source/MainComponent.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T20:48:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/UI/TakeLaneComponent.cpp",
+          "juce/Source/UI/TakeLaneComponent.h"
+        ],
+        "summary": "Added truthful take workflow helper/status UX with honest render-current-comp wording and explicit local-only commit/revert semantics.",
+        "guardrails_preserved": [
+          "Render wording stays aligned with the real take-render backend instead of implying arbitrary comp-region rendering.",
+          "Commit and revert semantics are explicitly local-only and panel-scoped.",
+          "No backend/protocol changes were introduced in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "Combined Tasks 077-081 verifier bundle",
+          "result": "PASS: exact proofs were recorded for diagnostics on all 14 touched JUCE files, git diff --check, JUCE Debug and Release MSBuild, and the Task 076 checkpoint rerun (81 passed, 6 warnings in 8.89s)."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T20:48:00Z",
+        "summary": "Combined Tasks 077-081 verifier verdict was PASS_WITH_NITS overall because Task 078 retained one UX nit. For Task 080 specifically, take render/commit/revert workflow wording is now honest and panel-local."
+      }
     },
     {
       "id": "mixer-fx-workflow-ui-081",
       "description": "After Task 076, polish mixer/FX workflow affordances once the live-preview versus offline/mastered FX contract is truthful.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "post-072-075-runtime-regression-checkpoint-076",
@@ -363,7 +459,30 @@
         "juce/Source/MainComponent.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T20:48:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/UI/Mixer/MixerComponent.cpp",
+          "juce/Source/UI/Mixer/MixerComponent.h"
+        ],
+        "summary": "Added persistent mixer/FX scope helper text so offline/backend render parity is clear while live preview remains honestly non-parity and non-mastered.",
+        "guardrails_preserved": [
+          "Mixer/FX helper text clarifies scope instead of implying live preview parity.",
+          "Live preview remains explicitly separate from backend/offline mastered output.",
+          "No backend/protocol changes were made in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "Combined Tasks 077-081 verifier bundle",
+          "result": "PASS: exact proofs were recorded for diagnostics on all 14 touched JUCE files, git diff --check, JUCE Debug and Release MSBuild, and the Task 076 checkpoint rerun (81 passed, 6 warnings in 8.89s)."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T20:48:00Z",
+        "summary": "Combined Tasks 077-081 verifier verdict was PASS_WITH_NITS overall because Task 078 retained one UX nit. For Task 081 specifically, mixer/FX scope is persistently explicit and does not imply live preview parity."
+      }
     },
     {
       "id": "final-mpc-inspired-ui-pass-082",
@@ -386,7 +505,7 @@
         "juce/Source/MainComponent.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T20:48:00Z"
     },
     {
       "id": "instrument-display-name-cleanup-071",
@@ -6289,12 +6408,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-21T19:25:58Z",
-    "total_tasks_completed": 77,
+    "last_updated": "2026-05-21T20:48:00Z",
+    "total_tasks_completed": 82,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "playback-capability-visibility-ui-077"
+    "next_phase": "final-mpc-inspired-ui-pass-082"
   },
   "sprint_11": {
     "status": "COMPLETE",
