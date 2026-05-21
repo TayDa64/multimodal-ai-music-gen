@@ -608,6 +608,23 @@ class TestTakeMessages:
         assert "take_id" in parsed
         assert "use_comp" in parsed
         assert "output_path" in parsed
+
+    def test_render_take_request_format_accepts_live_juce_selected_render_shape(self):
+        """Trackless use_comp=true directory-output requests are valid transport payloads."""
+        request = {
+            "request_id": str(uuid.uuid4()),
+            "track": "",
+            "take_id": "",
+            "use_comp": True,
+            "output_path": "/output",
+        }
+
+        parsed = json.loads(json.dumps(request))
+
+        assert parsed["track"] == ""
+        assert parsed["take_id"] == ""
+        assert parsed["use_comp"] is True
+        assert parsed["output_path"] == "/output"
     
     def test_take_selected_response_format(self):
         """Test take selected response JSON structure."""
@@ -646,6 +663,296 @@ class TestTakeMessages:
         assert "tracks" in parsed
         assert "drums" in parsed["tracks"]
         assert len(parsed["tracks"]["drums"]) == 2
+
+
+def _create_test_osc_server():
+    from contextlib import ExitStack
+    import types
+    from multimodal_gen.server import osc_server as osc_server_module
+
+    class _FakeDispatcher:
+        def map(self, *args, **kwargs):
+            return None
+
+        def set_default_handler(self, *args, **kwargs):
+            return None
+
+    with ExitStack() as stack:
+        stack.enter_context(patch.object(osc_server_module, "EXPANSION_AVAILABLE", False))
+        if not getattr(osc_server_module, "OSC_AVAILABLE", False):
+            stack.enter_context(patch.object(osc_server_module, "OSC_AVAILABLE", True))
+            stack.enter_context(
+                patch.object(
+                    osc_server_module,
+                    "dispatcher",
+                    types.SimpleNamespace(Dispatcher=_FakeDispatcher),
+                    create=True,
+                )
+            )
+        server = osc_server_module.MusicGenOSCServer()
+
+    server._send_message = MagicMock()
+    server._log = lambda *args, **kwargs: None
+    return server
+
+
+def _sent_payloads(server, address: str):
+    payloads = []
+    for call in server._send_message.call_args_list:
+        if not call.args or call.args[0] != address:
+            continue
+        payloads.append(json.loads(call.args[1]))
+    return payloads
+
+
+def _write_take_render_midi(tmp_path: Path, *, include_comp: bool = False) -> Path:
+    mido = pytest.importorskip("mido")
+    midi_path = tmp_path / "generated_project.mid"
+
+    mid = mido.MidiFile(ticks_per_beat=480)
+
+    def _track(name: str, note: int, channel: int) -> "mido.MidiTrack":
+        track = mido.MidiTrack()
+        track.append(mido.MetaMessage("track_name", name=name, time=0))
+        track.append(mido.Message("program_change", program=0, channel=channel, time=0))
+        track.append(mido.Message("note_on", note=note, velocity=100, time=0, channel=channel))
+        track.append(mido.Message("note_off", note=note, velocity=0, time=480, channel=channel))
+        return track
+
+    meta_track = mido.MidiTrack()
+    meta_track.append(mido.MetaMessage("track_name", name="Meta", time=0))
+    meta_track.append(mido.MetaMessage("set_tempo", tempo=500000, time=0))
+    mid.tracks.append(meta_track)
+
+    mid.tracks.append(_track("Pad", 72, 2))
+    mid.tracks.append(_track("Drums_Take_1", 36, 9))
+    mid.tracks.append(_track("Drums_Take_2", 38, 9))
+    if include_comp:
+        mid.tracks.append(_track("Drums_Comp", 40, 9))
+    mid.tracks.append(_track("Bass_Take_1", 48, 1))
+    mid.tracks.append(_track("Bass_Take_2", 50, 1))
+
+    mid.save(midi_path)
+    return midi_path
+
+
+def _cache_generation_context(server, midi_path: Path, *, request_id: str = "gen-req"):
+    request = GenerationRequest(
+        prompt="1990s rock with takes",
+        request_id=request_id,
+        genre="rock",
+        output_dir=str(midi_path.parent),
+    )
+    result = GenerationResult(
+        task_id=f"task-{request_id}",
+        request_id=request_id,
+        success=True,
+        midi_path=str(midi_path),
+        metadata={"genre": "rock"},
+    )
+
+    server._pending_generation_request = request
+    server._on_generation_complete(result)
+    assert server._last_render_context is not None
+    server._send_message.reset_mock()
+    return request, result
+
+
+class TestTakeRenderBackend:
+    def test_render_take_without_cached_generation_sends_error_only(self, tmp_path):
+        server = _create_test_osc_server()
+
+        request_id = "render-no-cache"
+        server._handle_render_take(
+            OSCAddresses.RENDER_TAKE,
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "track": "",
+                    "take_id": "",
+                    "use_comp": True,
+                    "output_path": str(tmp_path / "renders"),
+                }
+            ),
+        )
+
+        errors = _sent_payloads(server, OSCAddresses.ERROR)
+        rendered = _sent_payloads(server, OSCAddresses.TAKE_RENDERED)
+
+        assert len(errors) == 1
+        assert errors[0]["request_id"] == request_id
+        assert "No prior successful generation" in errors[0]["message"]
+        assert rendered == []
+
+    def test_render_take_renders_whole_project_selected_arrangement(self, tmp_path):
+        mido = pytest.importorskip("mido")
+        server = _create_test_osc_server()
+        midi_path = _write_take_render_midi(tmp_path, include_comp=True)
+        _cache_generation_context(server, midi_path, request_id="cached-success")
+        server._selected_takes["Bass"] = "take_002"
+
+        captured = {}
+
+        class FakeRenderer:
+            def render_midi_file(self, midi_path, output_path, parsed):
+                captured["track_names"] = [track.name for track in mido.MidiFile(midi_path).tracks]
+                captured["output_path"] = output_path
+                Path(output_path).write_bytes(b"RIFF....WAVE")
+                return True
+
+        server._create_audio_renderer = MagicMock(return_value=FakeRenderer())
+
+        render_dir = tmp_path / "renders"
+        request_id = "render-success"
+        server._handle_render_take(
+            OSCAddresses.RENDER_TAKE,
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "track": "",
+                    "take_id": "",
+                    "use_comp": True,
+                    "output_path": str(render_dir),
+                }
+            ),
+        )
+
+        errors = _sent_payloads(server, OSCAddresses.ERROR)
+        rendered = _sent_payloads(server, OSCAddresses.TAKE_RENDERED)
+
+        assert errors == []
+        assert len(rendered) == 1
+        assert rendered[0]["request_id"] == request_id
+        assert Path(rendered[0]["output_path"]).is_file()
+        assert Path(rendered[0]["output_path"]).suffix.lower() == ".wav"
+        assert Path(rendered[0]["output_path"]).parent == render_dir
+        assert captured["track_names"] == ["Meta", "Pad", "Drums_Comp", "Bass_Take_2"]
+
+    def test_render_take_falls_back_to_take_1_for_unselected_tracks(self, tmp_path):
+        mido = pytest.importorskip("mido")
+        server = _create_test_osc_server()
+        midi_path = _write_take_render_midi(tmp_path, include_comp=False)
+        _cache_generation_context(server, midi_path, request_id="cached-fallback")
+        server._selected_takes["Bass"] = "2"
+
+        captured = {}
+
+        class FakeRenderer:
+            def render_midi_file(self, midi_path, output_path, parsed):
+                captured["track_names"] = [track.name for track in mido.MidiFile(midi_path).tracks]
+                Path(output_path).write_bytes(b"RIFF....WAVE")
+                return True
+
+        server._create_audio_renderer = MagicMock(return_value=FakeRenderer())
+
+        server._handle_render_take(
+            OSCAddresses.RENDER_TAKE,
+            json.dumps(
+                {
+                    "request_id": "render-fallback",
+                    "track": "",
+                    "take_id": "",
+                    "use_comp": False,
+                    "output_path": str(tmp_path / "fallback-renders"),
+                }
+            ),
+        )
+
+        assert _sent_payloads(server, OSCAddresses.ERROR) == []
+        assert captured["track_names"] == ["Meta", "Pad", "Drums_Take_1", "Bass_Take_2"]
+
+    def test_render_take_invalid_requested_take_sends_error_only(self, tmp_path):
+        server = _create_test_osc_server()
+        midi_path = _write_take_render_midi(tmp_path, include_comp=False)
+        _cache_generation_context(server, midi_path, request_id="cached-invalid")
+
+        request_id = "render-invalid-take"
+        server._handle_render_take(
+            OSCAddresses.RENDER_TAKE,
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "track": "Bass",
+                    "take_id": "take_999",
+                    "use_comp": False,
+                    "output_path": str(tmp_path / "invalid-renders"),
+                }
+            ),
+        )
+
+        errors = _sent_payloads(server, OSCAddresses.ERROR)
+        rendered = _sent_payloads(server, OSCAddresses.TAKE_RENDERED)
+
+        assert len(errors) == 1
+        assert errors[0]["request_id"] == request_id
+        assert "Requested take '999' not found for track 'Bass'" in errors[0]["message"]
+        assert rendered == []
+
+    def test_render_take_renderer_failure_sends_error_only(self, tmp_path):
+        server = _create_test_osc_server()
+        midi_path = _write_take_render_midi(tmp_path, include_comp=False)
+        _cache_generation_context(server, midi_path, request_id="cached-render-fail")
+
+        class FakeRenderer:
+            def render_midi_file(self, midi_path, output_path, parsed):
+                return False
+
+        server._create_audio_renderer = MagicMock(return_value=FakeRenderer())
+
+        request_id = "render-failure"
+        server._handle_render_take(
+            OSCAddresses.RENDER_TAKE,
+            json.dumps(
+                {
+                    "request_id": request_id,
+                    "track": "",
+                    "take_id": "",
+                    "use_comp": True,
+                    "output_path": str(tmp_path / "failed-renders"),
+                }
+            ),
+        )
+
+        errors = _sent_payloads(server, OSCAddresses.ERROR)
+        rendered = _sent_payloads(server, OSCAddresses.TAKE_RENDERED)
+
+        assert len(errors) == 1
+        assert errors[0]["request_id"] == request_id
+        assert "Renderer failed to produce output WAV" in errors[0]["message"]
+        assert rendered == []
+
+    @pytest.mark.parametrize("take_id", ["1", "take_001"])
+    def test_render_take_normalizes_take_id_formats(self, tmp_path, take_id):
+        mido = pytest.importorskip("mido")
+        server = _create_test_osc_server()
+        midi_path = _write_take_render_midi(tmp_path, include_comp=False)
+        _cache_generation_context(server, midi_path, request_id=f"cached-{take_id}")
+
+        captured = {}
+
+        class FakeRenderer:
+            def render_midi_file(self, midi_path, output_path, parsed):
+                captured["track_names"] = [track.name for track in mido.MidiFile(midi_path).tracks]
+                Path(output_path).write_bytes(b"RIFF....WAVE")
+                return True
+
+        server._create_audio_renderer = MagicMock(return_value=FakeRenderer())
+
+        server._handle_render_take(
+            OSCAddresses.RENDER_TAKE,
+            json.dumps(
+                {
+                    "request_id": f"render-{take_id}",
+                    "track": "Bass",
+                    "take_id": take_id,
+                    "use_comp": False,
+                    "output_path": str(tmp_path / f"norm-{take_id}"),
+                }
+            ),
+        )
+
+        assert _sent_payloads(server, OSCAddresses.ERROR) == []
+        assert captured["track_names"] == ["Meta", "Pad", "Drums_Take_1", "Bass_Take_1"]
 
 
 if __name__ == "__main__":

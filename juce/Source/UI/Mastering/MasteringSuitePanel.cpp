@@ -10,25 +10,44 @@
 
 #include "MasteringSuitePanel.h"
 
+namespace
+{
+void markActionUnavailable(juce::Button& button, const juce::String& tooltip)
+{
+    button.setTooltip(tooltip);
+    button.setEnabled(false);
+}
+}
+
 //==============================================================================
 // MasteringSuitePanel
 //==============================================================================
 
 MasteringSuitePanel::MasteringSuitePanel()
 {
+    const juce::String headerAvailabilityTooltip =
+        "Only Analyze in the Reference tab is wired to the backend today. "
+        "Header Bypass and Presets are unavailable, and other mastering changes remain local UI state only. "
+        "Generated WAV playback uses backend mastering; live MIDI preview is unmastered.";
+
     // Title and header
     titleLabel.setFont(juce::Font(18.0f, juce::Font::bold));
     titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    titleLabel.setTooltip(headerAvailabilityTooltip);
     addAndMakeVisible(titleLabel);
 
     playbackPathNoticeLabel.setFont(juce::Font(11.0f));
     playbackPathNoticeLabel.setColour(juce::Label::textColourId, AppColours::warning);
     playbackPathNoticeLabel.setJustificationType(juce::Justification::centredLeft);
-    playbackPathNoticeLabel.setTooltip("Generated WAV playback uses backend mastering; live MIDI preview is unmastered and not processed by these controls yet.");
+    playbackPathNoticeLabel.setText("WAV: backend mastered | Live MIDI: unmastered | Ref analyze only", juce::dontSendNotification);
+    playbackPathNoticeLabel.setTooltip(headerAvailabilityTooltip);
     addAndMakeVisible(playbackPathNoticeLabel);
     
     bypassButton.setColour(juce::ToggleButton::textColourId, AppColours::textSecondary);
     bypassButton.setColour(juce::ToggleButton::tickColourId, AppColours::warning);
+    bypassButton.setToggleState(false, juce::dontSendNotification);
+    markActionUnavailable(bypassButton,
+                          "Unavailable: header bypass is not wired to a mastering processing path yet. Only Reference Analyze reaches the backend today.");
     addAndMakeVisible(bypassButton);
     
     presetButton.setColour(juce::TextButton::buttonColourId, AppColours::surface.brighter(0.1f));
@@ -44,6 +63,8 @@ MasteringSuitePanel::MasteringSuitePanel()
         menu.addItem(13, "Broadcast (-24 LUFS)");
         menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&presetButton));
     };
+    markActionUnavailable(presetButton,
+                          "Unavailable: preset save/load choices are not wired to an applied mastering preset path yet. Only Reference Analyze reaches the backend today.");
     addAndMakeVisible(presetButton);
     
     // Metering labels
@@ -350,7 +371,7 @@ void MasteringSuitePanel::loadFromJSON(const juce::String& json)
     auto parsed = juce::JSON::parse(json);
     if (parsed.isVoid()) return;
     
-    bypassButton.setToggleState(parsed.getProperty("bypass", false), juce::dontSendNotification);
+    bypassButton.setToggleState(false, juce::dontSendNotification);
     
     int tabIndex = parsed.getProperty("currentTab", 0);
     showTab(static_cast<ProcessorTab>(tabIndex));
@@ -980,6 +1001,7 @@ AutoGainStagingPanel::AutoGainStagingPanel()
     
     subtitleLabel.setFont(juce::Font(11.0f));
     subtitleLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    subtitleLabel.setText("Settings only; analyze/apply unavailable", juce::dontSendNotification);
     addAndMakeVisible(subtitleLabel);
     
     targetLufsLabel.setFont(juce::Font(11.0f));
@@ -1040,12 +1062,14 @@ AutoGainStagingPanel::AutoGainStagingPanel()
         // Trigger analysis
         currentLufsValue.setText("Analyzing...", juce::dontSendNotification);
     };
+    markActionUnavailable(analyzeButton, "Unavailable: no auto-gain analysis backend action is wired yet.");
     addAndMakeVisible(analyzeButton);
     
     applyButton.setColour(juce::TextButton::buttonColourId, AppColours::success);
     applyButton.onClick = [this]() {
         if (onSettingsChanged) onSettingsChanged();
     };
+    markActionUnavailable(applyButton, "Unavailable: no auto-gain apply backend action is wired yet.");
     addAndMakeVisible(applyButton);
     
     // Results labels
@@ -1166,9 +1190,11 @@ ReferenceMatchingPanel::ReferenceMatchingPanel()
     
     subtitleLabel.setFont(juce::Font(11.0f));
     subtitleLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    subtitleLabel.setText("Analyze via /analyze for hints; no in-panel spectrum/apply path", juce::dontSendNotification);
     addAndMakeVisible(subtitleLabel);
     
     loadRefButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
+    loadRefButton.setTooltip("Loads a reference file for the existing /analyze flow. In-panel spectrum comparison is unavailable in this build.");
     loadRefButton.onClick = [this]() {
         auto chooser = std::make_shared<juce::FileChooser>(
             "Select Reference Track",
@@ -1233,10 +1259,12 @@ ReferenceMatchingPanel::ReferenceMatchingPanel()
         if (loadedReference.existsAsFile() && onAnalyzeReference)
             onAnalyzeReference(loadedReference);
     };
+    analyzeButton.setTooltip("Runs the existing /analyze file flow on the selected reference to extract hints. It does not populate an in-panel spectrum comparison view.");
     addAndMakeVisible(analyzeButton);
     
     applyButton.setColour(juce::TextButton::buttonColourId, AppColours::success);
     applyButton.onClick = [this]() { if (onSettingsChanged) onSettingsChanged(); };
+    markActionUnavailable(applyButton, "Unavailable: no reference-matching apply backend action is wired yet.");
     addAndMakeVisible(applyButton);
 }
 
@@ -1275,17 +1303,17 @@ void ReferenceMatchingPanel::paint(juce::Graphics& g)
         g.fillRoundedRectangle(dropArea.toFloat(), 4.0f);
     }
     
-    // Spectrum visualization area (placeholder)
+    // Availability note area for the future spectrum comparison view
     spectrumArea = getLocalBounds().withTrimmedTop(200).reduced(12).removeFromTop(100);
     g.setColour(juce::Colours::black.withAlpha(0.3f));
     g.fillRoundedRectangle(spectrumArea.toFloat(), 4.0f);
-    
-    if (!referenceAnalyzed)
-    {
-        g.setColour(AppColours::textSecondary);
-        g.setFont(12.0f);
-        g.drawText("Spectrum comparison will appear here", spectrumArea, juce::Justification::centred);
-    }
+
+    g.setColour(AppColours::textSecondary);
+    g.setFont(12.0f);
+    g.drawFittedText("Analyze extracts reference hints via the existing /analyze flow.\nIn-panel spectrum comparison is unavailable in this build.",
+                     spectrumArea.reduced(12),
+                     juce::Justification::centred,
+                     3);
 }
 
 void ReferenceMatchingPanel::resized()
@@ -1375,6 +1403,7 @@ SpatialAudioPanel::SpatialAudioPanel()
     
     subtitleLabel.setFont(juce::Font(11.0f));
     subtitleLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    subtitleLabel.setText("Settings only; export unavailable", juce::dontSendNotification);
     addAndMakeVisible(subtitleLabel);
     
     modeLabel.setFont(juce::Font(11.0f));
@@ -1407,6 +1436,7 @@ SpatialAudioPanel::SpatialAudioPanel()
     exportAtmosButton.onClick = [this]() {
         if (onSettingsChanged) onSettingsChanged();
     };
+    markActionUnavailable(exportAtmosButton, "Unavailable: no spatial export backend action is wired yet.");
     addAndMakeVisible(exportAtmosButton);
     
     showModeControls(1);
@@ -1477,12 +1507,17 @@ void SpatialAudioPanel::loadFromJSON(const juce::var& json)
 
 StemSeparationPanel::StemSeparationPanel()
 {
+    const juce::String stemUnavailableTooltip =
+        "Unavailable: stem separation load, backend, model, and run controls are disabled because no separation backend action is wired in this build.";
+
     titleLabel.setFont(juce::Font(16.0f, juce::Font::bold));
     titleLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     addAndMakeVisible(titleLabel);
     
     subtitleLabel.setFont(juce::Font(11.0f));
     subtitleLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    subtitleLabel.setText("Stem separation unavailable; load/backend/model controls disabled", juce::dontSendNotification);
+    subtitleLabel.setTooltip(stemUnavailableTooltip);
     addAndMakeVisible(subtitleLabel);
     
     loadButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
@@ -1503,15 +1538,19 @@ StemSeparationPanel::StemSeparationPanel()
             }
         });
     };
+    markActionUnavailable(loadButton, stemUnavailableTooltip);
     addAndMakeVisible(loadButton);
     
     fileLabel.setFont(juce::Font(11.0f));
     fileLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
     fileLabel.setJustificationType(juce::Justification::centred);
+    fileLabel.setText("Stem loading unavailable in this build", juce::dontSendNotification);
+    fileLabel.setTooltip(stemUnavailableTooltip);
     addAndMakeVisible(fileLabel);
     
     backendLabel.setFont(juce::Font(11.0f));
     backendLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    backendLabel.setTooltip(stemUnavailableTooltip);
     addAndMakeVisible(backendLabel);
     
     backendCombo.addItem("Demucs (Meta AI)", 1);
@@ -1535,10 +1574,12 @@ StemSeparationPanel::StemSeparationPanel()
         }
         modelCombo.setSelectedId(1);
     };
+    backendCombo.setEnabled(false);
     addAndMakeVisible(backendCombo);
     
     modelLabel.setFont(juce::Font(11.0f));
     modelLabel.setColour(juce::Label::textColourId, AppColours::textSecondary);
+    modelLabel.setTooltip(stemUnavailableTooltip);
     addAndMakeVisible(modelLabel);
     
     modelCombo.addItem("htdemucs (4-stem)", 1);
@@ -1546,6 +1587,7 @@ StemSeparationPanel::StemSeparationPanel()
     modelCombo.addItem("htdemucs_ft (fine-tuned)", 3);
     modelCombo.setSelectedId(1);
     modelCombo.setColour(juce::ComboBox::backgroundColourId, AppColours::inputBg);
+    modelCombo.setEnabled(false);
     addAndMakeVisible(modelCombo);
     
     separateButton.setColour(juce::TextButton::buttonColourId, AppColours::success);
@@ -1553,48 +1595,59 @@ StemSeparationPanel::StemSeparationPanel()
         if (loadedFile.existsAsFile() && onSeparateStems)
             onSeparateStems(loadedFile);
     };
+    markActionUnavailable(separateButton, "Unavailable: no stem separation backend action is wired in this build.");
     addAndMakeVisible(separateButton);
     
     progressBar.setColour(juce::ProgressBar::backgroundColourId, AppColours::surfaceAlt);
     progressBar.setColour(juce::ProgressBar::foregroundColourId, AppColours::primary);
     addAndMakeVisible(progressBar);
+    progressBar.setVisible(false);
     
     exportStemsButton.setColour(juce::TextButton::buttonColourId, AppColours::primary);
     exportStemsButton.setEnabled(false);
+    exportStemsButton.setTooltip("Unavailable: stem separation is not wired in this build, so there are no exportable stem results.");
     addAndMakeVisible(exportStemsButton);
     
     styleTransferButton.setColour(juce::TextButton::buttonColourId, AppColours::warning);
     styleTransferButton.setEnabled(false);
+    styleTransferButton.setTooltip("Unavailable: stem separation and downstream style transfer are not wired in this build.");
     addAndMakeVisible(styleTransferButton);
 }
 
 bool StemSeparationPanel::isInterestedInFileDrag(const juce::StringArray& files)
 {
-    return files.size() == 1 &&
-           (files[0].endsWithIgnoreCase(".wav") ||
-            files[0].endsWithIgnoreCase(".mp3") ||
-            files[0].endsWithIgnoreCase(".flac") ||
-            files[0].endsWithIgnoreCase(".aiff"));
+    juce::ignoreUnused(files);
+    return false;
 }
 
 void StemSeparationPanel::filesDropped(const juce::StringArray& files, int /*x*/, int /*y*/)
 {
-    if (files.size() == 1)
-    {
-        loadedFile = juce::File(files[0]);
-        fileLabel.setText(loadedFile.getFileName(), juce::dontSendNotification);
-        separationComplete = false;
-    }
+    juce::ignoreUnused(files);
 }
 
 void StemSeparationPanel::paint(juce::Graphics& g)
 {
     g.fillAll(AppColours::surface);
     
-    // Drop zone
+    // Disabled file area
     auto dropArea = fileLabel.getBounds().expanded(4);
-    g.setColour(AppColours::border);
+    g.setColour(AppColours::surfaceAlt.withAlpha(0.45f));
+    g.fillRoundedRectangle(dropArea.toFloat(), 4.0f);
+    g.setColour(AppColours::border.withAlpha(0.6f));
     g.drawRoundedRectangle(dropArea.toFloat(), 4.0f, 1.0f);
+
+    auto progressArea = progressBar.getBounds();
+    if (!progressArea.isEmpty())
+    {
+        g.setColour(AppColours::surfaceAlt.withAlpha(0.35f));
+        g.fillRoundedRectangle(progressArea.toFloat(), 4.0f);
+        g.setColour(AppColours::textSecondary);
+        g.setFont(11.0f);
+        g.drawFittedText("No stem separation job path is wired in this build.",
+                         progressArea.reduced(6),
+                         juce::Justification::centred,
+                         2);
+    }
 }
 
 void StemSeparationPanel::resized()
@@ -1661,9 +1714,9 @@ void StemSeparationPanel::loadFromJSON(const juce::var& json)
     if (filePath.isNotEmpty())
     {
         loadedFile = juce::File(filePath);
-        if (loadedFile.existsAsFile())
-            fileLabel.setText(loadedFile.getFileName(), juce::dontSendNotification);
     }
+
+    fileLabel.setText("Stem loading unavailable in this build", juce::dontSendNotification);
     
     backendCombo.setSelectedId((int)json.getProperty("backend", 1));
     modelCombo.setSelectedId((int)json.getProperty("model", 1));

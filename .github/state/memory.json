@@ -3,6 +3,26 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Before resuming post-gate UI polish after Tasks 072-075, close the pre-UI honesty/runtime gate with a combined protocol/smoke pytest checkpoint plus a JUCE Debug build.",
+        "context": "Task 076 proved the durable checkpoint should be one combined run of tests/test_protocol.py, tests/test_sprint11_batch_c.py, tests/test_smoke_1990s_rock_contract.py, and tests/test_golden_prompts_smoke.py together with a JUCE Debug MSBuild of juce/build/MultimodalMusicGen.sln. Only after both pass should Tasks 077-081 resume; Task 082 stays blocked until Tasks 077-081 are complete.",
+        "timestamp": "2026-05-21T19:25:58Z"
+      },
+      {
+        "pattern": "When the JUCE take-render UI sends trackless use_comp=true requests, cache the last successful generation MIDI, rebuild a whole-project arrangement from selected/default takes while preferring real *_Comp tracks, and fail via /error instead of fabricating /take/rendered success.",
+        "context": "Task 075 showed the truthful backend slice for the live JUCE selected-render request shape is to reuse the last successful generation context, build a temporary whole-project arrangement MIDI from the cached project while honoring selected/default takes and real *_Comp tracks when present, normalize directory-or-file output_path values to a concrete WAV, and only emit /take/rendered after a real file exists. Because JUCE treats /take/rendered as success-only, any missing cache, invalid take, or render failure must go through /error. Do not fabricate arbitrary frontend-only comp-region rendering without real backend artifacts.",
+        "timestamp": "2026-05-21T19:17:12Z"
+      },
+      {
+        "pattern": "Archived metadata-only smart-selection branches should be removed with honest fail-open warnings instead of reviving dead modules or emitting fabricated success metadata",
+        "context": "Task 074 found main.py still importing nonexistent multimodal_gen.instrument_index for an old metadata-only smart_instruments branch. The safe fix was to remove the dead import/path, keep the live InstrumentResolutionService/instrument_service path unchanged, warn only when verbose and sonic adjectives indicate optional smart metadata would have been helpful, and emit no smart_instruments payload on the fail-open path. When optional smart metadata is absent, truthful omission is better than pretending smart selection succeeded.",
+        "timestamp": "2026-05-21T13:45:00Z"
+      },
+      {
+        "pattern": "Until real mixerGraph live processing exists, describe live MIDI preview as dry/unmastered with no live FX/mastering and reserve backend-mastered claims for generation-result audio only",
+        "context": "Task 073 confirmed the conservative honesty-only slice: no mixerGraph.processBlock(...) live route was added, so MainComponent and Transport copy must keep live preview dry/unmastered, use provenance-neutral shared audio-file/reference wording where backend origin is unknown, and limit backend render parity/mastered-reference claims to generated audio results only.",
+        "timestamp": "2026-05-21T13:30:00Z"
+      },
+      {
         "pattern": "Before further UI/UX polish, dead or partial mastering/take affordances must be wired end-to-end or honestly disabled",
         "context": "Current source-of-truth still shows MainComponent mastering/reference/stem actions stopping at commented-out sends, no OSCBridge mastering/stem sender methods, no live mixerGraph.processBlock preview path, and osc_server take rendering returning fake success. UI polish should follow only after those surfaces are real or clearly unavailable. Separate trap/modern beat, R&B/neo-soul, lofi/boom-bap, house/ambient/pop, and Ethiopian-family quality warnings remain a backend follow-up track because those families are still represented by no-op profiles in multimodal_gen/fluidsynth_profiles.py.",
         "timestamp": "2026-05-21T12:00:00Z"
@@ -605,6 +625,56 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Close the pre-UI gate with a combined protocol/smoke pytest checkpoint plus a JUCE Debug build before resuming UI polish.",
+      "rationale": "Tasks 072-075 fixed honesty/runtime gaps across mastering, live preview wording, smart-selection cleanup, and take rendering. The safest next move is to aggregate those fixes with one protocol/smoke pytest checkpoint and one JUCE Debug build so the UI backlog only resumes after both Python contract coverage and the JUCE app build remain green. This unlocks Tasks 077-081, while final Task 082 still depends on those five post-gate UI items.",
+      "alternatives_considered": [
+        "Resume Tasks 077-081 immediately after Task 075 without a combined checkpoint.",
+        "Use only Python pytest proof without a fresh JUCE Debug build.",
+        "Treat Task 082 as unlocked before Tasks 077-081 are complete."
+      ],
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "decision": "For Task 075, implement truthful take rendering as a cached-MIDI whole-project reconstruction path instead of emitting fake TAKE_RENDERED success or inventing arbitrary frontend-only comp-region rendering.",
+      "rationale": "The live JUCE take-render request shape is trackless with use_comp=true and an output directory, and JUCE treats /take/rendered as a success-only message. The safe truthful backend slice is therefore to cache the last successful generation context, rebuild a temporary whole-project arrangement from selected/default takes while preferring real *_Comp tracks, render it through AudioRenderer.render_midi_file to a concrete WAV, preserve request IDs and current transport semantics, and route all failures through /error.",
+      "alternatives_considered": [
+        "Keep sending fake /take/rendered success without a real rendered file.",
+        "Invent arbitrary frontend-only comp-region rendering without real backend MIDI/audio artifacts.",
+        "Reject the live JUCE trackless use_comp=true request shape even though the backend can truthfully satisfy it from cached generation context."
+      ],
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "decision": "For Task 074, complete smart-instrument selection cleanup as a minimal honest fail-open slice instead of reviving the archived instrument_index module or fabricating smart_instruments metadata.",
+      "rationale": "The only live supported instrument resolution path is InstrumentResolutionService/instrument_service. Reviving multimodal_gen.instrument_index would reintroduce a dead module boundary and imply unsupported smart-selection behavior. Removing the stale import/metadata-only branch, emitting an honest verbose warning when sonic adjectives appear, and omitting smart_instruments output keeps the CLI truthful while preserving the existing live service path.",
+      "alternatives_considered": [
+        "Restore or recreate multimodal_gen.instrument_index just to satisfy the old branch.",
+        "Keep emitting smart_instruments metadata on the fail-open path even though no live resolver produced it.",
+        "Silently do nothing even in verbose mode when sonic adjectives suggest optional smart metadata might be missing."
+      ],
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "decision": "For Task 073, complete the live-preview/mastering truthfulness work as a conservative honesty-only copy slice instead of inventing live mixer routing.",
+      "rationale": "AudioEngine still does not run mixerGraph.processBlock(...) in getNextAudioBlock(), so there is no truthful live FX/mastering parity path to claim. The safe completion was to keep backend-generated audio as the mastered/reference path, explicitly label live MIDI preview as dry/unmastered with no live FX/mastering, make generic shared audio-file status text provenance-neutral, and restrict FX/mastering status text to backend render parity or no backend apply path.",
+      "alternatives_considered": [
+        "Imply live FX/mastering parity in the UI without a real mixerGraph live-processing path.",
+        "Partially wire a new live mixer route in this slice without proving end-to-end safety and truthfulness.",
+        "Keep older status copy that users could read as if live preview matched backend FX/mastering."
+      ],
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "decision": "For Task 072, reuse the existing /analyze file flow for Mastering Suite reference analysis and explicitly disable unsupported Mastering Suite actions until a real backend contract exists.",
+      "rationale": "MainComponent and OSCBridge already had a truthful sendAnalyzeFile(file, false) path, but there was no end-to-end protocol/backend/OSCBridge support for mastering apply, stem separation, export, or header/preset actions. Reusing the existing analysis route preserved scope and honesty, while unavailable/local-only UI text avoided implying processing that does not exist.",
+      "alternatives_considered": [
+        "Invent new OSCBridge and backend mastering/stem/export contracts in the UI slice.",
+        "Leave Mastering Suite buttons active with TODO/commented-out sends or fake placeholders.",
+        "Pretend apply/stem/export actions are wired when only reference analysis is real."
+      ],
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
     {
       "decision": "Make Tasks 072-076 the pre-UI gate and keep current cross-genre quality warnings on a separate backend follow-up track.",
       "rationale": "The immediate blockers are honesty and contract gaps in mastering, live preview FX/mastering, smart instrument selection, and take rendering. trap/modern beat brightness+drum presence, R&B/neo-soul low drum presence, lofi/boom-bap brightness+drum presence plus missing wow/flutter DSP, house/ambient/pop brightness, and Ethiopian-family drum presence should stay off the UI gate because they are already represented by no-op profile families and are not the same class of issue as dead or partial UI affordances.",
@@ -1505,5 +1575,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-21T12:00:00Z"
+  "last_updated": "2026-05-21T19:25:58Z"
 }

@@ -3,75 +3,179 @@
   "current_session": {
     "id": "session-2026-05-21-task-072-082-backlog-planning",
     "started": "2026-05-21T12:00:00Z",
-    "user_request": "Create a source-grounded docs/state-only Task 072+ implementation backlog, define the pre-UI execution gate, and compile the remaining UI/UX backlog without touching runtime code."
+    "user_request": "lets proceed with Task 072 implementations"
   },
   "task_queue": [
     {
       "id": "mastering-suite-action-contract-honest-availability-072",
       "description": "Close the pre-UI honesty gap by wiring a real Mastering Suite action contract end-to-end or explicitly disabling unavailable mastering/reference/stem affordances instead of leaving TODO/commented-out sends in MainComponent.",
-      "status": "pending",
-      "assigned_to": "builder",
-      "phase": "implement",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [],
       "files_to_modify": [
         "juce/Source/MainComponent.cpp",
-        "juce/Source/Communication/OSCBridge.h",
-        "juce/Source/Communication/OSCBridge.cpp",
-        "juce/Source/UI/Mastering/MasteringSuitePanel.h",
         "juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
-        "multimodal_gen/server/osc_server.py",
-        "tests/test_protocol.py",
-        "test_osc_client.py"
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T13:15:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/MainComponent.cpp",
+          "juce/Source/UI/Mastering/MasteringSuitePanel.cpp"
+        ],
+        "summary": "MainComponent now routes Mastering Suite Reference Analyze through the existing oscBridge->sendAnalyzeFile(file, false) /analyze file flow and reports honest unavailable/local-only status for apply, stem separation, and mastering-settings actions. MasteringSuitePanel disables unsupported header/preset/stem/export/apply affordances, clarifies that only Reference Analyze is wired, replaces the fake in-panel spectrum placeholder with honest unavailable text, and marks the stem tab unavailable.",
+        "guardrails_preserved": [
+          "Reused the existing /analyze file flow for Mastering Suite reference analysis instead of inventing a new OSC/backend contract.",
+          "Unsupported mastering, stem, export, header, and preset actions are explicitly disabled or marked unavailable instead of implying real backend processing.",
+          "No protocol/backend/OSCBridge changes were made.",
+          "No new mastering/stem/export/header server contract was introduced in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "VS Code diagnostics for juce/Source/MainComponent.cpp and juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "git diff --check",
+          "result": "PASS"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py test_osc_client.py -q",
+          "result": "PASS: 39 passed, 6 existing warnings"
+        },
+        {
+          "command": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal",
+          "result": "PASS"
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T13:15:00Z",
+        "summary": "Independent post-verifier confirmed that MainComponent reuses oscBridge->sendAnalyzeFile(file, false) for Reference Analyze, unsupported mastering/stem/export/header actions are honestly unavailable, protocol/backend/OSCBridge remained unchanged, and the only remaining issue is a non-blocking UX nit that the shared analyze-result dialog copy is generic rather than mastering-specific."
+      }
     },
     {
       "id": "live-preview-fx-mastering-contract-truthfulness-073",
       "description": "Either implement a truthful live preview FX/mastering route or keep the current explicit unmastered-preview contract; do not imply mixer/mastering parity while AudioEngine still bypasses mixerGraph.processBlock in getNextAudioBlock().",
-      "status": "pending",
-      "assigned_to": "builder",
-      "phase": "implement",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "mastering-suite-action-contract-honest-availability-072"
       ],
       "files_to_modify": [
-        "juce/Source/Audio/AudioEngine.cpp",
-        "juce/Source/Audio/AudioEngine.h",
-        "juce/Source/Audio/MixerGraph.h",
-        "juce/Source/Audio/MixerGraph.cpp",
+        "juce/Source/MainComponent.cpp",
         "juce/Source/UI/TransportComponent.cpp",
-        "juce/Source/MainComponent.cpp"
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T13:30:00Z",
+      "implementation": {
+        "files_changed": [
+          "juce/Source/MainComponent.cpp",
+          "juce/Source/UI/TransportComponent.cpp"
+        ],
+        "summary": "Task 073 completed as the conservative honesty-only slice rather than live mixer routing: no mixerGraph.processBlock(...) was added; backend-generated audio remains the mastered/reference path; live MIDI preview copy was tightened to dry/unmastered with explicit no-live-FX/mastering wording; generic audio-file statuses were made provenance-neutral; and FX-chain/mastering status text now says backend render parity only or no backend apply path while live preview stays dry/unmastered.",
+        "guardrails_preserved": [
+          "No mixerGraph.processBlock(...) live routing was added in this slice.",
+          "Backend-generated audio/render results remain the only mastered/reference playback path.",
+          "Live MIDI preview is explicitly labeled dry/unmastered with no live FX/mastering.",
+          "Shared generic audio-file/reference wording stays provenance-neutral where the UI cannot prove backend origin."
+        ]
+      },
+      "tests": [
+        {
+          "command": "VS Code diagnostics for juce/Source/MainComponent.cpp and juce/Source/UI/TransportComponent.cpp",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "git diff --check",
+          "result": "PASS: silent"
+        },
+        {
+          "command": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal",
+          "result": "PASS: exit 0"
+        },
+        {
+          "command": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal",
+          "result": "PASS: exit 0"
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_NITS",
+        "timestamp": "2026-05-21T13:30:00Z",
+        "summary": "Final verifier confirmed the conservative honesty-only slice: no wording still implies live FX/mastering parity, backend-generated audio remains the mastered/reference path, and live MIDI preview stays dry/unmastered with no live FX/mastering. Remaining generic 'audio file/reference' wording is broad but not false."
+      }
     },
     {
       "id": "smart-instrument-selection-path-cleanup-074",
       "description": "Remove or replace the stale multimodal_gen.instrument_index smart-selection path so sonic-adjective resolution no longer imports a non-existent live module while the archived _deprecated.instrument_index test remains truthful.",
-      "status": "pending",
-      "assigned_to": "builder",
-      "phase": "implement",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [],
       "files_to_modify": [
         "main.py",
-        "multimodal_gen/server/worker.py",
-        "multimodal_gen/instrument_manager.py",
         "tests/test_sprint11_batch_c.py",
-        "tests/test_instrument_manager.py"
+        "tests/test_main_render_diagnostics.py",
+        "multimodal_gen/prompt_parser.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T13:45:00Z",
+      "implementation": {
+        "files_changed": [
+          "main.py",
+          "tests/test_sprint11_batch_c.py",
+          "tests/test_main_render_diagnostics.py",
+          "multimodal_gen/prompt_parser.py"
+        ],
+        "summary": "Task 074 completed as the minimal honest fail-open slice: main.py no longer imports multimodal_gen.instrument_index; the old smart_instruments metadata-only branch is replaced with an honest warning when verbose and sonic adjectives are present; the live InstrumentResolutionService/instrument_service path remains unchanged; no smart_instruments output is emitted on the fail-open path; and prompt_parser comments/docstrings were updated to remove stale InstrumentResolver claims.",
+        "guardrails_preserved": [
+          "The live InstrumentResolutionService/instrument_service path remains unchanged.",
+          "The archived metadata-only smart-selection branch was removed instead of reviving multimodal_gen.instrument_index or inventing a new resolver module.",
+          "When verbose and sonic adjectives are present on the fail-open path, the CLI emits an honest warning instead of fabricated smart-selection success metadata.",
+          "No smart_instruments output is emitted when optional smart metadata is unavailable."
+        ]
+      },
+      "tests": [
+        {
+          "command": "VS Code diagnostics for main.py, tests/test_sprint11_batch_c.py, tests/test_main_render_diagnostics.py, and multimodal_gen/prompt_parser.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "git diff --check",
+          "result": "PASS: silent"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_sprint11_batch_c.py tests/test_instrument_manager.py tests/test_main_render_diagnostics.py tests/test_sprint11_batch_a.py tests/test_sprint10_batch_c.py -q -ra",
+          "result": "PASS: 61 passed in 5.21s"
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T13:45:00Z",
+        "summary": "Final verifier confirmed the minimal honest fail-open Task 074 slice: the stale main.py import of multimodal_gen.instrument_index is gone, the old metadata-only smart_instruments branch is replaced by an honest verbose warning when sonic adjectives appear without optional smart metadata, the live InstrumentResolutionService/instrument_service path remains unchanged, no smart_instruments output is emitted on the fail-open path, and prompt_parser comments/docstrings no longer claim a live InstrumentResolver path."
+      }
     },
     {
       "id": "real-take-rendering-075",
       "description": "Replace osc_server's current fake-success TAKE_RENDERED acknowledgment with real take rendering through audio_renderer or a truthful error path.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [],
       "files_to_modify": [
@@ -82,14 +186,48 @@
         "test_osc_client.py"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T19:17:12Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/server/osc_server.py",
+          "tests/test_protocol.py",
+          "test_osc_client.py"
+        ],
+        "summary": "backend now caches last successful generation context, builds a temp whole-project arrangement MIDI from selected/default takes while preferring real *_Comp tracks, accepts the live trackless use_comp=true directory-output render request, renders through AudioRenderer.render_midi_file, normalizes output_path to a real WAV, and only emits /take/rendered after a real file exists; failures go through /error.",
+        "guardrails_preserved": [
+          "No fake success remains on the take-render path.",
+          "No JUCE changes were made in this slice.",
+          "No fabricated comp-region rendering was introduced.",
+          "Request IDs and current transport semantics were preserved.",
+          "Failures stay on the honest /error path."
+        ]
+      },
+      "tests": [
+        {
+          "command": "VS Code diagnostics / get_errors for multimodal_gen/server/osc_server.py, tests/test_protocol.py, test_osc_client.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "pytest tests/test_protocol.py -q -k \"TakeRenderBackend or live_juce_selected_render_shape\"",
+          "result": "PASS: 8 passed, 39 deselected"
+        },
+        {
+          "command": "pytest tests/test_protocol.py -q",
+          "result": "PASS: 47 passed, 6 warnings"
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_NITS",
+        "timestamp": "2026-05-21T19:17:12Z",
+        "summary": "no fake success remains; failures use /error; live JUCE trackless use_comp=true output-dir request is accepted; selected/default/real-comp whole-project semantics work; remaining limitation is honest lack of arbitrary frontend-only comp-region rendering and deeper integration proof deferred to Task 076 runtime checkpoint."
+      }
     },
     {
       "id": "post-072-075-runtime-regression-checkpoint-076",
       "description": "Run the pre-UI runtime checkpoint after Tasks 072-075 so further UI/UX polish only starts once mastering/take/smart-selection affordances are real or honestly unavailable.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "verifier",
-      "phase": "verify",
+      "phase": "complete",
       "priority": "HIGH",
       "dependencies": [
         "mastering-suite-action-contract-honest-availability-072",
@@ -108,7 +246,22 @@
         ".github/state/memory.json"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T12:00:00Z"
+      "updated": "2026-05-21T19:25:58Z",
+      "tests": [
+        {
+          "command": "Set-Location c:\\dev\\MUSE-ai\\MUSE; .\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q",
+          "result": "PASS: 81 passed, 6 warnings in 9.94s"
+        },
+        {
+          "command": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal",
+          "result": "PASS: exit 0. Key proof: MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe"
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-21T19:25:58Z",
+        "summary": "The combined protocol/smoke pytest checkpoint and JUCE Debug build both passed after Tasks 072-075, closing the pre-UI runtime honesty/regression gate. Implementation work can resume with Tasks 077-081 now eligible, while Task 082 remains blocked until Tasks 077-081 complete."
+      }
     },
     {
       "id": "playback-capability-visibility-ui-077",
@@ -6132,16 +6285,16 @@
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "decompose",
+  "current_phase": "implement",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-21T12:00:00Z",
-    "total_tasks_completed": 72,
+    "last_updated": "2026-05-21T19:25:58Z",
+    "total_tasks_completed": 77,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "mastering-suite-action-contract-honest-availability-072"
+    "next_phase": "playback-capability-visibility-ui-077"
   },
   "sprint_11": {
     "status": "COMPLETE",

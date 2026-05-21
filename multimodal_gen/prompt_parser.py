@@ -135,8 +135,10 @@ class ParsedPrompt:
     genre: str = 'trap_soul'
     style_modifiers: List[str] = field(default_factory=list)
     
-    # Sonic Adjectives (for intelligent instrument selection)
+    # Sonic Adjectives (sound character cues)
     # These describe the desired sound character (warm, vintage, bright, etc.)
+    # and continue to feed supported live style/mix/downstream systems.
+    # Adjective-aware smart instrument metadata selection is not currently active.
     sonic_adjectives: List[str] = field(default_factory=list)
     
     # Instrumentation
@@ -765,10 +767,12 @@ STYLE_KEYWORDS: Dict[str, List[str]] = {
 
 
 # =============================================================================
-# SONIC ADJECTIVES - For Intelligent Instrument Selection
+# SONIC ADJECTIVES - Sound Character Cues
 # =============================================================================
-# These adjectives describe the desired sonic character and help the AI
-# match instruments from expansion packs based on their tonal qualities.
+# These adjectives describe the desired sonic character and continue to feed
+# supported live style/mix/downstream systems.
+# Adjective-aware smart instrument metadata selection from expansion-pack
+# metadata is not currently active in this build, so callers should fail open.
 # Organized by category with synonyms for robust matching.
 
 SONIC_ADJECTIVES: Dict[str, List[str]] = {
@@ -1003,7 +1007,7 @@ class PromptParser:
     
     def _extract_sonic_adjectives(self, prompt: str) -> List[str]:
         """
-        Extract sonic adjectives for intelligent instrument selection.
+        Extract sonic adjectives that describe sound character.
         
         These adjectives describe the desired sound character:
         - Temperature: warm, cold, hot
@@ -1013,8 +1017,12 @@ class PromptParser:
         - Brightness: bright, dark, present
         - etc.
         
-        The extracted adjectives are used by InstrumentResolver to match
-        instruments from expansion packs based on their tonal qualities.
+        The extracted adjectives continue to feed supported live style/mix
+        and other downstream systems.
+
+        Adjective-aware smart instrument metadata selection is not currently
+        active in this build, so this parser only returns normalized
+        descriptors and does not imply expansion-pack metadata matching.
         """
         adjectives: List[str] = []
         

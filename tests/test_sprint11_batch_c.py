@@ -1,9 +1,17 @@
 """Sprint 11 Batch C — Dead module flags + midi_generator logging (Tasks 11.7-11.8)."""
+from pathlib import Path
+
+import main as main_module
 import pytest
 
 
 class TestDeadModuleFlags:
     """Task 11.7: Dead modules archived to _deprecated/ directory."""
+
+    def test_main_no_longer_imports_live_instrument_index(self):
+        """main.py must not import the archived live instrument_index path."""
+        source = Path(main_module.__file__).read_text(encoding="utf-8")
+        assert "from multimodal_gen.instrument_index import" not in source
 
     def test_spatial_audio_archived(self):
         """spatial_audio.py moved to _deprecated/ and has UNREFERENCED notice."""

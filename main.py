@@ -1977,56 +1977,14 @@ def run_generation(
     # This step is now a no-op but kept for documentation and backward compatibility
     # expansion_manager and instrument_service are already set from earlier initialization
     
-    # Step 4.8: Intelligent Instrument Selection (using sonic adjectives)
-    # If the prompt contains sonic descriptors (warm, vintage, analog, etc.),
-    # use the InstrumentResolver to find best-matching expansion instruments
-    if parsed.sonic_adjectives and expansion_manager:
-        try:
-            from multimodal_gen.instrument_index import (
-                InstrumentIndex, InstrumentResolver, create_instrument_index
-            )
-            
-            # Create unified index from expansion manager
-            index = InstrumentIndex()
-            index.add_from_expansion_manager(expansion_manager)
-            
-            if index.get_stats()['total_instruments'] > 0:
-                resolver = InstrumentResolver(index)
-                
-                # Resolve instruments mentioned in prompt with sonic adjectives
-                smart_selections = []
-                for inst_name in parsed.instruments:
-                    results_list = resolver.resolve_with_adjectives(
-                        name=inst_name,
-                        adjectives=parsed.sonic_adjectives,
-                        genre=parsed.genre,
-                        limit=1
-                    )
-                    if results_list:
-                        best = results_list[0]
-                        smart_selections.append({
-                            'query': inst_name,
-                            'selected': best.instrument.name,
-                            'score': best.score,
-                            'source': best.instrument.source.value,
-                            'path': best.instrument.path,
-                            'reasons': best.match_reasons[:3],  # Top 3 reasons
-                        })
-                
-                if smart_selections and verbose:
-                    print_info("Smart instrument selection (sonic adjectives):")
-                    for sel in smart_selections:
-                        reasons_str = ', '.join(sel['reasons'][:2]) if sel['reasons'] else ''
-                        print_info(f"  {sel['query']} -> {sel['selected']} ({sel['score']:.2f})")
-                        if reasons_str:
-                            print_info(f"    Reasons: {reasons_str}")
-                
-                # Store in results for metadata
-                results['smart_instruments'] = smart_selections
-                
-        except Exception as e:
-            if verbose:
-                print_warning(f"Smart instrument selection: {e}")
+    # Step 4.8: Adjective-aware smart instrument metadata is unavailable in this build.
+    # Live generation already continues through InstrumentResolutionService above,
+    # so fail open honestly instead of importing the archived instrument_index path.
+    if parsed.sonic_adjectives and expansion_manager and verbose:
+        print_warning(
+            "Adjective-aware smart instrument metadata is unavailable in this build; "
+            "continuing with the supported live instrument resolver flow."
+        )
 
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")

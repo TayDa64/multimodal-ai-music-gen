@@ -1,5 +1,6 @@
 """Focused main.py regressions for CLI duration wiring and render diagnostics persistence."""
 
+import builtins
 import json
 import sys
 from pathlib import Path
@@ -65,6 +66,44 @@ class FailingGraphBuilder:
 class DummyInstrumentResolutionService:
     def __init__(self, *args, **kwargs):
         pass
+
+
+class VerboseDummyInstrumentResolutionService(DummyInstrumentResolutionService):
+    def get_registry_stats(self):
+        return {
+            "total_instruments": 1,
+            "expansion_programs_allocated": 1,
+        }
+
+
+class DummySessionGraph:
+    def __init__(self):
+        self.tracks = []
+        self.sections = []
+        self.groove_template = None
+        self.midi_path = None
+        self.audio_path = None
+
+    def save_manifest(self, manifest_path):
+        Path(manifest_path).write_text(json.dumps({"tracks": [], "sections": []}), encoding="utf-8")
+
+
+class DummyGraphBuilder:
+    def build_from_prompt(self, _parsed):
+        return DummySessionGraph()
+
+    def build_from_arrangement(self, session_graph, arrangement):
+        session_graph.sections = arrangement.sections
+        return session_graph
+
+
+class QuietRenderer:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def render_midi_file(self, midi_path, output_path, parsed):
+        Path(output_path).write_bytes(b"RIFF")
+        return True
 
 
 class ExplodingRenderer:
@@ -448,6 +487,91 @@ def test_run_generation_passes_parsed_drums_to_assets_and_metadata_excludes_abse
     assert metadata_sample_names == sample_names
     assert "808_kick.wav" not in metadata_sample_names
     assert "clap.wav" not in metadata_sample_names
+
+
+def test_run_generation_warns_honestly_when_adjective_smart_metadata_is_unavailable(monkeypatch, tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+    expansions_dir = sandbox_main.parent.parent / "expansions"
+    expansions_dir.mkdir()
+
+    warnings = []
+    expected_warning = (
+        "Adjective-aware smart instrument metadata is unavailable in this build; "
+        "continuing with the supported live instrument resolver flow."
+    )
+
+    class DummyPromptParser:
+        def parse(self, prompt):
+            return main_module.ParsedPrompt(
+                genre="classic_rock",
+                instruments=["guitar"],
+                drum_elements=["kick", "snare", "hihat"],
+                sonic_adjectives=["warm", "vintage"],
+                raw_prompt=prompt,
+            )
+
+    class TruthyExpansionManager:
+        def scan_expansions(self, _path):
+            return 1
+
+    original_import = builtins.__import__
+
+    def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "multimodal_gen.instrument_index":
+            raise AssertionError("dead instrument_index import attempted")
+        return original_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded_import)
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(main_module, "PromptParser", DummyPromptParser)
+    monkeypatch.setattr(main_module, "print_step", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_info", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_warning", lambda message: warnings.append(message))
+    monkeypatch.setattr(main_module, "print_success", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_parsed_prompt", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "validate_generation", lambda *args, **kwargs: SimpleNamespace(valid=True, violations=[]))
+    monkeypatch.setattr(main_module, "Arranger", DummyArranger)
+    monkeypatch.setattr(main_module, "SessionGraphBuilder", DummyGraphBuilder)
+    monkeypatch.setattr(main_module, "MidiGenerator", DummyMidiGenerator)
+    monkeypatch.setattr(main_module, "AssetsGenerator", DummyAssetsGenerator)
+    monkeypatch.setattr(main_module, "AudioRenderer", QuietRenderer)
+    monkeypatch.setattr(main_module, "generate_project_name", lambda _parsed: "test_project")
+    monkeypatch.setattr(main_module, "set_instrument_service", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_run_quality_gate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "HAS_STYLE_POLICY", False)
+    monkeypatch.setattr(main_module, "compile_policy", None)
+    monkeypatch.setattr(main_module, "HAS_AGENT_SYSTEM", False)
+    monkeypatch.setattr(main_module, "_HAS_QUALITY_VALIDATOR", False)
+    monkeypatch.setattr(main_module, "_HAS_FILE_ANALYSIS", False)
+    monkeypatch.setattr(main_module, "_HAS_STEM_SEPARATION", False)
+
+    import multimodal_gen as multimodal_gen_module
+    import multimodal_gen.instrument_resolution as instrument_resolution_module
+
+    monkeypatch.setattr(multimodal_gen_module, "ExpansionManager", TruthyExpansionManager, raising=False)
+    monkeypatch.setattr(
+        instrument_resolution_module,
+        "InstrumentResolutionService",
+        VerboseDummyInstrumentResolutionService,
+    )
+
+    results = main_module.run_generation(
+        prompt="warm vintage classic rock guitar with live drums",
+        output_dir=output_dir,
+        verbose=True,
+        use_bwf=False,
+        skip_default_instruments=True,
+    )
+
+    assert warnings == [expected_warning]
+    assert "smart_instruments" not in results
+
+    metadata = json.loads(Path(results["project_metadata"]).read_text(encoding="utf-8"))
+    assert "smart_instruments" not in metadata["current"]["outputs"]
 
 
 def _missing_audio_results(tmp_path):

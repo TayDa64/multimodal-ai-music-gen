@@ -8,8 +8,10 @@ Handles incoming OSC messages and dispatches responses.
 from __future__ import annotations
 
 import json
+import re
 import signal
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -48,6 +50,11 @@ except ImportError:
     ExpansionManager = None
     create_expansion_manager = None
     EXPANSION_AVAILABLE = False
+
+
+_TAKE_TRACK_RE = re.compile(r"^(?P<original>.+)_Take_(?P<take>\d+)$")
+_COMP_TRACK_RE = re.compile(r"^(?P<original>.+)_Comp$")
+_TAKE_ID_RE = re.compile(r"^take_(?P<take>\d+)$", re.IGNORECASE)
 
 
 class MusicGenOSCServer:
@@ -116,6 +123,10 @@ class MusicGenOSCServer:
         self._current_fx_chain: Dict[str, Any] = {}     # FX chain configuration for render parity
         # Phase 5.2: persisted control overrides (merged into /generate + /regenerate)
         self._control_overrides: Dict[str, Any] = {}
+        self._selected_takes: Dict[str, str] = {}
+        self._comp_regions: Dict[str, Any] = {}
+        self._pending_generation_request: Optional[GenerationRequest] = None
+        self._last_render_context: Optional[Dict[str, Any]] = None
         
         # Callbacks for external integration (optional)
         self.on_generation_start: Optional[callable] = None
@@ -468,6 +479,7 @@ class MusicGenOSCServer:
             
             # Submit to worker
             task_id = self._gen_worker.submit(request)
+            self._pending_generation_request = request
             self._log(f"   Task ID: {task_id}")
             
             # Send acknowledgment with request_id
@@ -790,6 +802,7 @@ class MusicGenOSCServer:
             
             # Submit to worker
             self._gen_worker.submit(regen_request)
+            self._pending_generation_request = regen_request
             
         except json.JSONDecodeError as e:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}", request_id=request_id)
@@ -1307,8 +1320,6 @@ class MusicGenOSCServer:
                 return
             
             # Store selected take (will be used during render)
-            if not hasattr(self, '_selected_takes'):
-                self._selected_takes = {}
             self._selected_takes[track] = take_id
             
             self._send_message(OSCAddresses.TAKE_SELECTED, json.dumps({
@@ -1368,8 +1379,6 @@ class MusicGenOSCServer:
                     return
             
             # Store comp regions for the track
-            if not hasattr(self, '_comp_regions'):
-                self._comp_regions = {}
             self._comp_regions[track] = regions
             
             self._send_status("comp_regions_set", {
@@ -1384,58 +1393,482 @@ class MusicGenOSCServer:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
         except Exception as e:
             self._send_error(ErrorCode.UNKNOWN, str(e))
+
+    @staticmethod
+    def _normalize_take_id(take_id: Any) -> Optional[int]:
+        """Normalize frontend take IDs like ``1`` or ``take_001`` to an integer."""
+        text = "" if take_id is None else str(take_id).strip()
+        if not text:
+            return None
+        if text.isdigit():
+            value = int(text)
+            return value if value > 0 else None
+        match = _TAKE_ID_RE.fullmatch(text)
+        if not match:
+            return None
+        value = int(match.group("take"))
+        return value if value > 0 else None
+
+    @staticmethod
+    def _get_track_name(track: Any) -> str:
+        """Return a normalized MIDI track name."""
+        try:
+            return str(getattr(track, "name", "") or "").strip()
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _parse_take_track_name(track_name: str) -> Optional[Dict[str, Any]]:
+        """Parse generated take/comp track names from the cached project MIDI."""
+        name = str(track_name or "").strip()
+        if not name:
+            return None
+
+        take_match = _TAKE_TRACK_RE.fullmatch(name)
+        if take_match:
+            return {
+                "original": take_match.group("original"),
+                "kind": "take",
+                "take_number": int(take_match.group("take")),
+            }
+
+        comp_match = _COMP_TRACK_RE.fullmatch(name)
+        if comp_match:
+            return {
+                "original": comp_match.group("original"),
+                "kind": "comp",
+                "take_number": None,
+            }
+
+        return None
+
+    @staticmethod
+    def _resolve_mapping_key(mapping: Dict[str, Any], key: str) -> Optional[str]:
+        """Resolve a mapping key case-insensitively while preserving canonical casing."""
+        text = str(key or "").strip()
+        if not text:
+            return None
+        if text in mapping:
+            return text
+
+        lowered = text.casefold()
+        for existing_key in mapping.keys():
+            if str(existing_key).strip().casefold() == lowered:
+                return existing_key
+
+        return None
+
+    @staticmethod
+    def _clone_midi_track(track: Any):
+        """Deep-copy a MIDI track for temporary arrangement rendering."""
+        import mido
+
+        cloned = mido.MidiTrack()
+        for msg in track:
+            cloned.append(msg.copy())
+        return cloned
+
+    def _has_comp_regions_for_track(self, track_name: str) -> bool:
+        """Return True when frontend-only comp regions exist for a track."""
+        return self._resolve_mapping_key(self._comp_regions, track_name) is not None
+
+    def _selected_take_number_for_track(self, track_name: str) -> Optional[int]:
+        """Resolve a stored frontend selection to a concrete take number."""
+        selected_key = self._resolve_mapping_key(self._selected_takes, track_name)
+        if selected_key is None:
+            return None
+
+        selected_value = self._selected_takes.get(selected_key)
+        normalized_take = self._normalize_take_id(selected_value)
+        if normalized_take is None:
+            raise ValueError(
+                f"Selected take '{selected_value}' for track '{track_name}' is invalid"
+            )
+        return normalized_take
+
+    def _collect_take_families(self, midi_file: Any) -> Dict[str, Dict[str, Any]]:
+        """Collect generated take families and optional comp tracks from a MIDI file."""
+        families: Dict[str, Dict[str, Any]] = {}
+
+        for track in midi_file.tracks:
+            family_info = self._parse_take_track_name(self._get_track_name(track))
+            if family_info is None:
+                continue
+
+            original_name = family_info["original"]
+            family = families.setdefault(original_name, {"takes": {}, "comp": None})
+
+            if family_info["kind"] == "comp":
+                family["comp"] = track
+            else:
+                family["takes"][family_info["take_number"]] = track
+
+        return families
+
+    def _select_family_track(
+        self,
+        original_name: str,
+        family: Dict[str, Any],
+        *,
+        use_comp: bool,
+        requested_take_number: Optional[int] = None,
+        explicit_track_requested: bool = False,
+    ):
+        """Choose the concrete MIDI track to render for one take family."""
+        takes = family.get("takes", {})
+        comp_track = family.get("comp")
+
+        if requested_take_number is not None:
+            requested_track = takes.get(requested_take_number)
+            if requested_track is None:
+                raise ValueError(
+                    f"Requested take '{requested_take_number}' not found for track '{original_name}'"
+                )
+            return requested_track
+
+        if explicit_track_requested and use_comp:
+            if comp_track is not None:
+                return comp_track
+            if self._has_comp_regions_for_track(original_name):
+                raise ValueError(
+                    f"Track '{original_name}' has comp regions but no renderable comp track"
+                )
+            raise ValueError(f"Comp track not found for track '{original_name}'")
+
+        if use_comp and comp_track is not None:
+            return comp_track
+
+        selected_take_number = self._selected_take_number_for_track(original_name)
+        if selected_take_number is not None:
+            selected_track = takes.get(selected_take_number)
+            if selected_track is None:
+                raise ValueError(
+                    f"Requested take '{selected_take_number}' not found for track '{original_name}'"
+                )
+            return selected_track
+
+        default_track = takes.get(1)
+        if default_track is None:
+            raise ValueError(f"Take_1 not found for track '{original_name}'")
+
+        return default_track
+
+    def _build_take_render_midi(self, midi_file: Any, selected_tracks: Dict[str, Any]):
+        """Build a temporary whole-project MIDI using the chosen take per family."""
+        import mido
+
+        rendered_mid = mido.MidiFile(ticks_per_beat=midi_file.ticks_per_beat)
+        emitted_families = set()
+
+        for track in midi_file.tracks:
+            family_info = self._parse_take_track_name(self._get_track_name(track))
+            if family_info is None:
+                rendered_mid.tracks.append(self._clone_midi_track(track))
+                continue
+
+            original_name = family_info["original"]
+            if original_name in emitted_families:
+                continue
+
+            chosen_track = selected_tracks.get(original_name)
+            if chosen_track is None:
+                continue
+
+            rendered_mid.tracks.append(self._clone_midi_track(chosen_track))
+            emitted_families.add(original_name)
+
+        return rendered_mid
+
+    @staticmethod
+    def _safe_filename_fragment(value: str, default: str) -> str:
+        """Create a filesystem-friendly filename fragment."""
+        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", str(value or "").strip())
+        cleaned = cleaned.strip("._-")
+        return cleaned or default
+
+    def _build_render_filename(self, midi_path: Path, track: str, take_id: str, use_comp: bool) -> str:
+        """Build a truthful output filename for rendered take requests."""
+        project_name = self._safe_filename_fragment(midi_path.stem, "project")
+        filename_parts = [project_name]
+
+        if track:
+            filename_parts.append(self._safe_filename_fragment(track, "track"))
+
+        normalized_take = self._normalize_take_id(take_id)
+        if normalized_take is not None:
+            filename_parts.append(f"take_{normalized_take:03d}")
+        elif track and use_comp:
+            filename_parts.append("comp")
+        elif use_comp:
+            filename_parts.append("selected_comp")
+        else:
+            filename_parts.append("selected_takes")
+
+        return "_".join(filename_parts) + ".wav"
+
+    def _resolve_render_output_path(
+        self,
+        requested_output_path: str,
+        midi_path: Path,
+        cached_request: Optional[GenerationRequest],
+        *,
+        track: str,
+        take_id: str,
+        use_comp: bool,
+    ) -> Path:
+        """Resolve the caller's output_path into a concrete WAV file path."""
+        default_parent = midi_path.parent
+        if cached_request and cached_request.output_dir:
+            default_parent = Path(cached_request.output_dir)
+
+        filename = self._build_render_filename(midi_path, track, take_id, use_comp)
+        requested_text = str(requested_output_path or "").strip()
+
+        if not requested_text:
+            default_parent.mkdir(parents=True, exist_ok=True)
+            return default_parent / filename
+
+        requested_path = Path(requested_text)
+        if requested_path.suffix.lower() == ".wav":
+            requested_path.parent.mkdir(parents=True, exist_ok=True)
+            return requested_path
+
+        requested_path.mkdir(parents=True, exist_ok=True)
+        return requested_path / filename
+
+    def _create_audio_renderer(
+        self,
+        cached_request: Optional[GenerationRequest],
+        cached_result: GenerationResult,
+    ):
+        """Create a renderer for truthful whole-project take rendering."""
+        from ..audio_renderer import AudioRenderer
+
+        metadata = cached_result.metadata if isinstance(cached_result.metadata, dict) else {}
+        genre = metadata.get("genre")
+        if cached_request and cached_request.genre:
+            genre = cached_request.genre
+
+        soundfont_path = self.config.default_soundfont or None
+        if cached_request and cached_request.soundfont:
+            soundfont_path = cached_request.soundfont
+
+        return AudioRenderer(
+            soundfont_path=soundfont_path,
+            expansion_manager=self._expansion_manager,
+            genre=genre,
+            ai_metadata={
+                "source_task_id": cached_result.task_id,
+                "source_request_id": cached_result.request_id,
+                "source_midi_path": cached_result.midi_path,
+            },
+        )
     
     def _handle_render_take(self, address: str, *args):
         """
-        Handle /take/render - render a specific take or comp to audio.
+        Handle /take/render - render a truthful whole-project arrangement to audio.
         
         Expected args (JSON string):
             {
                 "request_id": "uuid",
-                "track": "drums",
-                "take_id": "take_001",  # Optional if using comp
-                "use_comp": false,       # If true, use comp regions
-                "output_path": "path/to/output.wav"
+                "track": "drums",         # Optional: override one take family
+                "take_id": "take_001",   # Optional explicit take override
+                "use_comp": false,         # Prefer actual *_Comp tracks when available
+                "output_path": "path/to/output.wav/or/directory"
             }
+
+        The current live JUCE request shape (trackless use_comp=true with an output
+        directory) is accepted and renders the latest whole-project arrangement.
         """
         self._log(f"📥 Received: {address}")
         
         try:
             data = json.loads(args[0]) if args else {}
             request_id = data.get("request_id", "")
-            track = data.get("track", "")
-            take_id = data.get("take_id", "")
-            use_comp = data.get("use_comp", False)
-            output_path = data.get("output_path", "")
-            
-            if not track:
-                self._send_error(ErrorCode.MISSING_PARAMETER, 
-                                 "track required", 
-                                 request_id=request_id)
+            track = str(data.get("track", "") or "").strip()
+            take_id = str(data.get("take_id", "") or "").strip()
+            use_comp = bool(data.get("use_comp", False))
+            output_path = str(data.get("output_path", "") or "").strip()
+
+            requested_take_number = None
+            if take_id:
+                requested_take_number = self._normalize_take_id(take_id)
+                if requested_take_number is None:
+                    self._send_error(
+                        ErrorCode.INVALID_MESSAGE,
+                        f"Invalid take_id '{take_id}'",
+                        request_id=request_id,
+                    )
+                    return
+                if not track:
+                    self._send_error(
+                        ErrorCode.MISSING_PARAMETER,
+                        "track required when take_id is provided",
+                        request_id=request_id,
+                    )
+                    return
+
+            if track and not take_id and not use_comp:
+                self._send_error(
+                    ErrorCode.MISSING_PARAMETER,
+                    "take_id required when rendering a specific track without use_comp",
+                    request_id=request_id,
+                )
                 return
-            
-            if not use_comp and not take_id:
-                self._send_error(ErrorCode.MISSING_PARAMETER, 
-                                 "take_id required when not using comp",
-                                 request_id=request_id)
+
+            cached_context = self._last_render_context or {}
+            cached_result = cached_context.get("result")
+            cached_request = cached_context.get("request")
+
+            if not cached_result or not cached_result.success or not cached_result.midi_path:
+                self._send_error(
+                    ErrorCode.GENERATION_FAILED,
+                    "No prior successful generation with cached MIDI is available to render",
+                    request_id=request_id,
+                )
                 return
-            
-            # TODO: Actually render the take (integrate with audio_renderer)
-            # For now, acknowledge receipt
+
+            midi_path = Path(cached_result.midi_path)
+            if not midi_path.exists():
+                self._send_error(
+                    ErrorCode.FILE_NOT_FOUND,
+                    f"Cached MIDI file not found: {midi_path}",
+                    request_id=request_id,
+                )
+                return
+
+            try:
+                import mido
+            except ImportError as e:
+                self._send_error(
+                    ErrorCode.OPTIONAL_DEPENDENCY_MISSING,
+                    f"MIDI take rendering requires mido: {e}",
+                    request_id=request_id,
+                )
+                return
+
+            try:
+                midi_file = mido.MidiFile(str(midi_path))
+            except Exception as e:
+                self._send_error(
+                    ErrorCode.GENERATION_FAILED,
+                    f"Failed to load cached MIDI: {e}",
+                    request_id=request_id,
+                )
+                return
+
+            families = self._collect_take_families(midi_file)
+            if not any(family.get("takes") for family in families.values()):
+                self._send_error(
+                    ErrorCode.GENERATION_FAILED,
+                    "No take tracks available in cached MIDI",
+                    request_id=request_id,
+                )
+                return
+
+            resolved_track = self._resolve_mapping_key(families, track) if track else None
+            if track and resolved_track is None:
+                self._send_error(
+                    ErrorCode.INVALID_MESSAGE,
+                    f"Requested track '{track}' not found",
+                    request_id=request_id,
+                )
+                return
+
+            try:
+                selected_tracks: Dict[str, Any] = {}
+                for original_name, family in families.items():
+                    explicit_override = bool(resolved_track) and original_name == resolved_track
+                    selected_tracks[original_name] = self._select_family_track(
+                        original_name,
+                        family,
+                        use_comp=use_comp,
+                        requested_take_number=requested_take_number if explicit_override else None,
+                        explicit_track_requested=explicit_override,
+                    )
+            except ValueError as e:
+                self._send_error(ErrorCode.INVALID_MESSAGE, str(e), request_id=request_id)
+                return
+
+            try:
+                output_wav_path = self._resolve_render_output_path(
+                    output_path,
+                    midi_path,
+                    cached_request,
+                    track=resolved_track or track,
+                    take_id=take_id,
+                    use_comp=use_comp,
+                )
+            except OSError as e:
+                self._send_error(
+                    ErrorCode.OUTPUT_DIR_NOT_WRITABLE,
+                    f"Could not prepare output path: {e}",
+                    request_id=request_id,
+                )
+                return
+
+            try:
+                if output_wav_path.exists():
+                    if output_wav_path.is_dir():
+                        raise IsADirectoryError(f"Output path is a directory: {output_wav_path}")
+                    output_wav_path.unlink()
+            except OSError as e:
+                self._send_error(
+                    ErrorCode.FILE_WRITE_FAILED,
+                    f"Could not prepare output file: {e}",
+                    request_id=request_id,
+                )
+                return
+
+            try:
+                with tempfile.TemporaryDirectory(prefix="muse_take_render_") as temp_dir:
+                    temp_midi_path = Path(temp_dir) / f"{midi_path.stem}_take_render.mid"
+                    render_midi = self._build_take_render_midi(midi_file, selected_tracks)
+                    render_midi.save(str(temp_midi_path))
+
+                    renderer = self._create_audio_renderer(cached_request, cached_result)
+                    render_success = renderer.render_midi_file(
+                        str(temp_midi_path),
+                        str(output_wav_path),
+                        None,
+                    )
+            except ImportError as e:
+                self._send_error(
+                    ErrorCode.OPTIONAL_DEPENDENCY_MISSING,
+                    f"Audio rendering dependencies are missing: {e}",
+                    request_id=request_id,
+                )
+                return
+            except Exception as e:
+                self._send_error(
+                    ErrorCode.AUDIO_RENDER_FAILED,
+                    f"Render failed: {e}",
+                    request_id=request_id,
+                )
+                return
+
+            if not render_success or not output_wav_path.exists():
+                self._send_error(
+                    ErrorCode.AUDIO_RENDER_FAILED,
+                    f"Renderer failed to produce output WAV: {output_wav_path}",
+                    request_id=request_id,
+                )
+                return
+
             self._send_message(OSCAddresses.TAKE_RENDERED, json.dumps({
                 "request_id": request_id,
-                "track": track,
-                "take_id": take_id if not use_comp else "comp",
-                "output_path": output_path,
+                "track": resolved_track or track,
+                "take_id": take_id if take_id else ("comp" if track and use_comp else ""),
+                "output_path": str(output_wav_path),
                 "success": True
             }))
             
-            self._log(f"   🎬 Rendered take for track '{track}'")
+            self._log(f"   🎬 Rendered take arrangement to '{output_wav_path}'")
             
         except json.JSONDecodeError as e:
             self._send_error(ErrorCode.INVALID_MESSAGE, f"Invalid JSON: {e}")
         except Exception as e:
-            self._send_error(ErrorCode.UNKNOWN, str(e))
+            self._send_error(ErrorCode.UNKNOWN, str(e), request_id=request_id)
     
     # =========================================================================
     # Worker Callbacks
@@ -1461,6 +1894,14 @@ class MusicGenOSCServer:
     def _on_generation_complete(self, result: GenerationResult):
         """Called by worker when generation completes."""
         self._send_message(OSCAddresses.COMPLETE, json.dumps(result.to_dict()))
+
+        pending_request = self._pending_generation_request
+        if result.success and result.midi_path:
+            self._last_render_context = {
+                "result": dataclasses.replace(result),
+                "request": dataclasses.replace(pending_request) if pending_request else None,
+            }
+        self._pending_generation_request = None
         
         # Clear current request_id after completion
         self._current_request_id = None
@@ -1484,6 +1925,13 @@ class MusicGenOSCServer:
     
     def _on_error(self, error_code: int, message: str):
         """Called by worker on error."""
+        if error_code in (
+            ErrorCode.GENERATION_FAILED,
+            ErrorCode.GENERATION_TIMEOUT,
+            ErrorCode.GENERATION_CANCELLED,
+        ):
+            self._pending_generation_request = None
+
         self._send_error(error_code, message)
         
         if self.on_error:

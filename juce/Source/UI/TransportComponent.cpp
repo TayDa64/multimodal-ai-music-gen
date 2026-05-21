@@ -155,7 +155,8 @@ void TransportComponent::setupSliders()
                         currentPosition = 0.0;
                         updateTimeDisplay();
                         updateButtonStates();
-                        setStatusText("Loaded unmastered MIDI preview/fallback: " + file.getFileName(),
+                        setStatusText("Loaded dry/unmastered MIDI preview: " + file.getFileName()
+                                          + " (no live FX/mastering)",
                                       AppColours::success);
                         
                         // Disable test tone when loading MIDI
@@ -378,9 +379,10 @@ void TransportComponent::playClicked()
     updateButtonStates();
     
     setStatusText(juce::String(hasLoadedAudio
-                                   ? "Playing mastered audio/reference... (dur: "
-                                   : "Playing unmastered MIDI preview/fallback... (dur: ")
-                      + juce::String(duration, 1) + "s)",
+                                   ? "Playing audio file/reference... (dur: "
+                                   : "Playing dry/unmastered MIDI preview... (dur: ")
+                      + juce::String(duration, 1)
+                      + (hasLoadedAudio ? "s)" : "s, no live FX/mastering)"),
                   AppColours::success);
     
     listeners.call(&TransportComponent::Listener::transportPlayRequested);
@@ -426,10 +428,13 @@ void TransportComponent::onGenerationCompleted(const juce::File& outputFile)
     juce::MessageManager::callAsync([this, outputFile] {
         const bool outputIsAudio = outputFile.hasFileExtension(".wav;.wave;.aiff;.aif;.flac;.mp3;.ogg");
         const bool outputIsMidi = outputFile.hasFileExtension(".mid;.midi");
-        const juce::String readyPrefix = outputIsAudio
-            ? "Ready mastered audio/reference: "
-            : (outputIsMidi ? "Ready unmastered MIDI preview/fallback: " : "Ready: ");
-        setStatusText(readyPrefix + outputFile.getFileName(), AppColours::success);
+        const juce::String readyStatus = outputIsAudio
+            ? "Ready backend mastered reference: " + outputFile.getFileName()
+            : (outputIsMidi
+                   ? "Ready dry/unmastered MIDI preview/fallback: " + outputFile.getFileName()
+                         + " (no live FX/mastering)"
+                   : "Ready: " + outputFile.getFileName());
+        setStatusText(readyStatus, AppColours::success);
         
         // Get actual duration from AudioEngine if MIDI or audio is loaded
         if (audioEngine.hasAudioFileLoaded() || audioEngine.hasMidiLoaded())
@@ -524,8 +529,8 @@ void TransportComponent::timerCallback()
         
         // Show detailed playback debug status with honest mastering-path labeling.
         setStatusText(juce::String(hasLoadedAudio
-                                       ? "Playing mastered audio/reference: "
-                                       : "Playing unmastered MIDI preview/fallback: ")
+                                       ? "Playing audio file/reference: "
+                                       : "Playing dry/unmastered MIDI preview (no live FX/mastering): ")
                           + audioEngine.getPlaybackDebugStatus(),
                       AppColours::success);
     }
@@ -539,14 +544,15 @@ void TransportComponent::timerCallback()
         // Update status when playable media is loaded
         if (hasLoadedAudio)
         {
-            setStatusText("Mastered audio/reference loaded: "
+            setStatusText("Audio file/reference loaded: "
                               + juce::String(audioEngine.getTotalDuration(), 1) + "s",
                           AppColours::success);
         }
         else if (hasMidi)
         {
-            setStatusText("Unmastered MIDI preview/fallback loaded: "
-                              + juce::String(audioEngine.getTotalDuration(), 1) + "s",
+            setStatusText("Dry/unmastered MIDI preview loaded: "
+                              + juce::String(audioEngine.getTotalDuration(), 1)
+                              + "s (no live FX/mastering)",
                           AppColours::success);
         }
     }

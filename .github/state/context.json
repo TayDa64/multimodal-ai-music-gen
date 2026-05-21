@@ -3,6 +3,188 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:25:58Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 076 as completed/PASS with the combined pytest checkpoint and JUCE Debug build proof, moved the workflow back to implementation, and pointed next_phase to Task 077 while leaving Task 082 dependent on Tasks 077-081."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:25:58Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 076 checkpoint aggregation, exact verification proofs, touched state files, and rollback state."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:25:58Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable pre-UI gate-closing checkpoint rule: combined protocol/smoke pytest plus JUCE Debug build before resuming the UI backlog; Tasks 077-081 unlock after PASS, while Task 082 stays blocked on 077-081."
+    },
+    {
+      "path": "multimodal_gen\\server\\osc_server.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:17:12Z",
+      "by_agent": "builder",
+      "changes": "Task 075 now caches the last successful generation context and truthfully renders a real whole-project selected/default/real-comp take arrangement to a real WAV instead of sending fake success."
+    },
+    {
+      "path": "tests\\test_protocol.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:17:12Z",
+      "by_agent": "builder",
+      "changes": "Task 075 protocol coverage now includes the live JUCE trackless use_comp=true render request shape plus backend success and failure behavior regressions."
+    },
+    {
+      "path": "test_osc_client.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:17:12Z",
+      "by_agent": "builder",
+      "changes": "Task 075 added select-take, render-take, and render-selected helpers for explicit take renders and live selected-arrangement renders."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:17:12Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 075 as completed with implementation, tests, post-verifier proof, and advanced the workflow to the Task 076 verification gate."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:17:12Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 075 touched files, implementation summaries, verification proofs, and rollback state."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T19:17:12Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable truthful take-rendering rule for trackless use_comp=true JUCE requests and the no-fabricated-comp-region constraint."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Task 074 removed the stale multimodal_gen.instrument_index import and replaced the metadata-only smart_instruments fail-open branch with an honest verbose warning path that emits no smart_instruments output."
+    },
+    {
+      "path": "tests\\test_sprint11_batch_c.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Task 074 regressions now assert the honest fail-open smart-selection behavior instead of expecting archived metadata-only output."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Task 074 diagnostics regressions now cover removal of the stale smart-selection import path and the fail-open no-smart_instruments contract."
+    },
+    {
+      "path": "multimodal_gen\\prompt_parser.py",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Task 074 updated comments and docstrings to remove stale InstrumentResolver claims while leaving the live InstrumentResolutionService/instrument_service path unchanged."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 074 as completed with the minimal honest fail-open slice, narrowed the actual runtime file list, and advanced the next task to Task 075."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 074 touched files, implementation summaries, verification proofs, and rollback state."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:45:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable fail-open rule that archived metadata-only smart-selection branches should be removed with honest warnings and no fabricated smart_instruments output."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:30:00Z",
+      "by_agent": "builder",
+      "changes": "Task 073 kept backend-generated audio as the mastered/reference path, tightened shared audio-file statuses to provenance-neutral wording, and removed any implication of live FX/mastering parity."
+    },
+    {
+      "path": "juce\\Source\\UI\\TransportComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:30:00Z",
+      "by_agent": "builder",
+      "changes": "Task 073 tightened live preview copy to dry/unmastered with explicit no-live-FX/mastering wording and limited FX/mastering status text to backend render parity or no backend apply path."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:30:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 073 as completed with the conservative honesty-only slice, narrowed the actual runtime file list, and advanced the next task to Task 074."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:30:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 073 touched files, implementation summaries, verification proofs, and rollback state."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:30:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable rule that live MIDI preview stays dry/unmastered with no live FX/mastering until real mixerGraph live processing exists."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:15:00Z",
+      "by_agent": "builder",
+      "changes": "Task 072 reused the existing /analyze file flow for Mastering Suite reference analysis and replaced apply/stem/settings implications with honest unavailable/local-only status text."
+    },
+    {
+      "path": "juce\\Source\\UI\\Mastering\\MasteringSuitePanel.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:15:00Z",
+      "by_agent": "builder",
+      "changes": "Task 072 disabled unsupported header/preset/stem/export/apply affordances, clarified that only Reference Analyze is wired, replaced the fake spectrum placeholder with honest text, and made the stem tab visibly unavailable."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 072 as completed and verified, narrowed the actual modified file list, and advanced the next phase to Task 073."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded Task 072 touched runtime files, implementation summaries, verification proofs, and rollback state."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T13:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the Task 072 decision to reuse the existing /analyze path and mark unsupported Mastering Suite actions unavailable instead of inventing new contracts."
+    },
+    {
       "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "action": "modified",
       "timestamp": "2026-05-21T12:00:00Z",
@@ -3890,6 +4072,126 @@
   ],
   "changes_made": [
     {
+      "file": ".github/state/orchestration.json",
+      "description": "Recorded Task 076 checkpoint completion and advanced the workflow back to implementation.",
+      "diff_summary": "Marked post-072-075-runtime-regression-checkpoint-076 completed with the exact 81-pass pytest checkpoint and JUCE Debug MSBuild proof, set current_phase=implement, moved metadata.next_phase to playback-capability-visibility-ui-077, and preserved Task 082's dependency on Tasks 077-081.",
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Captured the durable pre-UI checkpoint rule before resuming UI polish.",
+      "diff_summary": "Added a successful pattern and decision requiring the combined protocol/smoke pytest checkpoint plus a JUCE Debug build to close the pre-UI honesty/runtime gate; after PASS, Tasks 077-081 may start, but Task 082 remains blocked until they finish.",
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "file": ".github/state/context.json",
+      "description": "Recorded Task 076 proofs, touched files, and rollback state.",
+      "diff_summary": "Prepended Task 076 files_touched, changes_made, exact verifications, and a rollback point for the checkpoint aggregation that closed the pre-UI gate after Tasks 072-075.",
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "file": "multimodal_gen/server/osc_server.py",
+      "description": "Made take rendering truthful and file-backed.",
+      "diff_summary": "osc_server now caches last successful render context and truthfully renders selected/default/real-comp whole-project take arrangements instead of sending fake success; it accepts the live trackless use_comp=true directory-output request shape, normalizes output_path to a concrete WAV, renders through AudioRenderer.render_midi_file, and only emits /take/rendered after a real file exists while failures go through /error.",
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "file": "tests/test_protocol.py",
+      "description": "Extended protocol coverage for live JUCE take rendering and failure behavior.",
+      "diff_summary": "test_protocol now covers the live JUCE trackless use_comp=true render request shape plus backend handler behavior and failure modes, including cached-generation requirements, selected/default/comp whole-project rendering semantics, take-id normalization, and /error-only failure behavior.",
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "file": "test_osc_client.py",
+      "description": "Added take-selection and render helpers to the OSC test client.",
+      "diff_summary": "test_osc_client now has select-take, render-take, and render-selected helpers so explicit track/take renders and the live selected-arrangement request shape can be exercised from the CLI.",
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "file": "main.py",
+      "description": "Removed the stale archived smart-selection import and made the fail-open path honest.",
+      "diff_summary": "main.py no longer imports multimodal_gen.instrument_index, the old metadata-only smart_instruments branch is replaced with a verbose warning only when sonic adjectives are present, and the fail-open path emits no smart_instruments output while preserving the live InstrumentResolutionService/instrument_service flow.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "file": "multimodal_gen/prompt_parser.py",
+      "description": "Removed stale resolver language from parser comments and docstrings.",
+      "diff_summary": "Updated prompt_parser commentary/documentation to stop claiming a live InstrumentResolver path while leaving runtime parser behavior and the current live service path unchanged.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "file": "tests/test_sprint11_batch_c.py and tests/test_main_render_diagnostics.py",
+      "description": "Aligned focused regressions with the honest fail-open smart-selection contract.",
+      "diff_summary": "The touched tests now prove the stale archived import path is gone, verbose sonic-adjective fail-open behavior warns honestly, and no smart_instruments payload is fabricated when optional smart metadata is unavailable.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Recorded Task 074 completion, proof, and the follow-on phase state.",
+      "diff_summary": "Marked smart-instrument-selection-path-cleanup-074 completed with the minimal honest fail-open implementation/tests/post_verifier proof and advanced metadata.next_phase to Task 075.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Captured the durable archived-smart-metadata fail-open rule.",
+      "diff_summary": "Added a successful pattern and Task 074 decision preferring honest warnings plus omission of smart_instruments output over reviving dead modules or fabricating success metadata.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "file": ".github/state/context.json",
+      "description": "Recorded Task 074 touched files, verification proofs, and rollback state.",
+      "diff_summary": "Prepended Task 074 files_touched, changes_made, verifications, and a rollback point for the minimal honest fail-open completion slice.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "file": "juce/Source/MainComponent.cpp",
+      "description": "Made backend/reference provenance claims truthful without adding live mixer routing.",
+      "diff_summary": "Kept backend-generated audio as the mastered/reference path, made shared generic audio-file/reference statuses provenance-neutral, and avoided implying live FX/mastering parity because no mixerGraph.processBlock(...) path was added.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "file": "juce/Source/UI/TransportComponent.cpp",
+      "description": "Tightened transport/live-preview status copy around live FX/mastering availability.",
+      "diff_summary": "Live MIDI preview now reads as dry/unmastered with explicit no-live-FX/mastering wording, while FX-chain/mastering status text only claims backend render parity or states that no backend apply path exists.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Recorded Task 073 conservative honesty-only completion and advanced the next task to 074.",
+      "diff_summary": "Marked live-preview-fx-mastering-contract-truthfulness-073 completed with narrowed actual runtime files, implementation/test/post-verifier proof, and moved metadata.next_phase to smart-instrument-selection-path-cleanup-074.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Captured the durable no-live-FX/mastering copy rule until real mixerGraph live processing exists.",
+      "diff_summary": "Added a successful pattern and decision reserving backend-mastered claims for generation-result audio and keeping live MIDI preview explicitly dry/unmastered.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "file": ".github/state/context.json",
+      "description": "Recorded Task 073 touched files, verification proofs, and rollback state.",
+      "diff_summary": "Prepended Task 073 files_touched, changes_made, verifications, and a rollback point for the conservative honesty-only completion slice.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "file": "juce/Source/MainComponent.cpp",
+      "description": "Wired truthful Mastering Suite reference analysis through the existing backend analysis path and made unsupported actions report honest availability.",
+      "diff_summary": "MainComponent::analyzeReferenceRequested(...) now calls oscBridge->sendAnalyzeFile(file, false); applyMasteringRequested(...), separateStemsRequested(...), and masteringSettingsChanged(...) now use honest unavailable/local-only status text instead of implying real backend mastering or stem processing.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
+      "file": "juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
+      "description": "Made the Mastering Suite panel visibly honest about what is and is not wired.",
+      "diff_summary": "Disabled unsupported header/preset/stem/export/apply actions, clarified that only Reference Analyze is wired, replaced the fake in-panel spectrum placeholder with honest unavailable text, and made the stem tab visibly unavailable.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Recorded Task 072 completion, proof, and follow-on phase state.",
+      "diff_summary": "Marked mastering-suite-action-contract-honest-availability-072 completed, added concise implementation/tests/post_verifier proof, and advanced metadata.next_phase to Task 073.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
       "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
       "description": "Appended the 2026-05-21 Concrete Task 072+ implementation backlog near the end of the upgrade plan.",
       "diff_summary": "Added Tasks 072-076 as the concrete pre-UI execution gate and Tasks 077-082 as the remaining post-gate UI/UX backlog, grounded in current code truths and separated from backend quality-warning follow-ups.",
@@ -4789,6 +5091,139 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "Task 076 pre-UI runtime checkpoint pytest aggregation",
+      "result": "PASS",
+      "details": "Set-Location c:\\dev\\MUSE-ai\\MUSE; .\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q: 81 passed, 6 warnings in 9.94s.",
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 076 JUCE Debug build checkpoint",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal: exit 0. Key proof line: MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe",
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 075 diagnostics and post-verifier review",
+      "result": "PASS",
+      "details": "VS Code diagnostics / get_errors for multimodal_gen/server/osc_server.py, tests/test_protocol.py, and test_osc_client.py reported no errors. Post-verifier verdict PASS_WITH_NITS: no fake success remains; failures use /error; live JUCE trackless use_comp=true output-dir request is accepted; selected/default/real-comp whole-project semantics work; remaining limitation is honest lack of arbitrary frontend-only comp-region rendering and deeper integration proof is deferred to Task 076 runtime checkpoint.",
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 075 focused take-render regression guard tests",
+      "result": "PASS",
+      "details": "pytest tests/test_protocol.py -q -k \"TakeRenderBackend or live_juce_selected_render_shape\": 8 passed, 39 deselected.",
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 075 broader protocol pytest",
+      "result": "PASS",
+      "details": "pytest tests/test_protocol.py -q: 47 passed, 6 warnings.",
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 074 Python diagnostics",
+      "result": "PASS",
+      "details": "VS Code diagnostics for main.py, tests/test_sprint11_batch_c.py, tests/test_main_render_diagnostics.py, and multimodal_gen/prompt_parser.py reported no errors.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 074 whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check passed with no output.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 074 focused smart-selection regression guard tests",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_sprint11_batch_c.py tests/test_instrument_manager.py tests/test_main_render_diagnostics.py tests/test_sprint11_batch_a.py tests/test_sprint10_batch_c.py -q -ra: 61 passed in 5.21s.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "type": "post-verifier",
+      "target": "smart-instrument-selection-path-cleanup-074",
+      "result": "PASS",
+      "details": "Verifier confirmed the minimal honest fail-open slice: main.py no longer imports multimodal_gen.instrument_index, the archived metadata-only smart_instruments branch was replaced with an honest verbose warning when sonic adjectives appear without optional smart metadata, the live InstrumentResolutionService/instrument_service path remained unchanged, no smart_instruments output is emitted on the fail-open path, and prompt_parser comments/docstrings no longer claim a live InstrumentResolver path.",
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 073 C++ diagnostics",
+      "result": "PASS",
+      "details": "VS Code diagnostics for juce/Source/MainComponent.cpp and juce/Source/UI/TransportComponent.cpp reported no errors.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 073 whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check passed with no output.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 073 JUCE Debug x64 build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal exited 0.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 073 JUCE Release x64 build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal exited 0.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "type": "post-verifier",
+      "target": "live-preview-fx-mastering-contract-truthfulness-073",
+      "result": "PASS_WITH_NITS",
+      "details": "Verifier confirmed the conservative honesty-only slice: no wording still implies live FX/mastering parity, backend-generated audio remains the mastered/reference path, and live MIDI preview stays dry/unmastered with no live FX/mastering. Remaining generic 'audio file/reference' wording is broad but not false.",
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072 C++ diagnostics",
+      "result": "PASS",
+      "details": "VS Code diagnostics for juce/Source/MainComponent.cpp and juce/Source/UI/Mastering/MasteringSuitePanel.cpp reported no errors.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072 whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check passed.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072 protocol and OSC regression guard tests",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py test_osc_client.py -q: 39 passed, 6 existing warnings.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072 JUCE Debug build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal passed.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
+    {
+      "type": "post-verifier",
+      "target": "mastering-suite-action-contract-honest-availability-072",
+      "result": "PASS",
+      "details": "Verifier confirmed that Reference Analyze now reuses the existing /analyze file flow, unsupported mastering/stem/export/header actions are honestly unavailable, protocol/backend/OSCBridge stayed unchanged, and the only remaining issue is a non-blocking UX nit that the shared analyze-result dialog copy is generic rather than mastering-specific.",
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
     {
       "type": "pre",
       "target": "Task 072+ source-of-truth probe",
@@ -6270,6 +6705,56 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-before-task-076-completion-aggregation",
+      "description": "State before recording Task 076 pre-UI runtime checkpoint completion and unlocking the post-gate UI backlog.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T19:25:58Z"
+    },
+    {
+      "id": "rollback-before-task-075-completion-aggregation",
+      "description": "State before recording Task 075 real take rendering completion and verification proof.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T19:17:12Z"
+    },
+    {
+      "id": "rollback-before-task-074-completion-aggregation",
+      "description": "State before recording Task 074 minimal honest fail-open completion and verification proof.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T13:45:00Z"
+    },
+    {
+      "id": "rollback-before-task-073-completion-aggregation",
+      "description": "State before recording Task 073 conservative honesty-only completion and verification proof.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T13:30:00Z"
+    },
+    {
+      "id": "rollback-before-task-072-completion-aggregation",
+      "description": "State before recording Task 072 implementation and verification proof.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T13:15:00Z"
+    },
     {
       "id": "rollback-before-task-072-082-backlog-planning",
       "description": "State before the 2026-05-21 docs/state-only Task 072+ backlog planning pass.",

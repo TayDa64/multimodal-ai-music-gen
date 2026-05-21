@@ -1117,12 +1117,13 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                                   : result.midiPath);
         currentStatus = outputFile.existsAsFile()
                             ? (juce::String(hasMasteredAudio
-                                                ? "Generated mastered audio (backend): "
-                                                : "Generated unmastered MIDI preview/fallback: ")
-                               + outputFile.getFileNameWithoutExtension())
+                                                ? "Generated backend mastered reference: "
+                                                : "Generated dry/unmastered MIDI preview/fallback: ")
+                               + outputFile.getFileNameWithoutExtension()
+                               + (hasMasteredAudio ? "" : " (no live FX/mastering)"))
                             : juce::String(hasMasteredAudio
-                                               ? "Generation complete: mastered audio (backend)"
-                                               : "Generation complete: unmastered MIDI preview/fallback");
+                                               ? "Generation complete: backend mastered reference"
+                                               : "Generation complete: dry/unmastered MIDI preview/fallback (no live FX/mastering)");
     }
     generationStatus = GenerationStatus::Completed;
     generationCompleteTime = juce::Time::getCurrentTime();
@@ -1163,8 +1164,9 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                 applyGeneratedInstrumentSamples(result);
 
                 if (result.audioPath.isEmpty())
-                    currentStatus = "Loaded unmastered MIDI preview/fallback: "
-                                    + midiFile.getFileNameWithoutExtension();
+                    currentStatus = "Loaded dry/unmastered MIDI preview/fallback: "
+                                    + midiFile.getFileNameWithoutExtension()
+                                    + " (no live FX/mastering)";
             }
         }
 
@@ -1176,14 +1178,14 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
             if (audioFile.existsAsFile())
             {
                 if (audioEngine.loadAudioFile(audioFile))
-                    currentStatus = "Loaded mastered audio/reference: "
+                    currentStatus = "Loaded backend mastered reference: "
                                     + audioFile.getFileNameWithoutExtension();
                 else
-                    currentStatus = "Mastered audio load failed; using unmastered MIDI preview/fallback";
+                    currentStatus = "Backend mastered reference load failed; using dry/unmastered MIDI preview/fallback (no live FX/mastering)";
             }
             else
             {
-                currentStatus = "Mastered audio missing; using unmastered MIDI preview/fallback";
+                currentStatus = "Backend mastered reference missing; using dry/unmastered MIDI preview/fallback (no live FX/mastering)";
             }
         }
         
@@ -1201,9 +1203,9 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
         
         // Show completion message (no callback to prevent accidental triggers)
         juce::String message = "Generation complete!\n\n";
-        message += "Unmastered MIDI preview/fallback: " + result.midiPath + "\n";
+        message += "Dry/unmastered MIDI preview/fallback (no live FX/mastering): " + result.midiPath + "\n";
         if (result.audioPath.isNotEmpty())
-            message += "Mastered audio reference (backend): " + result.audioPath + "\n";
+            message += "Backend mastered reference: " + result.audioPath + "\n";
         message += "\nDuration: " + juce::String(result.duration, 1) + "s";
         message += "\n\nThe file has been added to Recent Files.";
         
@@ -1487,9 +1489,10 @@ void MainComponent::cancelRequested()
 void MainComponent::fileSelected(const juce::File& file)
 {
     if (file.hasFileExtension(".wav;.wave;.aiff;.aif;.flac;.mp3;.ogg"))
-        currentStatus = "Loaded mastered audio/reference: " + file.getFileName();
+        currentStatus = "Loaded audio file/reference: " + file.getFileName();
     else if (file.hasFileExtension(".mid;.midi"))
-        currentStatus = "Loaded unmastered MIDI preview/fallback: " + file.getFileName();
+        currentStatus = "Loaded dry/unmastered MIDI preview/fallback: " + file.getFileName()
+                        + " (no live FX/mastering)";
     else
         currentStatus = "Loaded: " + file.getFileName();
     
@@ -1607,22 +1610,18 @@ void MainComponent::updateControlsNextOverridesUi()
 // MasteringSuitePanel::Listener implementation
 void MainComponent::masteringSettingsChanged(MasteringSuitePanel* /*panel*/)
 {
-    // Handle mastering settings changes
-    currentStatus = "Mastering settings updated";
+    // Handle mastering UI-only settings changes
+    currentStatus = "Mastering UI settings changed locally only; no backend apply path is wired and live preview stays dry/unmastered";
     repaint();
 }
 
 void MainComponent::applyMasteringRequested(const juce::String& processorType, const juce::var& settings)
 {
-    if (!ensureBackendConnected("Apply mastering"))
-        return;
-    
     DBG("Mastering process requested: " << processorType << " with settings: " << juce::JSON::toString(settings));
-    
-    // TODO: Send OSC message to backend for mastering processing
-    // oscBridge->sendMasteringProcess(processorType, settings);
-    
-    currentStatus = "Processing: " + processorType;
+
+    juce::ignoreUnused(processorType, settings);
+
+    currentStatus = "Mastering apply unavailable: no backend action is wired and live preview stays dry/unmastered";
     repaint();
 }
 
@@ -1632,25 +1631,19 @@ void MainComponent::analyzeReferenceRequested(const juce::File& file)
         return;
     
     DBG("Reference analysis requested for: " << file.getFullPathName());
-    
-    // TODO: Send OSC message to backend for reference analysis
-    // oscBridge->sendAnalyzeReference(file.getFullPathName());
-    
+
     currentStatus = "Analyzing reference: " + file.getFileName();
+    oscBridge->sendAnalyzeFile(file, false);
     repaint();
 }
 
 void MainComponent::separateStemsRequested(const juce::File& file)
 {
-    if (!ensureBackendConnected("Separate stems"))
-        return;
-    
     DBG("Stem separation requested for: " << file.getFullPathName());
-    
-    // TODO: Send OSC message to backend for stem separation
-    // oscBridge->sendSeparateStems(file.getFullPathName());
-    
-    currentStatus = "Separating stems: " + file.getFileName();
+
+    juce::ignoreUnused(file);
+
+    currentStatus = "Stem separation unavailable: no backend action is wired yet";
     repaint();
 }
 
@@ -1911,7 +1904,7 @@ void MainComponent::fxChainChanged(FXChainPanel* panel)
     if (panel == nullptr) return;
     
     DBG("FX chain updated");
-    currentStatus = "FX chain updated";
+    currentStatus = "FX chain updated for backend render parity only; live MIDI preview stays dry/unmastered";
     
     // Apply FX chain to real-time MixerGraph
     auto& mixerGraph = audioEngine.getMixerGraph();
@@ -2615,7 +2608,25 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
             audioEngine.pause();
         else
             audioEngine.play();
-        currentStatus = audioEngine.isPlaying() ? "Playing" : "Paused";
+
+        if (audioEngine.isPlaying())
+        {
+            if (audioEngine.hasAudioFileLoaded())
+                currentStatus = "Playing audio file/reference";
+            else if (audioEngine.hasMidiLoaded())
+                currentStatus = "Playing dry/unmastered MIDI preview (no live FX/mastering)";
+            else
+                currentStatus = "Playing";
+        }
+        else
+        {
+            if (audioEngine.hasAudioFileLoaded())
+                currentStatus = "Paused audio file/reference";
+            else if (audioEngine.hasMidiLoaded())
+                currentStatus = "Paused dry/unmastered MIDI preview (no live FX/mastering)";
+            else
+                currentStatus = "Paused";
+        }
         return true;
     }
     
