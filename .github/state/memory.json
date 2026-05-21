@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Before further UI/UX polish, dead or partial mastering/take affordances must be wired end-to-end or honestly disabled",
+        "context": "Current source-of-truth still shows MainComponent mastering/reference/stem actions stopping at commented-out sends, no OSCBridge mastering/stem sender methods, no live mixerGraph.processBlock preview path, and osc_server take rendering returning fake success. UI polish should follow only after those surfaces are real or clearly unavailable. Separate trap/modern beat, R&B/neo-soul, lofi/boom-bap, house/ambient/pop, and Ethiopian-family quality warnings remain a backend follow-up track because those families are still represented by no-op profiles in multimodal_gen/fluidsynth_profiles.py.",
+        "timestamp": "2026-05-21T12:00:00Z"
+      },
+      {
         "pattern": "Clean sample-pack prefixes with additive display labels, never by mutating canonical instrument identity",
         "context": "For instrument packs with source prefixes like RnB- and Inst-, the safe UX fix is to emit a display-only label and preserve original name, filename, id, path, absolute_path, category detection, matching, caches, and loading. UI fallbacks may sanitize older manifests, but generation/audio behavior must continue to use preserved paths/ids.",
         "timestamp": "2026-05-18T20:35:00Z"
@@ -600,6 +605,16 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Make Tasks 072-076 the pre-UI gate and keep current cross-genre quality warnings on a separate backend follow-up track.",
+      "rationale": "The immediate blockers are honesty and contract gaps in mastering, live preview FX/mastering, smart instrument selection, and take rendering. trap/modern beat brightness+drum presence, R&B/neo-soul low drum presence, lofi/boom-bap brightness+drum presence plus missing wow/flutter DSP, house/ambient/pop brightness, and Ethiopian-family drum presence should stay off the UI gate because they are already represented by no-op profile families and are not the same class of issue as dead or partial UI affordances.",
+      "alternatives_considered": [
+        "Continue UI polish while mastering/take actions remain partially wired.",
+        "Treat all remaining backend quality warnings as the immediate UI gate.",
+        "Reopen loadAudioFile or rock-family guitar preview preference as blockers even though they are already implemented."
+      ],
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
     {
       "decision": "Do not add simdjson for instrument startup until JSON parsing is measured as a significant bottleneck.",
       "rationale": "Observed startup work is dominated by filesystem/audio/profile scanning and OSC chunking/manifest transport, and the current fix changes only display labels. Adding a new JSON dependency without profiling would risk complexity without proven benefit.",
@@ -1490,5 +1505,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-18T20:35:00Z"
+  "last_updated": "2026-05-21T12:00:00Z"
 }

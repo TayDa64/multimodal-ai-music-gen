@@ -567,8 +567,8 @@ Set-Location c:\dev\MUSE-ai\MUSE
 
 ```powershell
 Set-Location c:\dev\MUSE-ai\MUSE
-npm run build:debug
-npm run build
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
 ```
 
 ### UI Phase B — Theme token unification
@@ -646,8 +646,8 @@ npm run build
 
 ```powershell
 Set-Location c:\dev\MUSE-ai\MUSE
-npm run build:debug
-npm run build
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
 ```
 
 **UI acceptance:** visual improvements compile, preserve workflows, and do not ship rock UI choices that imply backend support before the generation path is ready.
@@ -744,8 +744,8 @@ npm run build
 - **Verification:**
 
   ```powershell
-  npm run build:debug
-  npm run build
+  & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+  & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
   ```
 
 ## Final readiness criteria
@@ -1423,3 +1423,112 @@ The answer to the listening question is therefore split:
 
 - **Controlled FluidSynth proof gaps:** expected for that tiny hand-authored technical proof MIDI because it contains rests.
 - **Full generated/procedural rock-song gaps or long near-silent tails:** **not expected**. They were a procedural tempo-map bug and are now fixed by sharing the global MIDI tempo map across note tracks and stems.
+
+## Concrete Task 072+ implementation backlog — 2026-05-21
+
+### A) Pre-UI execution gate (Tasks 072-076)
+
+#### Task 072 — Mastering Suite action contract / honest availability
+
+- **Source-of-truth gap:** `juce/Source/MainComponent.cpp::applyMasteringRequested()`, `analyzeReferenceRequested()`, and `separateStemsRequested()` still stop at TODO/commented-out send calls. `juce/Source/Communication/OSCBridge.h/.cpp` already has `sendAnalyzeFile()` / `sendAnalyzeUrl()` and take-management senders, but there is still no `sendMasteringProcess` or `sendSeparateStems`-style sender contract today.
+- **File targets:** `juce/Source/MainComponent.cpp`, `juce/Source/Communication/OSCBridge.h`, `juce/Source/Communication/OSCBridge.cpp`, `juce/Source/UI/Mastering/MasteringSuitePanel.h`, `juce/Source/UI/Mastering/MasteringSuitePanel.cpp`, `multimodal_gen/server/osc_server.py`, `tests/test_protocol.py`, `test_osc_client.py`.
+- **Guardrails:** Either wire a real end-to-end contract or keep the affected affordances explicitly unavailable/disabled; do not imply mastering or stem actions work before request/response plumbing exists; preserve existing analyze-file / analyze-url behavior.
+- **Verification commands:**
+
+  ```powershell
+  Set-Location c:\dev\MUSE-ai\MUSE
+  .\.venv\Scripts\python.exe -m pytest tests/test_protocol.py test_osc_client.py -q
+  & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+  ```
+
+#### Task 073 — Live preview FX/mastering contract / mixer graph truthfulness
+
+- **Source-of-truth gap:** `juce/Source/Audio/AudioEngine.cpp::getNextAudioBlock()` still has no `mixerGraph.processBlock(...)` call in the live preview path. The current honest labels from the earlier preview-parity work must remain until real-time routing is actually correct.
+- **File targets:** `juce/Source/Audio/AudioEngine.cpp`, `juce/Source/Audio/AudioEngine.h`, `juce/Source/Audio/MixerGraph.h`, `juce/Source/Audio/MixerGraph.cpp`, `juce/Source/UI/TransportComponent.cpp`, `juce/Source/MainComponent.cpp`.
+- **Guardrails:** Do not double-process the backend WAV path; preserve backend-rendered WAV playback as the mastered reference unless live preview parity is truly implemented; if real-time routing is still unsafe, keep preview explicitly unmastered/disabled instead of implying parity.
+- **Verification commands:**
+
+  ```powershell
+  Set-Location c:\dev\MUSE-ai\MUSE
+  & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+  & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal
+  ```
+
+#### Task 074 — Smart instrument selection path cleanup (`instrument_index`)
+
+- **Source-of-truth gap:** `main.py` still imports `multimodal_gen.instrument_index` in the sonic-adjective smart-selection branch, but no live `multimodal_gen/instrument_index.py` exists. `tests/test_sprint11_batch_c.py` currently asserts `multimodal_gen._deprecated.instrument_index` remains archived.
+- **File targets:** `main.py`, `multimodal_gen/server/worker.py`, `multimodal_gen/instrument_manager.py`, `tests/test_sprint11_batch_c.py`, `tests/test_instrument_manager.py`.
+- **Guardrails:** Do not silently unarchive `_deprecated.instrument_index` just to satisfy the import; either replace the stale path with a supported resolver/index flow or remove the dead branch and keep an honest fail-open warning; preserve the completed display-name cleanup and current expansion browser flows.
+- **Verification commands:**
+
+  ```powershell
+  Set-Location c:\dev\MUSE-ai\MUSE
+  .\.venv\Scripts\python.exe -m pytest tests/test_sprint11_batch_c.py tests/test_instrument_manager.py -q
+  ```
+
+#### Task 075 — Real take rendering
+
+- **Source-of-truth gap:** `multimodal_gen/server/osc_server.py` still has `# TODO: Actually render the take (integrate with audio_renderer)` and currently returns a success-style `TAKE_RENDERED` acknowledgment from request fields instead of a real render result.
+- **File targets:** `multimodal_gen/server/osc_server.py`, `multimodal_gen/server/worker.py`, `multimodal_gen/audio_renderer.py`, `tests/test_protocol.py`, `test_osc_client.py`.
+- **Guardrails:** Do not emit take-render success unless a real file render completed or a truthful failure payload is returned; preserve request IDs, existing take selection / comp flows, and current transport semantics.
+- **Verification commands:**
+
+  ```powershell
+  Set-Location c:\dev\MUSE-ai\MUSE
+  .\.venv\Scripts\python.exe -m pytest tests/test_protocol.py test_osc_client.py -q
+  ```
+
+#### Task 076 — Post-072-075 runtime regression checkpoint before UI work
+
+- **Source-of-truth gap:** After Tasks 072-075, the repo still needs a fresh regression checkpoint proving that dead or partial mastering/take/smart-selection surfaces are either real or honestly unavailable before more UI/UX polish resumes.
+- **File targets:** `tests/test_protocol.py`, `tests/test_sprint11_batch_c.py`, `tests/test_smoke_1990s_rock_contract.py`, `tests/test_golden_prompts_smoke.py`, `docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md`, `.github/state/orchestration.json`, `.github/state/context.json`, `.github/state/memory.json`.
+- **Guardrails:** No new UI/UX polish until this checkpoint passes. Keep the remaining cross-genre quality warnings as a separate backend follow-up track, not the pre-UI gate.
+- **Verification commands:**
+
+  ```powershell
+  Set-Location c:\dev\MUSE-ai\MUSE
+  .\.venv\Scripts\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+  & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" juce\build\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal
+  ```
+
+Separate backend follow-up track, **not** the pre-UI gate: trap / modern beat brightness + drum presence; R&B / neo-soul low drum presence; lofi / boom-bap brightness + drum presence plus missing wow/flutter DSP; house / ambient / pop brightness; Ethiopian-family drum presence. Those families are currently represented by no-op profiles in `multimodal_gen/fluidsynth_profiles.py` and should stay on the backend quality track while Tasks 072-076 close the truthfulness/runtime gate.
+
+### B) Remaining UI/UX implementation backlog (Tasks 077+)
+
+These tasks are **after** Task 076 and should not start while the pre-UI gate remains open.
+
+#### Task 077 — Playback / capability visibility polish
+
+- **Depends on:** Task 076, Task 072, Task 073.
+- **Likely file targets:** `juce/Source/UI/TransportComponent.cpp`, `juce/Source/MainComponent.cpp`, `juce/Source/UI/Mastering/MasteringSuitePanel.cpp`.
+- **Scope:** Make mastered-reference playback, unmastered preview, live-FX availability, and disabled-action states obvious without implying unsupported capability.
+
+#### Task 078 — Mastering Suite results UX
+
+- **Depends on:** Task 076, Task 072.
+- **Likely file targets:** `juce/Source/UI/Mastering/MasteringSuitePanel.h`, `juce/Source/UI/Mastering/MasteringSuitePanel.cpp`, `juce/Source/MainComponent.cpp`, `juce/Source/UI/FloatingToolWindow.cpp`.
+- **Scope:** Add clear queued/running/success/failure states, returned analysis/mastering summaries, and honest unavailable/error messaging.
+
+#### Task 079 — Instrument browser / smart-selection workflow polish
+
+- **Depends on:** Task 076, Task 074.
+- **Likely file targets:** `juce/Source/UI/InstrumentBrowserPanel.h`, `juce/Source/UI/InstrumentBrowserPanel.cpp`, `juce/Source/UI/ExpansionBrowserPanel.h`, `juce/Source/UI/ExpansionBrowserPanel.cpp`, `juce/Source/MainComponent.cpp`.
+- **Scope:** Tighten smart-selection visibility, source badges, and fallback messaging once the stale `instrument_index` path is removed or replaced.
+
+#### Task 080 — Takes / arrangement workflow polish
+
+- **Depends on:** Task 076, Task 075.
+- **Likely file targets:** `juce/Source/UI/TakeLaneComponent.h`, `juce/Source/UI/TakeLaneComponent.cpp`, `juce/Source/UI/TimelineComponent.h`, `juce/Source/UI/TimelineComponent.cpp`, `juce/Source/MainComponent.cpp`.
+- **Scope:** Improve take-render state visibility, comp/render feedback, and arrangement/take handoff polish after take rendering is real.
+
+#### Task 081 — Mixer / FX workflow polish
+
+- **Depends on:** Task 076, Task 073.
+- **Likely file targets:** `juce/Source/UI/Mixer/MixerComponent.h`, `juce/Source/UI/Mixer/MixerComponent.cpp`, `juce/Source/UI/TransportComponent.cpp`, `juce/Source/MainComponent.cpp`.
+- **Scope:** Make live-preview versus offline/mastered FX scope obvious and tighten mixer affordances only after the preview/mastering contract is truthful.
+
+#### Task 082 — Final MPC-inspired workflow pass
+
+- **Depends on:** Tasks 077-081.
+- **Likely file targets:** `juce/Source/UI/Theme/ColourScheme.h`, `juce/Source/UI/Theme/LayoutConstants.h`, `juce/Source/UI/TrackList/TrackHeaderComponent.cpp`, `juce/Source/MainComponent.cpp`.
+- **Scope:** Apply the final integrated MPC-inspired polish pass only after capability surfaces, take rendering, and workflow truthfulness are stable.

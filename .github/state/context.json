@@ -1,7 +1,35 @@
 {
   "version": "1.0",
-  "session_id": "session-2026-05-18-instrument-display-name-cleanup-071",
+  "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-21T12:00:00Z",
+      "by_agent": "builder",
+      "changes": "Appended the 2026-05-21 Concrete Task 072+ implementation backlog with the pre-UI execution gate (Tasks 072-076) and the post-gate UI/UX backlog (Tasks 077-082)."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T12:00:00Z",
+      "by_agent": "builder",
+      "changes": "Started the 2026-05-21 docs/state planning session, queued pending Tasks 072-082 with dependencies/file targets, and set the planning phase to decompose."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T12:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the Task 072+ planning pass touched files, source-grounded verifications, and rollback point."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T12:00:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable pre-UI gate rule that dead or partial mastering/take affordances must be wired or honestly disabled, with backend quality warnings tracked separately."
+    },
     {
       "path": "multimodal_gen\\server\\worker.py",
       "action": "modified",
@@ -3862,6 +3890,30 @@
   ],
   "changes_made": [
     {
+      "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Appended the 2026-05-21 Concrete Task 072+ implementation backlog near the end of the upgrade plan.",
+      "diff_summary": "Added Tasks 072-076 as the concrete pre-UI execution gate and Tasks 077-082 as the remaining post-gate UI/UX backlog, grounded in current code truths and separated from backend quality-warning follow-ups.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "file": ".github/state/orchestration.json",
+      "description": "Started a docs/state planning session for the Task 072-082 backlog and queued pending tasks with dependencies.",
+      "diff_summary": "Updated current_session, prepended pending Tasks 072-082, set current_phase=decompose, and pointed next_phase at Task 072.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Recorded the durable pre-UI gate rule for dead or partial mastering/take affordances and separated backend quality warnings from the UI gate.",
+      "diff_summary": "Added a successful pattern and decision for honest capability wiring/disablement before UI polish.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "file": ".github/state/context.json",
+      "description": "Recorded the 2026-05-21 docs/state planning pass touched files and source-grounded verifications.",
+      "diff_summary": "Updated session_id, files_touched, verifications, and rollback history for the Task 072+ backlog pass.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
       "file": "multimodal_gen/server/worker.py",
       "description": "Added display-only source-prefix stripping helper and additive scan display_name.",
       "diff_summary": "Imported re, added _LEADING_SOURCE_PREFIX_RE and instrument_display_name(), and added display_name next to unchanged name in InstrumentScanWorker payload.",
@@ -4737,6 +4789,41 @@
     }
   ],
   "verifications": [
+    {
+      "type": "pre",
+      "target": "Task 072+ source-of-truth probe",
+      "result": "PASS",
+      "details": "Confirmed current open blockers: MainComponent mastering/reference/stem actions still stop at TODO/commented-out sends; OSCBridge has analyze/take senders but no mastering/stem sender methods; AudioEngine live preview still lacks mixerGraph.processBlock; main.py still imports multimodal_gen.instrument_index while only _deprecated.instrument_index exists and tests keep it archived; osc_server take render still returns fake success. Also confirmed loadAudioFile and rock-family guitar preview preference are already implemented and not backlog blockers.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Docs/state backlog update diagnostics",
+      "result": "PASS",
+      "details": "VS Code diagnostics reported no errors in docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md, .github/state/orchestration.json, .github/state/context.json, and .github/state/memory.json after the 2026-05-21 backlog update.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072+ backlog planning whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check passed.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072+ backlog planning state JSON validity",
+      "result": "PASS",
+      "details": ".github/state/orchestration.json, .github/state/context.json, and .github/state/memory.json each passed .\\.venv\\Scripts\\python.exe -m json.tool validation.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 072+ backlog planning modified-file scope",
+      "result": "PASS",
+      "details": "Final modified files remained limited to docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md, .github/state/orchestration.json, .github/state/context.json, and .github/state/memory.json.",
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
     {
       "type": "post",
       "target": "C++ diagnostics for InstrumentBrowserPanel.h and ExpansionBrowserPanel.h",
@@ -6183,6 +6270,17 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-before-task-072-082-backlog-planning",
+      "description": "State before the 2026-05-21 docs/state-only Task 072+ backlog planning pass.",
+      "files": [
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T12:00:00Z"
+    },
     {
       "id": "rollback-before-instrument-display-name-cleanup-071",
       "description": "HEAD before additive display_name cleanup and state update.",

@@ -1,11 +1,240 @@
 {
   "version": "1.0",
   "current_session": {
-    "id": "session-2026-05-18-instrument-display-name-cleanup-071",
-    "started": "2026-05-18T20:35:00Z",
-    "user_request": "Remove leading RnB-/Inst- source-pack prefixes from user-facing instrument choices without losing established functionality, and assess whether simdjson should be added for startup parsing."
+    "id": "session-2026-05-21-task-072-082-backlog-planning",
+    "started": "2026-05-21T12:00:00Z",
+    "user_request": "Create a source-grounded docs/state-only Task 072+ implementation backlog, define the pre-UI execution gate, and compile the remaining UI/UX backlog without touching runtime code."
   },
   "task_queue": [
+    {
+      "id": "mastering-suite-action-contract-honest-availability-072",
+      "description": "Close the pre-UI honesty gap by wiring a real Mastering Suite action contract end-to-end or explicitly disabling unavailable mastering/reference/stem affordances instead of leaving TODO/commented-out sends in MainComponent.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [],
+      "files_to_modify": [
+        "juce/Source/MainComponent.cpp",
+        "juce/Source/Communication/OSCBridge.h",
+        "juce/Source/Communication/OSCBridge.cpp",
+        "juce/Source/UI/Mastering/MasteringSuitePanel.h",
+        "juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
+        "multimodal_gen/server/osc_server.py",
+        "tests/test_protocol.py",
+        "test_osc_client.py"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "live-preview-fx-mastering-contract-truthfulness-073",
+      "description": "Either implement a truthful live preview FX/mastering route or keep the current explicit unmastered-preview contract; do not imply mixer/mastering parity while AudioEngine still bypasses mixerGraph.processBlock in getNextAudioBlock().",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [
+        "mastering-suite-action-contract-honest-availability-072"
+      ],
+      "files_to_modify": [
+        "juce/Source/Audio/AudioEngine.cpp",
+        "juce/Source/Audio/AudioEngine.h",
+        "juce/Source/Audio/MixerGraph.h",
+        "juce/Source/Audio/MixerGraph.cpp",
+        "juce/Source/UI/TransportComponent.cpp",
+        "juce/Source/MainComponent.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "smart-instrument-selection-path-cleanup-074",
+      "description": "Remove or replace the stale multimodal_gen.instrument_index smart-selection path so sonic-adjective resolution no longer imports a non-existent live module while the archived _deprecated.instrument_index test remains truthful.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [],
+      "files_to_modify": [
+        "main.py",
+        "multimodal_gen/server/worker.py",
+        "multimodal_gen/instrument_manager.py",
+        "tests/test_sprint11_batch_c.py",
+        "tests/test_instrument_manager.py"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "real-take-rendering-075",
+      "description": "Replace osc_server's current fake-success TAKE_RENDERED acknowledgment with real take rendering through audio_renderer or a truthful error path.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [],
+      "files_to_modify": [
+        "multimodal_gen/server/osc_server.py",
+        "multimodal_gen/server/worker.py",
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_protocol.py",
+        "test_osc_client.py"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "post-072-075-runtime-regression-checkpoint-076",
+      "description": "Run the pre-UI runtime checkpoint after Tasks 072-075 so further UI/UX polish only starts once mastering/take/smart-selection affordances are real or honestly unavailable.",
+      "status": "pending",
+      "assigned_to": "verifier",
+      "phase": "verify",
+      "priority": "HIGH",
+      "dependencies": [
+        "mastering-suite-action-contract-honest-availability-072",
+        "live-preview-fx-mastering-contract-truthfulness-073",
+        "smart-instrument-selection-path-cleanup-074",
+        "real-take-rendering-075"
+      ],
+      "files_to_modify": [
+        "tests/test_protocol.py",
+        "tests/test_sprint11_batch_c.py",
+        "tests/test_smoke_1990s_rock_contract.py",
+        "tests/test_golden_prompts_smoke.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "playback-capability-visibility-ui-077",
+      "description": "After Task 076, polish playback/capability visibility so mastered reference playback, unmastered preview, live FX availability, and disabled actions are obvious in the UI.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [
+        "post-072-075-runtime-regression-checkpoint-076",
+        "mastering-suite-action-contract-honest-availability-072",
+        "live-preview-fx-mastering-contract-truthfulness-073"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/TransportComponent.cpp",
+        "juce/Source/MainComponent.cpp",
+        "juce/Source/UI/Mastering/MasteringSuitePanel.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "mastering-suite-results-ux-078",
+      "description": "After Task 076, add trustworthy Mastering Suite results UX for queued/running/success/failure states and returned analysis/mastering summaries.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [
+        "post-072-075-runtime-regression-checkpoint-076",
+        "mastering-suite-action-contract-honest-availability-072"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/Mastering/MasteringSuitePanel.h",
+        "juce/Source/UI/Mastering/MasteringSuitePanel.cpp",
+        "juce/Source/MainComponent.cpp",
+        "juce/Source/UI/FloatingToolWindow.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "instrument-browser-smart-selection-ui-079",
+      "description": "After Task 076, polish the instrument browser and smart-selection workflow only after the stale instrument_index path is removed or replaced with a supported resolver flow.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [
+        "post-072-075-runtime-regression-checkpoint-076",
+        "smart-instrument-selection-path-cleanup-074"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/InstrumentBrowserPanel.h",
+        "juce/Source/UI/InstrumentBrowserPanel.cpp",
+        "juce/Source/UI/ExpansionBrowserPanel.h",
+        "juce/Source/UI/ExpansionBrowserPanel.cpp",
+        "juce/Source/MainComponent.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "takes-arrangement-workflow-ui-080",
+      "description": "After Task 076, polish takes and arrangement workflow feedback only once take rendering is real and the UI can report truthful render/comp state.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [
+        "post-072-075-runtime-regression-checkpoint-076",
+        "real-take-rendering-075"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/TakeLaneComponent.h",
+        "juce/Source/UI/TakeLaneComponent.cpp",
+        "juce/Source/UI/TimelineComponent.h",
+        "juce/Source/UI/TimelineComponent.cpp",
+        "juce/Source/MainComponent.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "mixer-fx-workflow-ui-081",
+      "description": "After Task 076, polish mixer/FX workflow affordances once the live-preview versus offline/mastered FX contract is truthful.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "HIGH",
+      "dependencies": [
+        "post-072-075-runtime-regression-checkpoint-076",
+        "live-preview-fx-mastering-contract-truthfulness-073"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/Mixer/MixerComponent.h",
+        "juce/Source/UI/Mixer/MixerComponent.cpp",
+        "juce/Source/UI/TransportComponent.cpp",
+        "juce/Source/MainComponent.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
+    {
+      "id": "final-mpc-inspired-ui-pass-082",
+      "description": "After Tasks 077-081, apply the final MPC-inspired integrated polish pass once capability surfaces and workflow truthfulness are stable.",
+      "status": "pending",
+      "assigned_to": "builder",
+      "phase": "implement",
+      "priority": "MEDIUM",
+      "dependencies": [
+        "playback-capability-visibility-ui-077",
+        "mastering-suite-results-ux-078",
+        "instrument-browser-smart-selection-ui-079",
+        "takes-arrangement-workflow-ui-080",
+        "mixer-fx-workflow-ui-081"
+      ],
+      "files_to_modify": [
+        "juce/Source/UI/Theme/ColourScheme.h",
+        "juce/Source/UI/Theme/LayoutConstants.h",
+        "juce/Source/UI/TrackList/TrackHeaderComponent.cpp",
+        "juce/Source/MainComponent.cpp"
+      ],
+      "created": "2026-05-21T12:00:00Z",
+      "updated": "2026-05-21T12:00:00Z"
+    },
     {
       "id": "instrument-display-name-cleanup-071",
       "description": "Add display-only instrument labels that remove leading RnB-/Inst- source-pack prefixes while preserving canonical instrument names, paths, ids, categories, loading, matching, and generation behavior; defer simdjson pending measured JSON bottleneck evidence.",
@@ -5903,16 +6132,16 @@
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "aggregate",
+  "current_phase": "decompose",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-16T14:46:47Z",
+    "last_updated": "2026-05-21T12:00:00Z",
     "total_tasks_completed": 72,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "next-measured-cross-genre-or-rock-family-maturity-slice"
+    "next_phase": "mastering-suite-action-contract-honest-availability-072"
   },
   "sprint_11": {
     "status": "COMPLETE",
