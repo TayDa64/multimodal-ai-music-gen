@@ -383,6 +383,35 @@ class TestGenreMatchScorer:
         assert score < 0.75
         assert issues
 
+    def test_ethio_jazz_sub_heavy_missing_drums_no_longer_false_greens(self):
+        spectral = SpectralFeatures(
+            centroid_hz=1800.0,
+            rolloff_hz=8200.0,
+            flatness=0.05,
+            dynamic_range_db=9.0,
+            sub_bass_energy_ratio=0.42,
+        )
+        drums = DrumDetection(
+            drums_present=False,
+            percussive_ratio=0.03,
+            has_kick=False,
+            has_snare_or_clap=False,
+            has_hihats=False,
+            onset_density=0.6,
+        )
+
+        score, issues = GenreMatchScorer().score("ethio_jazz", spectral, drums)
+        corrections = generate_corrections(issues)
+
+        assert score < 0.60
+        assert any(i.metric_name == "sub_bass_energy_ratio" for i in issues)
+        assert any(
+            i.metric_name in {"required_drum_parts", "percussive_ratio"}
+            for i in issues
+        )
+        assert any(c.target == "bass" for c in corrections)
+        assert any(c.target == "drums" for c in corrections)
+
     def test_classical_perfect_score(self):
         """Features within classical thresholds → high score."""
         spectral = SpectralFeatures(

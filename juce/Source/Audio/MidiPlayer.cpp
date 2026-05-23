@@ -17,6 +17,63 @@ namespace mmg
 MidiPlayer::MidiPlayer()
 {
     setupSynthesiser();
+    resetBankSelectState();
+}
+
+//==============================================================================
+void MidiPlayer::resetBankSelectState()
+{
+    for (int i = 0; i < numMidiChannels; ++i)
+    {
+        bankSelectMsb[(size_t)i].store(0);
+        bankSelectLsb[(size_t)i].store(0);
+    }
+}
+
+void MidiPlayer::applyBankSelectMessage(const juce::MidiMessage& msg)
+{
+    if (!msg.isController())
+        return;
+
+    const int controller = msg.getControllerNumber();
+    if (controller != 0 && controller != 32)
+        return;
+
+    const int channelIndex = msg.getChannel() - 1;
+    if (channelIndex < 0 || channelIndex >= numMidiChannels)
+        return;
+
+    const int value = juce::jlimit(0, 127, msg.getControllerValue());
+    if (controller == 0)
+        bankSelectMsb[(size_t)channelIndex].store(value);
+    else
+        bankSelectLsb[(size_t)channelIndex].store(value);
+}
+
+int MidiPlayer::getEffectiveBankForChannelIndex(int channelIndex) const
+{
+    if (channelIndex < 0 || channelIndex >= numMidiChannels)
+        return 0;
+
+    const int msb = juce::jlimit(0, 127, bankSelectMsb[(size_t)channelIndex].load());
+    const int lsb = juce::jlimit(0, 127, bankSelectLsb[(size_t)channelIndex].load());
+    return (msb << 7) | lsb;
+}
+
+void MidiPlayer::rebuildBankSelectStateUpToEventIndex(int eventIndex)
+{
+    resetBankSelectState();
+
+    const int clampedIndex = juce::jlimit(0, combinedSequence.getNumEvents(), eventIndex);
+    for (int i = 0; i < clampedIndex; ++i)
+    {
+        const auto& msg = combinedSequence.getEventPointer(i)->message;
+        if (msg.isMetaEvent())
+            continue;
+
+        if (msg.isController())
+            applyBankSelectMessage(msg);
+    }
 }
 
 //==============================================================================
@@ -109,6 +166,7 @@ bool MidiPlayer::loadMidiFile(const juce::File& file)
     midiLoaded = true;
     currentEventIndex = 0;
     currentPositionSeconds = 0.0;
+    resetBankSelectState();
     
     // Extract metadata (tempo, time signature, etc.)
     extractMetadata();
@@ -192,6 +250,7 @@ void MidiPlayer::setMidiData(const juce::MidiFile& midi)
     midiLoaded = true;
     currentEventIndex = 0;
     currentPositionSeconds = 0.0;
+    resetBankSelectState();
     
     // Extract metadata (tempo, time signature, etc.)
     extractMetadata();
@@ -247,6 +306,7 @@ void MidiPlayer::clearMidiFile()
     currentEventIndex = 0;
     currentPositionSeconds = 0.0;
     totalDurationSeconds = 0.0;
+    resetBankSelectState();
     
     // Turn off any playing notes
     synth.allNotesOff(0, true);
@@ -320,6 +380,10 @@ void MidiPlayer::setPosition(double positionInSeconds)
         }
         currentEventIndex = i + 1;
     }
+
+    // Bank-select state should never be reused from a prior playback position.
+    // Conservatively rebuild bank state from the start of the file up to the seek point.
+    rebuildBankSelectStateUpToEventIndex(currentEventIndex);
     
     // Turn off all notes when seeking
     synth.allNotesOff(0, true);
@@ -364,6 +428,11 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
         if (!eventPtr->message.isMetaEvent())
         {
             const auto& msg = eventPtr->message;
+
+            // Bounded Bank Select support for SF2 preset switching.
+            // Track only CC0 (MSB) and CC32 (LSB) per MIDI channel.
+            if (msg.isController())
+                applyBankSelectMessage(msg);
             
             // Route note events to external instruments (Track SamplerInstruments)
             if (midiListener)
@@ -379,6 +448,12 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
                 {
                     int trackIndex = msg.getChannel() - 1;
                     midiListener->midiNoteOff(trackIndex, msg.getNoteNumber());
+                }
+                else if (msg.isProgramChange())
+                {
+                    int trackIndex = msg.getChannel() - 1;
+                    const int bank = getEffectiveBankForChannelIndex(trackIndex);
+                    midiListener->midiProgramChange(trackIndex, msg.getProgramChangeNumber(), bank);
                 }
             }
             
@@ -415,6 +490,7 @@ void MidiPlayer::renderNextBlock(juce::AudioBuffer<float>& buffer, int numSample
         playing = false;
         currentPositionSeconds = 0.0;
         currentEventIndex = 0;
+        resetBankSelectState();
         synth.allNotesOff(0, true);
         DBG("MidiPlayer: Playback finished");
     }

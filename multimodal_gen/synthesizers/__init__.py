@@ -29,6 +29,7 @@ from .base import (
 )
 from .factory import SynthesizerFactory
 from .fluidsynth_synth import FluidSynthSynthesizer
+from .neural_runtime import NeuralBackendStatus, NeuralRenderResult, OptionalNeuralRuntime
 from .procedural_synth import ProceduralSynthesizer
 from .plugin_synth import PluginSynthesizer
 
@@ -42,6 +43,9 @@ __all__ = [
     'SynthesizerFactory',
     # Implementations
     'FluidSynthSynthesizer',
+    'NeuralBackendStatus',
+    'NeuralRenderResult',
+    'OptionalNeuralRuntime',
     'ProceduralSynthesizer',
     'PluginSynthesizer',
 ]

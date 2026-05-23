@@ -143,6 +143,7 @@ class GenerationResult:
     duration: float = 0.0
     samples_generated: int = 0
     instruments_used: List[Dict[str, Any]] = field(default_factory=list)
+    instrument_patches: List[Dict[str, Any]] = field(default_factory=list)
     takes: List[Dict[str, Any]] = field(default_factory=list)  # Take lanes from TakeGenerator
     
     def to_dict(self) -> Dict[str, Any]:
@@ -161,6 +162,7 @@ class GenerationResult:
             "duration": self.duration,
             "samples_generated": self.samples_generated,
             "instruments_used": self.instruments_used,
+            "instrument_patches": self.instrument_patches,
             "takes": self.takes,
         }
 
@@ -233,6 +235,21 @@ def build_run_generation_kwargs(
         except Exception:
             return None
 
+    def _as_bool(v: Any) -> Optional[bool]:
+        if v is None:
+            return None
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, (int, float)):
+            return bool(v)
+        if isinstance(v, str):
+            lowered = v.strip().lower()
+            if lowered in {"1", "true", "yes", "on"}:
+                return True
+            if lowered in {"0", "false", "no", "off"}:
+                return False
+        return None
+
     def _key_with_mode_suffix(key: Any, mode: Any = "") -> Optional[str]:
         """Return the compact key string expected by ``main.run_generation``.
 
@@ -282,6 +299,7 @@ def build_run_generation_kwargs(
     tension_intensity_opt = _as_float(_opt("tension_intensity"))
     motif_mode_opt = _as_str(_opt("motif_mode"))
     num_motifs_opt = _as_int(_opt("num_motifs"))
+    use_agents_opt = _as_bool(_opt("use_agents")) if "use_agents" in options else None
 
     # TASK 3: Determine BPM override - prefer explicit request.bpm, then pre-analyzed reference_bpm
     bpm_override = None
@@ -310,7 +328,7 @@ def build_run_generation_kwargs(
         # Use pre-analyzed genre from JUCE frontend
         genre_override = request.reference_genre
 
-    return {
+    kwargs = {
         "prompt": request.prompt,
         "output_dir": output_dir,
         "genre_override": genre_override,
@@ -336,6 +354,11 @@ def build_run_generation_kwargs(
         "num_motifs": num_motifs_opt,
         "score_plan": request.score_plan,
     }
+
+    if "use_agents" in options:
+        kwargs["use_agents"] = use_agents_opt
+
+    return kwargs
 
 
 @dataclass
@@ -623,6 +646,7 @@ class GenerationWorker:
                 },
                 samples_generated=len(results.get("samples", [])),
                 instruments_used=results.get("instruments_used", []),
+                instrument_patches=results.get("instrument_patches", []),
                 duration=duration,
                 takes=takes_data,
             )

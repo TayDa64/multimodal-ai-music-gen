@@ -69,8 +69,11 @@ namespace Project
         // Default Synth (per-track)
         static const juce::Identifier defaultSynthWaveform("defaultSynthWaveform");
         static const juce::Identifier defaultSynthAttack("defaultSynthAttack");
+        static const juce::Identifier defaultSynthDecay("defaultSynthDecay");
+        static const juce::Identifier defaultSynthSustain("defaultSynthSustain");
         static const juce::Identifier defaultSynthRelease("defaultSynthRelease");
         static const juce::Identifier defaultSynthCutoff("defaultSynthCutoff");
+        static const juce::Identifier defaultSynthCutoffVelocityDelta("defaultSynthCutoffVelocityDelta");
         static const juce::Identifier defaultSynthLfoRate("defaultSynthLfoRate");
         static const juce::Identifier defaultSynthLfoDepth("defaultSynthLfoDepth");
         

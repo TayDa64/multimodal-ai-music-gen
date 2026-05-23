@@ -231,8 +231,11 @@ public:
     enum class DefaultSynthParam
     {
         AttackSeconds,
+        DecaySeconds,
+        SustainLevel,
         ReleaseSeconds,
         CutoffHz,
+        CutoffVelocityDeltaHz,
         LfoRateHz,
         LfoDepth
     };
@@ -253,6 +256,7 @@ public:
         
         void noteOn(int note, float velocity);
         void noteOff(int note);
+        void handleProgramChange(int programNumber, int bankNumber = 0);
         
         // Load a sample file (WAV, AIFF, etc.) - legacy simple sample loading
         void loadSample(const juce::File& file, juce::AudioFormatManager& formatManager);
@@ -296,8 +300,11 @@ public:
         {
             std::atomic<int> waveform { (int)DefaultSynthWaveform::Sine };
             std::atomic<float> attackSeconds { 0.001f };
+            std::atomic<float> decaySeconds { 0.0f };
+            std::atomic<float> sustainLevel { 1.0f };
             std::atomic<float> releaseSeconds { 0.2f };
             std::atomic<float> cutoffHz { 16000.0f };
+            std::atomic<float> cutoffVelocityDeltaHz { 0.0f };
             std::atomic<float> lfoRateHz { 5.0f };
             std::atomic<float> lfoDepth { 0.0f }; // 0..1 amplitude modulation
         };
@@ -436,6 +443,7 @@ private:
     //==========================================================================
     void midiNoteOn(int channel, int note, float velocity) override;
     void midiNoteOff(int channel, int note) override;
+    void midiProgramChange(int channel, int program, int bank) override;
     
     //==========================================================================
     // Internal Methods

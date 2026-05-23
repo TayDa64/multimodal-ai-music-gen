@@ -971,6 +971,178 @@ def generate_lead_tone(
     return audio.astype(np.float32)
 
 
+_STATIC_WAVETABLE_CACHE: Dict[int, Tuple[str, np.ndarray]] = {}
+
+
+def get_static_wavetable_bank(table_size: int = 512) -> Tuple[str, np.ndarray]:
+    """Return a small, bounded single-cycle wavetable bank.
+
+    This is a truthful *foundation* only: a few static tables intended for
+    procedural fallback use, not a full wavetable engine.
+    """
+    table_size = int(np.clip(table_size, 64, 4096))
+    cached = _STATIC_WAVETABLE_CACHE.get(table_size)
+    if cached is not None:
+        return cached
+
+    phase = np.linspace(0.0, 1.0, table_size, endpoint=False, dtype=np.float64)
+    sine = np.sin(2.0 * np.pi * phase)
+    triangle = 2.0 * np.abs(2.0 * phase - 1.0) - 1.0
+    soft_saw = np.zeros(table_size, dtype=np.float64)
+    hollow_square = np.zeros(table_size, dtype=np.float64)
+
+    for harmonic in range(1, 24):
+        soft_saw += (1.0 / harmonic) * np.sin(2.0 * np.pi * harmonic * phase)
+        if harmonic % 2 == 1:
+            hollow_square += (1.0 / harmonic) * np.sin(2.0 * np.pi * harmonic * phase)
+
+    tables = np.stack(
+        [
+            normalize_audio(sine, 1.0),
+            normalize_audio(0.72 * triangle + 0.28 * sine, 1.0),
+            normalize_audio(soft_saw, 1.0),
+            normalize_audio(0.58 * hollow_square + 0.42 * soft_saw, 1.0),
+        ],
+        axis=0,
+    ).astype(np.float32)
+    names = ("sine", "triangle", "soft_saw", "hollow_square")
+    cached = (names, tables)
+    _STATIC_WAVETABLE_CACHE[table_size] = cached
+    return cached
+
+
+def render_static_wavetable_tone(
+    frequency: float,
+    duration: float,
+    sample_rate: int = SAMPLE_RATE,
+    *,
+    morph_position: float = 0.5,
+    morph_span: float = 0.0,
+    table_size: int = 512,
+) -> np.ndarray:
+    """Render a bounded single-voice tone from the static wavetable bank.
+
+    Supports two layers of interpolation:
+    - sample interpolation within each single-cycle table
+    - table-to-table morphing across the small static bank
+    """
+    num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float32)
+
+    names, tables = get_static_wavetable_bank(table_size)
+    del names  # Names are for diagnostics/tests; rendering uses the stacked bank.
+
+    frequency = float(np.clip(frequency, 20.0, sample_rate / 3.0))
+    morph_position = float(np.clip(morph_position, 0.0, 1.0))
+    morph_span = float(np.clip(morph_span, 0.0, 1.0))
+
+    phase_increment = frequency / float(sample_rate)
+    phases = np.mod(np.arange(num_samples, dtype=np.float64) * phase_increment, 1.0)
+    table_positions = phases * tables.shape[1]
+    base_idx = np.floor(table_positions).astype(np.int32) % tables.shape[1]
+    next_idx = (base_idx + 1) % tables.shape[1]
+    frac = (table_positions - np.floor(table_positions)).astype(np.float32)
+
+    if morph_span > 0.0:
+        morph_curve = np.linspace(
+            morph_position - morph_span * 0.5,
+            morph_position + morph_span * 0.5,
+            num_samples,
+            dtype=np.float32,
+        )
+    else:
+        morph_curve = np.full(num_samples, morph_position, dtype=np.float32)
+    morph_curve = np.clip(morph_curve, 0.0, 1.0)
+
+    max_table_index = tables.shape[0] - 1
+    morph_scaled = morph_curve * max_table_index
+    lower_table = np.floor(morph_scaled).astype(np.int32)
+    upper_table = np.clip(lower_table + 1, 0, max_table_index)
+    table_blend = (morph_scaled - lower_table).astype(np.float32)
+
+    lower_a = tables[lower_table, base_idx]
+    lower_b = tables[lower_table, next_idx]
+    upper_a = tables[upper_table, base_idx]
+    upper_b = tables[upper_table, next_idx]
+
+    lower_wave = lower_a + (lower_b - lower_a) * frac
+    upper_wave = upper_a + (upper_b - upper_a) * frac
+    audio = lower_wave + (upper_wave - lower_wave) * table_blend
+    return np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0).astype(np.float32)
+
+
+def generate_unison_lead_tone(
+    frequency: float,
+    duration: float = 0.4,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE,
+    *,
+    voices: int = 7,
+    detune_cents: float = 14.0,
+) -> np.ndarray:
+    """Generate a bounded EDM/pop unison lead using a static wavetable bank.
+
+    This is a small, safe fallback intended for EDM/pop-like genres when the
+    renderer is in procedural mode (no SoundFont/sample packs).
+
+    Important: this is **not** a full wavetable engine. It is a bounded static
+    wavetable foundation with a few single-cycle tables, sample interpolation,
+    and light table morphing only for this fallback path.
+    """
+    num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float32)
+
+    frequency = float(np.clip(frequency, 20.0, sample_rate / 3.0))
+    velocity = float(np.clip(velocity, 0.0, 1.0))
+    voices = int(np.clip(voices, 1, 11))
+    detune_cents = float(np.clip(detune_cents, 0.0, 40.0))
+    audio = np.zeros(num_samples, dtype=np.float64)
+
+    # Symmetric detune spread around 0 cents.
+    if voices == 1:
+        cents_list = [0.0]
+    else:
+        # E.g. voices=7 -> [-1, -2/3, -1/3, 0, 1/3, 2/3, 1] * detune
+        idx = np.linspace(-1.0, 1.0, voices)
+        cents_list = (idx * detune_cents).tolist()
+
+    base_morph = 0.58
+    morph_offsets = np.linspace(-0.16, 0.16, voices, dtype=np.float32)
+    morph_span = 0.10 + 0.10 * velocity
+
+    for cents, morph_offset in zip(cents_list, morph_offsets):
+        ratio = 2.0 ** (cents / 1200.0)
+        wavetable_voice = render_static_wavetable_tone(
+            frequency * ratio,
+            duration,
+            sample_rate=sample_rate,
+            morph_position=float(np.clip(base_morph + morph_offset, 0.0, 1.0)),
+            morph_span=morph_span,
+        )
+        audio += wavetable_voice.astype(np.float64)
+
+    audio /= float(len(cents_list))
+
+    # Envelope: pop/edm-friendly fast attack, medium decay, sustained body.
+    attack = int(0.004 * sample_rate)
+    decay = int(0.10 * sample_rate)
+    sustain_level = 0.62
+    release = int(0.16 * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
+
+    # Tone shaping: keep bright but controlled.
+    audio = highpass_filter(audio, 120, sample_rate)
+    audio = lowpass_filter(audio, 9000, sample_rate)
+    audio = add_saturation(audio, 0.22)
+
+    audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+    audio = normalize_audio(audio, 0.85) * velocity if np.any(audio) else audio
+    return audio.astype(np.float32)
+
+
 # =============================================================================
 # ETHIOPIAN INSTRUMENT SYNTHESIS
 # =============================================================================

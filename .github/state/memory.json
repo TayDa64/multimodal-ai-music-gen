@@ -3,6 +3,81 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For mixed Python/JUCE/neural requests, land separate bounded seams: static wavetable only on the existing EDM/pop fallback path, playback-time program_change only for supported SF2 live tracks, and an opt-in neural capability seam that fails open and never claims renderer_path=neural without a real successful render.",
+        "context": "The 2026-05-23 three-slice follow-up stayed truthful by adding a small static single-cycle wavetable foundation in assets_gen.py instead of claiming a full wavetable engine, wiring real playback-time program_change flow from MidiPlayer to AudioEngine::Track with SF2 preset switching only where supported, and adding multimodal_gen/synthesizers/neural_runtime.py as an explicit capability/reporting seam whose diagnostics surface missing deps/model path/model file while keeping fluidsynth/procedural behavior unchanged unless a real neural render succeeds.",
+        "timestamp": "2026-05-23T08:20:00Z"
+      },
+      {
+        "pattern": "Large multi-feature requests should be implemented as bounded additive seam updates with explicit deferred items and truthful diagnostics.",
+        "context": "Pass 094 landed FluidSynth proof harness, bounded orchestral/sample routing, bounded unison lead, bounded wow/flutter DSP, and bounded rock physical-model improvements without claiming full wavetable engines, JUCE routing rewrites, or full neural integration.",
+        "timestamp": "2026-05-23T07:06:05Z"
+      },
+      {
+        "pattern": "Velocity-to-cutoff is safe to add through the existing default-synth project-state seam with defaultSynthCutoffVelocityDelta=0.0f, while filter-envelope remains deferred until a real modulation path exists.",
+        "context": "The 2026-05-23 post-092 JUCE runtime-fidelity slice extended DefaultSynthState, ProjectState, and MainComponent's Phase 2 subset adapter so synthesis_voice.velocity_map.cutoff_delta_hz reaches DefaultSynthVoice and modulates effective cutoff as base cutoff + normalized note velocity * cutoff delta only on remaining default_sine tracks after sample-first mapping. Keeping defaultSynthCutoffVelocityDelta=0.0f as the compatibility default preserves legacy behavior, avoids UI churn, and does not imply broader filter-envelope, mastering, live-FX, or transport parity.",
+        "timestamp": "2026-05-23T06:32:38Z"
+      },
+      {
+        "pattern": "Legacy default-synth compatibility should stay at decay=0.0 and sustain=1.0 by default, while the bounded InstrumentPatch JUCE subset may flow amp-envelope decay/sustain only into remaining default-synth preview tracks.",
+        "context": "The 2026-05-23 post-091 JUCE runtime-fidelity slice extended DefaultSynthState, ProjectState, and MainComponent's Phase 2 subset adapter so amp_envelope.decay_ms and sustain_level reach DefaultSynthVoice::startNote() for tracks still on default_sine after sample-first mapping. Keeping defaultSynthDecay=0.0 and defaultSynthSustain=1.0 as compatibility-safe defaults preserves legacy/default track behavior and avoids implying broader filter-envelope, mastering, live-FX, or transport parity.",
+        "timestamp": "2026-05-23T00:15:00Z"
+      },
+      {
+        "pattern": "Render-time drum-note routing and per-track patch matching should use explicit or canonical identities first, not broad shared helper families.",
+        "context": "The 2026-05-22 task-091 verifier-fix follow-up repaired two concrete regressions with the same conservative rule: procedural drum rendering now keeps explicit GM routes for side-stick (37 -> snare fallback) and clap (39 -> clap) instead of letting a shared helper omission fall through to kick, and track_realization_statuses now matches Ethiopian-family tracks through canonical patch identifiers from instrument_id_hints/patch_id tokens like krar, masenqo, washint, and begena before considering broad patch_profile.family values such as ethiopian_string.",
+        "timestamp": "2026-05-22T22:05:00Z"
+      },
+      {
+        "pattern": "Render-report instrument_patches must stay in parity with main's enriched/persisted InstrumentPatch view, while actual per-track renderer truth belongs in a separate track_realization_statuses structure.",
+        "context": "The 2026-05-22 post-090 backend/reporting slice passed resolved_sample_metadata/results['instruments_used'] into AudioRenderer, reused enrich_instrument_patches_with_resolved_samples(...) inside the renderer report path, and added additive top-level track_realization_statuses built conservatively from MIDI/program/cache/whole-render facts. This keeps patch intent/sample-layer hints aligned across results/project_metadata/render_report without overclaiming those hints as authoritative runtime realization truth.",
+        "timestamp": "2026-05-22T21:20:00Z"
+      },
+      {
+        "pattern": "Only backend-known concrete sample paths should become InstrumentPatch sample_layers hints, and JUCE should try those hints only on uniquely matched remaining default-synth tracks before falling back to the Phase 2 synth subset.",
+        "context": "The 2026-05-22 bounded InstrumentPatch Phase 3 sample-fallback mini-slice added a conservative backend helper that enriches patches only from real instruments_used path values, reserializes results/project_metadata after instruments_used is known, and lets MainComponent consume those hints only for empty/default_sine tracks that still match a patch uniquely after sample auto-mapping. No guessed paths, local JUCE search, or broader transport/mastering changes are allowed in this path.",
+        "timestamp": "2026-05-22T20:34:49Z"
+      },
+      {
+        "pattern": "When direct-result metadata transport preserves list shape, JUCE fallback logic must treat empty arrays as missing payloads so project_metadata continuity is not masked.",
+        "context": "The 2026-05-22 InstrumentPatch follow-up fixed MainComponent so instrument_patches=[] no longer blocks fallback to matching project_metadata.json data, and mirrored the same empty-array fallback rule for instruments_used symmetry. The durable rule is to prefer populated direct arrays but fall back when the transported array is null/absent or empty.",
+        "timestamp": "2026-05-22T19:50:11Z"
+      },
+      {
+        "pattern": "Phase 2 JUCE InstrumentPatch preview should reuse the per-track project-state defaultSynth fields after generated sample auto-mapping so only remaining default-synth tracks receive a conservative patch subset while mastered/live-FX truthfulness stays unchanged.",
+        "context": "The 2026-05-22 Phase 2 slice added a bounded JUCE adapter that reads additive instrument_patches from the direct completion result or matching project_metadata.json, conservatively matches one patch to one remaining default-synth track using track_role plus family/track-name heuristics, maps only waveform/attack/release/static low-pass cutoff/amp LFO rate-depth into Project::IDs::defaultSynth* fields, and reapplies the existing default_sine project-state seam. Sample-mapped tracks remain untouched and no mastering/live-FX routing or labeling logic changed.",
+        "timestamp": "2026-05-22T19:39:58Z"
+      },
+      {
+        "pattern": "The safest first InstrumentPatch runtime step is a backend-only shared patch registry plus additive reporting/metadata before any JUCE subset adapter work.",
+        "context": "The 2026-05-22 Phase 1 InstrumentPatch implementation landed a real shared Python contract in multimodal_gen/instrument_patch.py, surfaced additive instrument_patches metadata in AudioRenderer render reports, and persisted results/project_metadata patch intent from main.py without changing JUCE/live behavior. This proved the low-risk sequence: establish truthful backend registry/serialization/reporting first, then consider a later JUCE subset adapter or sample-binding follow-up once the shared data contract is stable.",
+        "timestamp": "2026-05-22T14:20:00Z"
+      },
+      {
+        "pattern": "When a new planning doc refines an existing upgrade-plan recommendation, add a short See also pointer near the original recommendation instead of rewriting the plan or implying implementation work.",
+        "context": "The 2026-05-22 follow-up docs aggregation slice kept the existing recommendation 6 wording in docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md and added only a one-sentence pointer to docs/INSTRUMENT_PATCH_PROPOSAL.md. That improved discoverability of the dedicated InstrumentPatch proposal while staying truthful that this slice was documentation linkage only, not a new architecture/runtime implementation.",
+        "timestamp": "2026-05-22T13:05:00Z"
+      },
+      {
+        "pattern": "When Ethiopian-family prompts run in a non-Ethiopian expansion environment, constrain ExpansionManager semantic matching to Ethiopian-safe candidates and otherwise fall back to built-in Ethiopian/generic mappings, while pairing that guardrail with Ethiopian-first parser defaults, small traditional-key/qenet cue handling, and auto-enable of use_agents only when unspecified.",
+        "context": "The 2026-05-22 Ethiopian-family runtime/authenticity fix closed a false-green Ethiopian-jazz regression without a larger architectural rewrite. The durable pattern is to keep Ethiopian-family semantic matching conservative, prefer real Ethiopian-targeted packs when present, stop before unsafe semantic drift when none are safe, teach prompt_parser to interpret traditional key/traditional scale/qenet/ethiopian modal cues with named qenet support, and preserve explicit use_agents=False by auto-enabling only when the request left use_agents unspecified.",
+        "timestamp": "2026-05-22T11:15:00Z"
+      },
+      {
+        "pattern": "After completing a UI-only MainComponent polish slice, rerun the established Task 076 smoke suite as lightweight runtime regression proof before handing the app to the user.",
+        "context": "The post-Task-082 operational follow-up reused the established Task 076 smoke suite command (.\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q) after the UI-only MainComponent polish had already been completed. That lightweight regression pass stayed truthful to the already-complete Task 082 scope, passed with 81 tests and 6 warnings in 21.57s, and provided a clean runtime confidence check before launching the app for manual testing.",
+        "timestamp": "2026-05-22T00:22:00Z"
+      },
+      {
+        "pattern": "When MPC theme/layout/track-header groundwork already exists, the safest final integrated polish is a MainComponent paint/shell framing pass rather than more workflow-semantics churn.",
+        "context": "Task 082 found that juce/Source/UI/Theme/ColourScheme.h, juce/Source/UI/Theme/LayoutConstants.h, and juce/Source/UI/TrackList/TrackHeaderComponent.cpp already held the core MPC-inspired groundwork, while Tasks 077-081 had already landed the truthful workflow/capability language. The safe completion was therefore a shell-level MainComponent paint pass using existing AppColours/Layout tokens for recessed wells, framed status-strip segments, and subtle accent separators, without reopening backend/protocol/workflow semantics or changing resized() behavior in substance.",
+        "timestamp": "2026-05-21T21:14:36Z"
+      },
+      {
+        "pattern": "Before heavyweight Task 082 verification/test runs in this workspace, clear stale integrated terminal shell roots under the workspace-specific Code process tree but preserve extension-owned WSL/codex app-server infrastructure.",
+        "context": "On the 2026-05-21 Task 082 preflight in C:\\dev\\MUSE-ai, process-tree inspection under the workspace Code root found both a stale integrated PowerShell shell root and an openai.chatgpt extension WSL/codex app-server chain under /mnt/c/dev/MUSE-ai. The successful cleanup pattern is to target only the stale user shell root with taskkill /PID <shell-root> /T /F, leave the WSL/codex chain running as tool infrastructure, and treat a child self-termination warning as compatible with success when the targeted stale shell root is gone and only the verification shell remains.",
+        "timestamp": "2026-05-21T21:07:42Z"
+      },
+      {
         "pattern": "Once the backend truthfulness gate is closed, the safest post-gate JUCE polish is additive persistent helper/status text in Transport/Mixer/Takes/Browsers plus panel-local Mastering reference-analysis hints/results, not new faux capability.",
         "context": "Tasks 077-081 validated that after Tasks 072-076 closed the real-or-honest backend contract gap, the safe UI-only slice was to add persistent scope/helper text and panel-local analysis summaries across MainComponent, TransportComponent, MasteringSuitePanel, TakeLaneComponent, MixerComponent, InstrumentBrowserPanel, and ExpansionBrowserPanel. This made backend WAV/reference versus dry live MIDI preview versus generic external audio explicit, clarified local-only commit/revert semantics and smart-selection fallback/no-match behavior, and kept unsupported Mastering apply/spectrum flows unavailable. No backend/protocol changes were needed.",
         "timestamp": "2026-05-21T20:48:00Z"
@@ -610,6 +685,12 @@
     ],
     "failed": [
       {
+        "pattern": "ethio_jazz prompts that rely on generic parser defaults plus semantic expansion matching in a non-Ethiopian expansion environment can misresolve brass and Ethiopian-family requests into Funk o Rama bass/guitar assets while still looking analyzer-green",
+        "reason": "The current parser falls back to generic ethio_jazz defaults for prompts like 'traditional key'; the normal app flow does not forward use_agents into the experimental Ethiopian agent branch; and in a Funk o Rama-only environment semantic resolver matching can map brass/washint to bass assets and krar/masenqo to guitar assets. The render report analyzer still reports audio_analysis.passed=true with genre_match_score=1.0 because the current ethio_jazz timbre expectations are broad.",
+        "avoid_when": "Treating a passed ethio_jazz render report/analyzer score as proof of Ethiopian-jazz authenticity when the prompt relied on generic defaults, app/worker use_agents plumbing was absent, and only non-Ethiopian expansions/assets were active.",
+        "timestamp": "2026-05-22T10:20:00Z"
+      },
+      {
         "pattern": "Do not treat exact FluidSynth renderer-path proof as full rock quality acceptance",
         "reason": "The exact isolated SoundFont smoke can render successfully through FluidSynth and file-level mastering but still fail rock audio analysis for high spectral centroid and missing snare_or_clap detection.",
         "avoid_when": "Reporting full strict rock-quality readiness; require audio_analysis.passed=true separately from renderer_diagnostics.fluidsynth_success=true.",
@@ -630,6 +711,206 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Honor MIDI Bank Select (CC0/CC32) for the existing JUCE playback-time SF2 program_change seam by tracking per-channel MSB/LSB and forwarding effective bank=(MSB<<7)|LSB alongside program changes.",
+      "rationale": "SF2 preset switching via TinySoundFont requires (bank, program) to resolve banked presets. Tracking only CC0 (MSB) and CC32 (LSB) keeps the change bounded while enabling correct banked program changes when present. Rebuilding bank state on seek (scan CC0/CC32 from start up to the seek point) avoids reusing stale bank state from a prior playback position, while still remaining truthful and conservative without claiming full controller support.",
+      "alternatives_considered": [
+        "Ignore bank select and keep forwarding program-only (cannot select banked SF2 presets)",
+        "Reset bank to 0 on seek without rebuild (safe but less correct when seeking into banked regions)",
+        "Implement broad MIDI CC/GM/GS controller compatibility (out of scope)"
+      ],
+      "timestamp": "2026-05-23T09:55:00Z"
+    },
+    {
+      "decision": "Implement the user-requested follow-up as three bounded foundations rather than a broad architecture rewrite.",
+      "rationale": "The safest truthful slice was to add a real static wavetable mini-foundation only inside the existing EDM/pop-style procedural lead fallback, wire playback-time program_change only through the JUCE live path that can actually honor it today (supported SF2 tracks via preset switching), and expose neural rendering as an explicit opt-in capability seam that reports missing dependencies/model configuration honestly while failing open to the existing fluidsynth/procedural routes.",
+      "alternatives_considered": [
+        "Claim a full wavetable engine after only adding a few static single-cycle tables",
+        "Attempt a broad JUCE live patch rewrite including unsupported sampler/SFZ parity in the same slice",
+        "Mark renderer_path as neural based on intent or capability instead of a real successful neural render"
+      ],
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "decision": "Deferred full wavetable interpolation engine, JUCE program-change architecture rewrite, and production neural/DDSP runtime integration from pass 094.",
+      "rationale": "User requested minimal-risk bounded slices and truthful claims; these larger rewrites would exceed scope and verification budget.",
+      "alternatives_considered": [
+        "Implement full wavetable table-scanning synth engine now",
+        "Refactor JUCE runtime program-change and sampler architecture in same pass",
+        "Integrate GPU-heavy neural generator runtime immediately"
+      ],
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "decision": "Implement the post-092 JUCE runtime-fidelity slice by threading velocity_map.cutoff_delta_hz through the existing default-synth project-state seam instead of adding UI or a faux filter-envelope path.",
+      "rationale": "The requested scope was a bounded runtime-fidelity improvement for remaining default-synth tracks only. Adding CutoffVelocityDeltaHz to AudioEngine, defaultSynthCutoffVelocityDelta to ProjectState, and velocity_map.cutoff_delta_hz mapping in MainComponent lets DefaultSynthVoice apply bounded note-velocity cutoff modulation with legacy-safe default 0.0f while preserving the sample-first/default-synth-only guardrails and keeping filter-envelope, UI exposure, transport/Python, and path_hint hardening out of scope.",
+      "alternatives_considered": [
+        "Add a new VisualizationPanel cutoff-velocity control in the same slice.",
+        "Broaden the work into a real filter-envelope modulation path or deeper default-synth redesign.",
+        "Take on Python/backend/transport changes or deferred path_hint hardening in the same task."
+      ],
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "decision": "Extend the existing JUCE default-synth subset seam with persisted decay/sustain support instead of broadening UI or deeper synth/runtime surfaces.",
+      "rationale": "The requested slice was a bounded runtime-fidelity improvement for remaining default-synth tracks only. Adding DecaySeconds/SustainLevel to AudioEngine, defaultSynthDecay/defaultSynthSustain to ProjectState, and amp_envelope.decay_ms/sustain_level mapping in MainComponent closes the hardcoded decay=0/sustain=1 gap without taking on filter-envelope, velocity-to-cutoff, mastering/live-FX, transport/backend changes, or the deferred Python path_hint hardening work.",
+      "alternatives_considered": [
+        "Add new VisualizationPanel decay/sustain controls in the same slice.",
+        "Broaden the work into filter-envelope, velocity-to-cutoff, or deeper default-synth redesign.",
+        "Take on backend/Python transport changes or path_hint hardening in the same task."
+      ],
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "decision": "Fix the task-091 regressions by restoring explicit render-time drum routes and by matching Ethiopian track statuses through canonical patch identifiers before broad family keys.",
+      "rationale": "The verifier blockers were both caused by over-broad shared abstractions: missing explicit drum-note entries let GM 37/39 fall through to kick in the real renderer path, and family-only patch matching could not distinguish Krar from other Ethiopian string patches. The smallest safe repair was therefore to reassert explicit render-time sample keys for the affected drum notes and build conservative unique patch indexes from instrument_id_hints and patch_id tokens so the status report can match Krar-family tracks truthfully without changing the broader InstrumentPatch registry contract.",
+      "alternatives_considered": [
+        "Broaden the fix into a larger drum-taxonomy or side-stick synthesis rewrite.",
+        "Change the shared InstrumentPatch family schema for all Ethiopian patches from broad family labels to specific instrument ids in this follow-up.",
+        "Leave matching family-only and special-case Krar with ad-hoc string checks in one report path."
+      ],
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "decision": "Keep render-report instrument_patches as parity-aligned enriched intent metadata and expose actual per-track renderer realization in a separate track_realization_statuses array.",
+      "rationale": "The requested backend slice needed truthful parity with main.py's enriched InstrumentPatch view without pretending that patch sample-layer hints are authoritative runtime realization status. Passing resolved_sample_metadata into AudioRenderer preserved the canonical enriched patch view, while a separate additive track_realization_statuses structure let the renderer report conservative real execution facts such as custom_sample, expansion_sample, procedural_fallback, fluidsynth_soundfont, mixed, or unknown based on MIDI/program/cache/backend evidence.",
+      "alternatives_considered": [
+        "Embed authoritative runtime realization claims directly inside each instrument_patches entry.",
+        "Rebuild a renderer-local sample search/matching engine from tags, categories, or guessed paths instead of reusing already-resolved instruments_used metadata.",
+        "Delay render-report parity and per-track realization reporting until a later broader transport/JUCE slice."
+      ],
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "decision": "Implement Phase 3 InstrumentPatch sample fallback as a conservative backend-enriched sample_layers hint plus JUCE path-hint consumption on uniquely matched default-synth tracks, without adding local search or broader transport changes.",
+      "rationale": "The requested scope was a truthful mini-slice only. Using already-resolved instruments_used path values avoided invented sample hints, rebuilding results['instrument_patches'] after Step 4.5 ensured persisted metadata matched the final runtime knowledge, and limiting MainComponent consumption to uniquely matched remaining default-synth tracks preserved user-selected/sample-mapped tracks while keeping the Phase 2 synth subset as the fallback path.",
+      "alternatives_considered": [
+        "Invent sample paths from fallback.sample_search_tags, category names, or local JUCE catalogs.",
+        "Broaden the slice into new JUCE-side local sample search or transport/protocol rewrites.",
+        "Override sample-mapped, expansion-backed, SF2/SFZ, or user-selected tracks instead of limiting the path-hint load to remaining default-synth tracks with unique conservative patch matches."
+      ],
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "decision": "Treat empty direct instrument_patches arrays as fallback-to-metadata in the Phase 2 JUCE adapter, and mirror that same rule for instruments_used because transport now keeps these fields list-shaped even when empty.",
+      "rationale": "The verifier found that array-typed but empty direct transport payloads masked the intended project_metadata.json continuity fallback. Once transport normalizes these fields to arrays, checking only for non-array values is no longer sufficient. Falling back on null-or-empty arrays is the smallest safe fix and preserves all existing behavior when the direct payload is populated.",
+      "alternatives_considered": [
+        "Keep instrument_patches fallback as non-array-only and treat empty direct arrays as authoritative empties.",
+        "Broaden the fix into transport/protocol changes instead of the localized JUCE fallback update.",
+        "Patch instrument_patches only and leave instruments_used asymmetric even though the same masking risk is cheap to prevent."
+      ],
+      "timestamp": "2026-05-22T19:50:11Z"
+    },
+    {
+      "decision": "Implement Phase 2 InstrumentPatch as a direct-result+fallback JUCE default-synth subset adapter that reuses project-state defaultSynth fields and skips sample-mapped or ambiguous tracks.",
+      "rationale": "The requested scope was a bounded preview/default-synth slice only. Reusing the existing project-state defaultSynth seam minimized churn, applying the adapter after generated sample auto-mapping protected sample-backed tracks, direct result transport for instrument_patches was low-churn and additive, the metadata fallback preserved robustness, and no mastering/live-FX routing or labeling truthfulness needed to change.",
+      "alternatives_considered": [
+        "Keep Phase 2 metadata-fallback-only and skip the additive direct-result transport even though worker/Message parsing changes were low-churn.",
+        "Apply patch subsets to sample-mapped tracks instead of restricting the adapter to empty/default_sine tracks after sample auto-mapping.",
+        "Expand the slice into deeper live patch parity, mastering changes, or unsupported envelope/filter/noise/sample-layer realization beyond the bounded default-synth subset."
+      ],
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "decision": "Implement Phase 1 InstrumentPatch as a backend-only shared registry/reporting slice and keep JUCE/live runtime behavior unchanged.",
+      "rationale": "The bounded request was to create a real shared Python runtime module, expose additive patch metadata in render diagnostics and project metadata, and avoid any JUCE/live rewrite. Delivering the shared registry plus additive report/results persistence satisfied that slice truthfully, and computing results['instrument_patches'] in main.py independent of the renderer kept project_metadata continuity intact even under monkeypatched renderer tests.",
+      "alternatives_considered": [
+        "Start JUCE subset-adapter or live patch-realization work in the same slice.",
+        "Expose patch metadata only inside AudioRenderer reports and leave results/project_metadata dependent on renderer fixtures.",
+        "Delay the shared runtime module until a fuller cross-runtime parity effort is ready."
+      ],
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "decision": "Record the new InstrumentPatch proposal linkage as a small docs-only follow-up aggregation slice, not as a new architecture implementation.",
+      "rationale": "This slice only adds discoverability from the existing upgrade-plan recommendation to the already-created docs/INSTRUMENT_PATCH_PROPOSAL.md document and updates orchestration/context/memory to reflect that linkage. No backend, JUCE, runtime, protocol, or test behavior changed, so describing it as implementation work would overstate what happened.",
+      "alternatives_considered": [
+        "Rewrite recommendation 6 more substantially instead of adding a short See also note.",
+        "Start InstrumentPatch runtime work in the same slice rather than keeping this as documentation linkage only.",
+        "Leave the older upgrade plan and the newer proposal doc disconnected."
+      ],
+      "timestamp": "2026-05-22T13:05:00Z"
+    },
+    {
+      "decision": "Treat the next safe cross-runtime instrument architecture step as a track-scoped shared InstrumentPatch / SynthesisVoice contract before any deeper live MIDI program_change rewrite.",
+      "rationale": "Current repo evidence already provides useful but split ingredients: Python owns ADSRParameters, SynthesisParameters, SonicProfile, InstrumentLibrary, and concrete per-instrument procedural recipes, while JUCE owns AudioEngine::Track::DefaultSynthState and DefaultSynthVoice for live preview. A track-scoped shared contract is the smallest truthful way to align backend render intent, sample fallback intent, and JUCE preview subset behavior without pretending mastered live-preview parity or taking on higher-risk runtime patch-switching state management first.",
+      "alternatives_considered": [
+        "Start by adding dynamic runtime MIDI program_change patch switching across the live engine and backend paths.",
+        "Leave patch semantics scattered across per-instrument backend functions, sample descriptors, and JUCE preview fields with no shared contract.",
+        "Treat live FX/mastering parity as the first instrument-architecture step before unifying patch data."
+      ],
+      "timestamp": "2026-05-22T12:30:00Z"
+    },
+    {
+      "decision": "Treat printed ScaleType name 'DORIAN' in Ethiopian-family parser probes as an Enum alias representation nuance, not a failure of the modal-cue fix, because ScaleType.ETHIO_JAZZ currently aliases ScaleType.DORIAN via the same interval list.",
+      "rationale": "Python Enum aliases members that share the same value. Since multimodal_gen.utils.ScaleType currently defines ETHIO_JAZZ and DORIAN with the same interval list, direct .name printing can surface DORIAN even while semantic regressions that compare against ScaleType.ETHIO_JAZZ still pass correctly.",
+      "alternatives_considered": [
+        "Interpret the printed DORIAN name as evidence that the Ethiopian-family parser fix regressed.",
+        "Change the semantic regression expectations away from enum equality.",
+        "Redesign the ScaleType enum model immediately in this state-only follow-up."
+      ],
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "decision": "Use the existing ethio_jazz analyzer scorer knobs to close the immediate false-green gap instead of introducing a new Ethiopian timbre detector in this slice.",
+      "rationale": "The regression evidence showed the immediate analyzer problem was the prior sub-heavy / missing-drum false-green pattern, and existing scorer controls already exposed the right bounded levers. Tightening the ethio_jazz target with the current sub-bass ceiling and required drum parts fixed the measured issue with lower risk and without inventing a new authenticity detector before the rest of the runtime path was corrected.",
+      "alternatives_considered": [
+        "Introduce a brand-new Ethiopian timbre detector in output_analyzer.py as part of the same slice.",
+        "Leave the analyzer unchanged and accept that sub-heavy or missing-drum outputs could still pass as ethio_jazz.",
+        "Broaden the slice into a larger cross-genre analyzer redesign before fixing the proven Ethiopian-family false-green case."
+      ],
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "decision": "Treat a direct main.py auto-enable branch test and a direct non-Ethiopian semantic negative regression as desirable follow-up coverage, not blockers for the Ethiopian-family runtime/authenticity slice.",
+      "rationale": "Post-verifier proof was still clean: diagnostics reported no errors and the focused regression bundle passed at 173 passed, 15 warnings, 0 failures. The remaining nits are valuable for future hardening, but they do not undermine the observed resolver, parser, plumbing, and analyzer fixes that directly addressed the reported Ethiopian-jazz runtime-quality regression in this bounded slice.",
+      "alternatives_considered": [
+        "Block acceptance until a direct main.py unit test covers the auto-enable branch when use_agents is unspecified.",
+        "Block acceptance until a direct negative regression proves non-Ethiopian semantic matching stayed unchanged.",
+        "Expand the slice further before recording the completed runtime/authenticity fix in state."
+      ],
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "decision": "Treat the next small Ethiopian-jazz fix as parser-default, resolver-guardrail, and app/worker use_agents plumbing work before pursuing the larger shared InstrumentPatch-style architecture track.",
+      "rationale": "The post-Task-082 investigation showed the immediate failure is parser/resolution/app-path behavior: 'traditional key' fell back to generic ethio_jazz defaults, the normal app path still does not forward use_agents into the Ethiopian agent branch, and semantic resolution in the current non-Ethiopian expansion environment misroutes Ethiopian/brass requests into Funk o Rama bass/guitar assets. The user's broader unified cross-runtime InstrumentPatch-style model remains acknowledged architectural context, but it is not the immediate root cause of this artifact by itself.",
+      "alternatives_considered": [
+        "Start with the larger shared InstrumentPatch-style architecture track before addressing the smaller proven parser/resolver/app-path failure.",
+        "Tune the analyzer alone and leave parser defaults, resolver routing, and app/worker plumbing unchanged.",
+        "Treat the artifact as primarily a renderer or FluidSynth-availability problem even though drift is already visible in parser, MIDI, and resolver evidence before final rendering."
+      ],
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "decision": "If a follow-up stale-terminal sweep cannot positively identify additional stale workspace shells and the available terminal context shows only the active pwsh, record no cleanup action and proceed to app launch once smoke verification passes.",
+      "rationale": "In the post-Task-082 operational follow-up, a cautious stale-terminal review was attempted before launch, but the available terminal context only showed the active pwsh terminal and did not provide positive evidence of another stale workspace shell root to kill. Fabricating a cleanup action would be untruthful. Once the established smoke suite passed cleanly, the safe minimal next step was to launch the Release app for manual testing and record exactly that no extra stale-shell kill was proven in this pass.",
+      "alternatives_considered": [
+        "Claim or record a stale-terminal cleanup without positive evidence of an additional stale workspace shell.",
+        "Block app launch solely because a cautious follow-up sweep did not surface any extra stale shell beyond the active pwsh.",
+        "Repeat prior stale-shell cleanup claims from an earlier pass as though they happened again in this follow-up."
+      ],
+      "timestamp": "2026-05-22T00:22:00Z"
+    },
+    {
+      "decision": "Complete final MPC-inspired UI polish as a MainComponent shell/status-bar framing pass while preserving existing truthful capability language and avoiding any backend/workflow contract reopen.",
+      "rationale": "The pre-verifier showed the only real remaining Task 082 gap was top-level shell/status-bar integration in MainComponent because the MPC theme/layout/track-header groundwork already existed and Tasks 077-081 had already established truthful capability wording. A paint-only shell framing pass closes the integration gap with low risk, whereas further workflow/copy churn would re-open already-correct backend mastered/reference, dry preview, no live FX/mastering parity, local comp/current comp, and hints-only/no auto-apply semantics.",
+      "alternatives_considered": [
+        "Re-open Transport/Mixer/Take/Mastering/Browser workflow semantics even though Tasks 077-081 already made them truthful.",
+        "Further modify ColourScheme/LayoutConstants/TrackHeader instead of using their existing groundwork from the shell level.",
+        "Add or imply unavailable capability/back-end behavior during the final polish pass."
+      ],
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "decision": "Before heavyweight Task 082 verification/tests in this workspace, kill only stale integrated shell roots under the workspace-specific Code process tree and explicitly exclude extension-owned WSL/codex app-server infrastructure from cleanup.",
+      "rationale": "Process-tree inspection showed both a stale integrated PowerShell shell root and an openai.chatgpt extension WSL/codex app-server chain under /mnt/c/dev/MUSE-ai. The WSL/codex chain is tool infrastructure rather than evidence of a stale user workspace terminal, so killing it would be unnecessary and risky. Targeting only the stale pwsh root removes a known failure source before heavy verification/test runs. A nonzero taskkill exit caused by a child self-termination warning does not negate successful cleanup when the targeted shell root is actually terminated and the only remaining pwsh is the verification shell.",
+      "alternatives_considered": [
+        "Kill the entire workspace process tree, including extension-owned WSL/codex tooling infrastructure.",
+        "Treat any nonzero taskkill exit as a cleanup failure even when the targeted stale shell root is gone.",
+        "Skip terminal hygiene before heavyweight Task 082 verification/test runs."
+      ],
+      "timestamp": "2026-05-21T21:07:42Z"
+    },
     {
       "decision": "After the backend truthfulness gate closed, complete Tasks 077-081 as additive JUCE helper/status UX instead of introducing any new implied capability.",
       "rationale": "Tasks 072-076 already made playback, mastering-reference analysis, take rendering, and smart-selection surfaces real or honestly unavailable. The lowest-risk next move was therefore persistent helper/status text in Transport, Mixer, Takes, and Browsers plus panel-local Mastering reference-analysis summaries/results, which improves clarity without implying live FX/mastering parity, archived smart-selection success, auto-apply behavior, or real spectrum/apply workflows. This also leaves Task 082 free for the final integrated polish pass instead of re-opening backend semantics.",
@@ -1590,5 +1871,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-21T20:48:00Z"
+  "last_updated": "2026-05-23T09:55:00Z"
 }

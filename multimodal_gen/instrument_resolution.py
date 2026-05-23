@@ -97,11 +97,11 @@ DEFAULT_GENRE_INSTRUMENTS: Dict[str, List[str]] = {
     'house': ['bass', 'synth', 'pad'],
     'ambient': ['pad', 'strings', 'synth', 'choir'],
     # Cinematic / Classical genres
-    'cinematic': ['strings', 'brass', 'harp', 'choir', 'contrabass', 'french_horn'],
-    'classical': ['strings', 'piano', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
+    'cinematic': ['strings', 'brass', 'harp', 'choir', 'timpani', 'contrabass', 'french_horn'],
+    'classical': ['strings', 'piano', 'brass', 'harp', 'choir', 'timpani', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
     # Ethiopian genres
     'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],
-    'ethio_jazz': ['brass', 'piano', 'bass', 'organ'],
+    'ethio_jazz': ['krar', 'washint', 'brass', 'piano', 'bass'],
     'ethiopian_traditional': ['krar', 'masenqo', 'washint', 'begena'],
     'eskista': ['brass', 'krar', 'masenqo'],
 }

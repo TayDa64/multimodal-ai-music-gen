@@ -59,11 +59,16 @@ class TestRenderReportSchema:
         assert "output_path" in data
         assert "prompt_meta" in data
         assert "fluidsynth" in data
+        assert "neural" in data
         assert "soundfont_path" in data
         assert "instrument_library" in data
         assert "expansions" in data
+        assert "instrument_patches" in data
+        assert "track_realization_statuses" in data
         assert "warnings" in data
         assert "render_status" in data
+        assert isinstance(data["instrument_patches"], list)
+        assert isinstance(data["track_realization_statuses"], list)
 
         # Nested shapes
         assert "available" in data["fluidsynth"]
@@ -72,6 +77,10 @@ class TestRenderReportSchema:
         assert "attempted" in data["fluidsynth"]
         assert "success" in data["fluidsynth"]
         assert "skip_reason" in data["fluidsynth"]
+        assert "enabled" in data["neural"]
+        assert "attempted" in data["neural"]
+        assert "success" in data["neural"]
+        assert "skip_reason" in data["neural"]
         assert "loaded" in data["instrument_library"]
         assert "loaded" in data["expansions"]
         assert "success" in data["render_status"]

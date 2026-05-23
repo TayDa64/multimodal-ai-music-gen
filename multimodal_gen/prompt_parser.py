@@ -276,7 +276,7 @@ class ParsedPrompt:
             'classical': ['strings', 'piano', 'oboe', 'clarinet', 'flute', 'contrabass', 'french_horn'],
             # Ethiopian genres
             'ethiopian': ['krar', 'masenqo', 'brass', 'piano'],
-            'ethio_jazz': ['brass', 'piano', 'bass', 'organ'],
+            'ethio_jazz': ['krar', 'washint', 'brass', 'piano', 'bass'],
             'ethiopian_traditional': ['krar', 'masenqo', 'washint', 'begena'],
             'eskista': ['brass', 'krar', 'masenqo'],
         }
@@ -454,6 +454,28 @@ KEY_PATTERNS = [
     r'\b([A-Ga-g][#b♯♭]?)\b\s*(major|minor|maj|min|m)\b\s*(?:key)?',
 ]
 
+ETHIOPIAN_FAMILY_GENRES = {
+    'ethiopian',
+    'ethio_jazz',
+    'ethiopian_traditional',
+    'eskista',
+}
+
+ETHIOPIAN_MODAL_SCALES: Dict[str, ScaleType] = {
+    'tizita': ScaleType.TIZITA_MAJOR,
+    'bati': ScaleType.BATI_MAJOR,
+    'ambassel': ScaleType.AMBASSEL,
+    'anchihoye': ScaleType.ANCHIHOYE,
+}
+
+ETHIOPIAN_MODAL_CUES = (
+    'traditional key',
+    'traditional scale',
+    'ethiopian modal',
+    'habesha mode',
+    'qenet',
+)
+
 # Genre keywords mapped to genre type
 GENRE_KEYWORDS: Dict[str, List[str]] = {
     'trap': [
@@ -550,7 +572,7 @@ GENRE_KEYWORDS: Dict[str, List[str]] = {
     'ethio_jazz': [
         'ethio jazz', 'ethio-jazz', 'ethiopian jazz', 'mulatu',
         'mulatu astatke', 'astatke', 'swinging addis', 'ethiopiques',
-        'addis jazz', 'ethiopian funk'
+        'addis jazz', 'ethiopian funk', 'ethiopian jazzy', 'jazzy ethiopian'
     ],
     'ethiopian_traditional': [
         'traditional ethiopian', 'ethiopian traditional', 'azmari music',
@@ -885,8 +907,8 @@ class PromptParser:
         
         # Extract each parameter from main prompt
         bpm = self._extract_bpm(prompt_lower)
-        key, scale_type = self._extract_key(prompt_lower)
         genre = self._extract_genre(prompt_lower)
+        key, scale_type = self._extract_key(prompt_lower, genre=genre)
         instruments = self._extract_instruments(prompt_lower)
         drum_elements = self._extract_drums(prompt_lower)
         drum_intent = bool(drum_elements) or self._has_explicit_drum_intent(prompt_lower)
@@ -1126,16 +1148,54 @@ class PromptParser:
         # No duration specified - return None for auto
         return None
 
-    def _extract_key(self, prompt: str) -> Tuple[str, ScaleType]:
+    def _normalize_key_root(self, raw_root: str) -> str:
+        raw_root = raw_root.strip().replace('♯', '#').replace('♭', 'b')
+        root = raw_root[0].upper()
+        if len(raw_root) > 1:
+            accidental = raw_root[1]
+            root += '#' if accidental == '#' else 'b' if accidental.lower() == 'b' else ''
+        return root
+
+    def _extract_root_hint(self, prompt: str) -> Optional[str]:
+        match = re.search(
+            r'\b(?:in|key\s*(?:of)?)\b\s*([A-Ga-g][#b♯♭]?)\b',
+            prompt,
+            re.IGNORECASE,
+        )
+        if not match:
+            return None
+        return self._normalize_key_root(match.group(1))
+
+    def _extract_ethiopian_scale_hint(
+        self,
+        prompt: str,
+        genre: str,
+    ) -> Optional[ScaleType]:
+        for keyword, scale_type in ETHIOPIAN_MODAL_SCALES.items():
+            if keyword in prompt:
+                return scale_type
+
+        if any(cue in prompt for cue in ETHIOPIAN_MODAL_CUES):
+            genre_scale = GENRE_DEFAULTS.get(genre, {}).get('scale')
+            if isinstance(genre_scale, ScaleType):
+                return genre_scale
+            return ScaleType.TIZITA_MAJOR
+
+        if genre in ETHIOPIAN_FAMILY_GENRES and not any(
+            western_mode in prompt for western_mode in (' major', ' minor', ' maj', ' min')
+        ):
+            genre_scale = GENRE_DEFAULTS.get(genre, {}).get('scale')
+            if isinstance(genre_scale, ScaleType):
+                return genre_scale
+
+        return None
+
+    def _extract_key(self, prompt: str, genre: str = '') -> Tuple[str, ScaleType]:
         """Extract musical key and scale type from prompt."""
         for pattern in KEY_PATTERNS:
             match = re.search(pattern, prompt, re.IGNORECASE)
             if match:
-                raw_root = match.group(1).strip().replace('♯', '#').replace('♭', 'b')
-                root = raw_root[0].upper()
-                if len(raw_root) > 1:
-                    accidental = raw_root[1]
-                    root += '#' if accidental == '#' else 'b' if accidental.lower() == 'b' else ''
+                root = self._normalize_key_root(match.group(1))
                 
                 # Determine scale type
                 scale_str = match.group(2) if match.lastindex >= 2 else None
@@ -1152,6 +1212,10 @@ class PromptParser:
                     scale_type = ScaleType.MINOR
                 
                 return (root, scale_type)
+
+        ethiopian_scale = self._extract_ethiopian_scale_hint(prompt, genre)
+        if ethiopian_scale is not None:
+            return (self._extract_root_hint(prompt) or 'C', ethiopian_scale)
         
         # Check mood for scale hint
         if any(kw in prompt for kw in ['dark', 'moody', 'sad', 'minor']):

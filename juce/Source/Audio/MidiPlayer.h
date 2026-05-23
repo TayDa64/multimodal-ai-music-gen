@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include <array>
+
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_formats/juce_audio_formats.h>
 #include "SimpleSynthVoice.h"
@@ -38,6 +40,12 @@ public:
         @param channel  0-based track index (derived from MIDI channel - 1)
         @param note     MIDI note number (0-127) */
     virtual void midiNoteOff(int channel, int note) = 0;
+
+    /** Called when a playback-time program-change event occurs.
+        @param channel  0-based track index (derived from MIDI channel - 1)
+        @param program  MIDI program number (0-127)
+        @param bank     Effective MIDI bank number (0-16383), derived from CC0 (MSB) and CC32 (LSB) */
+    virtual void midiProgramChange(int channel, int program, int bank) = 0;
 };
 
 //==============================================================================
@@ -178,6 +186,11 @@ private:
     void processNextMidiEvents(int numSamples);
     void setupSynthesiser();
     void extractMetadata();
+
+    void resetBankSelectState();
+    void rebuildBankSelectStateUpToEventIndex(int eventIndex);
+    void applyBankSelectMessage(const juce::MidiMessage& msg);
+    int getEffectiveBankForChannelIndex(int channelIndex) const;
     
     //==========================================================================
     // Members
@@ -220,6 +233,12 @@ private:
     
     // External instrument listener (for routing to Track SamplerInstruments)
     MidiPlayerListener* midiListener { nullptr };
+
+    // Bank Select state (per MIDI channel) for bounded SF2 preset switching.
+    // Only CC0 (Bank Select MSB) and CC32 (Bank Select LSB) are tracked.
+    static constexpr int numMidiChannels { 16 };
+    std::array<std::atomic<int>, numMidiChannels> bankSelectMsb;
+    std::array<std::atomic<int>, numMidiChannels> bankSelectLsb;
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiPlayer)
 };

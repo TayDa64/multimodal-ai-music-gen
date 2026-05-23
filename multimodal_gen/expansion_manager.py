@@ -197,12 +197,68 @@ GENRE_AFFINITY = {
     "trap_soul": {"rnb": 0.9, "trap": 0.7, "soul": 0.8},
     "g_funk": {"funk": 0.95, "rnb": 0.8, "west_coast": 0.9},
     "trap": {"trap": 1.0, "drill": 0.7, "hip_hop": 0.8},
-    "eskista": {"ethiopian": 1.0, "african": 0.8, "world": 0.7, "folk": 0.6},
-    "ethiopian_traditional": {"ethiopian": 1.0, "african": 0.8, "world": 0.7},
+    "ethiopian": {
+        "ethiopian": 1.0,
+        "ethio_jazz": 0.95,
+        "ethiopian_traditional": 0.9,
+        "eskista": 0.9,
+    },
+    "ethio_jazz": {
+        "ethio_jazz": 1.0,
+        "ethiopian": 0.95,
+        "ethiopian_traditional": 0.8,
+        "eskista": 0.75,
+        "jazz": 0.55,
+    },
+    "eskista": {
+        "eskista": 1.0,
+        "ethiopian": 1.0,
+        "ethiopian_traditional": 0.9,
+        "ethio_jazz": 0.8,
+        "african": 0.8,
+        "world": 0.7,
+        "folk": 0.6,
+    },
+    "ethiopian_traditional": {
+        "ethiopian_traditional": 1.0,
+        "ethiopian": 1.0,
+        "eskista": 0.9,
+        "ethio_jazz": 0.75,
+        "african": 0.8,
+        "world": 0.7,
+    },
     "lofi": {"jazz": 0.7, "soul": 0.6, "chill": 0.8},
     "boom_bap": {"hip_hop": 0.9, "jazz": 0.7, "soul": 0.6},
     "house": {"electronic": 0.9, "dance": 0.8, "disco": 0.7},
     "drill": {"trap": 0.8, "grime": 0.7, "uk": 0.6},
+}
+
+ETHIOPIAN_FAMILY_GENRES = {
+    "ethiopian",
+    "ethio_jazz",
+    "ethiopian_traditional",
+    "eskista",
+}
+
+ETHIOPIAN_FAMILY_ROLES = {
+    InstrumentRole.ETHIOPIAN_STRING,
+    InstrumentRole.ETHIOPIAN_WIND,
+    InstrumentRole.ETHIOPIAN_DRUM,
+}
+
+ETHIOPIAN_SEMANTIC_MARKERS = {
+    "ethiopian",
+    "ethio",
+    "habesha",
+    "azmari",
+    "qenet",
+    "eskista",
+    "tizita",
+    "bati",
+    "ambassel",
+    "anchihoye",
+    "addis",
+    "mulatu",
 }
 
 
@@ -901,6 +957,63 @@ class IntelligentMatcher:
                     if instrument.category not in self.by_category:
                         self.by_category[instrument.category] = []
                     self.by_category[instrument.category].append(instrument)
+
+    @staticmethod
+    def _normalize_genre_key(genre: str) -> str:
+        if not genre:
+            return ""
+        return str(genre).strip().lower().replace("-", "_").replace(" ", "_")
+
+    @classmethod
+    def _has_ethiopian_marker(cls, text: str) -> bool:
+        if not text:
+            return False
+        lowered = str(text).strip().lower().replace("-", "_").replace(" ", "_")
+        return any(marker in lowered for marker in ETHIOPIAN_SEMANTIC_MARKERS)
+
+    @classmethod
+    def _requires_ethiopian_safe_semantic(
+        cls,
+        requested: str,
+        genre: str,
+        role: Optional[InstrumentRole],
+    ) -> bool:
+        if cls._normalize_genre_key(genre) in ETHIOPIAN_FAMILY_GENRES:
+            return True
+        if role in ETHIOPIAN_FAMILY_ROLES:
+            return True
+        return cls._has_ethiopian_marker(requested)
+
+    def _is_ethiopian_safe_candidate(self, inst: ExpansionInstrument) -> bool:
+        if inst.role in ETHIOPIAN_FAMILY_ROLES:
+            return True
+
+        if any(
+            self._has_ethiopian_marker(value)
+            for value in (inst.id, inst.name, inst.expansion_id)
+        ):
+            return True
+
+        if any(self._has_ethiopian_marker(tag) for tag in inst.tags):
+            return True
+
+        expansion = next(
+            (exp for exp in self.expansions if exp.id == inst.expansion_id),
+            None,
+        )
+        if not expansion:
+            return False
+
+        if any(
+            self._normalize_genre_key(target) in ETHIOPIAN_FAMILY_GENRES
+            for target in expansion.target_genres
+        ):
+            return True
+
+        return any(
+            self._has_ethiopian_marker(value)
+            for value in (expansion.id, expansion.name)
+        )
     
     def resolve(
         self,
@@ -952,8 +1065,18 @@ class IntelligentMatcher:
         
         # Tier 3: Semantic role matching
         role = self._get_role(requested_lower)
+        ethiopian_safe_semantic = self._requires_ethiopian_safe_semantic(
+            requested_lower,
+            genre,
+            role,
+        )
         if role:
-            semantic = self._find_by_role(role, genre, prefer_expansion)
+            semantic = self._find_by_role(
+                role,
+                genre,
+                prefer_expansion,
+                ethiopian_safe_only=ethiopian_safe_semantic,
+            )
             if semantic:
                 return ResolvedInstrument(
                     path=semantic.path,
@@ -966,6 +1089,21 @@ class IntelligentMatcher:
                     genre=genre,
                     sample_paths=semantic.sample_paths,
                 )
+
+        if ethiopian_safe_semantic:
+            return ResolvedInstrument(
+                path="",
+                name="",
+                source="none",
+                match_type=MatchType.DEFAULT,
+                confidence=0.0,
+                note=(
+                    f"No Ethiopian-safe expansion candidate found for '{requested}'. "
+                    "Falling back to built-ins."
+                ),
+                requested=requested,
+                genre=genre,
+            )
         
         # Tier 4: Spectral similarity (if we have a target profile)
         target_profile = self._get_ideal_profile(requested_lower, genre)
@@ -1049,7 +1187,8 @@ class IntelligentMatcher:
         self,
         role: InstrumentRole,
         genre: str,
-        prefer_expansion: str = None
+        prefer_expansion: str = None,
+        ethiopian_safe_only: bool = False,
     ) -> Optional[ExpansionInstrument]:
         """Find by semantic role with genre affinity scoring."""
         # Get direct role matches
@@ -1059,6 +1198,11 @@ class IntelligentMatcher:
         if role in ROLE_COMPATIBILITY:
             for compat_role in ROLE_COMPATIBILITY[role]:
                 candidates.extend(self.by_role.get(compat_role, []))
+
+        if ethiopian_safe_only:
+            candidates = [
+                inst for inst in candidates if self._is_ethiopian_safe_candidate(inst)
+            ]
         
         if not candidates:
             return None
@@ -1151,6 +1295,9 @@ class IntelligentMatcher:
             'g_funk': ['funk', 'rnb', 'soul'],
             'rnb': ['rnb', 'soul', 'funk'],
             'lofi': ['lofi', 'jazz', 'chill'],
+            'ethiopian': ['ethiopian', 'ethio', 'habesha', 'azmari', 'qenet'],
+            'ethio_jazz': ['ethiopian', 'ethio', 'habesha', 'mulatu', 'addis'],
+            'ethiopian_traditional': ['ethiopian', 'habesha', 'azmari', 'qenet'],
             'eskista': ['ethiopian', 'african', 'world'],
         }
         

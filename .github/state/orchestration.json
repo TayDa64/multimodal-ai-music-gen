@@ -487,9 +487,9 @@
     {
       "id": "final-mpc-inspired-ui-pass-082",
       "description": "After Tasks 077-081, apply the final MPC-inspired integrated polish pass once capability surfaces and workflow truthfulness are stable.",
-      "status": "pending",
+      "status": "completed",
       "assigned_to": "builder",
-      "phase": "implement",
+      "phase": "complete",
       "priority": "MEDIUM",
       "dependencies": [
         "playback-capability-visibility-ui-077",
@@ -505,7 +505,167 @@
         "juce/Source/MainComponent.cpp"
       ],
       "created": "2026-05-21T12:00:00Z",
-      "updated": "2026-05-21T20:48:00Z"
+      "updated": "2026-05-22T10:20:00Z",
+      "pre_verifier": {
+        "verdict": "PARTIAL_IMPLEMENTATION_READY",
+        "summary": "Existing MPC groundwork already existed in ColourScheme, LayoutConstants, and TrackHeaderComponent, and the truthfulness/workflow polish from Tasks 077-081 was already present across MainComponent, Transport, Mixer, TakeLane, MasteringSuitePanel, InstrumentBrowserPanel, and ExpansionBrowserPanel. The remaining Task 082 gap was the top-level MainComponent shell/status-bar integration.",
+        "groundwork_already_present": [
+          "juce/Source/UI/Theme/ColourScheme.h",
+          "juce/Source/UI/Theme/LayoutConstants.h",
+          "juce/Source/UI/TrackList/TrackHeaderComponent.cpp"
+        ],
+        "truthfulness_polish_already_present": [
+          "MainComponent",
+          "Transport",
+          "Mixer",
+          "TakeLane",
+          "MasteringSuitePanel",
+          "InstrumentBrowserPanel",
+          "ExpansionBrowserPanel"
+        ]
+      },
+      "implementation": {
+        "files_changed": [
+          "juce/Source/MainComponent.cpp"
+        ],
+        "summary": "Added paint-only shell-level MPC-inspired polish in MainComponent using existing AppColours/Layout groundwork: recessed/raised wells behind the left workflow column, main visualization area, and bottom tool area when visible; a framed/segmented inset status strip for connection state, genre, generation status, and current activity; and subtle MPC-style accent separators/outlines using existing AppColours::mpc*, surface, and border colours.",
+        "guardrails_preserved": [
+          "resized() semantics stayed effectively intact.",
+          "No backend/protocol behavior changed.",
+          "No unavailable capability was enabled.",
+          "Existing truthful semantics for backend mastered/reference audio and dry/unmastered MIDI preview/fallback were preserved.",
+          "Existing no-live-FX/mastering parity, local comp/current comp, and reference analyze hints-only/no auto-apply semantics were preserved."
+        ]
+      },
+      "tests": [
+        {
+          "command": "Scope proof: inspect runtime/product diff and MainComponent patch shape",
+          "result": "PASS: runtime/product code diff only in juce/Source/MainComponent.cpp; state files changed separately for continuity updates; MainComponent diff consisted of helper drawing/layout functions and a paint() restyle only."
+        },
+        {
+          "command": "VS Code diagnostics / get_errors for juce/Source/MainComponent.cpp",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": "git diff --check -- juce/Source/MainComponent.cpp",
+          "result": "PASS"
+        },
+        {
+          "command": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal",
+          "result": "PASS"
+        },
+        {
+          "command": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal",
+          "result": "PASS"
+        },
+        {
+          "command": "Truthfulness regression / source proof",
+          "result": "PASS: backend mastered/reference vs dry/unmastered preview wording remains present; no live FX/mastering parity wording remains present; current comp/local comp wording remains present; and reference analyze hints-only/no auto-apply semantics remain present."
+        },
+        {
+          "command": "Post-082 operational follow-up: .\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q, cautious stale-terminal sweep review, and manual app launch",
+          "result": "PASS: 81 passed, 6 warnings, 21.57s, no failing tests. Follow-up stale-terminal sweep did not positively identify any additional stale workspace shell beyond the active pwsh visible in available terminal context, so no extra user terminal kill is recorded. Release binary launched successfully for manual testing at C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Release\\AI Music Generator.exe with PID 27412 and immediate Get-Process visibility=True."
+        },
+        {
+          "command": "Post-Task-082 Ethiopian-jazz manual-test investigation continuity note",
+          "result": "RECORDED: investigation only; no code/docs changes. User artifact output\\ethio_jazz_95bpm_Cminor_20260522_090944_render_report.json stayed on the procedural/non-FluidSynth path with Funk o Rama assets active; the exact parser probe for 'generate a modern ethiopian jazzy song 16 bars, in traditional key' fell back to generic ethio_jazz defaults; the normal app path still does not forward use_agents into the Ethiopian agent branch; and MIDI plus live resolver probes show Ethiopian/brass requests can misroute into generic Funk o Rama bass/guitar assets while the current analyzer still reports audio_analysis.passed=true with genre_match_score=1.0."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_NITS",
+        "timestamp": "2026-05-21T21:14:36Z",
+        "summary": "Independent post-verifier confirmed the runtime/product code diff was limited to juce/Source/MainComponent.cpp, the MainComponent diff was helper drawing/layout plus a paint() restyle only, scoped diagnostics and diff-check passed, Debug and Release JUCE builds passed, and truthfulness regression/source proof remained intact.",
+        "nit": "No interactive/manual UI smoke was run in this verification pass; acceptance is based on source inspection, diagnostics, diff scope, and Debug/Release builds.",
+        "aggregation_conclusion": "Treat Task 082 as complete because the precheck established MainComponent shell integration was the actual remaining gap after earlier MPC token/track-control groundwork, and the implementation closed that gap without reopening semantics."
+      }
+    },
+    {
+      "id": "ethiopian-family-runtime-authenticity-fix-083",
+      "description": "Fix the Ethiopian-family runtime/authenticity regression by constraining semantic expansion drift, making ethio_jazz parsing/defaults Ethiopian-first, restoring Ethiopian-family app/worker agent plumbing, and tightening ethio_jazz analyzer gates without taking on the larger InstrumentPatch architecture track.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [],
+      "files_to_modify": [
+        "multimodal_gen/expansion_manager.py",
+        "multimodal_gen/instrument_resolution.py",
+        "multimodal_gen/prompt_parser.py",
+        "multimodal_gen/server/worker.py",
+        "main.py",
+        "multimodal_gen/output_analyzer.py",
+        "tests/test_prompt_parser_key.py",
+        "tests/test_protocol.py",
+        "tests/test_output_analyzer.py",
+        "tests/test_ethiopian_resolution_guardrails.py"
+      ],
+      "created": "2026-05-22T11:15:00Z",
+      "updated": "2026-05-22T11:40:00Z",
+      "pre_verifier": {
+        "verdict": "PARTIAL_IMPLEMENTATION_READY",
+        "summary": "Read-only precheck confirmed the Ethiopian-jazz runtime-quality regression was still unresolved in four narrow places: resolver guardrails were not implemented for Ethiopian-family semantic matching, parser support was only partial for traditional key/qenet cues and Ethiopian-first defaults, the normal app path did not implement the Ethiopian-family use_agents forwarding/auto-enable path, and the analyzer target was still partial/too permissive. The smallest safe fix was a narrow 6-file runtime/authenticity patch across expansion_manager.py, instrument_resolution.py, prompt_parser.py, multimodal_gen/server/worker.py, main.py, and multimodal_gen/output_analyzer.py."
+      },
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/expansion_manager.py",
+          "multimodal_gen/instrument_resolution.py",
+          "multimodal_gen/prompt_parser.py",
+          "multimodal_gen/server/worker.py",
+          "main.py",
+          "multimodal_gen/output_analyzer.py",
+          "tests/test_prompt_parser_key.py",
+          "tests/test_protocol.py",
+          "tests/test_output_analyzer.py",
+          "tests/test_ethiopian_resolution_guardrails.py"
+        ],
+        "summary": "ExpansionManager semantic matching now treats Ethiopian-family requests conservatively by filtering Tier 3 matches to Ethiopian-safe candidates only and stopping before unsafe semantic/spectral drift when no such candidate exists, while instrument resolution adds Ethiopian-family affinity so real Ethiopian-targeted packs win when present. prompt_parser now gives ethio_jazz Ethiopian-first defaults, understands traditional key/traditional scale/qenet/ethiopian modal cues plus named qenet cues (tizita, bati, ambassel, anchihoye), preserves ethio_jazz priority over generic jazz, and parses the exact regression prompt to an Ethiopian-family scale/time-signature outcome. worker now forwards explicit use_agents from request options when present, main.py auto-enables agents for ethiopian, ethio_jazz, ethiopian_traditional, and eskista only when use_agents is unspecified, and output_analyzer tightens ethio_jazz using stricter existing knobs so the prior sub-heavy/missing-drum false-green pattern no longer passes.",
+        "guardrails_preserved": [
+          "Tier 3 semantic narrowing is scoped to Ethiopian-family requests rather than broad resolver behavior changes.",
+          "When no Ethiopian-safe semantic candidate exists, semantic expansion resolution stops and allows built-in fallback to take over instead of forcing unrelated pack drift.",
+          "Explicit use_agents=False is preserved; auto-enable only applies when the request left use_agents unspecified and only for Ethiopian-family genres.",
+          "The analyzer slice reused existing scorer knobs such as the sub-bass ceiling and required drum parts instead of introducing a new Ethiopian timbre detector in this slice.",
+          "Ethio-jazz priority over generic jazz was preserved while adding traditional key/qenet cue handling."
+        ]
+      },
+      "tests": [
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_protocol.py tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_jazz_strategy.py tests/test_ethiopian_resolution_guardrails.py -q",
+          "result": "PASS: 173 passed in 60.77s"
+        },
+        {
+          "command": "VS Code diagnostics / get_errors on multimodal_gen/expansion_manager.py, multimodal_gen/instrument_resolution.py, multimodal_gen/prompt_parser.py, multimodal_gen/server/worker.py, main.py, multimodal_gen/output_analyzer.py, tests/test_prompt_parser_key.py, tests/test_protocol.py, tests/test_output_analyzer.py, and tests/test_ethiopian_resolution_guardrails.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_protocol.py tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_jazz_strategy.py tests/test_ethiopian_resolution_guardrails.py -q",
+          "result": "PASS: 173 passed, 15 warnings, 0 failures in 59.05s"
+        },
+        {
+          "command": "Direct parser probe: PromptParser().parse(\"generate a modern ethiopian jazzy song 16 bars, in traditional key\")",
+          "result": "PASS: genre=ethio_jazz, time_signature=[6, 8], key=C, printed scale_type=DORIAN, instruments=['krar', 'washint', 'brass', 'piano', 'bass'], drums=['kick', 'snare', 'hihat', 'ride', 'perc']."
+        },
+        {
+          "command": "ScaleType alias interpretation note",
+          "result": "PASS: multimodal_gen.utils.ScaleType currently gives ETHIO_JAZZ and DORIAN the same interval list, so Python Enum aliases them and direct .name printing can show DORIAN even when semantic regressions asserting ScaleType.ETHIO_JAZZ still pass. This is a representation nuance, not a failure of the Ethiopian modal-cue fix."
+        },
+        {
+          "command": "Direct quiet resolver probe in the current Funk o Rama-only environment",
+          "result": "PASS: safe built-in fallback held instead of unsafe Funk semantic drift \u2014 krar=>builtin default/program 110, masenqo=>builtin default/program 111, washint=>builtin default/program 112, brass=>builtin default/program 61."
+        },
+        {
+          "command": "Direct worker kwargs probe",
+          "result": "PASS: unspecified request/options => use_agents absent with value null; explicit options={\"use_agents\": true} => use_agents present and true."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_NITS",
+        "timestamp": "2026-05-22T11:15:00Z",
+        "summary": "Post-verifier diagnostics found no errors in the touched files and the focused pytest bundle reran clean at 173 passed, 15 warnings, 0 failures in 59.05s. The slice is accepted because it directly addressed the earlier user-reported Ethiopian-jazz runtime-quality regression without taking on the larger InstrumentPatch architecture track.",
+        "follow_up_nits": [
+          "No direct main.py unit test of the auto-enable branch when use_agents is unspecified.",
+          "No direct negative regression proving non-Ethiopian semantic matching stayed unchanged."
+        ]
+      }
     },
     {
       "id": "instrument-display-name-cleanup-071",
@@ -6401,19 +6561,112 @@
       "status": "completed",
       "completed": "2026-05-16T09:13:21Z",
       "summary": "Task 058 rock-family baseline measurement completed as FAIL-MEASURED docs/state aggregation; see docs/ROCK_FAMILY_BASELINE_2026-05-16_TASK_058.md."
+    },
+    {
+      "id": "track-scoped-instrument-patch-proposal-085",
+      "status": "completed",
+      "completed": "2026-05-22T12:30:00Z",
+      "summary": "Created docs/INSTRUMENT_PATCH_PROPOSAL.md as a planning-ready proposal for a shared cross-runtime InstrumentPatch/SynthesisVoice contract grounded in current Python ADSR/Synthesis/SonicProfile/InstrumentLibrary and JUCE DefaultSynthState/DefaultSynthVoice evidence, explicitly choosing a track-scoped v1 contract over dynamic runtime program_change switching and aggregating the matching orchestration/context/memory state updates."
+    },
+    {
+      "id": "instrument-patch-proposal-pointer-follow-up-086",
+      "status": "completed",
+      "completed": "2026-05-22T13:05:00Z",
+      "summary": "Added a short See also pointer from recommendation 6 in docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md to docs/INSTRUMENT_PATCH_PROPOSAL.md and aggregated the matching orchestration/context/memory updates as a docs-only follow-up slice; no architecture or runtime implementation changed."
+    },
+    {
+      "id": "instrument-patch-backend-runtime-phase1-087",
+      "status": "completed",
+      "completed": "2026-05-22T14:20:00Z",
+      "summary": "Implemented the first bounded InstrumentPatch backend runtime slice: added multimodal_gen/instrument_patch.py with a real serializable patch contract plus bounded registry/alias normalization/track-scoped helper for current procedural families, exposed additive instrument_patches metadata in AudioRenderer render reports, persisted results['instrument_patches'] into project_metadata.json independently of renderer monkeypatching, added focused regression coverage, and verified with .\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_patch.py tests/test_render_report_schema.py tests/test_audio_renderer.py tests/test_main_render_diagnostics.py -q => 42 passed, 2 warnings, 0 failed. No JUCE/live runtime behavior changed in this phase."
+    },
+    {
+      "id": "instrument-patch-juce-subset-phase2-088",
+      "status": "completed",
+      "completed": "2026-05-22T19:39:58Z",
+      "summary": "Implemented the Phase 2 InstrumentPatch JUCE subset adapter: worker/Messages transport now carries additive instrument_patches, MainComponent falls back to matching current.outputs.instrument_patches in project_metadata.json when needed, conservatively maps only waveform/amp attack-release/static low-pass cutoff/amp LFO rate-depth into per-track Project::IDs::defaultSynth* fields for tracks still on empty/default_sine after sample auto-mapping, and reuses the existing default_sine project-state seam without changing mastering/live-FX truthfulness. Verified with get_errors (clean), .\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py -q => 49 passed, 6 warnings, and JUCE Debug MSBuild => PASS."
+    },
+    {
+      "id": "instrument-patch-empty-array-fallback-follow-up-089",
+      "status": "completed",
+      "completed": "2026-05-22T19:50:11Z",
+      "summary": "Applied the smallest Phase 2 JUCE follow-up fix: MainComponent now falls back to matching current.outputs.instrument_patches in project_metadata.json when the direct instrument_patches payload is non-array or empty [], and the same empty-array fallback rule was mirrored for instruments_used symmetry. Verified with get_errors on juce/Source/MainComponent.cpp and .github/state/{orchestration,context,memory}.json => clean, and JUCE Debug MSBuild => PASS with MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe."
+    },
+    {
+      "id": "instrument-patch-sample-fallback-phase3-mini-slice-090",
+      "status": "completed",
+      "completed": "2026-05-22T20:34:49Z",
+      "summary": "Implemented the bounded InstrumentPatch Phase 3 sample-fallback mini-slice: multimodal_gen/instrument_patch.py now conservatively enriches patches with at most one truthful sample_layers entry from already-resolved instruments_used paths, main.py reserializes results['instrument_patches'] after instruments_used is known so project_metadata persists the enriched hints, and MainComponent tries a uniquely matched patch sample-layer path_hint on remaining default-synth tracks before falling back to the Phase 2 default-synth subset. Verified with get_errors (clean), .\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_patch.py tests/test_main_render_diagnostics.py -q => 15 passed in 2.67s, and JUCE Debug MSBuild => PASS with MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe. audio_renderer.py parity was deferred to keep this slice low-churn.",
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-22T20:34:49Z",
+        "summary": "Final post-verifier accepted task 090 with no required fixes. The already-completed verification bundle stayed clean: get_errors reported no issues on the touched production/test files, the focused pytest bundle passed 15 tests, and the JUCE Debug build passed. The only note was optional future hardening to add Python-side file-existence checking around sample-layer path hints; that is deferred and not required for correctness in this slice. audio_renderer.py parity remains intentionally deferred."
+      }
+    },
+    {
+      "id": "instrument-patch-render-report-parity-and-track-status-091",
+      "status": "completed",
+      "completed": "2026-05-22T21:20:00Z",
+      "summary": "Implemented the next post-090 InstrumentPatch backend/reporting slice: main.py now passes resolved_sample_metadata/results['instruments_used'] into AudioRenderer, audio_renderer.py enriches render-report instrument_patches with enrich_instrument_patches_with_resolved_samples(...) so the report matches main's enriched/persisted patch view, and the render report now adds additive top-level track_realization_statuses with conservative per-track renderer truth from MIDI facts, program changes, custom/expansion sample caches, rock-bass procedural guards, drum hit routing, and whole-file FluidSynth facts. Verified with get_errors on main.py, multimodal_gen/audio_renderer.py, tests/test_audio_renderer.py, tests/test_render_report_schema.py, and tests/test_main_render_diagnostics.py => clean, plus .\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py tests/test_main_render_diagnostics.py -q -ra => 44 passed, 2 warnings, 0 failed in 77.33s. No C++ files changed, so JUCE build was intentionally skipped. Python-side path_hint file-exists hardening remains deferred.",
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-22T22:05:00Z",
+        "summary": "Final verifier verdict PASS. The main task-091 slice and its narrow verifier-fix follow-up together satisfy the backend-only acceptance bar: a fresh targeted pytest bundle passed 4 tests covering the drum-note routing fix, Krar patch/status mapping, main\u2194renderer patch parity, and additive render-report schema; the earlier focused bundles also passed for the main slice (44 passed) and the follow-up (30 passed); no JUCE/C++ files changed anywhere in the fix surface, so the focused Python proof set was sufficient; and Python-side path_hint hardening remains deferred."
+      }
+    },
+    {
+      "id": "instrument-patch-render-report-parity-and-track-status-091-verifier-fix-follow-up",
+      "status": "completed",
+      "completed": "2026-05-22T22:05:00Z",
+      "summary": "Fixed the two concrete post-verifier blockers for task 091 without broadening scope: audio_renderer.py now keeps explicit render-time drum-note routing for GM 37 side-stick -> snare fallback and GM 39 clap -> clap so reporting-oriented helper work cannot silently force those hits onto kick, and track_realization_statuses now matches patches through conservative canonical patch keys (fallback.instrument_id_hints plus patch_id tokens like krar/masenqo/washint/begena) before broad patch_profile.family matching so Ethiopian tracks truthfully map to their own patch metadata. Added focused regressions in tests/test_audio_renderer.py for the clap/side-stick render path and the Krar program-110 status match. Verified with get_errors on multimodal_gen/audio_renderer.py and tests/test_audio_renderer.py => PASS: no errors found, plus .\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py -q -ra => PASS: 30 passed, 2 warnings, 0 failed in 57.88s. No C++ files changed, so no JUCE build was required.",
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-05-22T22:05:00Z",
+        "summary": "Final verifier accepted this follow-up as the closing fix for task 091. The fresh targeted 4-test pytest bundle passed the exact backend-only proof surface for restored side-stick/clap routing, Krar canonical patch/status matching, main\u2194renderer patch parity, and additive render-report schema; the earlier 30-pass and 44-pass focused bundles remained valid; no JUCE/C++ changes were introduced in the fix surface; and Python-side path_hint hardening remains deferred rather than required for this PASS."
+      }
+    },
+    {
+      "id": "instrument-patch-juce-decay-sustain-runtime-fidelity-092",
+      "status": "completed",
+      "completed": "2026-05-23T00:15:00Z",
+      "summary": "Implemented the next post-091 InstrumentPatch JUCE runtime-fidelity slice: AudioEngine default-synth state now supports additive DecaySeconds and SustainLevel params with legacy-safe defaults (decay=0.0f, sustain=1.0f), DefaultSynthVoice::startNote() now uses those stored values instead of hardcoded decay/sustain, ProjectState persists defaultSynthDecay/defaultSynthSustain with matching compatibility defaults, and MainComponent's bounded default-synth subset adapter now maps amp_envelope.decay_ms (seconds) plus amp_envelope.sustain_level into those per-track project-state fields before reusing the existing default_sine seam only for remaining default-synth tracks after sample-first mapping. Verified with get_errors on the touched JUCE C++ files => PASS: no errors found; JUCE Debug MSBuild => PASS with MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe and EXIT:0; get_errors on updated .github/state/{orchestration,context,memory}.json => PASS: no errors found; and git diff --check => PASS with only an unrelated CRLF warning in untouched tests/test_prompt_parser_key.py. UI exposure for decay/sustain remains deferred, and Python-side path_hint hardening remains deferred."
+    },
+    {
+      "id": "instrument-patch-juce-velocity-cutoff-runtime-fidelity-093",
+      "status": "completed",
+      "completed": "2026-05-23T06:32:38Z",
+      "summary": "Implemented the next post-092 InstrumentPatch JUCE runtime-fidelity slice: AudioEngine default-synth state now supports additive CutoffVelocityDeltaHz with legacy-safe default 0.0f, DefaultSynthVoice applies effective cutoff = clamp(base cutoff + normalized note velocity * cutoff delta, 40..20000 Hz) for default-synth tracks only, ProjectState persists defaultSynthCutoffVelocityDelta with matching compatibility default 0.0f, and MainComponent's bounded default-synth subset adapter now maps synthesis_voice.velocity_map.cutoff_delta_hz into that seam before reusing the existing default_sine path only for remaining default-synth tracks after sample-first mapping. docs/INSTRUMENT_PATCH_PROPOSAL.md now truthfully marks static low-pass cutoff and bounded default-synth velocity-to-cutoff as supported while keeping filter-envelope deferred. Verified with get_errors on the touched JUCE/docs files => PASS: no errors found; JUCE Debug MSBuild => PASS with MultimodalMusicGen_rc_lib.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_rc_lib.dir\\Debug\\MultimodalMusicGen_rc_lib.lib, MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe, and EXIT:0; get_errors on updated .github/state/{orchestration,context,memory}.json => PASS: no errors found; and git diff --check => PASS with only an unrelated pre-existing CRLF warning in untouched tests/test_prompt_parser_key.py. No UI, Python/backend/transport, filter-envelope, or path_hint hardening changes were made."
+    },
+    {
+      "id": "bounded-multi-feature-pass-094",
+      "status": "completed",
+      "completed": "2026-05-23T07:06:05Z",
+      "summary": "Bounded multi-feature backend/audio pass: added active-env FluidSynth proof helper script under scripts/, kept post-FluidSynth mastering parity guarded with a minimal extra test assertion, extended bounded orchestral expansion routing for strings/brass/choir/harp/timpani in procedural expansion sample lookup, added bounded EDM/pop unison lead fallback generator and routing, added bounded lo-fi wow/flutter DSP stage and wired it into create_lofi_chain(), and added bounded rock physical-model fallback improvements (Karplus-Strong pluck layer for rock guitar and a small pluck blend in rock electric bass while preserving rock sub-bass safety guardrails). Also added DDSP/neural research doc with phased no-overclaim plan."
+    },
+    {
+      "id": "bounded-wavetable-program-change-neural-foundation-095",
+      "status": "completed",
+      "completed": "2026-05-23T08:20:00Z",
+      "summary": "Implemented a bounded three-slice follow-up without overclaiming full completion: (1) Python now has a small static single-cycle wavetable foundation in assets_gen.py with sample interpolation plus light table morphing, and the existing EDM/pop/dance/electro/electropop/house procedural synth-lead fallback now routes through that bounded unison path only; (2) JUCE playback-time MIDI program_change events now flow end-to-end from MidiPlayerListener through AudioEngine into Track, where SF2-backed tracks switch presets at playback time via findPreset/setActivePreset when a matching bank-0 preset exists, while unsupported track types fail open and keep playback running; and (3) AudioRenderer now exposes an opt-in neural runtime seam backed by multimodal_gen/synthesizers/neural_runtime.py that honestly reports availability, missing dependencies, and missing model path/model file, falls back cleanly when not runnable, and only reports renderer_path=neural after a real successful neural render produced an output file. Verified with focused pytest (51 passed, 2 existing warnings), get_errors on all touched Python/JUCE files (PASS: no errors found), and JUCE Debug MSBuild (Build succeeded, 0 warnings, 0 errors). Deferred on purpose: full wavetable engine claims, broader JUCE live patch/bank-select parity beyond supported SF2 playback-time switching, and production neural/DDSP generation."
+    },
+    {
+      "id": "juce-sf2-bank-select-program-change-follow-up-096",
+      "status": "completed",
+      "completed": "2026-05-23T09:55:00Z",
+      "summary": "Follow-up to the existing playback-time SF2 program_change seam: MidiPlayer now tracks MIDI Bank Select CC0 (MSB) + CC32 (LSB) per channel during playback and forwards the effective 14-bit bank number alongside program changes. AudioEngine's MidiPlayerListener callback now receives (program, bank) and forwards that bank to Track::handleProgramChange(program, bank) so SF2 preset switching can resolve the correct banked preset when present. Bank state defaults to 0 for bankless files and is conservatively rebuilt on seek (scan CC0/CC32 from start up to the seek point) and reset on load/clear/end-of-playback to avoid stale bank reuse. Verified by JUCE Debug MSBuild: Build succeeded (405 warnings, 0 errors)."
     }
   ],
   "blocked_tasks": [],
-  "current_phase": "implement",
+  "current_phase": "aggregate",
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-21T20:48:00Z",
-    "total_tasks_completed": 82,
+    "last_updated": "2026-05-23T09:55:00Z",
+    "total_tasks_completed": 97,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "final-mpc-inspired-ui-pass-082"
+    "next_phase": "local-proof-complete-awaiting-user-direction-after-juce-bank-select-follow-up-096"
   },
   "sprint_11": {
     "status": "COMPLETE",

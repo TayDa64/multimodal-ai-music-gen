@@ -3,6 +3,944 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": "juce\\Source\\Audio\\MidiPlayer.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Extended MidiPlayerListener program-change callback to include bank and added per-channel bank-select state declarations for CC0/CC32."
+    },
+    {
+      "path": "juce\\Source\\Audio\\MidiPlayer.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Tracked CC0/CC32 during playback, rebuilt bank state on seek, reset on load/clear/end-of-playback, and forwarded (program, bank) on program_change."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Updated AudioEngine MidiPlayerListener program-change override signature to accept bank."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Forwarded playback-time program changes with bank into Track::handleProgramChange(program, bank)."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completion of the CC0/CC32 bank-select follow-up slice with MSBuild proof."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded touched-file, change-summary, and MSBuild verification entries for the CC0/CC32 bank-select follow-up slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T09:55:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the bounded bank-select decision (CC0/CC32 only, bank=(MSB<<7)|LSB) and the conservative seek rebuild guard."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the bounded three-slice follow-up task, proofs, and deferred items truthfully."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended touched-file, change-summary, verification, and rollback entries for the bounded three-slice follow-up."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Stored the durable bounded-runtime rule for static wavetable, playback-time SF2 program_change, and opt-in neural fail-open behavior."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added a bounded static single-cycle wavetable bank, interpolated playback helper, and updated the EDM/pop unison lead fallback to use that foundation."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Kept EDM/pop-style lead dispatch on the bounded unison path and added an opt-in neural backend seam that only reports renderer_path=neural after a real successful neural render."
+    },
+    {
+      "path": "multimodal_gen\\synthesizers\\__init__.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Exported the bounded neural runtime seam types."
+    },
+    {
+      "path": "multimodal_gen\\synthesizers\\neural_runtime.py",
+      "action": "created",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added the optional neural backend capability/reporting seam with fail-open render attempt handling."
+    },
+    {
+      "path": "juce\\Source\\Audio\\MidiPlayer.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Extended MidiPlayerListener with playback-time midiProgramChange callback."
+    },
+    {
+      "path": "juce\\Source\\Audio\\MidiPlayer.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "MidiPlayer now forwards program_change messages during playback to the listener."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added AudioEngine/Track playback-time program-change handling declarations."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Track now switches SF2 presets on supported playback-time program_change events while unsupported track types fail open."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused bounded wavetable bank and morph playback regressions."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added dispatch tests for the bounded EDM wavetable path plus opt-in neural fail-open/success coverage."
+    },
+    {
+      "path": "tests\\test_render_report_schema.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T08:20:00Z",
+      "by_agent": "builder",
+      "changes": "Extended the render-report schema guard for additive neural diagnostics."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "scripts\\fluidsynth_env_proof.py",
+      "action": "created",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "multimodal_gen\\mix_chain.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "multimodal_gen\\instrument_resolution.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "tests\\test_bounded_effects.py",
+      "action": "created",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": "docs\\DDSP_NEURAL_GENERATION_RESEARCH.md",
+      "action": "created",
+      "timestamp": "2026-05-23T07:06:05Z",
+      "by_agent": "builder",
+      "changes": "Bounded multi-feature pass implementation/update."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Recorded task instrument-patch-juce-velocity-cutoff-runtime-fidelity-093 as the next post-092 InstrumentPatch JUCE runtime-fidelity slice and advanced metadata.last_updated/total_tasks_completed/next_phase."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Prepended touched-file, change-summary, verification, and rollback entries for the bounded JUCE default-synth velocity-to-cutoff runtime-fidelity slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable rule that velocity-to-cutoff is safe through the existing default-synth seam while filter-envelope remains deferred until a real modulation path exists."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Added DefaultSynthParam::CutoffVelocityDeltaHz plus compatibility-safe DefaultSynthState field cutoffVelocityDeltaHz=0.0f."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "DefaultSynthVoice now computes effective low-pass cutoff from base cutoff plus normalized note velocity times cutoff delta, and Track::setDefaultSynthParam handles the new cutoff velocity param."
+    },
+    {
+      "path": "juce\\Source\\Project\\ProjectState.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Added per-track project-state identifier defaultSynthCutoffVelocityDelta for the existing default-synth persistence seam."
+    },
+    {
+      "path": "juce\\Source\\Project\\ProjectState.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "ensureTrackDefaults() now initializes defaultSynthCutoffVelocityDelta=0.0f so older/default tracks preserve legacy cutoff behavior."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Extended the bounded InstrumentPatch subset adapter so synthesis_voice.velocity_map.cutoff_delta_hz flows into project-state defaultSynthCutoffVelocityDelta and back into AudioEngine for remaining default-synth tracks only."
+    },
+    {
+      "path": "docs\\INSTRUMENT_PATCH_PROPOSAL.md",
+      "action": "modified",
+      "timestamp": "2026-05-23T06:32:38Z",
+      "by_agent": "builder",
+      "changes": "Updated the JUCE v1 subset/deferred section to mark static low-pass cutoff and bounded default-synth velocity-to-cutoff as supported while keeping filter-envelope deferred."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded task instrument-patch-juce-decay-sustain-runtime-fidelity-092 as the next post-091 InstrumentPatch JUCE runtime-fidelity slice and advanced metadata.last_updated/total_tasks_completed/next_phase."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended touched-file, change-summary, verification, and rollback entries for the bounded JUCE default-synth decay/sustain runtime-fidelity slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable rule that legacy default-synth compatibility stays at decay=0/sustain=1 while the patch subset may now flow decay/sustain only into remaining default-synth preview tracks."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added DefaultSynthParam::DecaySeconds and DefaultSynthParam::SustainLevel plus compatibility-safe DefaultSynthState fields decaySeconds=0.0f and sustainLevel=1.0f."
+    },
+    {
+      "path": "juce\\Source\\Audio\\AudioEngine.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "DefaultSynthVoice::startNote() now uses stored decay/sustain values instead of hardcoded 0/1, and Track::setDefaultSynthParam handles the new decay/sustain params."
+    },
+    {
+      "path": "juce\\Source\\Project\\ProjectState.h",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added per-track project-state identifiers defaultSynthDecay and defaultSynthSustain for the existing default-synth persistence seam."
+    },
+    {
+      "path": "juce\\Source\\Project\\ProjectState.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "ensureTrackDefaults() now initializes defaultSynthDecay=0.0f and defaultSynthSustain=1.0f so older/default tracks preserve the legacy envelope shape."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-23T00:15:00Z",
+      "by_agent": "builder",
+      "changes": "Extended the bounded InstrumentPatch subset adapter so amp_envelope.decay_ms/sustain_level flow into project-state defaultSynthDecay/defaultSynthSustain and back into AudioEngine for remaining default-synth tracks only."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Attached final post_verifier PASS entries to task-091 and its verifier-fix follow-up while preserving the verified-awaiting-user-direction next_phase marker."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended a final PASS aggregation summary for task-091 and its verifier-fix follow-up using the focused backend-only proof set and leaving memory.json unchanged."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded task-091 verifier-fix follow-up as a separate completed state entry and advanced metadata.last_updated/total_tasks_completed/next_phase."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended touched-file, change-summary, verification, and rollback entries for the narrow task-091 verifier-fix follow-up."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable rule that render-time drum routing and Ethiopian track-status patch matching should prefer explicit/canonical identities over broad shared helper families."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Restored explicit render-time drum-note routing for GM 37/39 and made track_realization_statuses patch matching use conservative canonical patch keys before broad family fallback so Krar-family tracks map truthfully."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T22:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused regressions for clap/side-stick drum routing and Krar program-110 track_realization_statuses patch mapping."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded task instrument-patch-render-report-parity-and-track-status-091 as the next completed post-090 InstrumentPatch backend/reporting slice and advanced metadata.next_phase/last_updated/total_tasks_completed."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended touched-file, change-summary, verification, and rollback entries for the InstrumentPatch render-report parity/status slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable rule that render-report instrument_patches must stay in parity with main's enriched view while actual per-track realization truth belongs in track_realization_statuses."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "AudioRenderer now accepts resolved_sample_metadata, enriches render-report instrument_patches via the shared helper, and emits additive track_realization_statuses from conservative MIDI/program/cache/backend facts."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "run_generation now passes results['instruments_used'] as resolved_sample_metadata into AudioRenderer so render reports use the same enriched patch view as results/project_metadata."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused render-report regressions for enriched instrument_patches plus custom_sample, procedural_fallback, and fluidsynth_soundfont track_realization_statuses cases."
+    },
+    {
+      "path": "tests\\test_render_report_schema.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "Locked in the additive top-level track_realization_statuses render-report field as list-shaped schema."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T21:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added a focused main-flow regression proving the persisted render report now matches main's enriched instrument_patches view."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Attached the final post_verifier PASS to task instrument-patch-sample-fallback-phase3-mini-slice-090 and advanced metadata.next_phase to a verified-awaiting-user-direction marker."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Prepended a final post-verifier PASS context entry for task 090 using the already-completed diagnostics, focused pytest, and JUCE Debug build results."
+    },
+    {
+      "path": "multimodal_gen\\instrument_patch.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Added conservative sample-layer enrichment from already-resolved instruments_used paths for clear-only patch matches."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Rebuilt results['instrument_patches'] after instruments_used resolution so persisted/project metadata carries truthful sample-layer hints."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Extended the Phase 2 InstrumentPatch fallback path so uniquely matched remaining default-synth tracks try valid sample_layers path_hint values before default-synth subset mapping."
+    },
+    {
+      "path": "tests\\test_instrument_patch.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Added focused regressions for unique, exact-name, and ambiguous sample-layer enrichment behavior."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Added a run_generation regression proving instrument_patches are enriched after instruments_used is known and persisted into project_metadata."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Recorded the completed bounded InstrumentPatch Phase 3 sample-fallback mini-slice, bumped metadata.last_updated/total_tasks_completed, and updated next_phase to review the new sample-hint fallback behavior."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Prepended files_touched, changes_made, verifications, and a rollback entry for the bounded InstrumentPatch Phase 3 sample-fallback mini-slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T20:34:49Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable Phase 3 rule that only backend-known concrete sample paths become patch sample-layer hints and JUCE consumes them before Phase 2 synth fallback only on remaining default-synth tracks."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:50:11Z",
+      "by_agent": "builder",
+      "changes": "Fixed the Phase 2 JUCE fallback semantics so instrument_patches falls back to project_metadata.json when the direct payload is non-array or empty [], and mirrored the same empty-array fallback rule for instruments_used symmetry."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:50:11Z",
+      "by_agent": "builder",
+      "changes": "Recorded the completed InstrumentPatch empty-array fallback follow-up slice, bumped metadata.last_updated/total_tasks_completed, and updated next_phase to review the corrected fallback semantics."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:50:11Z",
+      "by_agent": "builder",
+      "changes": "Prepended files_touched, changes_made, verifications, and a rollback entry for the verified InstrumentPatch empty-array fallback follow-up."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:50:11Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable empty-array fallback pattern and the decision to treat empty direct transport arrays as metadata-fallback candidates in the Phase 2 JUCE adapter."
+    },
+    {
+      "path": "juce\\Source\\Communication\\Messages.h",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "GenerationResult now parses additive instrument_patches arrays from the backend completion payload so JUCE can prefer direct-result patch transport before falling back to project_metadata.json."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.h",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Declared the bounded Phase 2 helper that applies supported InstrumentPatch fields onto per-track default-synth project-state settings."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Added a conservative InstrumentPatch subset adapter that loads direct-result or matching project_metadata patch metadata, applies only waveform/attack/release/static low-pass cutoff/amp LFO rate-depth to tracks still on the default synth path after sample auto-mapping, and reuses the existing default_sine project-state seam without changing mastering/live-FX behavior."
+    },
+    {
+      "path": "multimodal_gen\\server\\worker.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Forwarded additive instrument_patches through the backend GenerationResult transport so JUCE can consume direct completion payload metadata while retaining metadata fallback."
+    },
+    {
+      "path": "tests\\test_protocol.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Added a focused protocol regression proving GenerationResult.to_dict() preserves additive instrument_patches payloads."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Recorded the completed Phase 2 InstrumentPatch JUCE subset-adapter slice, updated metadata.last_updated/total_tasks_completed, and set next_phase to review the Phase 2 bounded JUCE implementation."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Prepended files_touched, changes_made, verifications, and a rollback entry for the Phase 2 InstrumentPatch JUCE subset-adapter implementation slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T19:39:58Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable Phase 2 pattern that JUCE preview should reuse project-state defaultSynth fields after sample auto-mapping while keeping sample-mapped tracks and mastered/live-FX truthfulness untouched."
+    },
+    {
+      "path": "multimodal_gen\\instrument_patch.py",
+      "action": "created",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added the first real shared backend InstrumentPatch runtime module with serializable dataclasses, a bounded registry for current procedural families, alias normalization, and a track-scoped helper for additive diagnostics/reporting."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Render diagnostics now include additive top-level instrument_patches metadata built from parsed instruments via the shared backend InstrumentPatch helper without changing existing renderer-path or render-status semantics."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "run_generation now computes results['instrument_patches'] from the shared backend InstrumentPatch helper so project metadata persists patch intent even when the renderer is monkeypatched or a focused render-report fixture omits the field."
+    },
+    {
+      "path": "tests\\test_instrument_patch.py",
+      "action": "created",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused regressions for bounded InstrumentPatch alias normalization and ordered/deduped track-scoped patch resolution."
+    },
+    {
+      "path": "tests\\test_render_report_schema.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Expanded the render-report schema regression to assert the new additive instrument_patches field exists and remains list-shaped."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Extended the focused guitar render-report regression to assert a known serialized InstrumentPatch payload is present."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added a focused run_generation regression proving instrument_patches persist into results/project_metadata even when the renderer is monkeypatched."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the first bounded InstrumentPatch backend runtime slice as completed, bumped metadata.last_updated and total_tasks_completed, and set next_phase to review the backend Phase 1 slice rather than the earlier docs-only proposal."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended files_touched, changes_made, verifications, and a rollback entry for the InstrumentPatch backend Phase 1 runtime slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T14:20:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable backend-registry-first InstrumentPatch runtime pattern and the decision to keep Phase 1 backend-only before any JUCE subset adapter work."
+    },
+    {
+      "path": "docs\\UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "action": "modified",
+      "timestamp": "2026-05-22T13:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added a short See also pointer after recommendation 6 so the existing InstrumentPatch / SynthesisVoice recommendation links directly to the dedicated proposal doc without changing the plan's ordering or truthfulness framing."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T13:05:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the docs-only follow-up pointer slice as completed, bumped metadata.last_updated and total_tasks_completed, and kept the next phase focused on reviewing the existing track-scoped InstrumentPatch proposal rather than claiming implementation work."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T13:05:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended files_touched, changes_made, verifications, and a rollback entry for the docs-only pointer follow-up slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T13:05:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable docs-linking pattern and the decision to treat this as a small follow-up docs aggregation slice rather than a new InstrumentPatch architecture implementation."
+    },
+    {
+      "path": "docs\\INSTRUMENT_PATCH_PROPOSAL.md",
+      "action": "created",
+      "timestamp": "2026-05-22T12:30:00Z",
+      "by_agent": "builder",
+      "changes": "Created a docs-only planning proposal for a shared cross-runtime InstrumentPatch / SynthesisVoice contract grounded in current Python and JUCE evidence, explicitly favoring a track-scoped v1 contract and preserving the backend-mastered-render versus dry live-preview truthfulness split."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T12:30:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded a concise completed task entry for the InstrumentPatch proposal docs slice, bumped metadata.last_updated and total_tasks_completed, and set the next phase to review the track-scoped proposal."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T12:36:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended files_touched, changes_made, verifications, and rollback records for the docs-only InstrumentPatch proposal slice, then corrected the verification record to use the actual successful absolute-path python validation command."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T12:30:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable architecture decision that the next safe step is a track-scoped shared InstrumentPatch / SynthesisVoice contract before any deeper live program_change runtime rewrite."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:40:00Z",
+      "by_agent": "builder",
+      "changes": "Appended additional Task 083 runtime-probe notes for the direct parser probe, quiet resolver probe, worker kwargs probe, and the ScaleType alias nuance, while bumping metadata.last_updated only. No code or docs were modified."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:40:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended state-only continuity entries for the post-Task-083 direct parser/resolver/worker probes, the ScaleType ETHIO_JAZZ/DORIAN alias interpretation, one minimal change note, and a rollback point. No code or docs were modified."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:40:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the concise decision that ScaleType.ETHIO_JAZZ currently aliases ScaleType.DORIAN, so direct printed enum names can show DORIAN even when Ethiopian-family semantic regressions still pass. No code or docs were modified."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completed task ethiopian-family-runtime-authenticity-fix-083 with pre-verifier scope, implementation summary, focused proof, PASS_WITH_NITS verifier result, metadata.last_updated, total_tasks_completed=84, and next_phase=await-user-validation-of-ethiopian-runtime-fix."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended Ethiopian-family runtime/authenticity files_touched, changes_made, verifications, a rollback point, and a resolved continuity note tying this fix back to the earlier Ethiopian-jazz regression."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable Ethiopian-family semantic-guardrail pattern, the bounded analyzer decision, and the remaining non-blocking verifier nits."
+    },
+    {
+      "path": "multimodal_gen\\expansion_manager.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Tier 3 semantic matching now filters Ethiopian-family requests to Ethiopian-safe candidates only and stops before unsafe drift when none are available."
+    },
+    {
+      "path": "multimodal_gen\\instrument_resolution.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added Ethiopian-family affinity preference so Ethiopian-targeted packs are preferred when present during resolution."
+    },
+    {
+      "path": "multimodal_gen\\prompt_parser.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Made ethio_jazz defaults more Ethiopian-first and added traditional key/scale, qenet, ethiopian modal, and named qenet cue handling."
+    },
+    {
+      "path": "multimodal_gen\\server\\worker.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Worker now forwards explicit use_agents from request options when present."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Auto-enables agents for Ethiopian-family genres only when use_agents is unspecified, while preserving explicit False."
+    },
+    {
+      "path": "multimodal_gen\\output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Tightened the ethio_jazz analyzer target using stricter existing scorer knobs, including a sub-bass ceiling and required drum parts."
+    },
+    {
+      "path": "tests\\test_prompt_parser_key.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added regression coverage for the traditional-key Ethiopian-family parsing path."
+    },
+    {
+      "path": "tests\\test_protocol.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused protocol-path regression coverage around Ethiopian-family use_agents plumbing."
+    },
+    {
+      "path": "tests\\test_output_analyzer.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added ethio_jazz analyzer regression coverage for the tightened false-green guardrails."
+    },
+    {
+      "path": "tests\\test_ethiopian_resolution_guardrails.py",
+      "action": "modified",
+      "timestamp": "2026-05-22T11:15:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused Ethiopian semantic guardrail regressions for safe matching and fallback behavior."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T10:20:00Z",
+      "by_agent": "builder",
+      "changes": "Kept Task 082 completed/next_phase unchanged, bumped metadata.last_updated, and appended a short investigation-only continuity note capturing the post-Task-082 Ethiopian-jazz manual-test findings without changing code or docs."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T10:20:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended investigation-only continuity entries for the user-reported Ethiopian-jazz artifact, concrete parser/MIDI/resolver/analyzer findings, a summarized runtime-quality regression note, and a rollback point."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T10:20:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable failed pattern around ethio_jazz parser-default plus semantic resolver drift in a Funk o Rama-only environment and the decision to prioritize parser/resolver/app-path fixes before a larger InstrumentPatch architecture track."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T00:22:00Z",
+      "by_agent": "builder",
+      "changes": "Kept Task 082 completed, bumped metadata.last_updated, and appended a small follow-up verification note recording the fresh post-082 smoke PASS plus successful Release app launch for manual testing without claiming any unproven stale-terminal kill."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T00:22:00Z",
+      "by_agent": "builder",
+      "changes": "Prepended state-only continuity entries for the post-082 smoke verification, cautious terminal-sweep follow-up result, successful Release app launch, and a rollback point before recording those facts."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-22T00:22:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable pattern to reuse the established Task 076 smoke suite after UI-only MainComponent polish and the decision not to fabricate stale-terminal cleanup when only the active pwsh is visible in follow-up context."
+    },
+    {
+      "path": "juce\\Source\\MainComponent.cpp",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:14:36Z",
+      "by_agent": "builder",
+      "changes": "Completed Task 082 with paint-only shell-level MPC-inspired polish using existing AppColours/Layout groundwork: recessed/raised shell wells, segmented inset status strip, and accent separators/outlines; resized semantics and backend/workflow logic stayed intact."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:14:36Z",
+      "by_agent": "builder",
+      "changes": "Marked final-mpc-inspired-ui-pass-082 completed/phase complete, added pre_verifier/implementation/tests/post_verifier details, moved current_phase to aggregate, raised total_tasks_completed to 83, and set metadata.next_phase to await-user-priority-after-task-082."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:14:36Z",
+      "by_agent": "builder",
+      "changes": "Prepended Task 082 files_touched, changes_made, verifications, and rollback entries for the MainComponent shell polish and completion aggregation."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:14:36Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable Task 082 pattern favoring MainComponent shell framing when MPC groundwork already exists, plus the decision to preserve truthful capability language and avoid reopening backend/workflow contracts during final UI polish."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:07:42Z",
+      "by_agent": "builder",
+      "changes": "Bumped Task 082's updated timestamp to record the pre-test terminal hygiene preflight while keeping Task 082 pending and current_phase unchanged."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:07:42Z",
+      "by_agent": "builder",
+      "changes": "Prepended Task 082 terminal-hygiene files_touched, changes_made, verification, and rollback entries documenting the stale-shell cleanup and preserved tooling WSL chain."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-21T21:07:42Z",
+      "by_agent": "builder",
+      "changes": "Recorded the durable stale-terminal cleanup pattern and the guardrail to preserve extension-owned WSL/codex app-server infrastructure during pre-test hygiene."
+    },
+    {
       "path": ".github\\state\\orchestration.json",
       "action": "modified",
       "timestamp": "2026-05-21T20:48:00Z",
@@ -4191,6 +5129,288 @@
   ],
   "changes_made": [
     {
+      "file": "juce-sf2-bank-select-program-change-follow-up-096",
+      "description": "Extended the existing JUCE playback-time SF2 program_change seam to honor MIDI Bank Select CC0/CC32.",
+      "diff_summary": "MidiPlayer now tracks CC0 (MSB) + CC32 (LSB) per MIDI channel, computes effective bank=(MSB<<7)|LSB, forwards that bank with program changes, and conservatively rebuilds bank state on seek while resetting on load/clear/end-of-playback. AudioEngine forwards (program, bank) into Track::handleProgramChange(program, bank) so SF2 preset switching can resolve banked presets when present.",
+      "timestamp": "2026-05-23T09:55:00Z"
+    },
+    {
+      "file": "bounded-wavetable-program-change-neural-foundation-095",
+      "description": "Implemented the bounded three-slice follow-up requested across Python and JUCE.",
+      "diff_summary": "Added a small static wavetable foundation only on the existing EDM/pop-style unison fallback, wired playback-time program_change through MidiPlayer->AudioEngine->Track with SF2 preset switching only where supported, and added an opt-in neural capability seam that fails open honestly and sets renderer_path=neural only after a real successful render.",
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "file": "tests\\test_assets_gen.py + tests\\test_audio_renderer.py + tests\\test_render_report_schema.py",
+      "description": "Added focused bounded regressions for wavetable, neural, and report behavior.",
+      "diff_summary": "New tests prove the static wavetable bank/morph output stays finite, EDM dispatch uses the bounded unison path while non-EDM dispatch stays unchanged, and the neural seam reports skips honestly yet can mark renderer_path=neural only after a real successful render.",
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "file": "bounded-multi-feature-pass-094",
+      "description": "Implemented bounded additive slices for FluidSynth env proof helper, post-FluidSynth parity guard, orchestral expansion routing, EDM/pop unison lead fallback, lo-fi wow/flutter DSP, rock physical-model fallback improvements, and DDSP/neural research doc.",
+      "diff_summary": "Additive low-risk seams only; no JUCE program-change rewrite and no full wavetable engine claim.",
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "file": "juce\\Source\\Audio\\AudioEngine.{h,cpp}",
+      "description": "Extended the JUCE default-synth runtime state with cutoff velocity-delta support.",
+      "diff_summary": "Added DefaultSynthParam::CutoffVelocityDeltaHz and DefaultSynthState::cutoffVelocityDeltaHz with compatibility-safe default 0.0f, taught Track::setDefaultSynthParam to store the new value, and updated DefaultSynthVoice so effective cutoff = clamp(base cutoff + normalized note velocity * cutoff delta, 40..20000 Hz) while preserving legacy behavior when the delta is 0.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "file": "juce\\Source\\Project\\ProjectState.{h,cpp}",
+      "description": "Persisted the new default-synth cutoff velocity delta through the existing project-state seam.",
+      "diff_summary": "Added Project::IDs::defaultSynthCutoffVelocityDelta and initialized it in ensureTrackDefaults() with legacy-safe default 0.0f so existing/default tracks keep their current static cutoff behavior unless the bounded patch subset supplies a new velocity delta.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "file": "juce\\Source\\MainComponent.cpp",
+      "description": "Mapped InstrumentPatch velocity_map.cutoff_delta_hz through the bounded default-synth subset path.",
+      "diff_summary": "DefaultSynthPreviewSubset now captures synthesis_voice.velocity_map.cutoff_delta_hz, applyDefaultSynthSettingsForTrackFromProjectState() pushes defaultSynthCutoffVelocityDelta into AudioEngine, and applyGeneratedInstrumentPatchSubset() writes that persisted value only for conservatively matched tracks that remain on the default-synth path after sample-first mapping.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "file": "docs\\INSTRUMENT_PATCH_PROPOSAL.md",
+      "description": "Updated the proposal doc so the JUCE subset/deferred table matches current implementation truth.",
+      "diff_summary": "The JUCE v1 subset section now explicitly says static low-pass cutoff is supported and velocity-to-cutoff is supported in the bounded default-synth subset, while the deferred table keeps filter envelope deferred and no broader parity is claimed.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded task 093 as the next InstrumentPatch JUCE runtime-fidelity slice after task 092.",
+      "diff_summary": "Added a concise completed-task orchestration entry for the velocity-to-cutoff slice, prepended context touched-file/change/proof/rollback records, and stored the durable rule that velocity-to-cutoff is safe through the existing default-synth seam while filter-envelope remains deferred until a real modulation path exists.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "file": "juce\\Source\\Audio\\AudioEngine.{h,cpp}",
+      "description": "Extended the JUCE default-synth runtime state with decay and sustain support.",
+      "diff_summary": "Added DefaultSynthParam::DecaySeconds and DefaultSynthParam::SustainLevel, introduced DefaultSynthState::decaySeconds and sustainLevel with compatibility-safe defaults 0.0f and 1.0f, taught Track::setDefaultSynthParam to store the new values, and updated DefaultSynthVoice::startNote() to clamp and use the stored decay/sustain values instead of hardcoded decay=0 and sustain=1.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "file": "juce\\Source\\Project\\ProjectState.{h,cpp}",
+      "description": "Persisted new default-synth decay/sustain values through the existing project-state seam.",
+      "diff_summary": "Added Project::IDs::defaultSynthDecay and Project::IDs::defaultSynthSustain and initialized them in ensureTrackDefaults() with legacy-safe defaults 0.0f and 1.0f so existing/default tracks keep the current envelope behavior unless the bounded patch subset supplies new values.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "file": "juce\\Source\\MainComponent.cpp",
+      "description": "Mapped InstrumentPatch amp-envelope decay/sustain through the bounded default-synth subset path.",
+      "diff_summary": "DefaultSynthPreviewSubset now captures amp_envelope.decay_ms and sustain_level; applyDefaultSynthSettingsForTrackFromProjectState() pushes defaultSynthDecay/defaultSynthSustain into AudioEngine; and applyGeneratedInstrumentPatchSubset() writes those persisted values only for conservatively matched tracks that remain on the default-synth path after sample-first mapping.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded task 092 as the next InstrumentPatch JUCE runtime-fidelity slice after task 091.",
+      "diff_summary": "Added a concise completed-task orchestration entry for the decay/sustain slice, prepended context touched-file/change/proof/rollback records, and stored the durable rule that legacy default-synth compatibility remains decay=0/sustain=1 while the patch subset may now flow decay/sustain into remaining default-synth preview tracks. UI exposure and Python path_hint hardening remain deferred.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context}.json",
+      "description": "Recorded the final post-verifier PASS aggregation for task 091 and its verifier-fix follow-up.",
+      "diff_summary": "Attached PASS post_verifier blocks to both task records, added a top context verification entry stating the final verifier verdict PASS, captured the fresh targeted 4-test pytest proof plus the earlier 44-pass and 30-pass focused bundles as sufficient backend-only evidence, preserved metadata.next_phase=verified-awaiting-user-direction-after-task-091-verifier-fix-follow-up, and left memory.json unchanged because no new durable pattern was needed.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "file": "multimodal_gen\\audio_renderer.py",
+      "description": "Fixed the two concrete task-091 post-verifier blockers in the renderer without broadening scope.",
+      "diff_summary": "The procedural renderer now keeps explicit render-time drum routing for GM 37 side-stick -> snare fallback and GM 39 clap -> clap, and track_realization_statuses builds unique canonical patch-key indexes from fallback.instrument_id_hints plus patch_id tokens so Ethiopian tracks such as Krar can match their own patch metadata before any broad family-only fallback is considered.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "file": "tests\\test_audio_renderer.py",
+      "description": "Added tight backend regressions for the restored drum path and Ethiopian status match.",
+      "diff_summary": "New tests prove _get_drum_sample(37) and _get_drum_sample(39) no longer fall through to kick and that a Krar track with program 110 now produces track_realization_statuses with patch_id ethiopian.krar.track.v1 instead of reporting no truthful patch mapping.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the narrow task-091 verifier-fix follow-up in state.",
+      "diff_summary": "Added a separate completed follow-up entry in orchestration.json, prepended context records for touched files/proofs/rollback, and stored the durable render-time-drum/canonical-Ethiopian-match rule in memory.json.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "file": "multimodal_gen\\audio_renderer.py; main.py",
+      "description": "Closed the backend render-report parity gap for InstrumentPatch metadata and added separate per-track realization truth reporting.",
+      "diff_summary": "AudioRenderer now stores optional resolved_sample_metadata/results['instruments_used'], rebuilds render-report instrument_patches through enrich_instrument_patches_with_resolved_samples(...) so they match main's enriched/persisted view, and emits additive top-level track_realization_statuses with conservative fields track_index, track_name, patch_id, patch_family, preferred_realization, actual_realization, uses_patch_sample_layer, source_path, match_basis, and notes derived from MIDI/program changes, custom/expansion caches, rock-bass procedural guards, drum routing, render failure context, and whole-file FluidSynth facts.",
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "file": "tests\\test_audio_renderer.py; tests\\test_render_report_schema.py; tests\\test_main_render_diagnostics.py",
+      "description": "Added focused regression coverage for render-report InstrumentPatch parity and track realization statuses.",
+      "diff_summary": "Extended the renderer tests to cover enriched sample_layers parity plus custom_sample/procedural_fallback/fluidsynth_soundfont status cases, asserted track_realization_statuses is list-shaped in the schema guard, and added a main-flow parity regression proving the persisted render report matches results['instrument_patches'] after resolved samples are known.",
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the verified InstrumentPatch render-report parity/status slice in state.",
+      "diff_summary": "Appended completed task 091 in orchestration.json, prepended context records for touched files/changes/proofs/rollback, and stored the durable rule that render-report patch intent must stay in parity with main while actual per-track realization truth remains a separate track_realization_statuses structure.",
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context}.json",
+      "description": "Recorded the final post-verifier PASS aggregation for task 090.",
+      "diff_summary": "Attached a post_verifier PASS block to task instrument-patch-sample-fallback-phase3-mini-slice-090, switched metadata.next_phase from the older review marker to verified-awaiting-user-direction-after-instrument-patch-phase3-mini-slice, and added a top context verification entry stating that the completed diagnostics, focused pytest, and JUCE Debug build all passed with no required fixes. audio_renderer.py parity remains deferred, and the only follow-up note is optional Python-side file-existence hardening that is not required for correctness.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "file": "multimodal_gen\\instrument_patch.py; main.py; juce\\Source\\MainComponent.cpp; tests\\test_instrument_patch.py; tests\\test_main_render_diagnostics.py",
+      "description": "Implemented the bounded InstrumentPatch Phase 3 sample-fallback mini-slice.",
+      "diff_summary": "Added a backend helper that enriches track-scoped InstrumentPatch objects with at most one truthful sample_layers entry from already-resolved instruments_used paths, moved main.py's final instrument_patches serialization to after sample resolution, and extended MainComponent so uniquely matched remaining default-synth tracks try valid patch path_hint samples before falling back to the existing Phase 2 default-synth subset mapping. audio_renderer.py render-report parity was deferred to keep this slice conservative.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the verified InstrumentPatch Phase 3 sample-fallback mini-slice in state.",
+      "diff_summary": "Appended a concise completed-task record in orchestration.json, prepended context records for touched files/proofs/rollback, and stored the durable backend-known-path-only sample-layer rule plus the conservative Phase 3 decision in memory.json.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "file": "juce\\Source\\MainComponent.cpp",
+      "description": "Corrected the Phase 2 JUCE metadata fallback semantics for empty direct arrays.",
+      "diff_summary": "applyGeneratedInstrumentPatchSubset() now falls back to matching current.outputs.instrument_patches in project_metadata.json when the direct instrumentPatches payload is non-array or empty []; applyGeneratedInstrumentSamples() mirrors the same empty-array fallback rule for instruments_used symmetry, with no other behavior changes.",
+      "timestamp": "2026-05-22T19:50:11Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the verified InstrumentPatch empty-array fallback follow-up in state.",
+      "diff_summary": "Appended a concise completed-task entry in orchestration.json, prepended context records for the touched files/proofs/rollback, and stored the durable empty-array-fallback pattern plus decision in memory.json.",
+      "timestamp": "2026-05-22T19:50:11Z"
+    },
+    {
+      "file": "juce\\Source\\MainComponent.cpp",
+      "description": "Added the bounded Phase 2 JUCE InstrumentPatch subset adapter for default-synth preview tracks.",
+      "diff_summary": "MainComponent now loads instrument_patches from the direct completion result or matching current.outputs.instrument_patches metadata, matches patches conservatively via track_role plus family/track-name heuristics, maps only primary waveform/amp attack-release/static low-pass cutoff/amp LFO rate-depth into Project::IDs::defaultSynth* fields, and reapplies the existing default_sine project-state seam only for tracks still on the default synth path after sample auto-mapping.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "file": "juce\\Source\\Communication\\Messages.h",
+      "description": "Added additive JUCE parse support for instrument_patches completion payloads.",
+      "diff_summary": "GenerationResult now stores instrumentPatches and parses top-level instrument_patches arrays from the backend completion JSON without affecting other result fields.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "file": "multimodal_gen\\server\\worker.py",
+      "description": "Forwarded additive instrument_patches through the backend generation completion transport.",
+      "diff_summary": "The backend GenerationResult dataclass, to_dict payload, and worker result construction now preserve results['instrument_patches'] so JUCE can prefer direct result transport while still keeping the project_metadata fallback path.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "file": "tests\\test_protocol.py",
+      "description": "Added a focused protocol regression for additive InstrumentPatch transport.",
+      "diff_summary": "The protocol suite now asserts GenerationResult.to_dict() preserves instrument_patches payloads on the completion result.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "file": "multimodal_gen\\instrument_patch.py",
+      "description": "Created the shared backend InstrumentPatch contract module for Phase 1.",
+      "diff_summary": "Added serializable EnvelopeSpec/VelocityMap/OscillatorSpec/FilterSpec/LfoSpec/NoiseLayerSpec/TransientLayerSpec/SaturationSpec/SampleLayerSpec/FallbackBinding/PatchProfile/SynthesisVoice/InstrumentPatch dataclasses plus a bounded registry, alias normalization, and build_track_scoped_instrument_patches(...) for current procedural families including guitar, keys, bass, synth, pad, brass, strings, organ, choir, krar, masenqo, washint, and begena.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "file": "multimodal_gen\\audio_renderer.py",
+      "description": "Exposed additive InstrumentPatch metadata in render diagnostics.",
+      "diff_summary": "AudioRenderer now preserves parsed instrument order for reporting and adds top-level instrument_patches to the render report via the new shared helper, keeping existing render-report fields and semantics intact while leaving JUCE/live behavior unchanged.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "file": "main.py",
+      "description": "Persisted InstrumentPatch metadata through generation results and project metadata.",
+      "diff_summary": "run_generation now computes a serializable instrument_patches list from the final parsed prompt and stores it in results before rendering so save_project_metadata naturally persists the field even when a focused test monkeypatches the renderer or omits the field from a mock render report.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "file": "tests\\{test_instrument_patch.py,test_render_report_schema.py,test_audio_renderer.py,test_main_render_diagnostics.py}",
+      "description": "Added focused proof for the backend InstrumentPatch Phase 1 slice.",
+      "diff_summary": "New and updated tests now prove bounded alias normalization and stable track-scoped patch resolution, additive render-report instrument_patches exposure, and project_metadata persistence for a known family even under a monkeypatched renderer path.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the backend InstrumentPatch Phase 1 implementation slice in state.",
+      "diff_summary": "Marked the new backend runtime slice completed in orchestration.json, prepended context records for touched files/changes/proofs/rollback, and stored the durable backend-registry-first pattern and backend-only Phase 1 decision in memory.json.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "file": "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+      "description": "Added a short pointer from recommendation 6 to the dedicated InstrumentPatch proposal doc.",
+      "diff_summary": "Appended a one-sentence See also note to the existing unified natural-instrument patch model recommendation, linking docs/INSTRUMENT_PATCH_PROPOSAL.md as the planning-ready track-scoped v1 proposal while preserving the original wording, ordering, and truthfulness framing.",
+      "timestamp": "2026-05-22T13:05:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the docs-only follow-up pointer slice in state.",
+      "diff_summary": "Added a concise completed-task aggregation record in orchestration.json, prepended files_touched/changes_made/verifications/rollback entries in context.json, and recorded a docs-linking pattern plus a docs-only follow-up decision in memory.json. No code, tests, or unrelated docs were modified.",
+      "timestamp": "2026-05-22T13:05:00Z"
+    },
+    {
+      "file": "docs/INSTRUMENT_PATCH_PROPOSAL.md",
+      "description": "Created a planning-ready InstrumentPatch proposal document.",
+      "diff_summary": "Added a concise but substantial proposal covering the current source-of-truth evidence, the proposed InstrumentPatch core model, Python-style schema pseudocode, current-to-proposed mapping table, the explicit track-scoped-v1 decision, JUCE subset versus deferred fields, a krar / Ethio-jazz flavored example patch, a phased migration plan, and acceptance criteria/non-goals. The document explicitly preserves the repo's truthfulness distinction between backend mastered render parity and dry live MIDI preview parity.",
+      "timestamp": "2026-05-22T12:30:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context}.json",
+      "description": "Recorded the docs-only InstrumentPatch planning slice in state.",
+      "diff_summary": "Added a concise completed-task aggregation entry in orchestration.json, updated task metadata for the new planning checkpoint, and prepended context records for files touched, changes made, verification, and rollback. No runtime code, tests, or other docs were modified.",
+      "timestamp": "2026-05-22T12:30:00Z"
+    },
+    {
+      "file": ".github/state/memory.json",
+      "description": "Recorded the durable architecture decision from the proposal.",
+      "diff_summary": "Added the decision that the next safe architecture step is a track-scoped shared InstrumentPatch / SynthesisVoice contract before any deeper live program_change runtime rewrite, because current patch knowledge is split between Python and JUCE without a shared contract today.",
+      "timestamp": "2026-05-22T12:30:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded additional direct runtime probes after Task 083 aggregation.",
+      "diff_summary": "State-only update: added the exact parser probe result, quiet resolver fallback proof, worker kwargs proof, and the ScaleType ETHIO_JAZZ/DORIAN alias interpretation note. No code or docs changed.",
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "file": "multimodal_gen/{expansion_manager,instrument_resolution,prompt_parser,server/worker.py,output_analyzer.py} and main.py",
+      "description": "Completed the Ethiopian-family runtime/authenticity fix.",
+      "diff_summary": "Added Ethiopian-family semantic guardrails so Tier 3 matching accepts only Ethiopian-safe candidates and otherwise falls back instead of drifting into unrelated packs, preferred Ethiopian-targeted packs when present, made ethio_jazz defaults and traditional-key/qenet parsing Ethiopian-first, forwarded explicit use_agents through worker/main while auto-enabling only when unspecified, and tightened ethio_jazz analyzer thresholds with existing scorer knobs so the prior sub-heavy/missing-drum false-green no longer passes. This directly addressed the earlier user-reported Ethiopian-jazz runtime-quality regression without taking on the larger InstrumentPatch architecture track.",
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "file": "tests/{test_prompt_parser_key.py,test_protocol.py,test_output_analyzer.py,test_ethiopian_resolution_guardrails.py}",
+      "description": "Added focused Ethiopian-family regression coverage for the bounded fix slice.",
+      "diff_summary": "Added regressions for traditional-key/qenet parsing, Ethiopian-family use_agents plumbing, tightened ethio_jazz analyzer expectations, and Ethiopian semantic guardrail behavior; the focused verifier bundle also reran tests/test_audio_renderer.py and tests/test_jazz_strategy.py unchanged as adjacent safety checks. Direct main.py auto-enable and non-Ethiopian semantic negative regressions remain follow-up nits rather than blockers for this slice.",
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the post-Task-082 Ethiopian-jazz manual-test investigation as continuity only.",
+      "diff_summary": "No code/docs changes were made. The user-reported artifact output\\ethio_jazz_95bpm_Cminor_20260522_090944_render_report.json was traced to procedural/non-FluidSynth rendering with Funk o Rama assets active, generic parser fallback for 'traditional key', the normal app/worker path not exposing use_agents, MIDI instrumentation already drifting into generic/funk choices before rendering, semantic resolver misrouting of Ethiopian/brass requests into Funk o Rama bass/guitar assets, and an analyzer that still reported audio_analysis.passed=true with genre_match_score=1.0 despite authenticity drift.",
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded the post-Task-082 smoke verification and manual-launch follow-up without changing Task 082 completion state.",
+      "diff_summary": "Updated Task 082 continuity with a fresh smoke-suite PASS (81 passed, 6 warnings, 21.57s), a cautious terminal-sweep follow-up that found no additional stale workspace shell beyond the active pwsh visible in available terminal context, and a successful Release app launch for manual testing with PID 27412 and immediate Get-Process visibility=true.",
+      "timestamp": "2026-05-22T00:22:00Z"
+    },
+    {
+      "file": "juce/Source/MainComponent.cpp",
+      "description": "Completed Task 082 MainComponent shell/status-bar polish.",
+      "diff_summary": "Added paint-only shell-level MPC-inspired wells behind the left workflow, main visualization, and bottom tool areas plus a framed/segmented inset status strip and subtle accent separators/outlines using existing AppColours/Layout groundwork, without changing resized semantics or backend/protocol/workflow logic.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded Task 082 completion aggregation and durable continuity.",
+      "diff_summary": "Marked final-mpc-inspired-ui-pass-082 completed with pre_verifier, implementation, tests, and PASS_WITH_NITS post-verifier proof; raised total_tasks_completed to 83; set metadata.next_phase=await-user-priority-after-task-082; prepended Task 082 files/changes/verifications/rollback points; and added one durable MainComponent-shell polish pattern plus one preserve-truthful-capability-language decision.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "file": ".github/state/{orchestration,context,memory}.json",
+      "description": "Recorded Task 082 preflight workspace terminal hygiene before new heavyweight verification/test runs.",
+      "diff_summary": "Prepended state-only records showing that stale workspace PowerShell shell root pwsh.exe PID 27488 was terminated via taskkill /PID 27488 /T /F, the extension-owned WSL/codex app-server chain (wsl.exe 25168 -> 23808 under /mnt/c/dev/MUSE-ai) was intentionally preserved, and the remaining fresh pwsh.exe PID 5328 came from the verification terminal itself rather than a stale workspace shell.",
+      "timestamp": "2026-05-21T21:07:42Z"
+    },
+    {
       "file": ".github/state/orchestration.json",
       "description": "Recorded Tasks 077-081 as completed and advanced the workflow to Task 082.",
       "diff_summary": "Marked Tasks 077-081 completed with implementation/tests/post-verifier details, preserved current_phase=implement, set metadata.next_phase=final-mpc-inspired-ui-pass-082, and raised total_tasks_completed from 77 to 82.",
@@ -5258,6 +6478,419 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "JUCE Debug solution build (bank-select follow-up)",
+      "result": "PASS",
+      "details": "MSBuild juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal '/clp:ErrorsOnly;Summary' => Build succeeded. 405 Warning(s), 0 Error(s).",
+      "timestamp": "2026-05-23T09:55:00Z"
+    },
+    {
+      "type": "post",
+      "target": "bounded three-slice focused Python proof",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_assets_gen.py tests/test_audio_renderer.py tests/test_render_report_schema.py -q -ra => 51 passed, 2 existing warnings, 0 failed in 58.47s.",
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "touched Python and JUCE diagnostics",
+      "result": "PASS",
+      "details": "get_errors on multimodal_gen/assets_gen.py, multimodal_gen/audio_renderer.py, multimodal_gen/synthesizers/neural_runtime.py, tests/test_assets_gen.py, tests/test_audio_renderer.py, tests/test_render_report_schema.py, juce/Source/Audio/MidiPlayer.h, juce/Source/Audio/MidiPlayer.cpp, juce/Source/Audio/AudioEngine.h, and juce/Source/Audio/AudioEngine.cpp => PASS: no errors found.",
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE Debug solution build",
+      "result": "PASS",
+      "details": "MSBuild juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal '/clp:ErrorsOnly;Summary' => Build succeeded, 0 Warning(s), 0 Error(s).",
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "VS Code diagnostics on touched files",
+      "result": "PASS",
+      "details": "get_errors reported no errors for touched Python files/tests/script.",
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "type": "post",
+      "target": "git diff --check",
+      "result": "PASS_WITH_WARNING",
+      "details": "No diff whitespace errors in touched files; one unrelated pre-existing CRLF warning in tests/test_prompt_parser_key.py.",
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused Python tests for changed logic",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py tests/test_assets_gen.py tests/test_bounded_effects.py -q => 42 passed",
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "type": "post",
+      "target": "Active-env FluidSynth proof + mastering indicators",
+      "result": "PASS",
+      "details": "proof_summary.json at output/_diagnostics/fluidsynth_env_proof/proof_20260523_070119 shows renderer_path=fluidsynth, fluidsynth_success=true, mastering_status=applied, profile=rock:rock, auto_gain_staging and true_peak_limiter diagnostics present.",
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "type": "post",
+      "target": "Touched JUCE/docs diagnostics for task instrument-patch-juce-velocity-cutoff-runtime-fidelity-093",
+      "result": "PASS",
+      "details": "get_errors on juce/Source/Audio/AudioEngine.h, juce/Source/Audio/AudioEngine.cpp, juce/Source/Project/ProjectState.h, juce/Source/Project/ProjectState.cpp, juce/Source/MainComponent.cpp, and docs/INSTRUMENT_PATCH_PROPOSAL.md => PASS: no errors found.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE Debug build after task instrument-patch-juce-velocity-cutoff-runtime-fidelity-093",
+      "result": "PASS",
+      "details": "Set-Location 'C:\\dev\\MUSE-ai\\MUSE'; & \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal => PASS: MultimodalMusicGen_rc_lib.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_rc_lib.dir\\Debug\\MultimodalMusicGen_rc_lib.lib and MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe; follow-up echo => EXIT:0.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "type": "post",
+      "target": "Updated state JSON diagnostics for task instrument-patch-juce-velocity-cutoff-runtime-fidelity-093",
+      "result": "PASS",
+      "details": "get_errors on .github/state/orchestration.json, .github/state/context.json, and .github/state/memory.json => PASS: no errors found.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "type": "post",
+      "target": "Patch hygiene check for task instrument-patch-juce-velocity-cutoff-runtime-fidelity-093",
+      "result": "PASS",
+      "details": "git diff --check => PASS with EXIT:0. The only emitted text was an unrelated pre-existing warning in untouched tests/test_prompt_parser_key.py: LF will be replaced by CRLF the next time Git touches it.",
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "type": "post",
+      "target": "Touched JUCE C++ files diagnostics for task instrument-patch-juce-decay-sustain-runtime-fidelity-092",
+      "result": "PASS",
+      "details": "get_errors on juce/Source/Audio/AudioEngine.h, juce/Source/Audio/AudioEngine.cpp, juce/Source/Project/ProjectState.h, juce/Source/Project/ProjectState.cpp, and juce/Source/MainComponent.cpp => PASS: no errors found.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Updated state JSON diagnostics for task instrument-patch-juce-decay-sustain-runtime-fidelity-092",
+      "result": "PASS",
+      "details": "get_errors on .github/state/orchestration.json, .github/state/context.json, and .github/state/memory.json => PASS: no errors found.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE Debug build after task instrument-patch-juce-decay-sustain-runtime-fidelity-092",
+      "result": "PASS",
+      "details": "Set-Location 'C:\\dev\\MUSE-ai\\MUSE'; & \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal => PASS: MultimodalMusicGen_rc_lib.vcxproj built and MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe. Follow-up shell check: EXIT:0.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Patch hygiene check for task instrument-patch-juce-decay-sustain-runtime-fidelity-092",
+      "result": "PASS",
+      "details": "git diff --check => PASS with EXIT:0. The only emitted text was an unrelated pre-existing warning in untouched tests/test_prompt_parser_key.py: LF will be replaced by CRLF the next time Git touches it.",
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Final post-verifier verdict for task instrument-patch-render-report-parity-and-track-status-091 and verifier-fix follow-up",
+      "result": "PASS",
+      "details": "Final verifier verdict PASS. The focused proof set is sufficient for this backend-only slice: Set-Location 'C:\\dev\\MUSE-ai\\MUSE'; .\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py::test_procedural_drum_note_mapping_keeps_side_stick_and_clap_off_kick_path tests/test_audio_renderer.py::test_render_report_track_realization_statuses_match_krar_patch_by_canonical_identity tests/test_main_render_diagnostics.py::test_run_generation_render_report_matches_main_enriched_instrument_patch_view tests/test_render_report_schema.py::TestRenderReportSchema::test_render_report_has_expected_fields -q -ra => PASS: 4 passed; earlier focused bundles also passed for the main slice (.\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py tests/test_main_render_diagnostics.py -q -ra => PASS: 44 passed, 2 warnings, 0 failed) and the follow-up (.\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py -q -ra => PASS: 30 passed, 2 warnings, 0 failed). No JUCE/C++ changes were introduced in the fix surface, so skipping a JUCE build remained appropriate. Python-side path_hint hardening remains deferred.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Touched renderer/test diagnostics for task-091 verifier-fix follow-up",
+      "result": "PASS",
+      "details": "get_errors on multimodal_gen/audio_renderer.py and tests/test_audio_renderer.py => PASS: no errors found.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused pytest for task-091 verifier-fix follow-up",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py -q -ra => PASS: 30 passed, 2 warnings, 0 failed in 57.88s.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE build requirement for task-091 verifier-fix follow-up",
+      "result": "PARTIAL",
+      "details": "Intentionally skipped: no C++ files were touched in this narrow backend-only follow-up, so no JUCE build was required.",
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Touched backend/reporting Python files diagnostics for InstrumentPatch render-report parity/status slice",
+      "result": "PASS",
+      "details": "get_errors on main.py, multimodal_gen/audio_renderer.py, tests/test_audio_renderer.py, tests/test_render_report_schema.py, and tests/test_main_render_diagnostics.py => PASS: no errors found.",
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused pytest bundle for InstrumentPatch render-report parity/status slice",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py tests/test_main_render_diagnostics.py -q -ra => PASS: 44 passed, 2 warnings, 0 failed in 77.33s.",
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE build requirement for InstrumentPatch render-report parity/status slice",
+      "result": "PARTIAL",
+      "details": "Intentionally skipped: no C++ files were touched in this backend/reporting slice, so no JUCE Debug rebuild was required and unnecessary build churn was avoided.",
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Final post-verifier verdict for task instrument-patch-sample-fallback-phase3-mini-slice-090",
+      "result": "PASS",
+      "details": "Final post-verifier PASS based on the already-completed verification bundle: get_errors stayed clean on multimodal_gen/instrument_patch.py, main.py, juce/Source/MainComponent.cpp, tests/test_instrument_patch.py, and tests/test_main_render_diagnostics.py; .\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_patch.py tests/test_main_render_diagnostics.py -q => PASS: 15 passed; and JUCE Debug MSBuild passed. No required fixes were identified. Optional future hardening is limited to Python-side file-existence checking around sample-layer path hints; that remains deferred and is not required for correctness. audio_renderer.py parity also remains deferred in this slice.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "type": "post",
+      "target": "InstrumentPatch Phase 3 sample-fallback mini-slice diagnostics",
+      "result": "PASS",
+      "details": "get_errors on multimodal_gen/instrument_patch.py, main.py, juce/Source/MainComponent.cpp, tests/test_instrument_patch.py, and tests/test_main_render_diagnostics.py => PASS: no errors found.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused Python tests for InstrumentPatch Phase 3 sample-fallback mini-slice",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_patch.py tests/test_main_render_diagnostics.py -q => PASS: 15 passed in 2.67s.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE Debug build after InstrumentPatch Phase 3 sample-fallback mini-slice",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal => PASS: MultimodalMusicGen.vcxproj -> C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Debug\\AI Music Generator.exe.",
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "type": "post",
+      "target": "Touched JUCE/Python files diagnostics",
+      "result": "PASS",
+      "details": "get_errors on juce/Source/MainComponent.cpp, juce/Source/MainComponent.h, juce/Source/Communication/Messages.h, multimodal_gen/server/worker.py, and tests/test_protocol.py reported no errors found.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused InstrumentPatch transport protocol regression",
+      "result": "PASS",
+      "details": "Set-Location 'C:\\dev\\MUSE-ai\\MUSE'; if (Test-Path '.\\.venv\\Scripts\\python.exe') { & .\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py -q } => PASS: 49 passed, 6 warnings in 6.93s.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "type": "post",
+      "target": "JUCE Debug build for Phase 2 InstrumentPatch subset adapter",
+      "result": "PASS",
+      "details": "Set-Location 'C:\\dev\\MUSE-ai\\MUSE'; & 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe' 'juce\\build\\MultimodalMusicGen.sln' /m /p:Configuration=Debug /p:Platform=x64 /v:minimal => PASS.",
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused InstrumentPatch backend pytest bundle",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_instrument_patch.py tests/test_render_report_schema.py tests/test_audio_renderer.py tests/test_main_render_diagnostics.py -q => 42 passed, 2 warnings, 0 failed in 61.32s.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JSON validity for updated orchestration/context/memory state files",
+      "result": "PASS",
+      "details": "$ErrorActionPreference = 'Stop'; Set-Location 'c:\\dev\\MUSE-ai\\MUSE'; $files = @('.github/state/orchestration.json', '.github/state/context.json', '.github/state/memory.json'); foreach ($file in $files) { Get-Content -Raw $file | ConvertFrom-Json | Out-Null; Write-Host \"Loaded $file successfully\" }; Write-Host 'All three loaded successfully.' => PASS.",
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "UPGRADE_PLAN recommendation 6 pointer read-back",
+      "result": "PASS",
+      "details": "Read-back verification confirmed that recommendation 6 in docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md now ends with: 'See also `docs/INSTRUMENT_PATCH_PROPOSAL.md` for a planning-ready, track-scoped v1 proposal for this abstraction.'",
+      "timestamp": "2026-05-22T13:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JSON validity for touched state files",
+      "result": "PASS",
+      "details": "$ErrorActionPreference = 'Stop'; Set-Location 'c:\\dev\\MUSE-ai\\MUSE'; $files = @('.github/state/orchestration.json', '.github/state/context.json', '.github/state/memory.json'); foreach ($file in $files) { Get-Content -Raw $file | ConvertFrom-Json | Out-Null }; Write-Host 'All three loaded successfully.' => PASS. Parsed .github/state/orchestration.json, .github/state/context.json, and .github/state/memory.json successfully.",
+      "timestamp": "2026-05-22T13:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "docs/INSTRUMENT_PATCH_PROPOSAL.md section completeness",
+      "result": "PASS",
+      "details": "Read-back verification confirmed the new proposal doc includes a problem statement, current source-of-truth evidence grounded in current Python/JUCE types, the full InstrumentPatch core-model vocabulary, a Python-style schema snippet, a mapping table, the explicit track-scoped-v1 decision, JUCE subset/deferred realization notes, a krar Ethio-jazz example patch, a phased migration plan, and acceptance criteria/non-goals.",
+      "timestamp": "2026-05-22T12:30:00Z"
+    },
+    {
+      "type": "post",
+      "target": "JSON validity for orchestration/context/memory state files",
+      "result": "PASS",
+      "details": "python -c \"import json, pathlib; [json.load(open(p, 'r', encoding='utf-8')) for p in [r'c:/dev/MUSE-ai/MUSE/.github/state/orchestration.json', r'c:/dev/MUSE-ai/MUSE/.github/state/context.json', r'c:/dev/MUSE-ai/MUSE/.github/state/memory.json']]; text = pathlib.Path(r'c:/dev/MUSE-ai/MUSE/docs/INSTRUMENT_PATCH_PROPOSAL.md').read_text(encoding='utf-8'); required = ['## Problem statement', '## Current source of truth / evidence', '## Proposed core model', '## Python-style schema sketch', '## Mapping from current repo concepts to the proposed model', '## Explicit v1 decision: track-scoped patches first', '## JUCE v1 realization subset vs deferred fields', '## Concrete example patch: krar (Ethio-jazz flavored)', '## Minimal phased migration plan', '## Acceptance criteria', '## Non-goals']; missing = [section for section in required if section not in text]; assert not missing, missing; print('VALIDATION_OK')\" => VALIDATION_OK. This confirmed all three updated state JSON files load successfully and the proposal doc contains the required sections.",
+      "timestamp": "2026-05-22T12:36:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Direct parser probe for 'generate a modern ethiopian jazzy song 16 bars, in traditional key'",
+      "result": "PASS",
+      "details": "PromptParser().parse(...) returned genre='ethio_jazz', time_signature=[6, 8], key='C', printed scale_type='DORIAN', instruments=['krar','washint','brass','piano','bass'], and drums=['kick','snare','hihat','ride','perc'].",
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Direct quiet resolver probe in the current Funk o Rama-only environment",
+      "result": "PASS",
+      "details": "Confirmed safe built-in fallback instead of unsafe Funk semantic drift: krar => builtin default/program 110, masenqo => builtin default/program 111, washint => builtin default/program 112, brass => builtin default/program 61.",
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Direct worker kwargs probe",
+      "result": "PASS",
+      "details": "Confirmed unspecified request/options leaves use_agents absent with value null, while explicit options={\"use_agents\": true} preserves use_agents as present and true.",
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ScaleType ETHIO_JAZZ / DORIAN alias interpretation",
+      "result": "PASS",
+      "details": "Confirmed multimodal_gen.utils.ScaleType gives ETHIO_JAZZ and DORIAN the same interval list, so Python Enum aliases them. Direct .name printing can therefore show DORIAN even when the semantic regression asserting ScaleType.ETHIO_JAZZ still passes. This is a representation nuance, not a failure of the Ethiopian modal-cue fix.",
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "Ethiopian-family runtime/authenticity pre-verifier scope check",
+      "result": "PARTIAL",
+      "details": "Read-only precheck confirmed resolver guardrails were not implemented for Ethiopian-family semantic matching, parser support was only partial for traditional key/qenet cues and Ethiopian-first defaults, the normal app path did not implement the Ethiopian-family use_agents forwarding/auto-enable path, and the analyzer target remained partial/too permissive. The implementation-ready verdict was PARTIAL_IMPLEMENTATION_READY, with the smallest safe fix scoped to a narrow 6-file runtime/authenticity patch across expansion_manager.py, instrument_resolution.py, prompt_parser.py, multimodal_gen/server/worker.py, main.py, and multimodal_gen/output_analyzer.py.",
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused diagnostics / get_errors on Ethiopian-family runtime/authenticity touched files",
+      "result": "PASS",
+      "details": "get_errors on multimodal_gen/expansion_manager.py, multimodal_gen/instrument_resolution.py, multimodal_gen/prompt_parser.py, multimodal_gen/server/worker.py, main.py, multimodal_gen/output_analyzer.py, tests/test_prompt_parser_key.py, tests/test_protocol.py, tests/test_output_analyzer.py, and tests/test_ethiopian_resolution_guardrails.py => PASS: no errors found.",
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Focused Ethiopian-family regression pytest bundle",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_protocol.py tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_jazz_strategy.py tests/test_ethiopian_resolution_guardrails.py -q => PASS: 173 passed in 60.77s.",
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "type": "post-verifier",
+      "target": "Ethiopian-family runtime/authenticity fix completion verdict",
+      "result": "PASS_WITH_NITS",
+      "details": "Post-verifier diagnostics found no errors in the touched files and the same focused pytest bundle reran clean: .\\.venv\\Scripts\\python.exe -m pytest tests/test_prompt_parser_key.py tests/test_protocol.py tests/test_output_analyzer.py tests/test_audio_renderer.py tests/test_jazz_strategy.py tests/test_ethiopian_resolution_guardrails.py -q => PASS: 173 passed, 15 warnings, 0 failures in 59.05s. Follow-up nits: (1) no direct main.py unit test of the auto-enable branch when use_agents is unspecified; (2) no direct negative regression proving non-Ethiopian semantic matching stayed unchanged. The slice was still accepted because it fixed the reported Ethiopian-jazz runtime-quality regression without taking on the larger InstrumentPatch architecture track.",
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Ethiopian-jazz render report analysis (output\\ethio_jazz_95bpm_Cminor_20260522_090944_render_report.json)",
+      "result": "PASS",
+      "details": "Confirmed renderer_path=procedural; FluidSynth unavailable (available=false, skip_reason=not_available); custom drums loaded=5; custom melodic assets loaded for bass, keys, and brass; and the instrument library plus funk_o_rama expansion were loaded. This places the artifact on the procedural/non-FluidSynth path with Funk o Rama assets active.",
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Exact prompt parser probe for 'generate a modern ethiopian jazzy song 16 bars, in traditional key'",
+      "result": "PASS",
+      "details": "Confirmed genre='ethio_jazz', instruments=['brass','piano','bass','organ'], drums=['kick','snare','hihat','ride','perc'], key='C', scale_type='MINOR', bpm=105, and mood='neutral'. Interpretation: 'traditional key' did not trigger an Ethiopian qenet/traditional scale, so parsing fell back to generic ethio_jazz defaults.",
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Generated MIDI program/track inspection (output\\ethio_jazz_95bpm_Cminor_20260522_090944.mid)",
+      "result": "PASS",
+      "details": "Confirmed track 0 meta tempo=631578 (~95 BPM) and time signature=6/8; track 1 drums note_on_count=85; track 2 Bass program=38; track 3 Chords program=0; and track 4 Melody program=33. Interpretation: the composition had already drifted into generic/funk instrumentation before final rendering.",
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Live instrument resolver probe with create_instrument_service(auto_scan=True) and resolve_instrument(..., genre='ethio_jazz')",
+      "result": "PASS",
+      "details": "With only funk_o_rama loaded, the resolver returned brass=>Inst-Synth-Amphi Bass C0 (program 33, semantic, source=funk_o_rama, note=Role match (melodic_wind)); piano=>Inst-Keys-Ensemble Piano C (program 0); bass=>Inst-Bass-Amphi Bass C0 (program 110); organ=>Inst-Keys-Cheez Organ C0 (program 16); krar=>RnB-Guitar-Advtrus C 108 (program 25, semantic, note=Role match (ethiopian_string)); masenqo=>RnB-Guitar-Advtrus C 108 (program 25, semantic, note=Role match (ethiopian_string)); and washint=>Inst-Synth-Amphi Bass C0 (program 33, semantic, note=Role match (ethiopian_wind)). Interpretation: without an Ethiopian-targeted expansion/plugin route active in the app flow, semantic resolution misroutes Ethiopian and brass requests into unrelated Funk o Rama bass/guitar assets.",
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Ethiopian-jazz analyzer gap interpretation",
+      "result": "PASS",
+      "details": "Confirmed the render report still records audio_analysis.passed=true and genre_match_score=1.0 while the ethio_jazz analyzer expectations remain broad and only require expected timbres ['piano','brass']. Interpretation: the current analyzer is not a reliable authenticity gate for Ethiopian-jazz identity.",
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Post-082 smoke suite rerun",
+      "result": "PASS",
+      "details": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_protocol.py tests/test_sprint11_batch_c.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q => PASS: 81 passed, 6 warnings, 21.57s. No failing tests.",
+      "timestamp": "2026-05-22T00:22:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Post-082 stale-terminal sweep follow-up",
+      "result": "PASS",
+      "details": "A cautious inspection/cleanup follow-up did not positively identify any additional stale workspace shell roots to kill. The available terminal context showed only the active pwsh terminal, so no proven extra stale user terminal termination is recorded in this follow-up pass.",
+      "timestamp": "2026-05-22T00:22:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Post-082 Release app launch for manual testing",
+      "result": "PASS",
+      "details": "Launched C:\\dev\\MUSE-ai\\MUSE\\juce\\build\\MultimodalMusicGen_artefacts\\Release\\AI Music Generator.exe successfully for manual testing. PID=27412. Immediate Get-Process visibility=True.",
+      "timestamp": "2026-05-22T00:22:00Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 082 MainComponent diagnostics",
+      "result": "PASS",
+      "details": "VS Code diagnostics / get_errors for juce/Source/MainComponent.cpp: PASS: no errors found.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 082 MainComponent whitespace/diff sanity",
+      "result": "PASS",
+      "details": "git diff --check -- juce/Source/MainComponent.cpp => PASS.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 082 JUCE Debug build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Debug /p:Platform=x64 /v:minimal => PASS.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 082 JUCE Release build",
+      "result": "PASS",
+      "details": "& \"C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe\" juce\\build\\MultimodalMusicGen.sln /m /p:Configuration=Release /p:Platform=x64 /v:minimal => PASS.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "type": "post",
+      "target": "Task 082 truthfulness regression/source proof",
+      "result": "PASS",
+      "details": "Source inspection confirmed that backend mastered/reference vs dry/unmastered preview wording remains present, no live FX/mastering parity wording remains present, current comp/local comp wording remains present, and reference analyze hints-only/no auto-apply semantics remain present.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "type": "post-verifier",
+      "target": "Task 082 completion verdict",
+      "result": "PASS_WITH_NITS",
+      "details": "Independent post-verifier confirmed the runtime/product code diff was limited to juce/Source/MainComponent.cpp, the MainComponent diff was helper drawing/layout functions plus a paint() restyle only, and the diagnostics/diff-check/build/truthfulness proofs all passed. Nit: no interactive/manual UI smoke was run in this verification pass; acceptance is based on source inspection, diagnostics, diff scope, and Debug/Release builds. Aggregation conclusion: treat Task 082 as complete because the precheck established MainComponent shell integration as the actual remaining gap after earlier groundwork, and the implementation closed that gap without reopening semantics.",
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "type": "pre",
+      "target": "Task 082 preflight workspace terminal hygiene",
+      "result": "PASS",
+      "details": "Process-tree proof under workspace Code root PID 27012 (\"C:\\Users\\Tay Liku\\AppData\\Local\\Programs\\Microsoft VS Code Insiders\\Code - Insiders.exe\" --folder-uri \"file:///c%3A/dev/MUSE-ai\") found a stale integrated shell root pwsh.exe PID 27488 under Code - Insiders.exe PID 16472 plus an extension-owned WSL/codex app-server chain wsl.exe PID 25168 -> wsl.exe PID 23808 with the openai.chatgpt extension codex app-server under /mnt/c/dev/MUSE-ai. Guardrail applied: preserve the WSL/codex chain as tool infrastructure and target only taskkill /PID 27488 /T /F for the stale PowerShell tree. taskkill returned nonzero because child PID 6300 could not terminate itself, but the target root pwsh PID 27488 terminated successfully. Recheck showed the WSL/codex chain still present and only a fresh verification pwsh.exe PID 5328 remained, so this is recorded as successful stale-terminal cleanup with a self-termination caveat, not a failed cleanup.",
+      "timestamp": "2026-05-21T21:07:42Z"
+    },
     {
       "type": "post",
       "target": "Tasks 077-081 JUCE diagnostics on touched files",
@@ -6881,6 +8514,14 @@
   },
   "errors_encountered": [
     {
+      "timestamp": "2026-05-22T10:20:00Z",
+      "task_id": "final-mpc-inspired-ui-pass-082",
+      "severity": "warning",
+      "error": "User-reported Ethiopian-jazz manual-test runtime-quality regression on output\\ethio_jazz_95bpm_Cminor_20260522_090944_render_report.json.",
+      "details": "Investigation only; no code/docs changes were made. Render-path proof showed procedural rendering with FluidSynth unavailable and Funk o Rama assets active. The exact parser probe for 'generate a modern ethiopian jazzy song 16 bars, in traditional key' fell back to generic ethio_jazz defaults (C minor, brass/piano/bass/organ, neutral mood). main.run_generation(... use_agents: bool = False) still defaults to false, and multimodal_gen/server/worker.py::build_run_generation_kwargs() does not forward any use_agents option from the app path, so the normal app flow does not reach the experimental Ethiopian agent/conductor branch. MIDI proof had already drifted into generic/funk instrumentation, and live resolver proof in a Funk o Rama-only environment misrouted brass/washint/krar/masenqo into bass/guitar assets while the analyzer still reported audio_analysis.passed=true with genre_match_score=1.0.",
+      "resolution_plan": "Next small fix should target Ethiopian-family parser defaults, resolver guardrails, and app/worker use_agents plumbing before any broader shared InstrumentPatch-style architecture track."
+    },
+    {
       "timestamp": "2026-05-16T14:46:47Z",
       "task_id": "rock-family-sub-bass-brightness-remediation-059",
       "severity": "info",
@@ -6914,6 +8555,263 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-bounded-3-slice-follow-up-095",
+      "description": "State before the bounded static wavetable/program_change/neural foundation follow-up.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json",
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\synthesizers\\__init__.py",
+        "multimodal_gen\\synthesizers\\neural_runtime.py",
+        "juce\\Source\\Audio\\MidiPlayer.h",
+        "juce\\Source\\Audio\\MidiPlayer.cpp",
+        "juce\\Source\\Audio\\AudioEngine.h",
+        "juce\\Source\\Audio\\AudioEngine.cpp",
+        "tests\\test_assets_gen.py",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_render_report_schema.py"
+      ],
+      "timestamp": "2026-05-23T08:20:00Z"
+    },
+    {
+      "id": "rollback-bounded-multi-feature-pass-094",
+      "description": "State before bounded multi-feature pass 094",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json",
+        "scripts\\fluidsynth_env_proof.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\mix_chain.py",
+        "multimodal_gen\\instrument_resolution.py",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_bounded_effects.py",
+        "docs\\DDSP_NEURAL_GENERATION_RESEARCH.md"
+      ],
+      "timestamp": "2026-05-23T07:06:05Z"
+    },
+    {
+      "id": "rollback-2026-05-23-instrument-patch-juce-velocity-cutoff-093",
+      "description": "State before recording the bounded JUCE default-synth velocity-to-cutoff runtime-fidelity slice after task 092.",
+      "files": [
+        "juce/Source/Audio/AudioEngine.h",
+        "juce/Source/Audio/AudioEngine.cpp",
+        "juce/Source/Project/ProjectState.h",
+        "juce/Source/Project/ProjectState.cpp",
+        "juce/Source/MainComponent.cpp",
+        "docs/INSTRUMENT_PATCH_PROPOSAL.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-23T06:32:38Z"
+    },
+    {
+      "id": "rollback-2026-05-23-instrument-patch-juce-decay-sustain-092",
+      "description": "State before recording the bounded JUCE default-synth decay/sustain runtime-fidelity slice after task 091.",
+      "files": [
+        "juce/Source/Audio/AudioEngine.h",
+        "juce/Source/Audio/AudioEngine.cpp",
+        "juce/Source/Project/ProjectState.h",
+        "juce/Source/Project/ProjectState.cpp",
+        "juce/Source/MainComponent.cpp",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-23T00:15:00Z"
+    },
+    {
+      "id": "rollback-2026-05-22-task-091-final-pass-aggregation",
+      "description": "State before attaching the final post-verifier PASS aggregation to task 091 and its verifier-fix follow-up.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json"
+      ],
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "id": "rollback-2026-05-22-task-091-verifier-fix-follow-up",
+      "description": "State before recording the narrow task-091 verifier-fix follow-up for drum routing and Ethiopian track-status matching.",
+      "files": [
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_audio_renderer.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T22:05:00Z"
+    },
+    {
+      "id": "rollback-2026-05-22-instrument-patch-render-report-status-091",
+      "description": "State before recording the InstrumentPatch render-report parity and per-track realization-status backend slice.",
+      "files": [
+        "main.py",
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_audio_renderer.py",
+        "tests/test_render_report_schema.py",
+        "tests/test_main_render_diagnostics.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T21:20:00Z"
+    },
+    {
+      "id": "rollback-instrument-patch-phase3-mini-slice-090",
+      "description": "State before recording the bounded InstrumentPatch Phase 3 sample-fallback mini-slice.",
+      "files": [
+        "multimodal_gen/instrument_patch.py",
+        "main.py",
+        "juce/Source/MainComponent.cpp",
+        "tests/test_instrument_patch.py",
+        "tests/test_main_render_diagnostics.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T20:34:49Z"
+    },
+    {
+      "id": "rollback-2026-05-22-instrument-patch-empty-array-fallback-089",
+      "description": "State before recording the verified Phase 2 JUCE empty-array metadata-fallback follow-up for instrument_patches and instruments_used.",
+      "files": [
+        "juce/Source/MainComponent.cpp",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T19:50:11Z"
+    },
+    {
+      "id": "rollback-2026-05-22-instrument-patch-phase2-088",
+      "description": "State before recording the Phase 2 InstrumentPatch JUCE subset-adapter implementation slice and its transport/build proofs across orchestration/context/memory.",
+      "files": [
+        "juce/Source/Communication/Messages.h",
+        "juce/Source/MainComponent.h",
+        "juce/Source/MainComponent.cpp",
+        "multimodal_gen/server/worker.py",
+        "tests/test_protocol.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T19:39:58Z"
+    },
+    {
+      "id": "rollback-before-instrument-patch-backend-phase1-record",
+      "description": "State before recording the first bounded InstrumentPatch backend runtime implementation slice and its focused proofs across orchestration/context/memory.",
+      "files": [
+        "multimodal_gen/instrument_patch.py",
+        "multimodal_gen/audio_renderer.py",
+        "main.py",
+        "tests/test_instrument_patch.py",
+        "tests/test_render_report_schema.py",
+        "tests/test_audio_renderer.py",
+        "tests/test_main_render_diagnostics.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T14:20:00Z"
+    },
+    {
+      "id": "rollback-before-instrument-patch-pointer-follow-up-record",
+      "description": "State before recording the short upgrade-plan pointer to the InstrumentPatch proposal and its docs-only follow-up aggregation across orchestration/context/memory.",
+      "files": [
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T13:05:00Z"
+    },
+    {
+      "id": "rollback-before-instrument-patch-proposal-record",
+      "description": "State before recording the docs-only InstrumentPatch proposal, its verification, and the planning aggregation across orchestration/context/memory.",
+      "files": [
+        "docs/INSTRUMENT_PATCH_PROPOSAL.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T12:30:00Z"
+    },
+    {
+      "id": "rollback-before-ethiopian-runtime-probe-record",
+      "description": "State before recording the additional direct parser/resolver/worker probes and the ScaleType alias interpretation note after Task 083 aggregation.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T11:40:00Z"
+    },
+    {
+      "id": "rollback-before-ethiopian-runtime-authenticity-fix",
+      "description": "State before recording the completed Ethiopian-family runtime/authenticity implementation, focused proofs, and continuity closure for the earlier Ethiopian-jazz regression.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T11:15:00Z"
+    },
+    {
+      "id": "rollback-before-ethiopian-jazz-investigation-record",
+      "description": "State before recording the post-Task-082 Ethiopian-jazz manual-test investigation findings.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T10:20:00Z"
+    },
+    {
+      "id": "rollback-before-post-task-082-smoke-and-launch-record",
+      "description": "State before recording the post-Task-082 smoke-suite proof, cautious stale-terminal follow-up result, and successful Release app launch for manual testing.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-22T00:22:00Z"
+    },
+    {
+      "id": "rollback-before-task-082-completion-aggregation",
+      "description": "State before recording Task 082 completion, post-verifier proof, and closure of the 072-082 backlog excerpt.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "id": "rollback-after-task-082-completion-aggregation",
+      "description": "State immediately after recording Task 082 completion, post-verifier proof, and the await-user-priority placeholder after closing the 072-082 backlog excerpt.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T21:14:36Z"
+    },
+    {
+      "id": "rollback-before-task-082-terminal-hygiene-record",
+      "description": "State before recording the Task 082 pre-test terminal hygiene preflight, stale PowerShell shell cleanup, and preserved extension-owned WSL/codex tooling chain.",
+      "files": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "timestamp": "2026-05-21T21:07:42Z"
+    },
     {
       "id": "rollback-before-tasks-077-081-completion-aggregation",
       "description": "State before recording the combined Tasks 077-081 UI completion, verifier proof bundle, and Task 082 unblocking.",

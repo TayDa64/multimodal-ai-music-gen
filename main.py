@@ -62,6 +62,10 @@ from multimodal_gen import (
     extract_mastering_overrides,
     ScorePlanError,
 )
+from multimodal_gen.instrument_patch import (
+    build_track_scoped_instrument_patches,
+    enrich_instrument_patches_with_resolved_samples,
+)
 from multimodal_gen.prompt_parser import set_instrument_service
 from multimodal_gen.arranger import Arrangement
 
@@ -568,7 +572,7 @@ def run_generation(
     tension_intensity: Optional[float] = None,
     motif_mode: Optional[str] = None,
     num_motifs: Optional[int] = None,
-    use_agents: bool = False,
+    use_agents: Optional[bool] = None,
     score_plan: Optional[dict] = None,
 ) -> dict:
     """Run the full music generation pipeline.
@@ -594,7 +598,8 @@ def run_generation(
         takes: Number of alternative takes to generate per track
         comp: Auto-generate comp track from best sections of each take
         comp_bars: Number of bars per comp section (default: 2)
-        use_agents: Use agent-based generation for Ethiopian instruments (experimental)
+        use_agents: Use agent-based generation for Ethiopian instruments.
+            If None, Ethiopian-family genres auto-enable agents.
         score_plan: Optional score plan dict (Copilot orchestration)
         
     Returns:
@@ -656,6 +661,7 @@ def run_generation(
         "takes": {},  # Store alternative takes
         "comps": {},  # Store composite tracks
         "reference_analysis": None,
+        "instrument_patches": [],
         "instruments_used": [],
         "seed": seed,  # Store seed in results
         "synthesis_params": {},  # Store synthesis parameters
@@ -842,6 +848,16 @@ def run_generation(
         if verbose:
             print_info(f"Key override applied: {parsed.key} {parsed.scale_type.value}")
 
+    from multimodal_gen.utils import normalize_genre
+    ethiopian_genres = {'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'}
+    normalized_parsed_genre = normalize_genre(parsed.genre)
+    if use_agents is None and normalized_parsed_genre in ethiopian_genres:
+        use_agents = True
+        if verbose:
+            print_info(
+                f"Auto-enabled agent-based generation for Ethiopian-family genre: {normalized_parsed_genre}"
+            )
+
     # Apply preset system (explicit opt-in only)
     preset_values: dict = {}
     try:
@@ -961,6 +977,13 @@ def run_generation(
                 parsed.character_808 = 'heavy'
             if verbose:
                 print_info(f"Reference has 808: {parsed.reference_has_808}")
+
+    instrument_patches = build_track_scoped_instrument_patches(
+        list(getattr(parsed, "instruments", []) or [])
+        + list(getattr(parsed, "drum_elements", []) or []),
+        genre=parsed.genre,
+    )
+    results["instrument_patches"] = [patch.to_dict() for patch in instrument_patches]
     
     # Step 1.5: Validate against Genre Rules
     print_step("1.5/6", "Validating genre rules...")
@@ -1309,11 +1332,9 @@ def run_generation(
     agent_performances = None
     if use_agents and HAS_AGENT_SYSTEM:
         try:
-            from multimodal_gen.utils import normalize_genre
             import mido
             
             normalized_genre = normalize_genre(parsed.genre)
-            ethiopian_genres = {'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'}
             
             if normalized_genre in ethiopian_genres:
                 print_info("Using agent-based generation for Ethiopian instruments...")
@@ -1986,6 +2007,12 @@ def run_generation(
             "continuing with the supported live instrument resolver flow."
         )
 
+    instrument_patches = enrich_instrument_patches_with_resolved_samples(
+        instrument_patches,
+        results.get("instruments_used", []),
+    )
+    results["instrument_patches"] = [patch.to_dict() for patch in instrument_patches]
+
     # Step 5: Render audio
     print_step("5/6", "Rendering audio...")
     report_progress("rendering_audio", 0.75, "Rendering audio...")
@@ -2012,6 +2039,7 @@ def run_generation(
         use_bwf=use_bwf,
         ai_metadata=ai_metadata,
         parsed_instruments=parsed.instruments + parsed.drum_elements,  # Pass explicit instruments
+        resolved_sample_metadata=results.get("instruments_used", []),
     )
 
     # Sprint 8.3: Bridge reference profile to renderer for mix matching
@@ -2862,6 +2890,7 @@ Server Mode (for JUCE integration):
     parser.add_argument(
         "--use-agents",
         action="store_true",
+        default=None,
         help="[EXPERIMENTAL] Use agent-based generation for Ethiopian instruments (Krar, Masenqo, Washint, Begena, Kebero)",
     )
     parser.add_argument(

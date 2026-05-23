@@ -33,6 +33,7 @@ class EffectType(Enum):
     GAIN = "gain"
     PAN = "pan"
     STEREO_WIDTH = "stereo_width"
+    WOW_FLUTTER = "wow_flutter"  # Slow wow + shallow flutter pitch modulation
 
 @dataclass
 class EffectParams:
@@ -148,6 +149,29 @@ class StereoWidthParams(EffectParams):
     side_gain_db: float = 0.0  # Side channel gain
     mono_below_hz: float = 0.0 # Make frequencies below this mono (bass focus)
 
+
+@dataclass
+class WowFlutterParams(EffectParams):
+    """Wow/flutter modulation parameters.
+
+    This is a bounded, offline-friendly pitch modulation effect implemented via
+    a time-varying fractional delay (read-index modulation).
+
+    It is *not* a full tape machine model (no saturation, noise, hysteresis,
+    scrape flutter, etc.).
+    """
+
+    # Slow wow (Hz) and depth (ms)
+    wow_rate_hz: float = 0.35
+    wow_depth_ms: float = 2.5
+
+    # Faster flutter (Hz) and depth (ms)
+    flutter_rate_hz: float = 6.0
+    flutter_depth_ms: float = 0.35
+
+    # Clamp depth to avoid extreme warping on short buffers
+    max_total_depth_ms: float = 6.0
+
 # =============================================================================
 # DSP IMPLEMENTATIONS
 # =============================================================================
@@ -260,6 +284,81 @@ class DSP:
             # For now, return audio unprocessed to avoid hanging
             print("Warning: scipy not found, skipping filter")
             return audio
+
+    @staticmethod
+    def wow_flutter(audio: np.ndarray, params: 'WowFlutterParams', sample_rate: int) -> np.ndarray:
+        """Apply bounded wow/flutter (pitch modulation) via read-index modulation.
+
+        Safety/robustness goals:
+        - Preserve buffer shape (mono/stereo) and length.
+        - Avoid NaNs/Infs by clamping and nan_to_num.
+        - Keep modulation depth small (ms-scale) by default.
+        """
+        if len(audio) == 0:
+            return audio
+
+        if not isinstance(params, WowFlutterParams):
+            params = WowFlutterParams()
+
+        dry = np.asarray(audio, dtype=np.float32)
+        mix = float(np.clip(getattr(params, 'mix', 1.0), 0.0, 1.0))
+        if mix <= 1e-6:
+            return dry
+
+        # Ensure stereo for shared code path.
+        if dry.ndim == 1:
+            src = np.column_stack([dry, dry])
+            was_mono = True
+        else:
+            src = dry
+            was_mono = False
+
+        n = src.shape[0]
+        if n < 8:
+            return dry
+
+        # Depth in samples (fractional)
+        wow_depth = float(np.clip(params.wow_depth_ms, 0.0, params.max_total_depth_ms)) * sample_rate / 1000.0
+        flutter_depth = float(np.clip(params.flutter_depth_ms, 0.0, params.max_total_depth_ms)) * sample_rate / 1000.0
+        total_depth = min(float(params.max_total_depth_ms) * sample_rate / 1000.0, wow_depth + flutter_depth)
+
+        wow_rate = max(0.0, float(params.wow_rate_hz))
+        flutter_rate = max(0.0, float(params.flutter_rate_hz))
+        if total_depth <= 1e-6 or (wow_rate <= 1e-6 and flutter_rate <= 1e-6):
+            return dry
+
+        # Deterministic LFOs (no randomness for reproducibility).
+        t = np.arange(n, dtype=np.float32) / float(sample_rate)
+        mod = np.zeros(n, dtype=np.float32)
+        if wow_rate > 1e-6 and wow_depth > 1e-6:
+            mod += wow_depth * np.sin(2.0 * np.pi * wow_rate * t)
+        if flutter_rate > 1e-6 and flutter_depth > 1e-6:
+            mod += flutter_depth * np.sin(2.0 * np.pi * flutter_rate * t)
+
+        # Clamp modulation so we never read negative indices.
+        max_safe = max(0.0, float(np.max(np.abs(mod))))
+        if max_safe > 0:
+            mod = np.clip(mod, -max_safe, max_safe)
+
+        # Read index modulation (fractional delay / vibrato-like).
+        base_idx = np.arange(n, dtype=np.float32)
+        read_idx = base_idx + mod
+        read_idx = np.clip(read_idx, 0.0, float(n - 1))
+
+        out = np.empty_like(src, dtype=np.float32)
+        x = np.arange(n, dtype=np.float32)
+        for ch in range(src.shape[1]):
+            out[:, ch] = np.interp(read_idx, x, src[:, ch]).astype(np.float32, copy=False)
+
+        out = np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+
+        wet = out
+        blended = wet * mix + src * (1.0 - mix)
+        blended = np.nan_to_num(blended, nan=0.0, posinf=0.0, neginf=0.0)
+
+        if was_mono:
+            return blended[:, 0]
+        return blended
 
     @staticmethod
     def eq_3band(audio: np.ndarray, params: EQ3BandParams, sample_rate: int) -> np.ndarray:
@@ -594,6 +693,8 @@ class MixChain:
                 processed = DSP.harmonic_exciter(processed, params, sample_rate)
             elif effect_type == EffectType.RESONANCE_SUPPRESSION:
                 processed = DSP.resonance_suppression(processed, params, sample_rate)
+            elif effect_type == EffectType.WOW_FLUTTER:
+                processed = DSP.wow_flutter(processed, params, sample_rate)
             # Add other effects...
             
         return processed
@@ -617,6 +718,16 @@ def create_master_chain() -> MixChain:
 def create_lofi_chain() -> MixChain:
     chain = MixChain("Lo-Fi Chain")
     chain.add_effect(EffectType.SATURATION, SaturationParams(drive=0.4, type="soft"))
+    chain.add_effect(
+        EffectType.WOW_FLUTTER,
+        WowFlutterParams(
+            wow_rate_hz=0.32,
+            wow_depth_ms=2.8,
+            flutter_rate_hz=6.5,
+            flutter_depth_ms=0.35,
+            mix=0.65,
+        ),
+    )
     # Would add Low Pass Filter here
     return chain
 

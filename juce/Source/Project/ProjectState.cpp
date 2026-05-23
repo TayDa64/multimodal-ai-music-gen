@@ -69,10 +69,16 @@ namespace Project
             trackNode.setProperty(IDs::defaultSynthWaveform, 1, nullptr); // 1=Sine (matches UI combo ids)
         if (!trackNode.hasProperty(IDs::defaultSynthAttack))
             trackNode.setProperty(IDs::defaultSynthAttack, 0.001f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthDecay))
+            trackNode.setProperty(IDs::defaultSynthDecay, 0.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthSustain))
+            trackNode.setProperty(IDs::defaultSynthSustain, 1.0f, nullptr);
         if (!trackNode.hasProperty(IDs::defaultSynthRelease))
             trackNode.setProperty(IDs::defaultSynthRelease, 0.2f, nullptr);
         if (!trackNode.hasProperty(IDs::defaultSynthCutoff))
             trackNode.setProperty(IDs::defaultSynthCutoff, 16000.0f, nullptr);
+        if (!trackNode.hasProperty(IDs::defaultSynthCutoffVelocityDelta))
+            trackNode.setProperty(IDs::defaultSynthCutoffVelocityDelta, 0.0f, nullptr);
         if (!trackNode.hasProperty(IDs::defaultSynthLfoRate))
             trackNode.setProperty(IDs::defaultSynthLfoRate, 5.0f, nullptr);
         if (!trackNode.hasProperty(IDs::defaultSynthLfoDepth))

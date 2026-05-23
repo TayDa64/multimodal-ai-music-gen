@@ -43,13 +43,14 @@ struct DefaultSynthVoice : public juce::SynthesiserVoice
         phase = 0.0;
         lfoPhase = 0.0;
         currentFreqHz = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
-        level = juce::jlimit(0.0, 1.0, (double)velocity) * 0.8;
+        noteVelocityNormalized = juce::jlimit(0.0f, 1.0f, velocity);
+        level = noteVelocityNormalized * 0.8;
         lpLast = 0.0f;
 
         juce::ADSR::Parameters envParams;
         envParams.attack = juce::jlimit(0.0f, 10.0f, synthState.attackSeconds.load());
-        envParams.decay = 0.0f;
-        envParams.sustain = 1.0f;
+        envParams.decay = juce::jlimit(0.0f, 10.0f, synthState.decaySeconds.load());
+        envParams.sustain = juce::jlimit(0.0f, 1.0f, synthState.sustainLevel.load());
         envParams.release = juce::jlimit(0.001f, 30.0f, synthState.releaseSeconds.load());
 
         envelope.setSampleRate(getSampleRate());
@@ -80,7 +81,12 @@ struct DefaultSynthVoice : public juce::SynthesiserVoice
             return;
 
         const int waveform = synthState.waveform.load();
-        const float cutoffHz = juce::jlimit(40.0f, 20000.0f, synthState.cutoffHz.load());
+        const float baseCutoffHz = juce::jlimit(40.0f, 20000.0f, synthState.cutoffHz.load());
+        const float cutoffVelocityDeltaHz = juce::jlimit(-20000.0f, 20000.0f,
+                                 synthState.cutoffVelocityDeltaHz.load());
+        // Bounded velocity-to-cutoff support for the default-synth low-pass only.
+        const float cutoffHz = juce::jlimit(40.0f, 20000.0f,
+                            baseCutoffHz + noteVelocityNormalized * cutoffVelocityDeltaHz);
         const float lfoRateHz = juce::jlimit(0.0f, 40.0f, synthState.lfoRateHz.load());
         const float lfoDepth = juce::jlimit(0.0f, 1.0f, synthState.lfoDepth.load());
 
@@ -166,6 +172,7 @@ struct DefaultSynthVoice : public juce::SynthesiserVoice
     double phase = 0.0;
     double lfoPhase = 0.0;
     double level = 0.0;
+    float noteVelocityNormalized = 0.0f;
     float lpLast = 0.0f;
 };
 
@@ -199,11 +206,20 @@ void AudioEngine::Track::setDefaultSynthParam(DefaultSynthParam param, float val
         case DefaultSynthParam::AttackSeconds:
             defaultSynth.attackSeconds.store(value);
             break;
+        case DefaultSynthParam::DecaySeconds:
+            defaultSynth.decaySeconds.store(value);
+            break;
+        case DefaultSynthParam::SustainLevel:
+            defaultSynth.sustainLevel.store(value);
+            break;
         case DefaultSynthParam::ReleaseSeconds:
             defaultSynth.releaseSeconds.store(value);
             break;
         case DefaultSynthParam::CutoffHz:
             defaultSynth.cutoffHz.store(value);
+            break;
+        case DefaultSynthParam::CutoffVelocityDeltaHz:
+            defaultSynth.cutoffVelocityDeltaHz.store(value);
             break;
         case DefaultSynthParam::LfoRateHz:
             defaultSynth.lfoRateHz.store(value);
@@ -366,6 +382,32 @@ void AudioEngine::Track::noteOff(int note)
             midiBuffer.addEvent(juce::MidiMessage::noteOff(1, note), 0);
             break;
     }
+}
+
+void AudioEngine::Track::handleProgramChange(int programNumber, int bankNumber)
+{
+    const juce::ScopedLock sl(trackLock);
+
+    if (activeInstrumentType != InstrumentType::SF2 || sf2Instrument == nullptr || !sf2Instrument->isLoaded())
+        return;
+
+    const int presetIndex = sf2Instrument->findPreset(bankNumber, programNumber);
+    if (presetIndex < 0)
+    {
+        DBG("Track " << id << ": SF2 preset not found for bank " << bankNumber
+            << " program " << programNumber << " - keeping current preset");
+        return;
+    }
+
+    sf2Instrument->allNotesOff();
+    sf2Instrument->setActivePreset(presetIndex);
+
+    auto presetInfo = sf2Instrument->getPresetInfo(presetIndex);
+    if (presetInfo.name.isNotEmpty())
+        currentInstrumentName = presetInfo.name;
+
+    DBG("Track " << id << ": Program change switched SF2 preset to index " << presetIndex
+        << " (bank=" << bankNumber << ", program=" << programNumber << ")");
 }
 
 void AudioEngine::Track::setVolume(float newVolume) { volume = newVolume; }
@@ -999,6 +1041,12 @@ void AudioEngine::midiNoteOff(int channel, int note)
     {
         track->noteOff(note);
     }
+}
+
+void AudioEngine::midiProgramChange(int channel, int program, int bank)
+{
+    if (auto* track = getTrack(channel))
+    track->handleProgramChange(program, bank);
 }
 
 //==============================================================================

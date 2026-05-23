@@ -267,10 +267,12 @@ AUDIO_GENRE_TARGETS: Dict[str, Dict[str, Any]] = {
         "spectral_rolloff_max": 11000,
         "spectral_flatness_max": 0.10,
         "harmonic_ratio_min": 0.52,
-        "drum_presence_range": (0.08, 0.35),
+        "drum_presence_range": (0.10, 0.35),
         "onset_density_range": (1.4, 4.8),
         "dynamic_range_min_db": 8,
         "expected_timbres": ["piano", "brass"],
+        "sub_bass_energy_max": 0.16,
+        "required_drum_parts": ["kick", "snare_or_clap"],
     },
     "eskista": {
         "spectral_centroid_range": (900, 3600),

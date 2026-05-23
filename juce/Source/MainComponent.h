@@ -246,6 +246,7 @@ private:
     void syncTrackAudioFromProjectState();
     void applyDefaultSynthSettingsForTrackFromProjectState(int trackIndex);
     void applyGeneratedInstrumentSamples(const GenerationResult& result);
+    void applyGeneratedInstrumentPatchSubset(const GenerationResult& result);
     static constexpr int timelineHeight = Layout::timelineHeightDefault;
     static constexpr int promptPanelWidth = Layout::sidebarWidthDefault;
     static constexpr int padding = Layout::paddingSM;

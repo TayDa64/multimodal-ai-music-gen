@@ -1,4 +1,5 @@
 from multimodal_gen.prompt_parser import PromptParser
+from multimodal_gen.utils import ScaleType
 
 
 EXACT_1990S_ROCK_PROMPT = (
@@ -155,6 +156,19 @@ def test_ethio_jazz_priority_survives_generic_jazz_keywords():
         parsed = parser.parse(prompt)
         assert parsed.genre == "ethio_jazz"
         assert parsed.time_signature == (6, 8)
+
+
+def test_ethio_jazz_traditional_key_prefers_ethiopian_scale_and_defaults():
+    parsed = PromptParser().parse(
+        "generate a modern ethiopian jazzy song 16 bars, in traditional key"
+    )
+
+    assert parsed.genre == "ethio_jazz"
+    assert parsed.time_signature == (6, 8)
+    assert parsed.scale_type == ScaleType.ETHIO_JAZZ
+    assert {"krar", "washint"} & set(parsed.instruments)
+    assert "piano" in parsed.instruments
+    assert "bass" in parsed.instruments
 
 
 def test_90s_boom_bap_and_hip_hop_still_route_to_boom_bap():

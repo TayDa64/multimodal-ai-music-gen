@@ -2,9 +2,11 @@
 
 import mido
 import numpy as np
+import soundfile as sf
 
 from multimodal_gen.assets_gen import generate_guitar_tone
 from multimodal_gen.audio_renderer import AudioRenderer, ProceduralRenderer, SynthNote
+from multimodal_gen.synthesizers.neural_runtime import OptionalNeuralRuntime
 from multimodal_gen.instrument_manager import (
     AnalyzedInstrument,
     InstrumentCategory,
@@ -54,6 +56,35 @@ def _save_two_track_tempo_midi(path, *, tempo: int | None = None, start_tick: in
     note_track.append(mido.Message('program_change', program=81, channel=0, time=0))
     note_track.append(mido.Message('note_on', note=64, velocity=100, channel=0, time=start_tick))
     note_track.append(mido.Message('note_off', note=64, velocity=0, channel=0, time=duration_ticks))
+    midi.tracks.append(note_track)
+
+    midi.save(path)
+    return midi
+
+
+def _save_single_track_program_midi(
+    path,
+    *,
+    track_name: str,
+    program: int | None,
+    channel: int = 0,
+    note: int = 64,
+    velocity: int = 100,
+    duration_ticks: int = 960,
+):
+    midi = mido.MidiFile(ticks_per_beat=480)
+
+    meta_track = mido.MidiTrack()
+    meta_track.append(mido.MetaMessage('track_name', name='Meta', time=0))
+    meta_track.append(mido.MetaMessage('set_tempo', tempo=500000, time=0))
+    midi.tracks.append(meta_track)
+
+    note_track = mido.MidiTrack()
+    note_track.append(mido.MetaMessage('track_name', name=track_name, time=0))
+    if program is not None:
+        note_track.append(mido.Message('program_change', program=program, channel=channel, time=0))
+    note_track.append(mido.Message('note_on', note=note, velocity=velocity, channel=channel, time=0))
+    note_track.append(mido.Message('note_off', note=note, velocity=0, channel=channel, time=duration_ticks))
     midi.tracks.append(note_track)
 
     midi.save(path)
@@ -138,14 +169,14 @@ def _high_band_ratio(audio: np.ndarray, sample_rate: int = 44100) -> float:
     return float(np.sum(power[freqs > 5000.0]) / total)
 
 
-def _library_with_dummy_guitar() -> InstrumentLibrary:
+def _library_with_dummy_guitar(sample_path: str = "dummy_guitar.wav") -> InstrumentLibrary:
     lib = InstrumentLibrary(instruments_dir=None, auto_load_audio=False)
     inst = AnalyzedInstrument(
-        path="dummy_guitar.wav",
+        path=sample_path,
         name="Dummy Guitar",
         category=InstrumentCategory.GUITAR,
         profile=SonicProfile(
-            sample_path="dummy_guitar.wav",
+            sample_path=sample_path,
             sample_name="Dummy Guitar",
             category=InstrumentCategory.GUITAR.value,
             brightness=0.6,
@@ -197,7 +228,11 @@ def test_procedural_guitar_fallback_is_finite_and_zero_duration_safe():
     assert np.all(np.isfinite(zero))
 
 
-def test_custom_guitar_loading_and_render_report_include_guitar():
+def test_custom_guitar_loading_and_render_report_include_guitar(tmp_path):
+    guitar_sample = tmp_path / "dummy_guitar.wav"
+    midi_path = tmp_path / "guitar_track.mid"
+    _save_single_track_program_midi(midi_path, track_name="Guitar", program=29)
+
     parsed = ParsedPrompt(
         genre="rock",
         bpm=100,
@@ -211,18 +246,25 @@ def test_custom_guitar_loading_and_render_report_include_guitar():
         use_fluidsynth=False,
         soundfont_path=None,
         require_soundfont=False,
-        instrument_library=_library_with_dummy_guitar(),
+        instrument_library=_library_with_dummy_guitar(str(guitar_sample)),
         expansion_manager=None,
         genre=parsed.genre,
         mood=parsed.mood,
         use_bwf=False,
         parsed_instruments=parsed.instruments,
+        resolved_sample_metadata=[
+            {
+                "category": "guitar",
+                "name": "Dummy Guitar",
+                "path": str(guitar_sample),
+            }
+        ],
     )
 
     assert renderer.procedural._custom_melodic_cache["guitar"]
 
     report = renderer._build_render_report(
-        midi_path="dummy.mid",
+        midi_path=str(midi_path),
         output_path="dummy.wav",
         parsed=parsed,
         renderer_path="procedural",
@@ -234,6 +276,198 @@ def test_custom_guitar_loading_and_render_report_include_guitar():
     )
 
     assert report["custom_audio"]["custom_melodic_loaded"]["guitar"] == 1
+    assert [patch["patch_id"] for patch in report["instrument_patches"]] == [
+        "core.guitar.track.v1"
+    ]
+    assert report["instrument_patches"][0]["patch_profile"]["family"] == "guitar"
+    assert report["instrument_patches"][0]["sample_layers"][0]["path_hint"] == str(guitar_sample)
+    assert report["track_realization_statuses"] == [
+        {
+            "track_index": 1,
+            "track_name": "Guitar",
+            "patch_id": "core.guitar.track.v1",
+            "patch_family": "guitar",
+            "preferred_realization": "sample_layer_hint",
+            "actual_realization": "custom_sample",
+            "uses_patch_sample_layer": True,
+            "source_path": str(guitar_sample),
+            "match_basis": "program_change",
+            "notes": [],
+        }
+    ]
+
+
+def test_render_report_track_realization_statuses_separate_patch_hint_from_rock_bass_runtime(tmp_path):
+    bass_sample = tmp_path / "bass_hint.wav"
+    midi_path = tmp_path / "bass_track.mid"
+    _save_single_track_program_midi(midi_path, track_name="Bass", program=34, note=40)
+
+    parsed = ParsedPrompt(
+        genre="rock",
+        bpm=100,
+        key="E",
+        scale_type=ScaleType.MINOR,
+        instruments=["bass"],
+        drum_elements=[],
+    )
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        soundfont_path=None,
+        require_soundfont=False,
+        instrument_library=None,
+        expansion_manager=None,
+        genre=parsed.genre,
+        mood=parsed.mood,
+        use_bwf=False,
+        parsed_instruments=parsed.instruments,
+        resolved_sample_metadata=[
+            {
+                "category": "bass",
+                "name": "Bass Hint",
+                "path": str(bass_sample),
+            }
+        ],
+    )
+
+    report = renderer._build_render_report(
+        midi_path=str(midi_path),
+        output_path="dummy.wav",
+        parsed=parsed,
+        renderer_path="procedural",
+        fluidsynth_allowed=False,
+        fluidsynth_attempted=False,
+        fluidsynth_success=False,
+        fluidsynth_skip_reason="disabled",
+        warnings=[],
+    )
+
+    status = report["track_realization_statuses"][0]
+    assert status["track_name"] == "Bass"
+    assert status["patch_id"] == "core.bass.track.v1"
+    assert status["patch_family"] == "bass"
+    assert status["preferred_realization"] == "sample_layer_hint"
+    assert status["actual_realization"] == "procedural_fallback"
+    assert status["uses_patch_sample_layer"] is False
+    assert status["source_path"] is None
+    assert status["match_basis"] == "program_change"
+    assert any("Rock-family bass programs are forced" in note for note in status["notes"])
+
+
+def test_render_report_track_realization_statuses_report_fluidsynth_whole_file_truth(tmp_path):
+    midi_path = tmp_path / "lead_track.mid"
+    _save_single_track_program_midi(midi_path, track_name="Lead", program=81)
+
+    parsed = ParsedPrompt(
+        genre="pop",
+        bpm=120,
+        key="C",
+        scale_type=ScaleType.MINOR,
+        instruments=["synth"],
+        drum_elements=[],
+    )
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        soundfont_path="C:/soundfonts/test.sf3",
+        require_soundfont=False,
+        instrument_library=None,
+        expansion_manager=None,
+        genre=parsed.genre,
+        mood=parsed.mood,
+        use_bwf=False,
+        parsed_instruments=parsed.instruments,
+    )
+
+    report = renderer._build_render_report(
+        midi_path=str(midi_path),
+        output_path="dummy.wav",
+        parsed=parsed,
+        renderer_path="fluidsynth",
+        fluidsynth_allowed=True,
+        fluidsynth_attempted=True,
+        fluidsynth_success=True,
+        fluidsynth_skip_reason=None,
+        warnings=[],
+    )
+
+    status = report["track_realization_statuses"][0]
+    assert status["track_name"] == "Lead"
+    assert status["actual_realization"] == "fluidsynth_soundfont"
+    assert status["uses_patch_sample_layer"] is False
+    assert status["source_path"] == "C:/soundfonts/test.sf3"
+    assert any("whole-file SoundFont rendering" in note for note in status["notes"])
+
+
+def test_procedural_drum_note_mapping_keeps_side_stick_and_clap_off_kick_path():
+    renderer = ProceduralRenderer(sample_rate=44100, genre="trap")
+    renderer._drum_cache["kick"] = np.array([1.0], dtype=np.float32)
+    renderer._drum_cache["snare"] = np.array([2.0], dtype=np.float32)
+    renderer._drum_cache["clap"] = np.array([3.0], dtype=np.float32)
+
+    side_stick = renderer._get_drum_sample(37)
+    clap = renderer._get_drum_sample(39)
+
+    np.testing.assert_array_equal(side_stick, np.array([2.0], dtype=np.float32))
+    np.testing.assert_array_equal(clap, np.array([3.0], dtype=np.float32))
+    assert not np.array_equal(side_stick, renderer._drum_cache["kick"])
+    assert not np.array_equal(clap, renderer._drum_cache["kick"])
+
+
+def test_render_report_track_realization_statuses_match_krar_patch_by_canonical_identity(tmp_path):
+    midi_path = tmp_path / "krar_track.mid"
+    _save_single_track_program_midi(midi_path, track_name="Krar", program=110, note=60)
+
+    parsed = ParsedPrompt(
+        genre="ethio_jazz",
+        bpm=120,
+        key="C",
+        scale_type=ScaleType.MINOR,
+        instruments=["krar"],
+        drum_elements=[],
+    )
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        soundfont_path=None,
+        require_soundfont=False,
+        instrument_library=None,
+        expansion_manager=None,
+        genre=parsed.genre,
+        mood=parsed.mood,
+        use_bwf=False,
+        parsed_instruments=parsed.instruments,
+    )
+
+    report = renderer._build_render_report(
+        midi_path=str(midi_path),
+        output_path="dummy.wav",
+        parsed=parsed,
+        renderer_path="procedural",
+        fluidsynth_allowed=False,
+        fluidsynth_attempted=False,
+        fluidsynth_success=False,
+        fluidsynth_skip_reason="disabled",
+        warnings=[],
+    )
+
+    assert [patch["patch_id"] for patch in report["instrument_patches"]] == [
+        "ethiopian.krar.track.v1"
+    ]
+    assert report["track_realization_statuses"] == [
+        {
+            "track_index": 1,
+            "track_name": "Krar",
+            "patch_id": "ethiopian.krar.track.v1",
+            "patch_family": "ethiopian_string",
+            "preferred_realization": "fallback_only",
+            "actual_realization": "procedural_fallback",
+            "uses_patch_sample_layer": False,
+            "source_path": None,
+            "match_basis": "program_change",
+            "notes": [],
+        }
+    ]
 
 
 def test_ethiopian_prompt_guardrail_skips_generic_melodic_cache():
@@ -356,6 +590,118 @@ def test_trap_fluidsynth_profile_does_not_apply_rock_tone_shaping():
     )
 
 
+def test_edm_lead_program_dispatches_to_bounded_unison_wavetable_path(monkeypatch):
+    renderer = ProceduralRenderer(sample_rate=44100, genre="edm")
+    sentinel = np.array([0.4, -0.4], dtype=np.float32)
+
+    def fake_unison(*args, **kwargs):
+        return sentinel
+
+    def fail_standard_lead(*args, **kwargs):
+        raise AssertionError("EDM fallback should dispatch to the bounded unison wavetable path")
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_unison_lead_tone", fake_unison)
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_lead_tone", fail_standard_lead)
+
+    rendered = renderer._synthesize_note(_note(program=81))
+
+    assert rendered is sentinel
+
+
+def test_non_edm_lead_program_keeps_existing_standard_lead_dispatch(monkeypatch):
+    renderer = ProceduralRenderer(sample_rate=44100, genre="trap")
+    sentinel = np.array([0.2, -0.2], dtype=np.float32)
+
+    def fail_unison(*args, **kwargs):
+        raise AssertionError("Trap lead fallback should not dispatch to the bounded wavetable path")
+
+    def fake_standard_lead(*args, **kwargs):
+        return sentinel
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_unison_lead_tone", fail_unison)
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_lead_tone", fake_standard_lead)
+
+    rendered = renderer._synthesize_note(_note(program=81))
+
+    assert rendered is sentinel
+
+
+def test_neural_backend_opt_in_missing_model_fails_open_to_procedural(monkeypatch, tmp_path):
+    midi_path = tmp_path / "neural_fallback.mid"
+    _save_single_track_program_midi(midi_path, track_name="Lead", program=81)
+
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        genre="pop",
+        use_bwf=False,
+        enable_neural_render=True,
+        neural_backend=OptionalNeuralRuntime(enabled=True, model_path=None),
+    )
+
+    def fake_render_procedural(*_args, **_kwargs):
+        sf.write(str(tmp_path / "out.wav"), np.zeros((128, 2), dtype=np.float32), 44100)
+        return True
+
+    monkeypatch.setattr(renderer, "_render_procedural", fake_render_procedural)
+    monkeypatch.setattr(renderer, "_run_output_analysis", lambda *_args, **_kwargs: None)
+
+    output_path = tmp_path / "out.wav"
+    assert renderer.render_midi_file(str(midi_path), str(output_path)) is True
+
+    report = renderer.get_last_render_report()
+    assert report is not None
+    assert report["renderer_path"] == "procedural"
+    assert report["neural"]["enabled"] is True
+    assert report["neural"]["success"] is False
+    assert report["neural"]["skip_reason"] == "missing_model_path"
+
+
+def test_renderer_path_becomes_neural_only_after_real_neural_render(monkeypatch, tmp_path):
+    midi_path = tmp_path / "neural_success.mid"
+    _save_single_track_program_midi(midi_path, track_name="Lead", program=81)
+
+    model_path = tmp_path / "dummy_model.ckpt"
+    model_path.write_text("stub", encoding="utf-8")
+
+    def fake_neural_render(_midi_path, output_path, **_kwargs):
+        tone = np.zeros((256, 2), dtype=np.float32)
+        tone[:, 0] = 0.1
+        tone[:, 1] = -0.1
+        sf.write(output_path, tone, 44100)
+        return True
+
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        genre="pop",
+        use_bwf=False,
+        enable_neural_render=True,
+        neural_backend=OptionalNeuralRuntime(
+            enabled=True,
+            model_path=str(model_path),
+            required_dependencies=(),
+            render_callback=fake_neural_render,
+        ),
+    )
+
+    def fail_procedural(*_args, **_kwargs):
+        raise AssertionError("Procedural fallback should not run after a real neural render success")
+
+    monkeypatch.setattr(renderer, "_render_procedural", fail_procedural)
+    monkeypatch.setattr(renderer, "_run_output_analysis", lambda *_args, **_kwargs: None)
+
+    output_path = tmp_path / "neural.wav"
+    assert renderer.render_midi_file(str(midi_path), str(output_path)) is True
+
+    report = renderer.get_last_render_report()
+    assert report is not None
+    assert report["renderer_path"] == "neural"
+    assert report["neural"]["attempted"] is True
+    assert report["neural"]["success"] is True
+    assert report["neural"]["skip_reason"] is None
+
+
 def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):
     """
     Integration test: FluidSynth success path applies file-level mastering.
@@ -419,6 +765,10 @@ def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):
     stages = report.get("pipeline_stages", {})
     assert "fluidsynth_file_mastering.status" in stages
     assert stages["fluidsynth_file_mastering.status"] == "applied"
+
+    # Guard: profile diagnostic should always be recorded for file-level mastering.
+    assert "fluidsynth_file_mastering.profile" in stages
+    assert isinstance(stages["fluidsynth_file_mastering.profile"], str)
 
     # Should have at least auto_gain_staging and true_peak_limiter stages recorded
     # (or their error/fallback variants if modules unavailable)

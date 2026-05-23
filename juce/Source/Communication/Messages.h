@@ -177,6 +177,9 @@ struct GenerationResult
     // Instruments used (from backend)
     juce::var instrumentsUsed;
 
+    // Additive InstrumentPatch metadata (bounded preview/default-synth subset source)
+    juce::var instrumentPatches;
+
     // Takes (for TakeLanePanel)
     juce::String takesJson;  // JSON array of take data
     
@@ -238,6 +241,9 @@ struct GenerationResult
 
         if (auto instruments = obj->getProperty("instruments_used"); instruments.isArray())
             result.instrumentsUsed = instruments;
+
+        if (auto patches = obj->getProperty("instrument_patches"); patches.isArray())
+            result.instrumentPatches = patches;
         
         // Extract takes array as JSON string for TakeLanePanel
         if (auto takesArr = obj->getProperty("takes"); takesArr.isArray())

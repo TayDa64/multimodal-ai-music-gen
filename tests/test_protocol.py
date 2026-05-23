@@ -121,6 +121,19 @@ class TestGenerationResult:
         assert d["request_id"] == "req-003"
         assert "task_id" in d
 
+    def test_result_to_dict_includes_instrument_patches(self):
+        """InstrumentPatch transport stays additive on the completion result."""
+        result = GenerationResult(
+            task_id="task-004",
+            request_id="req-004",
+            success=True,
+            instrument_patches=[{"patch_id": "core.guitar.track.v1"}],
+        )
+
+        d = result.to_dict()
+
+        assert d["instrument_patches"] == [{"patch_id": "core.guitar.track.v1"}]
+
 
 class TestSchemaVersion:
     """Tests for schema version handling."""
@@ -276,6 +289,7 @@ class TestPhase52OptionForwarding:
                 "motif_mode": "on",
                 "num_motifs": 3,
                 "seed": 123,
+                "use_agents": False,
             },
             score_plan={"schema_version": "score_plan_v1", "prompt": "x", "bpm": 120, "key": "C", "mode": "minor", "sections": [{"name": "intro", "type": "intro", "bars": 4}], "tracks": [{"role": "pad", "instrument": "pad"}]},
         )
@@ -297,7 +311,22 @@ class TestPhase52OptionForwarding:
         assert kwargs["motif_mode"] == "on"
         assert kwargs["num_motifs"] == 3
         assert kwargs["seed"] == 123
+        assert kwargs["use_agents"] is False
         assert kwargs["score_plan"] == request.score_plan
+
+    def test_build_run_generation_kwargs_omits_use_agents_when_unspecified(self):
+        request = GenerationRequest(prompt="ethio jazz prompt")
+
+        def _progress(step: str, pct: float, msg: str):
+            pass
+
+        kwargs = build_run_generation_kwargs(
+            request,
+            output_dir="out",
+            progress_callback=_progress,
+        )
+
+        assert "use_agents" not in kwargs
 
     def test_build_run_generation_kwargs_honors_separate_minor_mode(self):
         request = GenerationRequest(

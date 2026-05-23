@@ -7,6 +7,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import main as main_module
+from multimodal_gen.instrument_patch import (
+    build_track_scoped_instrument_patches,
+    enrich_instrument_patches_with_resolved_samples,
+)
 
 
 class DummyMidiFile:
@@ -103,6 +107,87 @@ class QuietRenderer:
 
     def render_midi_file(self, midi_path, output_path, parsed):
         Path(output_path).write_bytes(b"RIFF")
+        return True
+
+
+class ParityRenderer:
+    def __init__(self, *args, **kwargs):
+        self._last_render_report = None
+        self._parsed_instruments = list(kwargs.get("parsed_instruments") or [])
+        self._resolved_sample_metadata = list(kwargs.get("resolved_sample_metadata") or [])
+
+    def render_midi_file(self, midi_path, output_path, parsed):
+        Path(output_path).write_bytes(b"RIFF")
+        instrument_patches = enrich_instrument_patches_with_resolved_samples(
+            build_track_scoped_instrument_patches(
+                self._parsed_instruments,
+                genre=parsed.genre,
+            ),
+            self._resolved_sample_metadata,
+        )
+        self._last_render_report = {
+            "schema_version": 1,
+            "renderer_path": "procedural",
+            "midi_path": midi_path,
+            "output_path": output_path,
+            "prompt_meta": {
+                "genre": parsed.genre,
+                "bpm": parsed.bpm,
+                "key": parsed.key,
+            },
+            "fluidsynth": {
+                "available": False,
+                "version": None,
+                "enabled": False,
+                "allowed": False,
+                "attempted": False,
+                "success": False,
+                "skip_reason": "disabled",
+            },
+            "soundfont_path": None,
+            "require_soundfont": False,
+            "custom_audio": {
+                "custom_drums_loaded": 0,
+                "custom_melodic_loaded": {},
+            },
+            "instrument_library": {"loaded": False, "total_instruments": None, "categories": None, "sources": None},
+            "expansions": {"loaded": False, "count": None, "expansions": None, "categories": None},
+            "instrument_patches": [patch.to_dict() for patch in instrument_patches],
+            "track_realization_statuses": [],
+            "warnings": [],
+            "production_preset": {
+                "preset_values": None,
+                "target_rms": None,
+                "reverb_send": None,
+            },
+            "mix_policy": {
+                "active": False,
+                "saturation_type": None,
+                "saturation_amount": None,
+                "brightness_target": None,
+                "warmth_target": None,
+                "target_lufs": None,
+                "master_ceiling_db": None,
+                "stem_headroom_db": None,
+                "drum_bus_fx": None,
+                "bass_fx": None,
+                "master_fx_chain": None,
+            },
+            "genre_normalized": (parsed.genre or "").lower().replace("-", "_").replace(" ", "_"),
+            "pipeline_stages": {},
+            "render_status": {
+                "success": True,
+                "current_stage": None,
+                "failure": None,
+            },
+        }
+        return True
+
+    def get_last_render_report(self):
+        return self._last_render_report
+
+    def write_last_render_report(self, report_path):
+        Path(report_path).write_text(json.dumps(self._last_render_report, indent=2), encoding="utf-8")
         return True
 
 
@@ -572,6 +657,265 @@ def test_run_generation_warns_honestly_when_adjective_smart_metadata_is_unavaila
 
     metadata = json.loads(Path(results["project_metadata"]).read_text(encoding="utf-8"))
     assert "smart_instruments" not in metadata["current"]["outputs"]
+
+
+def test_run_generation_persists_instrument_patches_when_renderer_is_monkeypatched(monkeypatch, tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+
+    class DummyPromptParser:
+        def parse(self, prompt):
+            return main_module.ParsedPrompt(
+                genre="ethio_jazz",
+                bpm=110,
+                key="A",
+                scale_type=main_module.ParsedPrompt.scale_type,
+                instruments=["krar"],
+                drum_elements=["kick"],
+                raw_prompt=prompt,
+            )
+
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(main_module, "PromptParser", DummyPromptParser)
+    monkeypatch.setattr(main_module, "print_step", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_info", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_success", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_parsed_prompt", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "validate_generation", lambda *args, **kwargs: SimpleNamespace(valid=True, violations=[]))
+    monkeypatch.setattr(main_module, "Arranger", DummyArranger)
+    monkeypatch.setattr(main_module, "SessionGraphBuilder", DummyGraphBuilder)
+    monkeypatch.setattr(main_module, "MidiGenerator", DummyMidiGenerator)
+    monkeypatch.setattr(main_module, "AssetsGenerator", DummyAssetsGenerator)
+    monkeypatch.setattr(main_module, "AudioRenderer", QuietRenderer)
+    monkeypatch.setattr(main_module, "generate_project_name", lambda _parsed: "test_project")
+    monkeypatch.setattr(main_module, "set_instrument_service", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_run_quality_gate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "HAS_STYLE_POLICY", False)
+    monkeypatch.setattr(main_module, "compile_policy", None)
+    monkeypatch.setattr(main_module, "HAS_AGENT_SYSTEM", False)
+    monkeypatch.setattr(main_module, "_HAS_QUALITY_VALIDATOR", False)
+    monkeypatch.setattr(main_module, "_HAS_FILE_ANALYSIS", False)
+    monkeypatch.setattr(main_module, "_HAS_STEM_SEPARATION", False)
+
+    results = main_module.run_generation(
+        prompt="krar melody smoke test",
+        output_dir=output_dir,
+        verbose=False,
+        use_bwf=False,
+        skip_default_instruments=True,
+        skip_expansions=True,
+    )
+
+    assert [patch["patch_id"] for patch in results["instrument_patches"]] == [
+        "ethiopian.krar.track.v1"
+    ]
+
+    metadata = json.loads(Path(results["project_metadata"]).read_text(encoding="utf-8"))
+    assert [patch["patch_id"] for patch in metadata["current"]["outputs"]["instrument_patches"]] == [
+        "ethiopian.krar.track.v1"
+    ]
+
+
+def test_run_generation_enriches_instrument_patches_after_resolved_samples_are_known(monkeypatch, tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+
+    instruments_dir = tmp_path / "instrument_pool"
+    instruments_dir.mkdir()
+    guitar_sample = instruments_dir / "crunch_guitar.wav"
+    guitar_sample.write_bytes(b"RIFF")
+
+    class DummyPromptParser:
+        def parse(self, prompt):
+            return main_module.ParsedPrompt(
+                genre="rock",
+                bpm=100,
+                key="E",
+                scale_type=main_module.ParsedPrompt.scale_type,
+                instruments=["guitar"],
+                drum_elements=[],
+                raw_prompt=prompt,
+            )
+
+    class DummyInstrumentLibrary:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def discover_and_analyze(self):
+            return 1
+
+        def list_categories(self):
+            return {"guitar": 1}
+
+    class DummyInstrumentMatcher:
+        def __init__(self, _library):
+            pass
+
+        def get_recommendations(self, genre, mood=None):
+            instrument = SimpleNamespace(
+                name="Crunch Guitar",
+                path=str(guitar_sample),
+                source="test_source",
+            )
+            return {"guitar": [(instrument, 0.97)]}
+
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(main_module, "PromptParser", DummyPromptParser)
+    monkeypatch.setattr(main_module, "print_step", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_info", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_success", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_parsed_prompt", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "validate_generation", lambda *args, **kwargs: SimpleNamespace(valid=True, violations=[]))
+    monkeypatch.setattr(main_module, "Arranger", DummyArranger)
+    monkeypatch.setattr(main_module, "SessionGraphBuilder", DummyGraphBuilder)
+    monkeypatch.setattr(main_module, "MidiGenerator", DummyMidiGenerator)
+    monkeypatch.setattr(main_module, "AssetsGenerator", DummyAssetsGenerator)
+    monkeypatch.setattr(main_module, "AudioRenderer", QuietRenderer)
+    monkeypatch.setattr(main_module, "generate_project_name", lambda _parsed: "test_project")
+    monkeypatch.setattr(main_module, "set_instrument_service", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_run_quality_gate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "HAS_STYLE_POLICY", False)
+    monkeypatch.setattr(main_module, "compile_policy", None)
+    monkeypatch.setattr(main_module, "HAS_AGENT_SYSTEM", False)
+    monkeypatch.setattr(main_module, "_HAS_QUALITY_VALIDATOR", False)
+    monkeypatch.setattr(main_module, "_HAS_FILE_ANALYSIS", False)
+    monkeypatch.setattr(main_module, "_HAS_STEM_SEPARATION", False)
+
+    import multimodal_gen as multimodal_gen_module
+
+    monkeypatch.setattr(multimodal_gen_module, "InstrumentLibrary", DummyInstrumentLibrary, raising=False)
+    monkeypatch.setattr(multimodal_gen_module, "InstrumentMatcher", DummyInstrumentMatcher, raising=False)
+
+    results = main_module.run_generation(
+        prompt="rock guitar sample hint smoke test",
+        output_dir=output_dir,
+        verbose=False,
+        use_bwf=False,
+        instruments_paths=[str(instruments_dir)],
+        skip_default_instruments=True,
+        skip_expansions=True,
+    )
+
+    assert results["instruments_used"] == [
+        {
+            "category": "guitar",
+            "name": "Crunch Guitar",
+            "score": 0.97,
+            "path": str(guitar_sample),
+            "source": "test_source",
+        }
+    ]
+    assert [patch["patch_id"] for patch in results["instrument_patches"]] == [
+        "core.guitar.track.v1"
+    ]
+    assert len(results["instrument_patches"][0]["sample_layers"]) == 1
+    assert results["instrument_patches"][0]["sample_layers"][0]["path_hint"] == str(guitar_sample)
+
+    metadata = json.loads(Path(results["project_metadata"]).read_text(encoding="utf-8"))
+    metadata_patch = metadata["current"]["outputs"]["instrument_patches"][0]
+    assert len(metadata_patch["sample_layers"]) == 1
+    assert metadata_patch["sample_layers"][0]["path_hint"] == str(guitar_sample)
+
+
+def test_run_generation_render_report_matches_main_enriched_instrument_patch_view(monkeypatch, tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+
+    instruments_dir = tmp_path / "instrument_pool"
+    instruments_dir.mkdir()
+    guitar_sample = instruments_dir / "crunch_guitar.wav"
+    guitar_sample.write_bytes(b"RIFF")
+
+    class DummyPromptParser:
+        def parse(self, prompt):
+            return main_module.ParsedPrompt(
+                genre="rock",
+                bpm=100,
+                key="E",
+                scale_type=main_module.ParsedPrompt.scale_type,
+                instruments=["guitar"],
+                drum_elements=[],
+                raw_prompt=prompt,
+            )
+
+    class DummyInstrumentLibrary:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def discover_and_analyze(self):
+            return 1
+
+        def list_categories(self):
+            return {"guitar": 1}
+
+    class DummyInstrumentMatcher:
+        def __init__(self, _library):
+            pass
+
+        def get_recommendations(self, genre, mood=None):
+            instrument = SimpleNamespace(
+                name="Crunch Guitar",
+                path=str(guitar_sample),
+                source="test_source",
+            )
+            return {"guitar": [(instrument, 0.97)]}
+
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(main_module, "PromptParser", DummyPromptParser)
+    monkeypatch.setattr(main_module, "print_step", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_info", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_warning", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_success", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "print_parsed_prompt", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "validate_generation", lambda *args, **kwargs: SimpleNamespace(valid=True, violations=[]))
+    monkeypatch.setattr(main_module, "Arranger", DummyArranger)
+    monkeypatch.setattr(main_module, "SessionGraphBuilder", DummyGraphBuilder)
+    monkeypatch.setattr(main_module, "MidiGenerator", DummyMidiGenerator)
+    monkeypatch.setattr(main_module, "AssetsGenerator", DummyAssetsGenerator)
+    monkeypatch.setattr(main_module, "AudioRenderer", ParityRenderer)
+    monkeypatch.setattr(main_module, "generate_project_name", lambda _parsed: "test_project")
+    monkeypatch.setattr(main_module, "set_instrument_service", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(main_module, "_run_quality_gate", lambda *args, **kwargs: None)
+    monkeypatch.setattr(main_module, "HAS_STYLE_POLICY", False)
+    monkeypatch.setattr(main_module, "compile_policy", None)
+    monkeypatch.setattr(main_module, "HAS_AGENT_SYSTEM", False)
+    monkeypatch.setattr(main_module, "_HAS_QUALITY_VALIDATOR", False)
+    monkeypatch.setattr(main_module, "_HAS_FILE_ANALYSIS", False)
+    monkeypatch.setattr(main_module, "_HAS_STEM_SEPARATION", False)
+
+    import multimodal_gen as multimodal_gen_module
+
+    monkeypatch.setattr(multimodal_gen_module, "InstrumentLibrary", DummyInstrumentLibrary, raising=False)
+    monkeypatch.setattr(multimodal_gen_module, "InstrumentMatcher", DummyInstrumentMatcher, raising=False)
+
+    results = main_module.run_generation(
+        prompt="rock guitar render report parity smoke test",
+        output_dir=output_dir,
+        verbose=False,
+        use_bwf=False,
+        instruments_paths=[str(instruments_dir)],
+        skip_default_instruments=True,
+        skip_expansions=True,
+    )
+
+    render_report_path = Path(results["render_report"])
+    assert render_report_path.exists()
+
+    render_report = json.loads(render_report_path.read_text(encoding="utf-8"))
+    assert render_report["instrument_patches"] == results["instrument_patches"]
+    assert render_report["instrument_patches"][0]["sample_layers"][0]["path_hint"] == str(guitar_sample)
+    assert isinstance(render_report["track_realization_statuses"], list)
 
 
 def _missing_audio_results(tmp_path):

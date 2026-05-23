@@ -2,7 +2,14 @@ from pathlib import Path
 
 import numpy as np
 
-from multimodal_gen.assets_gen import AssetsGenerator, SAMPLE_RATE, generate_organ_tone
+from multimodal_gen.assets_gen import (
+    AssetsGenerator,
+    SAMPLE_RATE,
+    generate_organ_tone,
+    get_static_wavetable_bank,
+    render_static_wavetable_tone,
+    generate_unison_lead_tone,
+)
 
 
 def _sample_names(kit):
@@ -109,3 +116,44 @@ def test_generate_organ_tone_normal_duration_non_empty():
     assert len(audio) == int(0.05 * SAMPLE_RATE)
     assert not np.isnan(audio).any()
     assert np.max(np.abs(audio)) > 0
+
+
+def test_generate_unison_lead_tone_non_empty_and_finite():
+    audio = generate_unison_lead_tone(440.0, duration=0.10, velocity=0.9, sample_rate=SAMPLE_RATE)
+
+    assert isinstance(audio, np.ndarray)
+    assert audio.size == int(0.10 * SAMPLE_RATE)
+    assert np.all(np.isfinite(audio))
+    peak = float(np.max(np.abs(audio))) if audio.size else 0.0
+    assert peak <= 1.0 + 1e-6
+
+
+def test_static_wavetable_bank_exposes_multiple_single_cycle_tables():
+    names, tables = get_static_wavetable_bank(512)
+
+    assert names == ("sine", "triangle", "soft_saw", "hollow_square")
+    assert tables.shape == (4, 512)
+    assert np.all(np.isfinite(tables))
+    assert np.max(np.abs(tables)) <= 1.0 + 1e-6
+
+
+def test_render_static_wavetable_tone_morphing_is_finite_and_changes_shape():
+    mellow = render_static_wavetable_tone(
+        440.0,
+        duration=0.05,
+        sample_rate=SAMPLE_RATE,
+        morph_position=0.0,
+    )
+    bright = render_static_wavetable_tone(
+        440.0,
+        duration=0.05,
+        sample_rate=SAMPLE_RATE,
+        morph_position=1.0,
+        morph_span=0.25,
+    )
+
+    assert mellow.size == bright.size == int(0.05 * SAMPLE_RATE)
+    assert np.all(np.isfinite(mellow))
+    assert np.all(np.isfinite(bright))
+    assert np.max(np.abs(bright)) <= 1.0 + 1e-6
+    assert not np.allclose(mellow, bright)

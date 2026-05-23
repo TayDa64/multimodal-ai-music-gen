@@ -26,10 +26,33 @@ bool isSampleInstrumentId(const juce::String& instrumentId)
     return instrumentId.startsWithIgnoreCase(kSampleInstrumentPrefix);
 }
 
+bool isDefaultSynthInstrumentId(const juce::String& instrumentId)
+{
+    return instrumentId.isEmpty() || instrumentId == "default_sine";
+}
+
 juce::File sampleFileFromInstrumentId(const juce::String& instrumentId)
 {
     auto path = instrumentId.fromFirstOccurrenceOf(kSampleInstrumentPrefix, false, false).trim();
     return juce::File(path);
+}
+
+juce::String sampleLayerPathHintFromPatch(const juce::var& patchVar)
+{
+    auto* patchObj = patchVar.getDynamicObject();
+    if (patchObj == nullptr)
+        return {};
+
+    auto sampleLayers = patchObj->getProperty("sample_layers");
+    auto* sampleLayerArray = sampleLayers.getArray();
+    if (sampleLayerArray == nullptr || sampleLayerArray->size() != 1)
+        return {};
+
+    auto* layerObj = (*sampleLayerArray)[0].getDynamicObject();
+    if (layerObj == nullptr)
+        return {};
+
+    return layerObj->getProperty("path_hint").toString().trim();
 }
 
 bool isRockFamilyGenre(const juce::String& genre)
@@ -80,6 +103,308 @@ std::vector<juce::String> preferredCategoriesForTrack(const juce::String& trackN
     }
 
     return { "synth", "keys", "pad", "strings", "brass", "bass" };
+}
+
+juce::var loadGeneratedOutputPropertyForCurrentMidi(const juce::String& midiPath,
+                                                    const juce::String& propertyName)
+{
+    if (midiPath.isEmpty())
+        return {};
+
+    auto midiFile = juce::File(midiPath);
+    auto metadataFile = midiFile.getParentDirectory().getChildFile("project_metadata.json");
+    if (!metadataFile.existsAsFile())
+        return {};
+
+    auto json = juce::JSON::parse(metadataFile);
+    if (auto* obj = json.getDynamicObject())
+    {
+        auto current = obj->getProperty("current");
+        if (auto* currentObj = current.getDynamicObject())
+        {
+            auto outputs = currentObj->getProperty("outputs");
+            if (auto* outputsObj = outputs.getDynamicObject())
+            {
+                auto midiRel = outputsObj->getProperty("midi").toString();
+                if (midiRel.isNotEmpty() && midiFile.getFileName() == juce::File(midiRel).getFileName())
+                    return outputsObj->getProperty(juce::Identifier(propertyName));
+            }
+        }
+    }
+
+    return {};
+}
+
+std::vector<juce::String> patchFamilyKeywords(const juce::String& family)
+{
+    const auto normalized = family.toLowerCase();
+
+    if (normalized == "guitar") return { "guitar", "gtr" };
+    if (normalized == "keys") return { "keys", "piano", "rhodes", "clav", "epiano" };
+    if (normalized == "bass") return { "bass", "808" };
+    if (normalized == "synth") return { "synth", "analog" };
+    if (normalized == "pad") return { "pad", "pads" };
+    if (normalized == "brass") return { "brass", "horn", "trumpet", "trombone", "sax" };
+    if (normalized == "strings") return { "strings", "violin", "cello", "ensemble" };
+    if (normalized == "organ") return { "organ", "hammond", "drawbar" };
+    if (normalized == "choir") return { "choir", "voice", "voices", "vocal" };
+    if (normalized == "ethiopian_string") return { "krar", "masenqo", "begena", "ethio" };
+    if (normalized == "ethiopian_flute") return { "washint", "flute", "reed" };
+
+    return { normalized };
+}
+
+bool trackNameContainsAnyFamilyHint(const juce::String& trackName)
+{
+    static const std::vector<juce::String> knownHints = {
+        "guitar", "gtr", "keys", "piano", "rhodes", "clav", "epiano",
+        "bass", "synth", "organ", "hammond", "drawbar", "choir", "voice",
+        "strings", "violin", "cello", "brass", "horn", "trumpet", "trombone",
+        "sax", "krar", "masenqo", "washint", "begena", "flute", "reed"
+    };
+
+    const auto lowerName = trackName.toLowerCase();
+    for (const auto& hint : knownHints)
+    {
+        if (lowerName.contains(hint))
+            return true;
+    }
+
+    return false;
+}
+
+bool trackNameMatchesPatchFamily(const juce::String& trackName, const juce::String& family)
+{
+    const auto lowerName = trackName.toLowerCase();
+    for (const auto& keyword : patchFamilyKeywords(family))
+    {
+        if (keyword.isNotEmpty() && lowerName.contains(keyword))
+            return true;
+    }
+
+    return false;
+}
+
+bool trackNameMatchesPatchRole(const juce::String& trackName, const juce::String& role)
+{
+    const auto lowerName = trackName.toLowerCase();
+    const auto normalizedRole = role.toLowerCase();
+
+    if (normalizedRole == "bass")
+        return lowerName.contains("bass") || lowerName.contains("808");
+
+    if (normalizedRole == "chords")
+        return lowerName.contains("chord") || lowerName.contains("guitar") || lowerName.contains("keys")
+               || lowerName.contains("piano") || lowerName.contains("rhodes") || lowerName.contains("clav");
+
+    if (normalizedRole == "melody")
+        return lowerName.contains("melody") || lowerName.contains("lead") || lowerName.contains("arp")
+               || lowerName.contains("hook") || lowerName.contains("solo") || lowerName.contains("synth")
+               || lowerName.contains("brass") || lowerName.contains("horn") || lowerName.contains("trumpet")
+               || lowerName.contains("trombone") || lowerName.contains("sax") || lowerName.contains("flute")
+               || lowerName.contains("washint") || lowerName.contains("krar") || lowerName.contains("masenqo");
+
+    if (normalizedRole == "pad")
+        return lowerName.contains("pad") || lowerName.contains("strings") || lowerName.contains("organ")
+               || lowerName.contains("choir");
+
+    if (normalizedRole == "drone")
+        return lowerName.contains("drone") || lowerName.contains("begena");
+
+    if (normalizedRole == "drums" || normalizedRole == "perc")
+        return lowerName.contains("drum") || lowerName.contains("perc");
+
+    return false;
+}
+
+std::vector<juce::String> previewCategoriesForPatchFamily(const juce::String& family)
+{
+    const auto normalized = family.toLowerCase();
+
+    if (normalized == "guitar") return { "guitar" };
+    if (normalized == "keys") return { "keys" };
+    if (normalized == "bass") return { "bass" };
+    if (normalized == "synth") return { "synth" };
+    if (normalized == "pad") return { "pad" };
+    if (normalized == "brass") return { "brass" };
+    if (normalized == "strings") return { "strings" };
+    if (normalized == "organ") return { "keys", "pad" };
+    if (normalized == "choir") return { "pad" };
+
+    return {};
+}
+
+bool trackNameSupportsPatchFamily(const juce::String& trackName,
+                                  const juce::String& genre,
+                                  const juce::String& family)
+{
+    if (trackNameMatchesPatchFamily(trackName, family))
+        return true;
+
+    if (trackNameContainsAnyFamilyHint(trackName))
+        return false;
+
+    const auto previewCategories = previewCategoriesForPatchFamily(family);
+    if (previewCategories.empty())
+        return false;
+
+    const auto preferred = preferredCategoriesForTrack(trackName, genre);
+    for (const auto& category : previewCategories)
+    {
+        for (const auto& preferredCategory : preferred)
+        {
+            if (preferredCategory.equalsIgnoreCase(category))
+                return true;
+        }
+    }
+
+    return false;
+}
+
+struct DefaultSynthPreviewSubset
+{
+    bool hasWaveform = false;
+    int waveformId = 1;
+    bool hasAttack = false;
+    float attackSeconds = 0.001f;
+    bool hasDecay = false;
+    float decaySeconds = 0.0f;
+    bool hasSustain = false;
+    float sustainLevel = 1.0f;
+    bool hasRelease = false;
+    float releaseSeconds = 0.2f;
+    bool hasCutoff = false;
+    float cutoffHz = 16000.0f;
+    bool hasCutoffVelocityDelta = false;
+    float cutoffVelocityDeltaHz = 0.0f;
+    bool hasLfoRate = false;
+    float lfoRateHz = 0.0f;
+    bool hasLfoDepth = false;
+    float lfoDepth = 0.0f;
+
+    bool hasAnyValue() const
+    {
+        return hasWaveform || hasAttack || hasDecay || hasSustain || hasRelease
+               || hasCutoff || hasCutoffVelocityDelta || hasLfoRate || hasLfoDepth;
+    }
+};
+
+int waveformIdForPatchAlgorithm(const juce::String& algorithm)
+{
+    const auto normalized = algorithm.toLowerCase();
+
+    if (normalized == "sine") return 1;
+    if (normalized == "triangle") return 2;
+    if (normalized == "saw") return 3;
+    if (normalized == "square" || normalized == "pulse") return 4;
+
+    // The bounded JUCE preview path only supports sine/triangle/saw/square.
+    // Richer/physical-model algorithms such as FM or Karplus-Strong therefore
+    // fold down to a harmonic-safe Saw fallback for default-synth preview only.
+    return 3;
+}
+
+DefaultSynthPreviewSubset buildDefaultSynthPreviewSubset(const juce::var& patchVar)
+{
+    DefaultSynthPreviewSubset subset;
+
+    auto* patchObj = patchVar.getDynamicObject();
+    if (patchObj == nullptr)
+        return subset;
+
+    auto synthesisVoice = patchObj->getProperty("synthesis_voice");
+    auto* voiceObj = synthesisVoice.getDynamicObject();
+    if (voiceObj == nullptr)
+        return subset;
+
+    if (auto oscillators = voiceObj->getProperty("oscillators"); oscillators.isArray() && oscillators.size() > 0)
+    {
+        if (auto* primaryOscillator = oscillators[0].getDynamicObject())
+        {
+            subset.hasWaveform = true;
+            subset.waveformId = juce::jlimit(1, 4,
+                                             waveformIdForPatchAlgorithm(primaryOscillator->getProperty("algorithm").toString()));
+        }
+    }
+
+    if (auto ampEnvelope = voiceObj->getProperty("amp_envelope"); ampEnvelope.isObject())
+    {
+        if (auto* ampEnvelopeObj = ampEnvelope.getDynamicObject())
+        {
+            subset.hasAttack = true;
+            subset.attackSeconds = juce::jlimit(0.001f, 2.0f,
+                                                0.001f * (float)ampEnvelopeObj->getProperty("attack_ms"));
+
+            const auto decayMs = ampEnvelopeObj->getProperty("decay_ms");
+            if (!decayMs.isVoid())
+            {
+                subset.hasDecay = true;
+                subset.decaySeconds = juce::jlimit(0.0f, 5.0f,
+                                                   0.001f * (float)decayMs);
+            }
+
+            const auto sustainLevel = ampEnvelopeObj->getProperty("sustain_level");
+            if (!sustainLevel.isVoid())
+            {
+                subset.hasSustain = true;
+                subset.sustainLevel = juce::jlimit(0.0f, 1.0f,
+                                                   (float)sustainLevel);
+            }
+
+            subset.hasRelease = true;
+            subset.releaseSeconds = juce::jlimit(0.01f, 5.0f,
+                                                 0.001f * (float)ampEnvelopeObj->getProperty("release_ms"));
+        }
+    }
+
+    if (auto filter = voiceObj->getProperty("filter"); filter.isObject())
+    {
+        if (auto* filterObj = filter.getDynamicObject())
+        {
+            if (filterObj->getProperty("mode").toString().equalsIgnoreCase("lowpass"))
+            {
+                subset.hasCutoff = true;
+                subset.cutoffHz = juce::jlimit(50.0f, 20000.0f,
+                                               (float)filterObj->getProperty("cutoff_hz"));
+            }
+        }
+    }
+
+    if (auto velocityMap = voiceObj->getProperty("velocity_map"); velocityMap.isObject())
+    {
+        if (auto* velocityMapObj = velocityMap.getDynamicObject())
+        {
+            const auto cutoffDeltaHz = velocityMapObj->getProperty("cutoff_delta_hz");
+            if (!cutoffDeltaHz.isVoid())
+            {
+                subset.hasCutoffVelocityDelta = true;
+                subset.cutoffVelocityDeltaHz = juce::jlimit(-20000.0f, 20000.0f,
+                                                            (float)cutoffDeltaHz);
+            }
+        }
+    }
+
+    if (auto lfos = voiceObj->getProperty("lfos"); lfos.isArray())
+    {
+        for (int i = 0; i < lfos.size(); ++i)
+        {
+            if (auto* lfoObj = lfos[i].getDynamicObject())
+            {
+                if (!lfoObj->getProperty("target").toString().equalsIgnoreCase("amp"))
+                    continue;
+
+                subset.hasLfoRate = true;
+                subset.lfoRateHz = juce::jlimit(0.0f, 20.0f,
+                                                (float)lfoObj->getProperty("rate_hz"));
+                subset.hasLfoDepth = true;
+                subset.lfoDepth = juce::jlimit(0.0f, 1.0f,
+                                               (float)lfoObj->getProperty("depth"));
+                break;
+            }
+        }
+    }
+
+    return subset;
 }
 
 juce::File resolveDefaultOutputDir()
@@ -194,6 +519,95 @@ bool isResolutionFallbackLike(const ResolvedInstrumentInfo& result)
 {
     const auto matchType = result.matchType.toLowerCase();
     return matchType == "default" || matchType.contains("fallback");
+}
+
+void includeVisibleBounds(juce::Rectangle<int>& aggregate, const juce::Component* component)
+{
+    if (component == nullptr || ! component->isVisible())
+        return;
+
+    const auto bounds = component->getBounds();
+    if (bounds.isEmpty())
+        return;
+
+    aggregate = aggregate.isEmpty() ? bounds : aggregate.getUnion(bounds);
+}
+
+juce::Rectangle<int> makeShellBounds(juce::Rectangle<int> bounds,
+                                     const juce::Rectangle<int>& limit,
+                                     int horizontalPad,
+                                     int verticalPad)
+{
+    if (bounds.isEmpty())
+        return {};
+
+    return bounds.expanded(horizontalPad, verticalPad).getIntersection(limit);
+}
+
+void drawShellWell(juce::Graphics& g,
+                   juce::Rectangle<int> bounds,
+                   juce::Colour accentColour,
+                   bool accentOnTop = true)
+{
+    if (bounds.isEmpty())
+        return;
+
+    auto outer = bounds.toFloat();
+    const float radius = Layout::borderRadiusLG;
+
+    g.setColour(AppColours::surfaceRaised.withAlpha(0.38f));
+    g.fillRoundedRectangle(outer, radius);
+
+    auto inner = outer.reduced(1.0f);
+    g.setColour(AppColours::surfaceSunken.withAlpha(0.82f));
+    g.fillRoundedRectangle(inner, juce::jmax(0.0f, radius - 1.0f));
+
+    g.setColour(juce::Colours::black.withAlpha(0.24f));
+    g.drawRoundedRectangle(outer, radius, 1.0f);
+
+    g.setColour(AppColours::borderSubtle.withAlpha(0.95f));
+    g.drawRoundedRectangle(inner, juce::jmax(0.0f, radius - 1.0f), 1.0f);
+
+    auto accentBounds = bounds.reduced(Layout::paddingLG, Layout::paddingSM);
+    if (accentBounds.isEmpty())
+        return;
+
+    accentBounds = accentOnTop ? accentBounds.removeFromTop(Layout::paddingXS)
+                               : accentBounds.removeFromLeft(Layout::paddingXS);
+
+    if (accentBounds.isEmpty())
+        return;
+
+    g.setColour(accentColour.withAlpha(0.52f));
+    g.fillRoundedRectangle(accentBounds.toFloat(), Layout::borderRadiusSM);
+}
+
+void drawStatusSegment(juce::Graphics& g,
+                       juce::Rectangle<int> bounds,
+                       juce::Colour accentColour)
+{
+    if (bounds.isEmpty())
+        return;
+
+    auto outer = bounds.toFloat();
+    const float radius = Layout::borderRadiusSM;
+
+    g.setColour(AppColours::mpcControlBg.withAlpha(0.96f));
+    g.fillRoundedRectangle(outer, radius);
+
+    auto inner = outer.reduced(0.75f);
+    g.setColour(AppColours::surfaceSunken.withAlpha(0.55f));
+    g.fillRoundedRectangle(inner, juce::jmax(0.0f, radius - 0.75f));
+
+    g.setColour(AppColours::mpcControlBorder.withAlpha(0.72f));
+    g.drawRoundedRectangle(inner, juce::jmax(0.0f, radius - 0.75f), 1.0f);
+
+    auto accentBounds = bounds.reduced(Layout::paddingSM, Layout::paddingXS).removeFromTop(Layout::paddingXS);
+    if (! accentBounds.isEmpty())
+    {
+        g.setColour(accentColour.withAlpha(0.48f));
+        g.fillRoundedRectangle(accentBounds.toFloat(), Layout::borderRadiusSM);
+    }
 }
 }
 
@@ -371,11 +785,20 @@ void MainComponent::applyDefaultSynthSettingsForTrackFromProjectState(int trackI
                                           mmg::AudioEngine::DefaultSynthParam::AttackSeconds,
                                           (float)trackNode.getProperty(Project::IDs::defaultSynthAttack, 0.001f));
     audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::DecaySeconds,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthDecay, 0.0f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::SustainLevel,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthSustain, 1.0f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
                                           mmg::AudioEngine::DefaultSynthParam::ReleaseSeconds,
                                           (float)trackNode.getProperty(Project::IDs::defaultSynthRelease, 0.2f));
     audioEngine.setTrackDefaultSynthParam(trackIndex,
                                           mmg::AudioEngine::DefaultSynthParam::CutoffHz,
                                           (float)trackNode.getProperty(Project::IDs::defaultSynthCutoff, 16000.0f));
+    audioEngine.setTrackDefaultSynthParam(trackIndex,
+                                          mmg::AudioEngine::DefaultSynthParam::CutoffVelocityDeltaHz,
+                                          (float)trackNode.getProperty(Project::IDs::defaultSynthCutoffVelocityDelta, 0.0f));
     audioEngine.setTrackDefaultSynthParam(trackIndex,
                                           mmg::AudioEngine::DefaultSynthParam::LfoRateHz,
                                           (float)trackNode.getProperty(Project::IDs::defaultSynthLfoRate, 5.0f));
@@ -388,32 +811,10 @@ void MainComponent::applyGeneratedInstrumentSamples(const GenerationResult& resu
 {
     juce::var instrumentsVar = result.instrumentsUsed;
 
-    // Fallback to project_metadata.json if result didn't include instruments.
-    if (!instrumentsVar.isArray() && result.midiPath.isNotEmpty())
-    {
-        auto midiFile = juce::File(result.midiPath);
-        auto metadataFile = midiFile.getParentDirectory().getChildFile("project_metadata.json");
-        if (metadataFile.existsAsFile())
-        {
-            auto json = juce::JSON::parse(metadataFile);
-            if (auto* obj = json.getDynamicObject())
-            {
-                auto current = obj->getProperty("current");
-                if (auto* currentObj = current.getDynamicObject())
-                {
-                    auto outputs = currentObj->getProperty("outputs");
-                    if (auto* outputsObj = outputs.getDynamicObject())
-                    {
-                        auto midiRel = outputsObj->getProperty("midi").toString();
-                        if (midiRel.isNotEmpty() && midiFile.getFileName() == juce::File(midiRel).getFileName())
-                        {
-                            instrumentsVar = outputsObj->getProperty("instruments_used");
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Fallback to project_metadata.json if result didn't include instruments or sent an empty list.
+    auto* directInstrumentArray = instrumentsVar.getArray();
+    if (directInstrumentArray == nullptr || directInstrumentArray->isEmpty())
+        instrumentsVar = loadGeneratedOutputPropertyForCurrentMidi(result.midiPath, "instruments_used");
 
     if (!instrumentsVar.isArray())
     {
@@ -454,7 +855,7 @@ void MainComponent::applyGeneratedInstrumentSamples(const GenerationResult& resu
         const int trackIndex = (int)child.getProperty(Project::IDs::index, 0);
         const auto trackName = child.getProperty(Project::IDs::name).toString();
         auto existingId = child.getProperty(Project::IDs::instrumentId).toString();
-        if (existingId.isNotEmpty() && existingId != "default_sine")
+        if (!isDefaultSynthInstrumentId(existingId))
             continue;
 
         juce::var selected;
@@ -506,6 +907,173 @@ void MainComponent::applyGeneratedInstrumentSamples(const GenerationResult& resu
 
         appState.getProjectState().setInstrument(trackIndex, sampleName, sampleFile.getFullPathName());
         trackInstrumentSelected(trackIndex, instrumentId);
+    }
+}
+
+void MainComponent::applyGeneratedInstrumentPatchSubset(const GenerationResult& result)
+{
+    juce::var patchesVar = result.instrumentPatches;
+
+    // Fallback to project_metadata.json if result didn't include patches or sent an empty list.
+    auto* directPatchArray = patchesVar.getArray();
+    if (directPatchArray == nullptr || directPatchArray->isEmpty())
+        patchesVar = loadGeneratedOutputPropertyForCurrentMidi(result.midiPath, "instrument_patches");
+
+    if (!patchesVar.isArray())
+    {
+        DBG("MainComponent: No instrument_patches data available for default-synth preview adapter.");
+        return;
+    }
+
+    auto mixerNode = appState.getProjectState().getMixerNode();
+    if (!mixerNode.isValid())
+        return;
+
+    struct EligibleDefaultSynthTrack
+    {
+        int index = -1;
+        juce::String name;
+    };
+
+    std::vector<EligibleDefaultSynthTrack> eligibleTracks;
+    for (const auto& child : mixerNode)
+    {
+        if (!child.hasType(Project::IDs::TRACK))
+            continue;
+
+        const auto instrumentId = child.getProperty(Project::IDs::instrumentId).toString();
+        if (!isDefaultSynthInstrumentId(instrumentId))
+            continue;
+
+        eligibleTracks.push_back({
+            (int)child.getProperty(Project::IDs::index, 0),
+            child.getProperty(Project::IDs::name).toString()
+        });
+    }
+
+    if (eligibleTracks.empty())
+    {
+        DBG("MainComponent: No default-synth tracks remained eligible for InstrumentPatch preview mapping.");
+        return;
+    }
+
+    std::map<int, std::vector<juce::var>> matchedPatchesByTrack;
+
+    if (auto* patchArray = patchesVar.getArray())
+    {
+        for (const auto& patchVar : *patchArray)
+        {
+            auto* patchObj = patchVar.getDynamicObject();
+            if (patchObj == nullptr)
+                continue;
+
+            const auto trackRole = patchObj->getProperty("track_role").toString().toLowerCase();
+
+            juce::String family;
+            if (auto patchProfile = patchObj->getProperty("patch_profile"); patchProfile.isObject())
+            {
+                if (auto* patchProfileObj = patchProfile.getDynamicObject())
+                    family = patchProfileObj->getProperty("family").toString().toLowerCase();
+            }
+
+            if (trackRole.isEmpty() || family.isEmpty())
+                continue;
+
+            std::vector<int> candidateTracks;
+            for (const auto& track : eligibleTracks)
+            {
+                if (!trackNameMatchesPatchRole(track.name, trackRole))
+                    continue;
+
+                if (!trackNameSupportsPatchFamily(track.name, result.genre, family))
+                    continue;
+
+                candidateTracks.push_back(track.index);
+            }
+
+            if (candidateTracks.size() == 1)
+                matchedPatchesByTrack[candidateTracks.front()].push_back(patchVar);
+        }
+    }
+
+    if (matchedPatchesByTrack.empty())
+    {
+        DBG("MainComponent: instrument_patches were present but no default-synth tracks matched conservatively.");
+        return;
+    }
+
+    for (const auto& track : eligibleTracks)
+    {
+        auto it = matchedPatchesByTrack.find(track.index);
+        if (it == matchedPatchesByTrack.end())
+            continue;
+
+        if (it->second.size() != 1)
+        {
+            DBG("MainComponent: Skipping ambiguous InstrumentPatch match for track " << track.index
+                << " (" << track.name << ")");
+            continue;
+        }
+
+        const auto& matchedPatchVar = it->second.front();
+        if (auto samplePathHint = sampleLayerPathHintFromPatch(matchedPatchVar); samplePathHint.isNotEmpty())
+        {
+            juce::File sampleFile(samplePathHint);
+            if (sampleFile.existsAsFile())
+            {
+                auto sampleName = sampleFile.getFileNameWithoutExtension();
+                if (sampleName.isEmpty())
+                {
+                    if (auto* patchObj = matchedPatchVar.getDynamicObject())
+                        sampleName = patchObj->getProperty("display_name").toString();
+                }
+
+                auto instrumentId = juce::String(kSampleInstrumentPrefix) + sampleFile.getFullPathName();
+                auto trackNode = appState.getProjectState().getTrackNode(track.index);
+                if (trackNode.isValid())
+                    trackNode.setProperty(Project::IDs::instrumentId, instrumentId, nullptr);
+
+                appState.getProjectState().setInstrument(track.index, sampleName, sampleFile.getFullPathName());
+                trackInstrumentSelected(track.index, instrumentId);
+                continue;
+            }
+
+            DBG("MainComponent: InstrumentPatch sample hint missing for track " << track.index
+                << ": " << samplePathHint);
+        }
+
+        const auto subset = buildDefaultSynthPreviewSubset(matchedPatchVar);
+        if (!subset.hasAnyValue())
+            continue;
+
+        auto trackNode = appState.getProjectState().getTrackNode(track.index);
+        if (!trackNode.isValid())
+            continue;
+
+        trackNode.setProperty(Project::IDs::instrumentId, "default_sine", nullptr);
+
+        if (subset.hasWaveform)
+            trackNode.setProperty(Project::IDs::defaultSynthWaveform, subset.waveformId, nullptr);
+        if (subset.hasAttack)
+            trackNode.setProperty(Project::IDs::defaultSynthAttack, subset.attackSeconds, nullptr);
+        if (subset.hasDecay)
+            trackNode.setProperty(Project::IDs::defaultSynthDecay, subset.decaySeconds, nullptr);
+        if (subset.hasSustain)
+            trackNode.setProperty(Project::IDs::defaultSynthSustain, subset.sustainLevel, nullptr);
+        if (subset.hasRelease)
+            trackNode.setProperty(Project::IDs::defaultSynthRelease, subset.releaseSeconds, nullptr);
+        if (subset.hasCutoff)
+            trackNode.setProperty(Project::IDs::defaultSynthCutoff, subset.cutoffHz, nullptr);
+        if (subset.hasCutoffVelocityDelta)
+            trackNode.setProperty(Project::IDs::defaultSynthCutoffVelocityDelta, subset.cutoffVelocityDeltaHz, nullptr);
+        if (subset.hasLfoRate)
+            trackNode.setProperty(Project::IDs::defaultSynthLfoRate, subset.lfoRateHz, nullptr);
+        if (subset.hasLfoDepth)
+            trackNode.setProperty(Project::IDs::defaultSynthLfoDepth, subset.lfoDepth, nullptr);
+
+        // Reuse the existing default-synth seam so the engine stays aligned with the
+        // per-track project state without touching mastering/live-FX routing.
+        trackInstrumentSelected(track.index, "default_sine");
     }
 }
 
@@ -946,13 +1514,92 @@ void MainComponent::paint(juce::Graphics& g)
 {
     // Background
     g.fillAll(AppColours::background);
+
+    const int adaptivePadding = Layout::getAdaptivePadding(getWidth());
+    auto shellBounds = getLocalBounds()
+                           .withTrimmedTop(transportBar ? transportBar->getBottom() : 0)
+                           .withTrimmedBottom(Layout::statusBarHeight)
+                           .reduced(Layout::paddingSM, Layout::paddingXS);
+
+    juce::Rectangle<int> workflowBounds;
+    includeVisibleBounds(workflowBounds, genreSelector.get());
+    includeVisibleBounds(workflowBounds, promptPanel.get());
+
+    const auto workflowShell = makeShellBounds(workflowBounds,
+                                               shellBounds,
+                                               Layout::paddingSM,
+                                               Layout::paddingSM);
+    const auto mainShell = makeShellBounds(visualizationArea,
+                                           shellBounds,
+                                           Layout::paddingSM,
+                                           Layout::paddingSM);
+    const auto bottomShell = bottomPanelVisible
+                                 ? makeShellBounds(bottomPanelArea,
+                                                   shellBounds,
+                                                   Layout::paddingSM,
+                                                   Layout::paddingSM)
+                                 : juce::Rectangle<int>();
+
+    drawShellWell(g, workflowShell, AppColours::mpcAmber);
+    drawShellWell(g, mainShell, AppColours::mpcAccent);
+    if (bottomPanelVisible)
+        drawShellWell(g, bottomShell, AppColours::mpcAccentStrong);
+
+    if (! workflowShell.isEmpty() && ! mainShell.isEmpty())
+    {
+        const int gap = mainShell.getX() - workflowShell.getRight();
+        if (gap > Layout::paddingSM)
+        {
+            juce::Rectangle<int> separator((workflowShell.getRight() + mainShell.getX()) / 2 - 1,
+                                           workflowShell.getY() + adaptivePadding,
+                                           2,
+                                           juce::jmin(workflowShell.getBottom(), mainShell.getBottom()) - workflowShell.getY() - (adaptivePadding * 2));
+            if (! separator.isEmpty())
+            {
+                g.setColour(AppColours::mpcAccent.withAlpha(0.18f));
+                g.fillRoundedRectangle(separator.toFloat(), Layout::borderRadiusSM);
+            }
+        }
+    }
+
+    if (! mainShell.isEmpty() && ! bottomShell.isEmpty())
+    {
+        const int gap = bottomShell.getY() - mainShell.getBottom();
+        if (gap > Layout::paddingSM)
+        {
+            juce::Rectangle<int> separator(mainShell.getX() + adaptivePadding,
+                                           (mainShell.getBottom() + bottomShell.getY()) / 2 - 1,
+                                           mainShell.getWidth() - (adaptivePadding * 2),
+                                           2);
+            if (! separator.isEmpty())
+            {
+                g.setColour(AppColours::mpcAccentStrong.withAlpha(0.16f));
+                g.fillRoundedRectangle(separator.toFloat(), Layout::borderRadiusSM);
+            }
+        }
+    }
     
     // Status bar at bottom - clear, single source of truth for connection status
-    auto statusArea = getLocalBounds().removeFromBottom(24).reduced(padding, 2);
-    
-    // Background for status bar
-    g.setColour(AppColours::surface);
-    g.fillRect(statusArea.expanded(padding, 2));
+    auto statusArea = getLocalBounds().removeFromBottom(Layout::statusBarHeight).reduced(Layout::paddingSM, Layout::paddingXS);
+    auto statusFrame = statusArea;
+
+    g.setColour(AppColours::surfaceRaised.withAlpha(0.78f));
+    g.fillRoundedRectangle(statusFrame.toFloat(), Layout::borderRadiusMD);
+
+    g.setColour(AppColours::surfaceSunken.withAlpha(0.92f));
+    g.fillRoundedRectangle(statusFrame.reduced(1).toFloat(), Layout::borderRadiusMD);
+
+    g.setColour(AppColours::borderSubtle.withAlpha(0.95f));
+    g.drawRoundedRectangle(statusFrame.toFloat().reduced(0.5f), Layout::borderRadiusMD, 1.0f);
+
+    auto statusAccent = statusFrame.reduced(Layout::paddingLG, Layout::paddingXS).removeFromTop(Layout::paddingXS);
+    if (! statusAccent.isEmpty())
+    {
+        g.setColour(AppColours::mpcAccent.withAlpha(0.30f));
+        g.fillRoundedRectangle(statusAccent.toFloat(), Layout::borderRadiusSM);
+    }
+
+    auto statusContent = statusFrame.reduced(Layout::paddingSM, Layout::paddingXS);
     
     // Connection status (left side) - use clear icon and text
     juce::String connectionText;
@@ -968,13 +1615,26 @@ void MainComponent::paint(juce::Graphics& g)
         connectionColour = AppColours::warning;
     }
     
-    g.setFont(12.0f);
+    const int connectionWidth = juce::jmin(380, juce::jmax(280, statusContent.getWidth() / 2));
+    const int rightWidth = juce::jmin(320, juce::jmax(260, statusContent.getWidth() / 3));
+
+    auto connectionArea = statusContent.removeFromLeft(connectionWidth).reduced(Layout::paddingXS, 0);
+    auto rightArea = statusContent.removeFromRight(rightWidth);
+    auto statusTextArea = rightArea.removeFromRight(juce::jmin(170, juce::jmax(140, rightArea.getWidth() - 120))).reduced(Layout::paddingXS, 0);
+    auto generationArea = rightArea.reduced(Layout::paddingXS, 0);
+    auto genreArea = statusContent.reduced(Layout::paddingXS, 0);
+
+    drawStatusSegment(g, connectionArea, connectionColour);
+    drawStatusSegment(g, genreArea, AppColours::mpcAmber);
+    drawStatusSegment(g, generationArea, AppColours::mpcAccent);
+    drawStatusSegment(g, statusTextArea, AppColours::mpcAccentStrong);
+
+    g.setFont(Layout::fontSizeSM);
     g.setColour(connectionColour);
-    g.drawText(connectionText, statusArea.removeFromLeft(380), juce::Justification::left);
-    
-    // Split right side between generation status and current status text
-    auto rightArea = statusArea.removeFromRight(320);
-    auto statusTextArea = rightArea.removeFromRight(170);
+    g.drawText(connectionText,
+               connectionArea.reduced(Layout::paddingMD, 0),
+               juce::Justification::centredLeft,
+               true);
 
     // Current genre indicator (center) - show display name from GenreSelector
     g.setColour(AppColours::textSecondary);
@@ -984,7 +1644,10 @@ void MainComponent::paint(juce::Graphics& g)
         if (auto* tmpl = genreSelector->getSelectedGenre())
             genreDisplay = tmpl->displayName;
     }
-    g.drawText("Genre: " + genreDisplay, statusArea.reduced(60, 0), juce::Justification::centred);
+        g.drawText("Genre: " + genreDisplay,
+                             genreArea.reduced(Layout::paddingMD, 0),
+                             juce::Justification::centred,
+                             true);
 
     // Generation pipeline status (right, left aligned)
     g.setColour(AppColours::textSecondary);
@@ -993,11 +1656,17 @@ void MainComponent::paint(juce::Graphics& g)
                                                 generationRequestTime,
                                                 generationAckTime,
                                                 generationCompleteTime);
-    g.drawText(genStatusText, rightArea, juce::Justification::centredLeft, true);
+        g.drawText(genStatusText,
+                             generationArea.reduced(Layout::paddingMD, 0),
+                             juce::Justification::centredLeft,
+                             true);
     
     // Current activity status (right side)
     g.setColour(AppColours::textSecondary);
-    g.drawText(currentStatus, statusTextArea, juce::Justification::right);
+        g.drawText(currentStatus,
+                             statusTextArea.reduced(Layout::paddingMD, 0),
+                             juce::Justification::centredRight,
+                             true);
   }
 
 void MainComponent::resized()
@@ -1210,6 +1879,7 @@ void MainComponent::onGenerationComplete(const GenerationResult& result)
                     visualizationPanel->loadMidiFile(midiFile);
 
                 applyGeneratedInstrumentSamples(result);
+                applyGeneratedInstrumentPatchSubset(result);
 
                 if (result.audioPath.isEmpty())
                     currentStatus = "Loaded dry/unmastered MIDI preview/fallback: "

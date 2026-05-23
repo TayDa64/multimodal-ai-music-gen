@@ -52,6 +52,11 @@ from .utils import (
     midi_to_note_name,
     note_name_to_midi,
 )
+from .instrument_patch import (
+    build_track_scoped_instrument_patches,
+    enrich_instrument_patches_with_resolved_samples,
+    normalize_instrument_alias,
+)
 from .prompt_parser import ParsedPrompt
 from .arranger import Arrangement, SectionType
 from .assets_gen import (
@@ -66,6 +71,7 @@ from .assets_gen import (
     generate_guitar_tone,
     generate_piano_tone,
     generate_lead_tone,
+    generate_unison_lead_tone,
     generate_pad_tone,
     generate_sine_tone,
     # Ethiopian instruments
@@ -98,6 +104,7 @@ from .mix_chain import (
     CompressorParams,
     ReverbParams
 )
+from .synthesizers.neural_runtime import OptionalNeuralRuntime
 
 # Import InstrumentLibrary for custom sample support
 if TYPE_CHECKING:
@@ -704,6 +711,30 @@ class ProceduralRenderer:
     
     # Ethiopian instruments that should use procedural synthesis, not generic samples
     ETHIOPIAN_INSTRUMENTS = {'krar', 'masenqo', 'washint', 'begena', 'kebero', 'atamo'}
+    # Render-time drum sample/cache keys. Keep this mapping scoped to actual
+    # sample selection so reporting-oriented taxonomy changes cannot silently
+    # change how MIDI drum notes are rendered.
+    DRUM_RENDER_NOTE_MAP = {
+        36: 'kick',        # Bass Drum
+        35: 'kick',        # Acoustic Bass Drum
+        37: 'snare',       # Side Stick -> snare-family fallback in current renderer
+        38: 'snare',       # Snare
+        39: 'clap',        # Hand Clap
+        40: 'snare',       # Electric Snare
+        42: 'hihat',       # Closed Hi-Hat
+        44: 'hihat',       # Pedal Hi-Hat
+        46: 'hihat_open',  # Open Hi-Hat
+        49: 'hihat_open',  # Crash
+        50: 'kebero',      # Kebero bass
+        51: 'kebero_slap', # Kebero slap
+        52: 'kebero_mute', # Kebero muted
+        60: 'bongo_high',  # High Bongo - Atamo
+        61: 'bongo_low',   # Low Bongo
+        62: 'conga_high',  # High Conga - Kebero slap
+        63: 'conga_low',   # Low Conga - Kebero bass
+        70: 'shaker',      # Maracas/Shaker
+    }
+    DRUM_NOTE_MAP = DRUM_RENDER_NOTE_MAP
     GUITAR_FAMILY_ALIASES = {
         'guitar', 'guitars', 'gtr', 'electric_guitar', 'electric guitar',
         'distortion_guitar', 'distortion guitar', 'acoustic_guitar',
@@ -727,6 +758,16 @@ class ProceduralRenderer:
         """Return True for rock-family renderers using normalized genre keys."""
         genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
         return genre_key in ROCK_FAMILY_GENRES
+
+    @classmethod
+    def _get_render_drum_name_for_pitch(cls, pitch: int) -> str:
+        """Return the render-time drum sample/cache key for a MIDI drum note."""
+        return cls.DRUM_RENDER_NOTE_MAP.get(int(pitch), 'kick')
+
+    @classmethod
+    def _get_drum_name_for_pitch(cls, pitch: int) -> str:
+        """Backward-compatible alias for the render-time drum sample/cache key."""
+        return cls._get_render_drum_name_for_pitch(pitch)
 
     def _synthesize_rock_electric_bass(
         self,
@@ -766,6 +807,21 @@ class ProceduralRenderer:
         pick *= np.exp(-np.arange(pick_len) / max(1.0, 0.0025 * self.sample_rate))
         audio[:pick_len] += pick * 0.10
 
+        # Add a small physical-model pluck layer for realism while keeping the
+        # existing rock-bass safety guardrails (sub control, high-pass focus).
+        try:
+            pluck = self._karplus_strong_pluck(
+                frequency,
+                duration,
+                velocity,
+                damping=0.986,
+                brightness=0.55,
+            ).astype(np.float64, copy=False)
+            if pluck.size == audio.size:
+                audio = 0.80 * audio + 0.20 * pluck
+        except Exception:
+            pass
+
         audio = np.tanh(audio * 1.25)
         for _ in range(2):
             audio = highpass_filter(audio, 100.0, self.sample_rate)
@@ -785,6 +841,93 @@ class ProceduralRenderer:
         peak = float(np.max(np.abs(audio))) if audio.size else 0.0
         if peak > 1e-9:
             audio = audio / peak * min(0.68, 0.68 * velocity)
+        return np.clip(audio, -1.0, 1.0).astype(np.float32)
+
+    def _karplus_strong_pluck(
+        self,
+        frequency: float,
+        duration: float,
+        velocity: float,
+        *,
+        damping: float = 0.985,
+        brightness: float = 0.6,
+    ) -> np.ndarray:
+        """Small, bounded Karplus-Strong plucked-string helper.
+
+        This is intentionally conservative and used only as an offline
+        procedural fallback layer (not a full physical modeling engine).
+        """
+        num_samples = int(max(0.0, duration) * self.sample_rate)
+        if num_samples <= 0:
+            return np.zeros(0, dtype=np.float32)
+
+        velocity = float(np.clip(velocity, 0.0, 1.0))
+        if velocity <= 0.0:
+            return np.zeros(num_samples, dtype=np.float32)
+
+        frequency = float(np.clip(frequency, 20.0, self.sample_rate / 3.5))
+        damping = float(np.clip(damping, 0.90, 0.9995))
+        brightness = float(np.clip(brightness, 0.0, 1.0))
+
+        period = max(2, int(self.sample_rate / max(1.0, frequency)))
+
+        # Deterministic pseudo-noise excitation (stable across runs).
+        bucket = int(frequency * 10) % 997
+        rng = np.random.default_rng(bucket)
+        exc = rng.standard_normal(period).astype(np.float64)
+        exc = np.convolve(exc, np.array([0.25, 0.5, 0.25]), mode='same')
+        exc *= (0.35 + 0.55 * brightness)
+
+        buf = np.zeros(num_samples, dtype=np.float64)
+        buf[:period] = exc
+        for i in range(period, num_samples):
+            avg = 0.5 * (buf[i - period] + buf[i - period - 1])
+            buf[i] = damping * avg
+
+        buf = np.nan_to_num(buf, nan=0.0, posinf=0.0, neginf=0.0)
+        peak = float(np.max(np.abs(buf))) if buf.size else 0.0
+        if peak > 1e-9:
+            buf = buf / peak * min(0.85, 0.85 * velocity)
+        return np.clip(buf, -1.0, 1.0).astype(np.float32)
+
+    def _synthesize_rock_electric_guitar(
+        self,
+        frequency: float,
+        duration: float,
+        velocity: float,
+        *,
+        drive: float = 0.72,
+    ) -> np.ndarray:
+        """Bounded rock guitar fallback using a pluck physical-model layer.
+
+        This keeps the fallback stable and band-limited; it does not attempt a
+        full amp/cabinet simulation.
+        """
+        base = self._karplus_strong_pluck(
+            frequency,
+            duration,
+            velocity,
+            damping=0.987,
+            brightness=0.75,
+        ).astype(np.float64, copy=False)
+
+        if base.size == 0:
+            return base.astype(np.float32)
+
+        # Add a small harmonic layer for body/consistency with the legacy guitar.
+        t = np.arange(base.size, dtype=np.float64) / self.sample_rate
+        harmonic = np.sin(2 * np.pi * float(np.clip(frequency, 20.0, self.sample_rate / 3.0)) * t)
+        harmonic *= np.exp(-t / 0.18)
+
+        audio = 0.82 * base + 0.18 * harmonic
+        audio = np.tanh(audio * (0.90 + 2.0 * float(np.clip(drive, 0.0, 1.0))))
+        audio = highpass_filter(audio, 80.0, self.sample_rate)
+        audio = lowpass_filter(audio, 6500.0, self.sample_rate)
+        audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+
+        peak = float(np.max(np.abs(audio))) if audio.size else 0.0
+        if peak > 1e-9:
+            audio = audio / peak * min(0.78, 0.78 * float(np.clip(velocity, 0.0, 1.0)))
         return np.clip(audio, -1.0, 1.0).astype(np.float32)
     
     def __init__(
@@ -851,7 +994,9 @@ class ProceduralRenderer:
         # Pre-generate drum samples (fallback)
         self._drum_cache: Dict[str, np.ndarray] = {}
         self._custom_drum_cache: Dict[str, np.ndarray] = {}  # From library
+        self._custom_drum_sources: Dict[str, str] = {}  # Truthful sample-path metadata for diagnostics
         self._custom_melodic_cache: Dict[str, List[Dict]] = {}  # Melodic samples from library
+        self._expansion_sample_sources: Dict[str, str] = {}  # Truthful sample-path metadata for diagnostics
         self._expansion_sample_cache: Dict[str, np.ndarray] = {}  # From expansions
         self._init_drum_cache()
         
@@ -936,6 +1081,9 @@ class ProceduralRenderer:
                                 )
                         
                         self._custom_drum_cache[drum_name] = audio
+                        best_path = str(getattr(best, 'path', '') or '').strip()
+                        if best_path:
+                            self._custom_drum_sources[drum_name] = best_path
                         print(f"  [*] Loaded custom {drum_name}: {best.name}")
             
             if self._custom_drum_cache:
@@ -1038,6 +1186,7 @@ class ProceduralRenderer:
                             self._custom_melodic_cache[inst_name].append({
                                 'audio': audio,
                                 'name': candidate.name,
+                                'path': str(getattr(candidate, 'path', '') or '').strip(),
                                 'root_note': getattr(candidate, 'root_note', 60),  # Default C4
                                 'sample_rate': self.sample_rate
                             })
@@ -1072,6 +1221,9 @@ class ProceduralRenderer:
                     'trap': ['808', 'piano', 'synth'],
                     'rnb': ['piano', 'guitar', 'bass', 'synth'],
                     'neo_soul': ['rhodes', 'piano', 'guitar', 'bass', 'pad'],
+                    # Bounded orchestral cache warm-up (used only if expansions exist).
+                    'cinematic': ['strings', 'brass', 'choir', 'harp', 'timpani'],
+                    'classical': ['strings', 'brass', 'choir', 'harp', 'timpani', 'piano'],
                 }
                 
                 # Get instruments for current genre
@@ -1114,6 +1266,7 @@ class ProceduralRenderer:
                         for cache_key in cache_keys:
                             if cache_key:
                                 self._expansion_sample_cache[cache_key] = audio
+                                self._expansion_sample_sources[cache_key] = str(sample_path)
                         
                         print(f"  [*] Expansion: {inst_name} -> {result.resolved_name} ({result.match_type.name})")
                         
@@ -1131,7 +1284,9 @@ class ProceduralRenderer:
         self.genre = genre
         self.mood = mood
         self._custom_drum_cache.clear()
+        self._custom_drum_sources.clear()
         self._expansion_sample_cache.clear()
+        self._expansion_sample_sources.clear()
         if self.instrument_library:
             self._load_custom_instruments()
         if self.expansion_manager:
@@ -1166,31 +1321,7 @@ class ProceduralRenderer:
     
     def _get_drum_sample(self, pitch: int) -> np.ndarray:
         """Get drum sample for MIDI note number - prefers custom instruments."""
-        # GM drum map (simplified)
-        drum_map = {
-            35: 'kick',     # Acoustic Bass Drum
-            36: 'kick',     # Bass Drum 1 / 808
-            37: 'snare',    # Side Stick
-            38: 'snare',    # Acoustic Snare
-            39: 'clap',     # Hand Clap
-            40: 'snare',    # Electric Snare
-            42: 'hihat',    # Closed Hi-Hat
-            44: 'hihat',    # Pedal Hi-Hat
-            46: 'hihat_open',  # Open Hi-Hat
-            49: 'hihat_open',  # Crash
-            # Ethiopian drums (custom kebero range)
-            50: 'kebero',      # Kebero bass
-            51: 'kebero_slap', # Kebero slap
-            52: 'kebero_mute', # Kebero muted
-            # GM Latin percussion (used for Ethiopian approximation)
-            60: 'bongo_high',  # High Bongo - Atamo
-            61: 'bongo_low',   # Low Bongo
-            62: 'conga_high',  # High Conga - Kebero slap
-            63: 'conga_low',   # Low Conga - Kebero bass
-            70: 'shaker',      # Maracas/Shaker
-        }
-        
-        drum_name = drum_map.get(pitch, 'kick')
+        drum_name = self._get_render_drum_name_for_pitch(pitch)
         
         # Handle Ethiopian/Latin percussion with procedural synthesis
         if drum_name.startswith('kebero') or drum_name in ['conga_high', 'conga_low', 'bongo_high', 'bongo_low', 'shaker']:
@@ -1280,8 +1411,13 @@ class ProceduralRenderer:
             drive = 0.72 if note.program in (29, 30, 31) else 0.42
             if str(self.genre or '').lower() in {'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'}:
                 drive = max(drive, 0.72)
+            if self._is_rock_family_genre():
+                return self._synthesize_rock_electric_guitar(freq, duration, velocity, drive=drive)
             return generate_guitar_tone(freq, duration, velocity, self.sample_rate, drive=drive)
         elif 80 <= note.program <= 87:  # Synth leads
+            genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
+            if genre_key in {'edm', 'pop', 'dance', 'electro', 'electropop', 'house'}:
+                return generate_unison_lead_tone(freq, duration, velocity, self.sample_rate)
             return generate_lead_tone(freq, duration, velocity, self.sample_rate)
         elif 12 <= note.program <= 15:  # Chromatic percussion (vibe/marimba/xylophone)
             # Avoid toy mallet timbres in procedural mode; render as soft keys instead.
@@ -1437,6 +1573,13 @@ class ProceduralRenderer:
                 80: 'synth', # Lead 1 (square)
                 81: 'synth', # Lead 2 (sawtooth)
                 87: 'synth', # Lead 8 (bass+lead)
+                # Orchestral routing (bounded): prefer expansion multisamples
+                # when present; fall back to procedural tones otherwise.
+                **{p: 'strings' for p in range(40, 52)},
+                **{p: 'choir' for p in range(52, 56)},
+                **{p: 'brass' for p in range(56, 64)},
+                46: 'harp',
+                47: 'timpani',
             }
             inst_name = program_to_instrument.get(program)
         
@@ -1514,6 +1657,10 @@ class AudioRenderer:
         tail_seconds: float = 2.0,
         synthesizer: Optional['ISynthesizer'] = None,
         parsed_instruments: list = None,  # NEW: Explicit instruments from prompt
+        resolved_sample_metadata: Optional[List[Dict]] = None,
+        enable_neural_render: bool = False,
+        neural_model_path: Optional[str] = None,
+        neural_backend: Optional[OptionalNeuralRuntime] = None,
     ):
         """
         Initialize AudioRenderer.
@@ -1547,12 +1694,29 @@ class AudioRenderer:
         self.use_bwf = use_bwf
         self.ai_metadata = ai_metadata or {}
         self.tail_seconds = tail_seconds
-        self._parsed_instruments = set(parsed_instruments) if parsed_instruments else set()
+        self.enable_neural_render = bool(enable_neural_render)
+        self._parsed_instrument_names = [
+            str(inst).strip()
+            for inst in (parsed_instruments or [])
+            if inst is not None and str(inst).strip()
+        ]
+        self._parsed_instruments = {
+            str(inst).lower() for inst in self._parsed_instrument_names
+        }
+        self._resolved_sample_metadata = [
+            dict(entry)
+            for entry in (resolved_sample_metadata or [])
+            if isinstance(entry, dict)
+        ]
 
         self._last_render_report: Optional[Dict] = None
         self._render_failure_context: Optional[Dict] = None
         self._current_render_stage: Optional[str] = None
         self._pipeline_stages: Dict[str, str] = {}  # Sprint 10.5: Track which DSP stages fired
+        self.neural_backend = neural_backend or OptionalNeuralRuntime(
+            enabled=self.enable_neural_render,
+            model_path=neural_model_path,
+        )
 
         # Convolution reverb for master bus (Sprint 7)
         self._reverb = ConvolutionReverb(sample_rate=sample_rate) if _HAS_CONVOLUTION_REVERB else None
@@ -1924,6 +2088,10 @@ class AudioRenderer:
         fluidsynth_skip_reason: Optional[str] = None
         fluidsynth_attempted = False
         fluidsynth_success = False
+        neural_attempted = False
+        neural_success = False
+        neural_skip_reason: Optional[str] = None
+        neural_error_message: Optional[str] = None
 
         try:
             self._set_render_stage("preflight")
@@ -1945,8 +2113,67 @@ class AudioRenderer:
                         fluidsynth_success=False,
                         fluidsynth_skip_reason="require_soundfont",
                         warnings=warnings,
+                        neural_attempted=neural_attempted,
+                        neural_success=neural_success,
+                        neural_skip_reason=neural_skip_reason,
+                        neural_error_message=neural_error_message,
                     )
                     return False
+
+            neural_status = self.neural_backend.probe() if self.neural_backend else None
+            if self.enable_neural_render and neural_status is not None:
+                neural_skip_reason = neural_status.skip_reason
+                if neural_status.can_render:
+                    self._set_render_stage("neural_render")
+                    neural_result = self.neural_backend.render_midi_to_audio(
+                        midi_path,
+                        output_path,
+                        parsed=parsed,
+                        sample_rate=self.sample_rate,
+                    )
+                    neural_attempted = bool(neural_result.attempted)
+                    neural_skip_reason = neural_result.skip_reason
+                    neural_error_message = neural_result.error_message
+                    neural_success = bool(neural_result.success) and os.path.exists(output_path)
+
+                    if neural_result.success and not neural_success:
+                        neural_skip_reason = "missing_output_file"
+                        warnings.append(
+                            "Neural backend reported success without producing an output file; falling back"
+                        )
+                    elif neural_success:
+                        renderer_path_used = "neural"
+                        if parsed:
+                            self._set_render_stage("post_process")
+                            self._post_process(output_path, parsed)
+
+                        self._last_render_report = self._build_render_report(
+                            midi_path=midi_path,
+                            output_path=output_path,
+                            parsed=parsed,
+                            renderer_path="neural",
+                            fluidsynth_allowed=fluidsynth_allowed,
+                            fluidsynth_attempted=False,
+                            fluidsynth_success=False,
+                            fluidsynth_skip_reason=fluidsynth_skip_reason,
+                            warnings=warnings,
+                            neural_attempted=neural_attempted,
+                            neural_success=neural_success,
+                            neural_skip_reason=neural_skip_reason,
+                            neural_error_message=neural_error_message,
+                        )
+                        self._set_render_stage("output_analysis")
+                        self._run_output_analysis(output_path, parsed)
+                        return True
+                    else:
+                        warning = f"Neural render attempt failed ({neural_skip_reason or 'render_failed'})"
+                        if neural_error_message:
+                            warning = f"{warning}: {neural_error_message}"
+                        warnings.append(f"{warning}; falling back to standard renderer")
+                elif neural_skip_reason and neural_skip_reason != "disabled":
+                    warnings.append(
+                        f"Neural render skipped ({neural_skip_reason}); falling back to standard renderer"
+                    )
 
             # Try FluidSynth first (only if no custom drums loaded AND no Ethiopian instruments)
             if fluidsynth_allowed and custom_drums_loaded == 0 and not has_ethiopian:
@@ -1985,6 +2212,10 @@ class AudioRenderer:
                         fluidsynth_success=True,
                         fluidsynth_skip_reason=fluidsynth_skip_reason,
                         warnings=warnings,
+                        neural_attempted=neural_attempted,
+                        neural_success=neural_success,
+                        neural_skip_reason=neural_skip_reason,
+                        neural_error_message=neural_error_message,
                     )
                     self._set_render_stage("output_analysis")
                     self._run_output_analysis(output_path, parsed)
@@ -2027,6 +2258,10 @@ class AudioRenderer:
                 fluidsynth_success=fluidsynth_success,
                 fluidsynth_skip_reason=fluidsynth_skip_reason,
                 warnings=warnings,
+                neural_attempted=neural_attempted,
+                neural_success=neural_success,
+                neural_skip_reason=neural_skip_reason,
+                neural_error_message=neural_error_message,
             )
             if procedural_success:
                 self._set_render_stage("output_analysis")
@@ -2047,8 +2282,49 @@ class AudioRenderer:
                 fluidsynth_success=fluidsynth_success,
                 fluidsynth_skip_reason=fluidsynth_skip_reason,
                 warnings=warnings_with_exception,
+                neural_attempted=neural_attempted,
+                neural_success=neural_success,
+                neural_skip_reason=neural_skip_reason,
+                neural_error_message=neural_error_message,
             )
             return False
+
+    def _build_neural_diagnostics(
+        self,
+        *,
+        attempted: bool = False,
+        success: bool = False,
+        skip_reason: Optional[str] = None,
+        error_message: Optional[str] = None,
+    ) -> Dict:
+        """Build an additive diagnostics block for the optional neural seam."""
+        status = self.neural_backend.probe() if self.neural_backend else None
+        if status is None:
+            return {
+                "backend_name": None,
+                "enabled": False,
+                "available": False,
+                "missing_dependencies": [],
+                "model_path": None,
+                "model_exists": False,
+                "can_render": False,
+                "attempted": bool(attempted),
+                "success": bool(success),
+                "skip_reason": skip_reason or "disabled",
+                "error_message": error_message,
+                "details": {},
+            }
+
+        payload = status.to_dict()
+        payload.update(
+            {
+                "attempted": bool(attempted),
+                "success": bool(success),
+                "skip_reason": skip_reason if skip_reason is not None else status.skip_reason,
+                "error_message": error_message,
+            }
+        )
+        return payload
 
     def _run_output_analysis(
         self, output_path: str, parsed: Optional[ParsedPrompt]
@@ -2083,6 +2359,515 @@ class AudioRenderer:
         except Exception as e:
             logger.debug("Output analysis skipped: %s", e)
 
+    def _get_render_report_instrument_patches(self, parsed: Optional[ParsedPrompt]) -> List[Dict]:
+        """Build the render-report patch view with the same resolved-sample enrichment as main.py."""
+        instrument_patch_names = list(getattr(self, '_parsed_instrument_names', []) or [])
+        if not instrument_patch_names and parsed is not None:
+            instrument_patch_names = [
+                *(list(getattr(parsed, 'instruments', []) or [])),
+                *(list(getattr(parsed, 'drum_elements', []) or [])),
+            ]
+
+        instrument_patches = build_track_scoped_instrument_patches(
+            instrument_patch_names,
+            genre=(getattr(parsed, 'genre', None) if parsed else self.genre),
+        )
+        if self._resolved_sample_metadata:
+            instrument_patches = enrich_instrument_patches_with_resolved_samples(
+                instrument_patches,
+                self._resolved_sample_metadata,
+            )
+
+        return [patch.to_dict() for patch in instrument_patches]
+
+    def _collect_track_realization_facts(self, midi_path: str) -> List[Dict[str, object]]:
+        """Collect conservative per-track MIDI facts for render diagnostics."""
+        if not midi_path or not os.path.exists(midi_path):
+            return []
+
+        try:
+            import mido
+
+            midi = mido.MidiFile(midi_path)
+        except Exception:
+            return []
+
+        track_facts: List[Dict[str, object]] = []
+        for index, track in enumerate(midi.tracks):
+            track_name = str(getattr(track, 'name', '') or '').strip() or f'track_{index}'
+            for msg in track:
+                if msg.type == 'track_name' and getattr(msg, 'name', None):
+                    track_name = str(msg.name).strip() or track_name
+                    break
+
+            inferred_program = self._infer_program_from_track_name(track_name)
+            current_program = inferred_program if inferred_program is not None else 0
+            note_programs: List[int] = []
+            note_pitches: List[int] = []
+            note_channels: set[int] = set()
+            explicit_programs: List[int] = []
+            note_count = 0
+
+            for msg in track:
+                if msg.type == 'program_change':
+                    current_program = int(msg.program)
+                    explicit_programs.append(current_program)
+                elif msg.type == 'note_on' and getattr(msg, 'velocity', 0) > 0:
+                    note_count += 1
+                    note_pitches.append(int(msg.note))
+                    note_programs.append(int(current_program))
+                    if hasattr(msg, 'channel'):
+                        note_channels.add(int(msg.channel))
+
+            if note_count <= 0:
+                continue
+
+            track_facts.append({
+                'track_index': index,
+                'track_name': track_name,
+                'inferred_program': inferred_program,
+                'used_track_name_inference': bool(inferred_program is not None and not explicit_programs),
+                'used_default_program': bool(not explicit_programs and inferred_program is None),
+                'effective_programs': sorted(set(note_programs)),
+                'explicit_programs': sorted(set(explicit_programs)),
+                'note_pitches': sorted(set(note_pitches)),
+                'note_channels': sorted(note_channels),
+                'is_drum_track': 9 in note_channels,
+                'note_count': note_count,
+            })
+
+        return track_facts
+
+    @staticmethod
+    def _program_to_runtime_family(program: int) -> Optional[str]:
+        """Map a MIDI program to the renderer runtime family used for sample caches."""
+        if 0 <= program <= 7 or 12 <= program <= 23:
+            return 'keys'
+        if 24 <= program <= 31:
+            return 'guitar'
+        if 32 <= program <= 39:
+            return 'bass'
+        if 40 <= program <= 51:
+            return 'strings'
+        if 52 <= program <= 55:
+            return 'pad'
+        if 56 <= program <= 63:
+            return 'brass'
+        if 72 <= program <= 87:
+            return 'synth'
+        if 88 <= program <= 95:
+            return 'pad'
+        if program == 110:
+            return 'krar'
+        if program == 111:
+            return 'masenqo'
+        if program == 112:
+            return 'washint'
+        if program == 113:
+            return 'begena'
+        return None
+
+    @staticmethod
+    def _program_to_patch_candidate_families(program: int) -> set[str]:
+        """Return conservative InstrumentPatch family candidates for a MIDI program."""
+        if 0 <= program <= 15:
+            return {'keys'}
+        if 16 <= program <= 23:
+            return {'organ', 'keys'}
+        if 24 <= program <= 31:
+            return {'guitar'}
+        if 32 <= program <= 39:
+            return {'bass'}
+        if 40 <= program <= 51:
+            return {'strings'}
+        if 52 <= program <= 55:
+            return {'choir', 'pad'}
+        if 56 <= program <= 71:
+            return {'brass'}
+        if 72 <= program <= 79:
+            return {'washint', 'synth'}
+        if 80 <= program <= 87:
+            return {'synth'}
+        if 88 <= program <= 95:
+            return {'pad'}
+        if program == 110:
+            return {'krar'}
+        if program == 111:
+            return {'masenqo'}
+        if program == 112:
+            return {'washint'}
+        if program == 113:
+            return {'begena'}
+        return set()
+
+    def _get_expansion_source_path_for_program(self, program: int) -> Optional[str]:
+        """Return a truthful expansion sample path for a MIDI program when cached."""
+        expansion_sample_sources = getattr(self.procedural, '_expansion_sample_sources', {}) or {}
+        if not expansion_sample_sources:
+            return None
+
+        inst_name = None
+        if self._instrument_service:
+            try:
+                inst_name = self._instrument_service.get_instrument_for_program(program)
+            except Exception:
+                inst_name = None
+
+        if not inst_name:
+            program_to_instrument = {
+                110: 'krar',
+                111: 'masenqo',
+                112: 'washint',
+                113: 'begena',
+                0: 'piano',
+                4: 'piano',
+                **{p: 'guitar' for p in range(24, 32)},
+                38: 'bass',
+                39: 'bass',
+                80: 'synth',
+                81: 'synth',
+                87: 'synth',
+                **{p: 'strings' for p in range(40, 52)},
+                **{p: 'choir' for p in range(52, 56)},
+                **{p: 'brass' for p in range(56, 64)},
+                46: 'harp',
+                47: 'timpani',
+            }
+            inst_name = program_to_instrument.get(program)
+
+        if not inst_name:
+            return None
+
+        lookup_keys = [
+            str(inst_name).lower(),
+            self.procedural._normalize_instrument_lookup_key(inst_name),
+        ]
+        for lookup_key in lookup_keys:
+            source_path = str(expansion_sample_sources.get(lookup_key) or '').strip()
+            if source_path:
+                return source_path
+        return None
+
+    @staticmethod
+    def _get_patch_specific_match_keys(patch: Dict) -> set[str]:
+        """Return conservative canonical keys that can identify one patch truthfully."""
+        if not isinstance(patch, dict):
+            return set()
+
+        specific_keys: set[str] = set()
+
+        fallback = patch.get('fallback') or {}
+        for hint in fallback.get('instrument_id_hints') or []:
+            normalized_hint = normalize_instrument_alias(str(hint) or '')
+            if normalized_hint:
+                specific_keys.add(normalized_hint)
+
+        patch_id = str(patch.get('patch_id') or '').strip()
+        for patch_id_part in patch_id.split('.'):
+            normalized_part = normalize_instrument_alias(patch_id_part)
+            if normalized_part:
+                specific_keys.add(normalized_part)
+
+        return specific_keys
+
+    def _match_patch_for_track(
+        self,
+        track_fact: Dict[str, object],
+        patch_by_specific_key: Dict[str, Dict],
+        patch_by_family: Dict[str, Dict],
+    ) -> Optional[Dict]:
+        """Match a track to one patch family only when the mapping is conservative and unique."""
+        if not patch_by_specific_key and not patch_by_family:
+            return None
+
+        candidate_families: set[str] = set()
+        name_family = normalize_instrument_alias(str(track_fact.get('track_name') or ''))
+        if name_family:
+            if name_family in patch_by_specific_key:
+                return patch_by_specific_key[name_family]
+            candidate_families.add(name_family)
+
+        if not track_fact.get('used_default_program'):
+            for program in track_fact.get('effective_programs') or []:
+                if isinstance(program, int):
+                    candidate_families.update(self._program_to_patch_candidate_families(program))
+
+        specific_matches: Dict[str, Dict] = {}
+        for candidate_key in candidate_families:
+            patch = patch_by_specific_key.get(candidate_key)
+            if isinstance(patch, dict):
+                patch_id = str(patch.get('patch_id') or candidate_key)
+                specific_matches[patch_id] = patch
+        if len(specific_matches) == 1:
+            return next(iter(specific_matches.values()))
+
+        viable_families = candidate_families & set(patch_by_family)
+        if len(viable_families) == 1:
+            return patch_by_family[next(iter(viable_families))]
+
+        if name_family and name_family in patch_by_family and not viable_families:
+            return patch_by_family[name_family]
+
+        return None
+
+    def _classify_drum_track_realization(self, track_fact: Dict[str, object]) -> Dict[str, object]:
+        """Classify a drum track's actual realization using note-level drum facts."""
+        custom_hits: set[str] = set()
+        procedural_hits: set[str] = set()
+        procedural_special = {'conga_high', 'conga_low', 'bongo_high', 'bongo_low', 'shaker'}
+
+        for pitch in track_fact.get('note_pitches') or []:
+            drum_name = self.procedural._get_render_drum_name_for_pitch(int(pitch))
+            if drum_name.startswith('kebero') or drum_name in procedural_special:
+                procedural_hits.add(drum_name)
+            elif drum_name in (getattr(self.procedural, '_custom_drum_cache', {}) or {}):
+                custom_hits.add(drum_name)
+            else:
+                procedural_hits.add(drum_name)
+
+        custom_drum_sources = getattr(self.procedural, '_custom_drum_sources', {}) or {}
+        source_paths = {
+            str(custom_drum_sources.get(name) or '').strip()
+            for name in custom_hits
+        }
+        source_paths.discard('')
+
+        if custom_hits and procedural_hits:
+            return {
+                'actual_realization': 'mixed',
+                'source_path': None,
+                'notes': ['Drum track mixes cached custom hits and procedural drum fallbacks.'],
+            }
+
+        if custom_hits:
+            notes: List[str] = []
+            if len(custom_hits) > 1 or len(source_paths) != 1:
+                notes.append('Multiple custom drum hit sources are active; source_path is omitted.')
+            return {
+                'actual_realization': 'custom_sample',
+                'source_path': next(iter(source_paths)) if len(custom_hits) == 1 and len(source_paths) == 1 else None,
+                'notes': notes,
+            }
+
+        if procedural_hits:
+            if any(name.startswith('kebero') or name in procedural_special for name in procedural_hits):
+                note = 'Drum track uses procedural/Ethiopian percussion synthesis rather than a file-backed sample source.'
+            else:
+                note = 'Drum track uses procedural drum-cache fallback.'
+            return {
+                'actual_realization': 'procedural_fallback',
+                'source_path': None,
+                'notes': [note],
+            }
+
+        return {
+            'actual_realization': 'unknown',
+            'source_path': None,
+            'notes': ['No drum-note realization facts could be derived.'],
+        }
+
+    def _classify_single_program_realization(self, program: int) -> Dict[str, object]:
+        """Classify the runtime realization for one effective melodic program."""
+        if self.procedural._is_rock_family_genre() and 32 <= program <= 39:
+            return {
+                'actual_realization': 'procedural_fallback',
+                'source_paths': set(),
+                'notes': ['Rock-family bass programs are forced to bounded procedural electric-bass synthesis.'],
+            }
+
+        runtime_family = self._program_to_runtime_family(program)
+        if runtime_family:
+            sample_variants = (getattr(self.procedural, '_custom_melodic_cache', {}) or {}).get(runtime_family) or []
+            if sample_variants:
+                source_paths = {
+                    str(variant.get('path') or '').strip()
+                    for variant in sample_variants
+                    if isinstance(variant, dict)
+                }
+                source_paths.discard('')
+                notes: List[str] = []
+                if len(sample_variants) > 1 or len(source_paths) > 1:
+                    notes.append('Multiple custom sample variants are loaded for this family; source_path is omitted.')
+                return {
+                    'actual_realization': 'custom_sample',
+                    'source_paths': source_paths,
+                    'notes': notes,
+                }
+
+        expansion_source = self._get_expansion_source_path_for_program(program)
+        if expansion_source:
+            return {
+                'actual_realization': 'expansion_sample',
+                'source_paths': {expansion_source},
+                'notes': [],
+            }
+
+        return {
+            'actual_realization': 'procedural_fallback',
+            'source_paths': set(),
+            'notes': [],
+        }
+
+    def _classify_melodic_track_realization(self, track_fact: Dict[str, object]) -> Dict[str, object]:
+        """Classify a melodic track's actual realization conservatively from effective programs."""
+        effective_programs = [
+            int(program)
+            for program in (track_fact.get('effective_programs') or [])
+            if isinstance(program, int)
+        ]
+        if not effective_programs:
+            return {
+                'actual_realization': 'unknown',
+                'source_path': None,
+                'notes': ['No effective program could be derived for this track.'],
+            }
+
+        realizations: List[str] = []
+        source_paths: set[str] = set()
+        notes: List[str] = []
+        for program in effective_programs:
+            program_result = self._classify_single_program_realization(program)
+            realizations.append(str(program_result.get('actual_realization') or 'unknown'))
+            source_paths.update(program_result.get('source_paths') or set())
+            notes.extend(program_result.get('notes') or [])
+
+        distinct_realizations = set(realizations)
+        if len(distinct_realizations) == 1:
+            actual_realization = next(iter(distinct_realizations))
+        else:
+            actual_realization = 'mixed'
+            notes.append('Track contains multiple effective programs with different renderer realizations.')
+
+        if len(set(effective_programs)) > 1:
+            notes.append('Track contains multiple effective programs; patch mapping is conservative.')
+
+        source_path = None
+        if actual_realization in {'custom_sample', 'expansion_sample'} and len(distinct_realizations) == 1 and len(source_paths) == 1:
+            source_path = next(iter(source_paths))
+
+        return {
+            'actual_realization': actual_realization,
+            'source_path': source_path,
+            'notes': notes,
+        }
+
+    def _build_track_realization_statuses(
+        self,
+        midi_path: str,
+        instrument_patches: List[Dict],
+        renderer_path: str,
+        fluidsynth_success: bool,
+    ) -> List[Dict[str, object]]:
+        """Build additive per-track realization truth separate from patch intent metadata."""
+        track_facts = self._collect_track_realization_facts(midi_path)
+        if not track_facts:
+            return []
+
+        patches_by_specific_key: Dict[str, List[Dict]] = {}
+        patches_by_family_list: Dict[str, List[Dict]] = {}
+        for patch in instrument_patches or []:
+            if not isinstance(patch, dict):
+                continue
+
+            for specific_key in self._get_patch_specific_match_keys(patch):
+                patches_by_specific_key.setdefault(specific_key, []).append(patch)
+
+            family = str(((patch or {}).get('patch_profile') or {}).get('family') or '').strip()
+            if family:
+                patches_by_family_list.setdefault(family, []).append(patch)
+
+        patch_by_specific_key = {
+            key: patches[0]
+            for key, patches in patches_by_specific_key.items()
+            if len(patches) == 1
+        }
+        patch_by_family = {
+            family: patches[0]
+            for family, patches in patches_by_family_list.items()
+            if len(patches) == 1
+        }
+
+        statuses: List[Dict[str, object]] = []
+        for track_fact in track_facts:
+            matched_patch = self._match_patch_for_track(
+                track_fact,
+                patch_by_specific_key,
+                patch_by_family,
+            )
+            patch_id = None
+            patch_family = None
+            preferred_realization = None
+            patch_sample_paths: set[str] = set()
+            if matched_patch:
+                patch_id = matched_patch.get('patch_id') or None
+                patch_family = ((matched_patch.get('patch_profile') or {}).get('family') or None)
+                patch_sample_paths = {
+                    str(layer.get('path_hint') or '').strip()
+                    for layer in (matched_patch.get('sample_layers') or [])
+                    if isinstance(layer, dict)
+                }
+                patch_sample_paths.discard('')
+                preferred_realization = 'sample_layer_hint' if patch_sample_paths else 'fallback_only'
+
+            if self._render_failure_context or renderer_path == 'none':
+                realization = {
+                    'actual_realization': 'unknown',
+                    'source_path': None,
+                    'notes': ['Render did not complete successfully; per-track realization is not fully provable.'],
+                }
+            elif renderer_path == 'fluidsynth' and fluidsynth_success:
+                realization = {
+                    'actual_realization': 'fluidsynth_soundfont',
+                    'source_path': self.soundfont_path or None,
+                    'notes': ['Renderer proves whole-file SoundFont rendering, not per-track custom sample usage.'],
+                }
+            elif track_fact.get('is_drum_track'):
+                realization = self._classify_drum_track_realization(track_fact)
+            else:
+                realization = self._classify_melodic_track_realization(track_fact)
+
+            actual_realization = str(realization.get('actual_realization') or 'unknown')
+            source_path = realization.get('source_path') or None
+            notes = list(realization.get('notes') or [])
+
+            uses_patch_sample_layer = None
+            if matched_patch:
+                if preferred_realization == 'fallback_only':
+                    uses_patch_sample_layer = False
+                elif actual_realization in {'fluidsynth_soundfont', 'procedural_fallback', 'mixed'}:
+                    uses_patch_sample_layer = False
+                elif actual_realization in {'custom_sample', 'expansion_sample'} and source_path:
+                    uses_patch_sample_layer = source_path in patch_sample_paths
+
+            if patch_id is None:
+                notes.append('No truthful patch mapping could be proven for this track.')
+
+            if track_fact.get('explicit_programs') and len(track_fact.get('effective_programs') or []) > 1:
+                match_basis = 'mixed_programs'
+            elif track_fact.get('explicit_programs'):
+                match_basis = 'program_change'
+            elif track_fact.get('used_track_name_inference') or normalize_instrument_alias(str(track_fact.get('track_name') or '')):
+                match_basis = 'track_name_inference'
+            elif renderer_path == 'fluidsynth' and fluidsynth_success:
+                match_basis = 'whole_render_backend_only'
+            else:
+                match_basis = 'unknown'
+
+            statuses.append({
+                'track_index': track_fact.get('track_index'),
+                'track_name': track_fact.get('track_name'),
+                'patch_id': patch_id,
+                'patch_family': patch_family,
+                'preferred_realization': preferred_realization,
+                'actual_realization': actual_realization,
+                'uses_patch_sample_layer': uses_patch_sample_layer,
+                'source_path': source_path,
+                'match_basis': match_basis,
+                'notes': list(dict.fromkeys(str(note) for note in notes if str(note).strip())),
+            })
+
+        return statuses
+
     def _build_render_report(
         self,
         midi_path: str,
@@ -2094,6 +2879,10 @@ class AudioRenderer:
         fluidsynth_success: bool,
         fluidsynth_skip_reason: Optional[str],
         warnings: List[str],
+        neural_attempted: bool = False,
+        neural_success: bool = False,
+        neural_skip_reason: Optional[str] = None,
+        neural_error_message: Optional[str] = None,
     ) -> Dict:
         """Build a stable diagnostics payload for this render."""
         # Instrument library stats (best-effort, keep it robust)
@@ -2152,6 +2941,13 @@ class AudioRenderer:
             "bpm": getattr(parsed, 'bpm', None) if parsed else None,
             "key": getattr(parsed, 'key', None) if parsed else None,
         }
+        instrument_patches = self._get_render_report_instrument_patches(parsed)
+        track_realization_statuses = self._build_track_realization_statuses(
+            midi_path,
+            instrument_patches,
+            renderer_path,
+            fluidsynth_success,
+        )
 
         report = {
             "schema_version": 1,
@@ -2168,6 +2964,12 @@ class AudioRenderer:
                 "success": bool(fluidsynth_success),
                 "skip_reason": fluidsynth_skip_reason,
             },
+            "neural": self._build_neural_diagnostics(
+                attempted=neural_attempted,
+                success=neural_success,
+                skip_reason=neural_skip_reason,
+                error_message=neural_error_message,
+            ),
             "soundfont_path": self.soundfont_path,
             "require_soundfont": bool(self.require_soundfont),
             "custom_audio": {
@@ -2176,6 +2978,8 @@ class AudioRenderer:
             },
             "instrument_library": instrument_stats,
             "expansions": expansion_stats,
+            "instrument_patches": instrument_patches,
+            "track_realization_statuses": track_realization_statuses,
             "warnings": warnings,
             "production_preset": {
                 "preset_values": getattr(self, '_preset_values', None),
