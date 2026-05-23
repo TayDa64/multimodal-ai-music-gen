@@ -3,6 +3,41 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T11:12:00Z",
+      "by_agent": "builder",
+      "changes": "Extended the existing EDM/pop-like synth-lead fallback map so programs 80..87 each pass explicit bounded unison preset kwargs while keeping the change inside the current procedural 80..87 branch."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T11:12:00Z",
+      "by_agent": "builder",
+      "changes": "Expanded focused routing coverage so EDM programs 80..87 all prove bounded unison dispatch with bounded/distinct presets and non-EDM programs 80..87 still prove standard lead dispatch."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T11:12:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded completion, proof, and explicit deferred scope for the bounded EDM lead 80..87 preset expansion task 099."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T11:12:00Z",
+      "by_agent": "builder",
+      "changes": "Recorded touched files, change summaries, verification proof, and rollback point for the bounded EDM lead 80..87 preset expansion task 099."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T11:12:00Z",
+      "by_agent": "builder",
+      "changes": "Stored the durable rule to use explicit bounded per-program kwargs for 80..87 inside the existing EDM lead branch without implying exact emulation or a wider wavetable engine."
+    },
+    {
       "path": "multimodal_gen\\assets_gen.py",
       "action": "modified",
       "timestamp": "2026-05-23T10:28:27Z",
@@ -5178,6 +5213,24 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen\\audio_renderer.py",
+      "description": "Extended the bounded EDM/pop-like synth-lead preset map to cover programs 82..87 inside the existing 80..87 branch.",
+      "diff_summary": "Programs 80 and 81 keep their prior square-ish/saw-ish intent, while programs 82..87 now each pass conservative bounded voices/detune/table_position/table_motion kwargs into generate_unison_lead_tone() with no new renderer path or wavetable source.",
+      "timestamp": "2026-05-23T11:12:00Z"
+    },
+    {
+      "file": "tests\\test_audio_renderer.py",
+      "description": "Broadened focused synth-lead routing tests to cover the full GM 80..87 family.",
+      "diff_summary": "New assertions prove all EDM programs 80..87 dispatch to generate_unison_lead_tone() with bounded non-identical preset kwargs, while non-EDM programs 80..87 remain on generate_lead_tone().",
+      "timestamp": "2026-05-23T11:12:00Z"
+    },
+    {
+      "file": "state-task-099",
+      "description": "Recorded the minimal renderer-only preset expansion and proof without touching assets_gen.py.",
+      "diff_summary": "State files now note that tests/test_assets_gen.py was intentionally unchanged because this slice only extended renderer-side preset routing and reused already-supported bounded generator kwargs.",
+      "timestamp": "2026-05-23T11:12:00Z"
+    },
+    {
       "file": "multimodal_gen\\assets_gen.py",
       "description": "Added optional bounded wavetable controls to the existing EDM/pop unison lead fallback.",
       "diff_summary": "generate_unison_lead_tone() now accepts optional table_position/table_motion, clamps them to 0..1, and preserves legacy internal morph defaults when omitted.",
@@ -6551,6 +6604,13 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "bounded-edm-lead-program-82-87-preset-expansion-099",
+      "result": "PASS",
+      "details": "get_errors reported no diagnostics on multimodal_gen/audio_renderer.py and tests/test_audio_renderer.py; focused pytest passed: 2 passed, 32 deselected in 2.19s for EDM/non-EDM lead 80..87 dispatch coverage.",
+      "timestamp": "2026-05-23T11:12:00Z"
+    },
     {
       "type": "post",
       "target": "bounded-wavetable-control-expansion-097",
@@ -8635,6 +8695,18 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-bounded-edm-lead-program-82-87-preset-expansion-099",
+      "description": "State before extending the existing EDM/pop-like synth-lead preset map from 80/81 to the full bounded GM 80..87 family.",
+      "files": [
+        "multimodal_gen\\audio_renderer.py",
+        "tests\\test_audio_renderer.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-05-23T11:12:00Z"
+    },
     {
       "id": "rollback-bounded-wavetable-control-expansion-097",
       "description": "State before optional bounded wavetable control expansion for the EDM/pop unison lead fallback.",

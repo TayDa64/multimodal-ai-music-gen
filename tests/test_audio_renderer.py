@@ -590,7 +590,7 @@ def test_trap_fluidsynth_profile_does_not_apply_rock_tone_shaping():
     )
 
 
-def test_edm_lead_program_dispatches_to_bounded_unison_wavetable_path_with_program_specific_table_kwargs(monkeypatch):
+def test_edm_lead_programs_80_87_dispatch_to_bounded_unison_wavetable_path_with_distinct_bounded_presets(monkeypatch):
     renderer = ProceduralRenderer(sample_rate=44100, genre="edm")
     sentinel = np.array([0.4, -0.4], dtype=np.float32)
     calls = []
@@ -605,37 +605,56 @@ def test_edm_lead_program_dispatches_to_bounded_unison_wavetable_path_with_progr
     monkeypatch.setattr("multimodal_gen.audio_renderer.generate_unison_lead_tone", fake_unison)
     monkeypatch.setattr("multimodal_gen.audio_renderer.generate_lead_tone", fail_standard_lead)
 
-    rendered_80 = renderer._synthesize_note(_note(program=80))
-    rendered_81 = renderer._synthesize_note(_note(program=81))
+    for program in range(80, 88):
+        rendered = renderer._synthesize_note(_note(program=program))
+        assert rendered is sentinel
 
-    assert rendered_80 is sentinel
-    assert rendered_81 is sentinel
-    assert len(calls) == 2
-    assert calls[0]["kwargs"] != calls[1]["kwargs"]
-    assert 0.0 <= calls[0]["kwargs"]["table_position"] <= 1.0
-    assert 0.0 <= calls[0]["kwargs"]["table_motion"] <= 1.0
-    assert 0.0 <= calls[1]["kwargs"]["table_position"] <= 1.0
-    assert 0.0 <= calls[1]["kwargs"]["table_motion"] <= 1.0
-    assert calls[0]["kwargs"]["table_position"] > calls[1]["kwargs"]["table_position"]
-    assert calls[0]["kwargs"]["table_motion"] < calls[1]["kwargs"]["table_motion"]
+    assert len(calls) == 8
+
+    presets = []
+    allowed_keys = {"voices", "detune_cents", "table_position", "table_motion"}
+    for program, call in zip(range(80, 88), calls):
+        kwargs = call["kwargs"]
+        assert set(kwargs) == allowed_keys
+        assert 1 <= kwargs["voices"] <= 11
+        assert 0.0 <= kwargs["detune_cents"] <= 40.0
+        assert 0.0 <= kwargs["table_position"] <= 1.0
+        assert 0.0 <= kwargs["table_motion"] <= 1.0
+        presets.append(
+            (
+                program,
+                kwargs["voices"],
+                kwargs["detune_cents"],
+                kwargs["table_position"],
+                kwargs["table_motion"],
+            )
+        )
+
+    assert len({preset[1:] for preset in presets}) == 8
+    assert presets[0][3] > presets[1][3]
+    assert presets[0][4] < presets[1][4]
 
 
-def test_non_edm_lead_program_keeps_existing_standard_lead_dispatch(monkeypatch):
+def test_non_edm_lead_programs_80_87_keep_existing_standard_lead_dispatch(monkeypatch):
     renderer = ProceduralRenderer(sample_rate=44100, genre="trap")
     sentinel = np.array([0.2, -0.2], dtype=np.float32)
+    standard_calls = []
 
     def fail_unison(*args, **kwargs):
         raise AssertionError("Trap lead fallback should not dispatch to the bounded wavetable path")
 
     def fake_standard_lead(*args, **kwargs):
+        standard_calls.append({"args": args, "kwargs": kwargs})
         return sentinel
 
     monkeypatch.setattr("multimodal_gen.audio_renderer.generate_unison_lead_tone", fail_unison)
     monkeypatch.setattr("multimodal_gen.audio_renderer.generate_lead_tone", fake_standard_lead)
 
-    rendered = renderer._synthesize_note(_note(program=81))
+    for program in range(80, 88):
+        rendered = renderer._synthesize_note(_note(program=program))
+        assert rendered is sentinel
 
-    assert rendered is sentinel
+    assert len(standard_calls) == 8
 
 
 def test_neural_backend_opt_in_missing_model_fails_open_to_procedural(monkeypatch, tmp_path):

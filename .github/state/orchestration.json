@@ -7,6 +7,51 @@
   },
   "task_queue": [
     {
+      "id": "bounded-edm-lead-program-82-87-preset-expansion-099",
+      "description": "Extend the existing EDM/pop-like procedural synth-lead fallback so GM lead programs 80..87 each use an explicit bounded unison preset approximation while non-EDM genres stay on the standard lead path.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "bounded-wavetable-control-expansion-097"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_audio_renderer.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-05-23T11:12:00Z",
+      "updated": "2026-05-23T11:12:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/audio_renderer.py",
+          "tests/test_audio_renderer.py"
+        ],
+        "summary": "Extended the existing EDM/pop/dance/electro/electropop/house synth-lead fallback map so programs 80..87 each pass an explicit bounded generate_unison_lead_tone(...) preset using only voices, detune_cents, table_position, and table_motion. Programs 80 and 81 keep their prior square-ish/saw-ish intent, while 82..87 now receive conservative GM-flavored approximations only. Non-EDM genres still fall back to generate_lead_tone().",
+        "compatibility": "No generator identity changed and no new wavetable source was added; the renderer still uses the existing bounded procedural unison path only for EDM/pop-like genres and the existing standard lead path everywhere else.",
+        "guardrails_preserved": [
+          "No file-loaded or user-loaded wavetable support was added.",
+          "No new renderer identity was introduced.",
+          "The change stayed inside the existing EDM/pop-like 80..87 synth-lead procedural fallback branch.",
+          "The preset comments remain explicit that these are conservative GM-flavored approximations, not exact emulations.",
+          "No full wavetable engine, modulation matrix, spectral scanning, or neural work was added in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "get_errors on multimodal_gen/audio_renderer.py and tests/test_audio_renderer.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_audio_renderer.py -vv -k \"edm_lead_programs_80 or non_edm_lead_programs_80\"",
+          "result": "PASS: 2 passed, 32 deselected in 2.19s"
+        }
+      ]
+    },
+    {
       "id": "bounded-wavetable-control-expansion-097",
       "description": "Broaden the bounded static wavetable EDM/pop synth-lead fallback with tiny table_position/table_motion controls and a tiny EDM program-80/81 preset map before any real neural backend work.",
       "status": "completed",
@@ -6709,6 +6754,12 @@
       "status": "completed",
       "completed": "2026-05-23T09:55:00Z",
       "summary": "Follow-up to the existing playback-time SF2 program_change seam: MidiPlayer now tracks MIDI Bank Select CC0 (MSB) + CC32 (LSB) per channel during playback and forwards the effective 14-bit bank number alongside program changes. AudioEngine's MidiPlayerListener callback now receives (program, bank) and forwards that bank to Track::handleProgramChange(program, bank) so SF2 preset switching can resolve the correct banked preset when present. Bank state defaults to 0 for bankless files and is conservatively rebuilt on seek (scan CC0/CC32 from start up to the seek point) and reset on load/clear/end-of-playback to avoid stale bank reuse. Verified by JUCE Debug MSBuild: Build succeeded (405 warnings, 0 errors)."
+    },
+    {
+      "id": "bounded-edm-lead-program-82-87-preset-expansion-099",
+      "status": "completed",
+      "completed": "2026-05-23T11:12:00Z",
+      "summary": "Extended the existing EDM/pop-like synth-lead procedural fallback map in multimodal_gen/audio_renderer.py so GM lead programs 80..87 each use an explicit bounded generate_unison_lead_tone(...) preset with only voices, detune_cents, table_position, and table_motion. Programs 80 and 81 preserve their prior square-ish/saw-ish intent, programs 82..87 now receive conservative GM-flavored approximations only, and non-EDM genres still dispatch to generate_lead_tone(). Added focused tests in tests/test_audio_renderer.py proving EDM programs 80..87 all dispatch to the bounded unison path with bounded/non-identical presets while non-EDM programs 80..87 remain on the standard lead path. Verified with get_errors => PASS and focused pytest => 2 passed, 32 deselected in 2.19s. tests/test_assets_gen.py was intentionally left unchanged because the generator bounds were already covered and this slice only extended renderer-side preset routing."
     }
   ],
   "blocked_tasks": [],
@@ -6716,12 +6767,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-23T10:28:27Z",
-    "total_tasks_completed": 98,
+    "last_updated": "2026-05-23T11:12:00Z",
+    "total_tasks_completed": 99,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "local-proof-complete-awaiting-user-direction-after-bounded-wavetable-control-expansion-097"
+    "next_phase": "local-proof-complete-awaiting-user-direction-after-bounded-edm-lead-program-82-87-preset-expansion-099"
   },
   "sprint_11": {
     "status": "COMPLETE",

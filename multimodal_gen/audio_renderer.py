@@ -1417,9 +1417,18 @@ class ProceduralRenderer:
         elif 80 <= note.program <= 87:  # Synth leads
             genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
             if genre_key in {'edm', 'pop', 'dance', 'electro', 'electropop', 'house'}:
+                # Conservative GM-flavored approximations only. This stays on the
+                # existing bounded procedural unison path and does not claim exact
+                # emulation of the GM lead names or a full wavetable engine.
                 edm_lead_wavetable_presets = {
-                    80: {'table_position': 0.88, 'table_motion': 0.18},  # Lead 1 / square-ish
-                    81: {'table_position': 0.64, 'table_motion': 0.62},  # Lead 2 / saw-ish
+                    80: {'voices': 7, 'detune_cents': 14.0, 'table_position': 0.88, 'table_motion': 0.18},  # Lead 1 / square-ish
+                    81: {'voices': 7, 'detune_cents': 14.0, 'table_position': 0.64, 'table_motion': 0.62},  # Lead 2 / saw-ish
+                    82: {'voices': 5, 'detune_cents': 8.0, 'table_position': 0.34, 'table_motion': 0.18},   # Lead 3 / calliope-flavored approx
+                    83: {'voices': 3, 'detune_cents': 5.0, 'table_position': 0.96, 'table_motion': 0.04},   # Lead 4 / chiff-flavored approx
+                    84: {'voices': 4, 'detune_cents': 9.0, 'table_position': 0.74, 'table_motion': 0.26},   # Lead 5 / charang-flavored approx
+                    85: {'voices': 5, 'detune_cents': 6.0, 'table_position': 0.22, 'table_motion': 0.12},   # Lead 6 / voice-flavored approx
+                    86: {'voices': 6, 'detune_cents': 18.0, 'table_position': 0.68, 'table_motion': 0.30},  # Lead 7 / fifths-flavored approx
+                    87: {'voices': 8, 'detune_cents': 10.0, 'table_position': 0.52, 'table_motion': 0.10},  # Lead 8 / bass+lead-flavored approx
                 }
                 return generate_unison_lead_tone(
                     freq,

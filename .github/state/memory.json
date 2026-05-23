@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "When expanding a bounded EDM/pop procedural lead family, prefer explicit per-program kwargs inside the existing 80..87 branch and keep the comments honest that they are only GM-flavored approximations.",
+        "context": "The 2026-05-23 follow-up to the earlier bounded wavetable work extended the existing EDM/pop/dance/electro/electropop/house synth-lead preset map from programs 80/81 to all GM programs 80..87 using only the already-supported generate_unison_lead_tone() kwargs (voices, detune_cents, table_position, table_motion). Programs 80 and 81 kept their prior square-ish/saw-ish intent, programs 82..87 received conservative bounded approximations only, non-EDM genres stayed on generate_lead_tone(), and no new wavetable source, renderer identity, or full-engine claim was introduced. The existing generator bounds already covered the parameter surface, so no extra assets_gen regression was required for this renderer-only expansion.",
+        "timestamp": "2026-05-23T11:12:00Z"
+      },
+      {
         "pattern": "When broadening a bounded procedural wavetable fallback, expose optional 0..1 controls that default to the legacy internal morph settings and keep program-specific flavor mapping limited to the existing EDM synth-lead branch.",
         "context": "The 2026-05-23 bounded wavetable-control expansion kept the earlier static single-cycle bank truthful and compatibility-safe by adding optional table_position/table_motion controls to generate_unison_lead_tone() with None defaults that preserve the prior base morph and velocity-shaped morph span when callers omit them, then adding only a tiny EDM/pop-like program map for GM 80 square-ish vs 81 saw-ish inside the existing 80..87 EDM fallback branch. No file-loaded wavetable support, new renderer identity, or neural/full-engine claims were introduced.",
         "timestamp": "2026-05-23T10:28:27Z"
@@ -716,6 +721,17 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Extend the existing EDM/pop-like synth-lead preset map to explicit bounded entries for GM programs 80..87 using only generate_unison_lead_tone()'s supported kwargs, while keeping non-EDM genres on generate_lead_tone().",
+      "rationale": "This completes the next conservative slice of the procedural-only wavetable fallback without introducing a new renderer, new wavetable source, or broader synth architecture claim. Keeping the work inside the existing EDM/pop/dance/electro/electropop/house 80..87 branch preserves behavior elsewhere, and using only bounded voices/detune/table_position/table_motion kwargs keeps the implementation honest and compatible with the current generator. tests/test_assets_gen.py was intentionally left unchanged because the generator bounds already had direct coverage and this slice only changed renderer-side preset routing.",
+      "alternatives_considered": [
+        "Add file-loaded/user-loaded wavetable support or a separate renderer identity.",
+        "Broaden the work into a full wavetable engine, modulation matrix, or spectral scanning implementation.",
+        "Reuse one or two shared presets for 82..87 instead of giving each program an explicit conservative approximation.",
+        "Change non-EDM genres to the unison path as part of the same slice."
+      ],
+      "timestamp": "2026-05-23T11:12:00Z"
+    },
     {
       "decision": "Expose table_position/table_motion as optional unit-range controls on generate_unison_lead_tone() with compatibility-preserving None defaults, and limit EDM preset mapping to programs 80 and 81 inside the existing EDM/pop/dance/electro/electropop/house synth-lead fallback branch.",
       "rationale": "Using optional controls instead of new numeric defaults preserves existing callers as closely as possible by reusing the prior internal base morph and velocity-derived motion span when the new args are omitted. Keeping the renderer integration to a tiny 80/81 preset map broadens the existing static bank truthfully without implying a full wavetable engine, broader per-program rewrite, new renderer identity, or neural backend work.",
@@ -1886,5 +1902,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-23T10:28:27Z"
+  "last_updated": "2026-05-23T11:12:00Z"
 }
