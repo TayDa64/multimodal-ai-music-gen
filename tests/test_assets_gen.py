@@ -128,6 +128,41 @@ def test_generate_unison_lead_tone_non_empty_and_finite():
     assert peak <= 1.0 + 1e-6
 
 
+def test_generate_unison_lead_tone_table_controls_change_output_while_remaining_bounded():
+    square_like = generate_unison_lead_tone(
+        440.0,
+        duration=0.05,
+        velocity=0.9,
+        sample_rate=SAMPLE_RATE,
+        table_position=0.88,
+        table_motion=0.10,
+    )
+    saw_like = generate_unison_lead_tone(
+        440.0,
+        duration=0.05,
+        velocity=0.9,
+        sample_rate=SAMPLE_RATE,
+        table_position=0.64,
+        table_motion=0.70,
+    )
+    static_vs_moving = generate_unison_lead_tone(
+        440.0,
+        duration=0.05,
+        velocity=0.9,
+        sample_rate=SAMPLE_RATE,
+        table_position=0.64,
+        table_motion=0.0,
+    )
+
+    for audio in (square_like, saw_like, static_vs_moving):
+        assert audio.size == int(0.05 * SAMPLE_RATE)
+        assert np.all(np.isfinite(audio))
+        assert float(np.max(np.abs(audio))) <= 1.0 + 1e-6
+
+    assert not np.allclose(square_like, saw_like)
+    assert not np.allclose(static_vs_moving, saw_like)
+
+
 def test_static_wavetable_bank_exposes_multiple_single_cycle_tables():
     names, tables = get_static_wavetable_bank(512)
 

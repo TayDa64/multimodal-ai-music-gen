@@ -3,6 +3,55 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Extended generate_unison_lead_tone() with optional bounded table_position/table_motion controls that preserve prior internal morph behavior when omitted."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Kept synth-lead routing limited to the existing EDM/pop-like fallback branch and added only a tiny program-80/program-81 wavetable preset-kwargs map."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Added focused regression coverage proving table_position/table_motion change the bounded unison output while remaining finite/clamped."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Extended EDM lead dispatch coverage to prove programs 80 vs 81 pass different table kwargs while non-EDM still stays on the standard lead path."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Recorded completion, proofs, compatibility choice, and explicit deferrals for bounded wavetable control expansion task 097."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Recorded touched files, change summaries, verification proof, and rollback point for bounded wavetable control expansion task 097."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-05-23T10:28:27Z",
+      "by_agent": "builder",
+      "changes": "Stored the durable compatibility/default-preservation rule for optional wavetable controls plus the EDM-only 80/81 preset-map boundary."
+    },
+    {
       "path": "juce\\Source\\Audio\\MidiPlayer.h",
       "action": "modified",
       "timestamp": "2026-05-23T09:55:00Z",
@@ -5129,6 +5178,30 @@
   ],
   "changes_made": [
     {
+      "file": "multimodal_gen\\assets_gen.py",
+      "description": "Added optional bounded wavetable controls to the existing EDM/pop unison lead fallback.",
+      "diff_summary": "generate_unison_lead_tone() now accepts optional table_position/table_motion, clamps them to 0..1, and preserves legacy internal morph defaults when omitted.",
+      "timestamp": "2026-05-23T10:28:27Z"
+    },
+    {
+      "file": "multimodal_gen\\audio_renderer.py",
+      "description": "Added a tiny EDM synth-lead preset map only for GM programs 80 and 81.",
+      "diff_summary": "Existing EDM/pop/dance/electro/electropop/house lead fallback still routes only 80..87 through generate_unison_lead_tone(), but 80 now gets a more square-ish table setting and 81 a more saw-ish/more mobile one.",
+      "timestamp": "2026-05-23T10:28:27Z"
+    },
+    {
+      "file": "tests\\test_assets_gen.py",
+      "description": "Added bounded wavetable control regression coverage.",
+      "diff_summary": "New test proves table_position/table_motion alter output while size/finite/peak bounds remain safe.",
+      "timestamp": "2026-05-23T10:28:27Z"
+    },
+    {
+      "file": "tests\\test_audio_renderer.py",
+      "description": "Extended EDM lead fallback dispatch coverage.",
+      "diff_summary": "New assertions prove EDM programs 80 and 81 pass different bounded kwargs into generate_unison_lead_tone() while non-EDM lead routing still uses generate_lead_tone().",
+      "timestamp": "2026-05-23T10:28:27Z"
+    },
+    {
       "file": "juce-sf2-bank-select-program-change-follow-up-096",
       "description": "Extended the existing JUCE playback-time SF2 program_change seam to honor MIDI Bank Select CC0/CC32.",
       "diff_summary": "MidiPlayer now tracks CC0 (MSB) + CC32 (LSB) per MIDI channel, computes effective bank=(MSB<<7)|LSB, forwards that bank with program changes, and conservatively rebuilds bank state on seek while resetting on load/clear/end-of-playback. AudioEngine forwards (program, bank) into Track::handleProgramChange(program, bank) so SF2 preset switching can resolve banked presets when present.",
@@ -6401,7 +6474,7 @@
     {
       "file": "multimodal_gen/utils.py",
       "description": "Added get_ticks_per_bar() helper function for dynamic bar length calculation",
-      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8\u21921440, 12/8\u21922880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
+      "diff_summary": "+18 lines: get_ticks_per_bar() calculates ticks per bar for any time signature including compound meters (6/8→1440, 12/8→2880). Also added time_signature: (6, 8) to ethio_jazz GENRE_DEFAULTS",
       "timestamp": "2026-01-21T12:10:00Z"
     },
     {
@@ -6478,6 +6551,13 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "bounded-wavetable-control-expansion-097",
+      "result": "PASS",
+      "details": "get_errors reported no diagnostics on multimodal_gen/assets_gen.py, multimodal_gen/audio_renderer.py, tests/test_assets_gen.py, and tests/test_audio_renderer.py; focused pytest passed: 6 passed, 41 deselected for wavetable/unison/EDM lead dispatch coverage.",
+      "timestamp": "2026-05-23T10:28:27Z"
+    },
     {
       "type": "post",
       "target": "JUCE Debug solution build (bank-select follow-up)",
@@ -7374,7 +7454,7 @@
           {
             "severity": "warning",
             "category": "genre",
-            "message": "Spectral centroid 3605 Hz outside expected 600\u20132800 Hz"
+            "message": "Spectral centroid 3605 Hz outside expected 600–2800 Hz"
           }
         ]
       }
@@ -8250,21 +8330,21 @@
     },
     {
       "type": "post",
-      "target": "Sprint 5 production code \u2014 Gemini synthesis audit",
+      "target": "Sprint 5 production code — Gemini synthesis audit",
       "result": "PASS",
       "details": "All 7 deliverables CORRECT. No dead code, no crash paths, all guard clauses present. HarmonicBrain wiring verified, PolicyContext consumption verified, GenreDNA overlay verified, quality gate verified, scale-snap verified, preference defaults verified.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 test suite \u2014 GPT adversarial stress-test",
+      "target": "Sprint 5 test suite — GPT adversarial stress-test",
       "result": "FAIL",
       "details": "0/5 wiring points tested, 12 trivially-passing assertions, latent IndexError in compute_vlc([[]]). test_intelligence_integration.py could pass with all Sprint 5 features deleted.",
       "timestamp": "2026-02-11T00:00:00Z"
     },
     {
       "type": "post",
-      "target": "Sprint 5 diagnostician fixes \u2014 production bug + test hardening",
+      "target": "Sprint 5 diagnostician fixes — production bug + test hardening",
       "result": "PASS",
       "details": "1 production bug fixed (compute_vlc empty voicing guard). 48 tests total: 12 trivial assertions tightened, 11 edge-case tests added, 5 wiring tests added. All 5 Sprint 5 wiring points now verified.",
       "timestamp": "2026-02-11T00:00:00Z"
@@ -8364,12 +8444,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 CORRECT, 1 MEDIUM dead instance \u2014 FIXED"
+      "details": "6/6 CORRECT, 1 MEDIUM dead instance — FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL\u2192FIXED",
-      "details": "3 bugs + 1 flaw + 4 vacuous tests \u2014 all fixed by diagnostician"
+      "result": "FAIL→FIXED",
+      "details": "3 bugs + 1 flaw + 4 vacuous tests — all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -8408,12 +8488,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "5/6 CORRECT, 1 MEDIUM bug \u2014 FIXED"
+      "details": "5/6 CORRECT, 1 MEDIUM bug — FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL\u2192FIXED",
-      "details": "2 bugs + 4 vacuous tests \u2014 all fixed by diagnostician"
+      "result": "FAIL→FIXED",
+      "details": "2 bugs + 4 vacuous tests — all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -8472,12 +8552,12 @@
     {
       "type": "gemini_synthesis_audit",
       "result": "PASS",
-      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue \u2014 FIXED"
+      "details": "6/6 tasks CORRECT, 1 MODERATE displace issue — FIXED"
     },
     {
       "type": "gpt_stress_test",
-      "result": "FAIL\u2192FIXED",
-      "details": "3 production bugs + 7 trivial tests \u2192 all fixed by diagnostician"
+      "result": "FAIL→FIXED",
+      "details": "3 production bugs + 7 trivial tests → all fixed by diagnostician"
     },
     {
       "type": "full_regression",
@@ -8487,7 +8567,7 @@
   ],
   "wave_1": {
     "status": "COMPLETE",
-    "test_progression": "1075 \u2192 1133 (+58)",
+    "test_progression": "1075 → 1133 (+58)",
     "categories": [
       "C2 Masterclass Reconciliation (+30)",
       "C4 Analysis & Narrative (+15)",
@@ -8496,7 +8576,7 @@
   },
   "wave_2": {
     "status": "COMPLETE",
-    "test_progression": "1133 \u2192 1197 (+64)",
+    "test_progression": "1133 → 1197 (+64)",
     "categories": [
       "C1 Architecture Refactoring (+29)",
       "C3 Groove & Expression (+35)"
@@ -8504,7 +8584,7 @@
   },
   "wave_3": {
     "status": "COMPLETE",
-    "test_progression": "1197 \u2192 1223 (+26)",
+    "test_progression": "1197 → 1223 (+26)",
     "gaps_closed": [
       "MIDI CC injection (Task 2.1)",
       "extract_drum_pattern() API (Task 4.3)",
@@ -8555,6 +8635,20 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-bounded-wavetable-control-expansion-097",
+      "description": "State before optional bounded wavetable control expansion for the EDM/pop unison lead fallback.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\audio_renderer.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_audio_renderer.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-05-23T10:28:27Z"
+    },
     {
       "id": "rollback-bounded-3-slice-follow-up-095",
       "description": "State before the bounded static wavetable/program_change/neural foundation follow-up.",

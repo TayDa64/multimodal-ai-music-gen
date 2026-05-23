@@ -1417,7 +1417,17 @@ class ProceduralRenderer:
         elif 80 <= note.program <= 87:  # Synth leads
             genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
             if genre_key in {'edm', 'pop', 'dance', 'electro', 'electropop', 'house'}:
-                return generate_unison_lead_tone(freq, duration, velocity, self.sample_rate)
+                edm_lead_wavetable_presets = {
+                    80: {'table_position': 0.88, 'table_motion': 0.18},  # Lead 1 / square-ish
+                    81: {'table_position': 0.64, 'table_motion': 0.62},  # Lead 2 / saw-ish
+                }
+                return generate_unison_lead_tone(
+                    freq,
+                    duration,
+                    velocity,
+                    self.sample_rate,
+                    **edm_lead_wavetable_presets.get(note.program, {}),
+                )
             return generate_lead_tone(freq, duration, velocity, self.sample_rate)
         elif 12 <= note.program <= 15:  # Chromatic percussion (vibe/marimba/xylophone)
             # Avoid toy mallet timbres in procedural mode; render as soft keys instead.

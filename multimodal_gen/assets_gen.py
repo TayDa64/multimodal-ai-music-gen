@@ -1080,6 +1080,8 @@ def generate_unison_lead_tone(
     *,
     voices: int = 7,
     detune_cents: float = 14.0,
+    table_position: Optional[float] = None,
+    table_motion: Optional[float] = None,
 ) -> np.ndarray:
     """Generate a bounded EDM/pop unison lead using a static wavetable bank.
 
@@ -1108,9 +1110,11 @@ def generate_unison_lead_tone(
         idx = np.linspace(-1.0, 1.0, voices)
         cents_list = (idx * detune_cents).tolist()
 
-    base_morph = 0.58
+    legacy_base_morph = 0.58
+    legacy_motion_span = 0.10 + 0.10 * velocity
+    base_morph = legacy_base_morph if table_position is None else float(np.clip(table_position, 0.0, 1.0))
     morph_offsets = np.linspace(-0.16, 0.16, voices, dtype=np.float32)
-    morph_span = 0.10 + 0.10 * velocity
+    morph_span = legacy_motion_span if table_motion is None else float(np.clip(table_motion, 0.0, 1.0)) * 0.20
 
     for cents, morph_offset in zip(cents_list, morph_offsets):
         ratio = 2.0 ** (cents / 1200.0)
