@@ -7,6 +7,417 @@
   },
   "task_queue": [
     {
+      "id": "git-stage-commit-push-master-107",
+      "description": "Stage the completed local changes, create a single integration commit, and push to the configured remote default branch without accidentally creating an unintended origin/main branch.",
+      "status": "in_progress",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "lyrical-cinematic-orchestral-piano-identity-tone-106"
+      ],
+      "files_to_modify": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T03:40:00Z",
+      "updated": "2026-06-05T03:40:00Z",
+      "implementation": {
+        "files_changed": [],
+        "summary": "Pre-push inspection confirmed the repo root is C:/dev/MUSE-ai/MUSE, the active branch is master, the configured remote is origin=https://github.com/TayDa64/multimodal-ai-music-gen.git, and `git ls-remote --heads origin` exposes `master` but not `main`. The safe push target for this repo is therefore origin/master; pushing to origin/main would create a new branch instead of updating the default branch.",
+        "guardrails_preserved": [
+          "Avoid creating a stray remote main branch when the repository default remains master.",
+          "Commit only the intended tracked/untracked source + test + state changes already validated in this session.",
+          "Do not rewrite history; use a normal forward commit and push."
+        ]
+      },
+      "tests": [
+        {
+          "command": "git status --short / git diff --stat / git ls-remote --heads origin",
+          "result": "PASS: current branch master, remote has master only, 18 pending changes across .github, main.py, multimodal_gen, scripts, and tests."
+        }
+      ]
+    },
+    {
+      "id": "lyrical-cinematic-orchestral-piano-identity-tone-106",
+      "description": "Preserve first-class piano identity and apply a narrow lyrical-only Fluidsynth tone softening path for lyrical cinematic/orchestral prompts without retuning already-green dark/heroic cues.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "cinematic-orchestral-quality-pass-105"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/session_graph.py",
+        "multimodal_gen/midi_generator.py",
+        "multimodal_gen/fluidsynth_profiles.py",
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_session_graph_cinematic_classical.py",
+        "tests/test_midi_generator.py",
+        "tests/test_fluidsynth_profiles.py",
+        "tests/test_audio_renderer.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T03:10:00Z",
+      "updated": "2026-06-05T03:10:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/session_graph.py",
+          "multimodal_gen/midi_generator.py",
+          "multimodal_gen/fluidsynth_profiles.py",
+          "multimodal_gen/audio_renderer.py",
+          "tests/test_session_graph_cinematic_classical.py",
+          "tests/test_midi_generator.py",
+          "tests/test_fluidsynth_profiles.py",
+          "tests/test_audio_renderer.py"
+        ],
+        "summary": "Implemented a narrow lyrical-orchestral slice without touching the parser or globally retuning cinematic/classical. SessionGraphBuilder now preserves a first-class Piano track for lyrical cinematic/orchestral piano prompts and keeps Strings as a separate supporting pad track. MidiGenerator now uses the same lyrical piano predicate so the primary harmonic MIDI track is explicitly named Piano instead of generic Chords for that narrow context, while a supporting Strings bed is emitted on a spare channel. fluidsynth_profiles.py gained a contextual `classical_lyrical_piano:classical` profile with a mild `high_shelf=-3.0dB@3500Hz`, and audio_renderer now selects that profile only for lyrical/warm/soft/emotional classical-family piano prompts. Focused tests passed and the new direct proof artifact improved the lyrical cue from genre_match_score 0.84 / centroid 4382.5 Hz to 0.86 / centroid 4263.0 Hz while preserving Fluidsynth rendering and adding first-class Piano identity in the manifest.",
+        "guardrails_preserved": [
+          "multimodal_gen/prompt_parser.py remained unchanged because parser already preserved piano correctly.",
+          "Base `classical:classical` profile was not globally retuned; dark and heroic cinematic prompts keep the previous no-op profile behavior.",
+          "Analyzer thresholds were not loosened.",
+          "No broader arranger/tension logic was modified in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "get_errors on multimodal_gen/session_graph.py, multimodal_gen/midi_generator.py, multimodal_gen/fluidsynth_profiles.py, multimodal_gen/audio_renderer.py, tests/test_session_graph_cinematic_classical.py, tests/test_midi_generator.py, tests/test_fluidsynth_profiles.py, tests/test_audio_renderer.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest -q tests/test_session_graph_cinematic_classical.py tests/test_midi_generator.py tests/test_fluidsynth_profiles.py tests/test_audio_renderer.py::test_rock_fluidsynth_tone_shaping_tames_bright_soundfont_balance tests/test_audio_renderer.py::test_trap_fluidsynth_profile_does_not_apply_rock_tone_shaping tests/test_audio_renderer.py::test_lyrical_cinematic_contextual_profile_records_narrow_tonal_diagnostic tests/test_audio_renderer.py::test_non_lyrical_cinematic_context_keeps_base_profile_without_tone_shaping tests/test_audio_renderer.py::test_fluidsynth_file_level_mastering_integration tests/test_audio_renderer.py::test_apply_file_level_mastering_unit",
+          "result": "PASS: builder reported 33 passed; independent verifier directly confirmed 27 session_graph/midi_generator/fluidsynth_profiles tests plus 2 focused audio_renderer tests passed, with 0 failures."
+        },
+        {
+          "command": "clean-env lyrical direct proof artifact under output\\_diagnostics\\lyrical_orchestral_piano_identity_20260605_direct",
+          "result": "PASS: renderer_path=fluidsynth, profile=classical_lyrical_piano:classical, audio_analysis.passed=true, genre_match_score=0.86, centroid_hz=4263.0, manifest tracks include Piano and Strings."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_NOTE",
+        "timestamp": "2026-06-05T03:10:00Z",
+        "summary": "Independent verifier confirmed parser stayed untouched, session graph now preserves first-class Piano identity for the lyrical orchestral case, MIDI identity no longer hides piano behind a generic harmonic-bed track for that context, and the Fluidsynth tone change is narrow rather than global. Remaining note: the independently re-proved focused test count substantiated 29 directly relevant passes rather than the builder's exact claimed total of 33, but the runtime artifact clearly shows the intended improvement."
+      }
+    },
+    {
+      "id": "cinematic-orchestral-quality-pass-105",
+      "description": "Run a higher-bar cinematic/orchestral listening-quality pass using strict clean-env FluidSynth renders across contrasting cue types and identify the highest-value next improvement target.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "fluidsynth-proof-harness-shared-resolver-104"
+      ],
+      "files_to_modify": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T02:00:00Z",
+      "updated": "2026-06-05T02:00:00Z",
+      "implementation": {
+        "files_changed": [],
+        "summary": "Completed a three-case cinematic/orchestral quality pass with strict require-soundfont+require-audio clean-env renders and artifact inspection rather than source changes. The dark battle cue and heroic swell cue both rendered through FluidSynth with profile classical:classical, warnings=[], audio_analysis.passed=true, genre_match_score=1.0, and centroids 1798.2 Hz and 2348.2 Hz respectively. The lyrical rise cue also passed strict rendering and audio_analysis, but scored lower at genre_match_score=0.84 with a much brighter centroid (4382.5 Hz) and lower dynamic range (91.0 dB). Session manifests show the strong cases preserve the expected orchestral roles, while the lyrical cue preserves Strings/Woodwinds/Choir/Harp but exposes no first-class Piano session track even though piano is detected in audio. That makes lyrical orchestral brightness and piano-identity preservation the highest-value next quality target, rather than a broad global cinematic profile rewrite.",
+        "guardrails_preserved": [
+          "This was an evaluation-only slice; no source or doc files were changed.",
+          "All cases used clean-env strict FluidSynth proof conditions rather than manual PATH prepending.",
+          "The pass compared contrasting cue types instead of overfitting conclusions to one prompt.",
+          "The conclusion avoids broad global profile changes because dark/heroic cues are already objectively green."
+        ]
+      },
+      "tests": [
+        {
+          "command": "battle_dark_72_dm: inspect clean-env strict benchmark artifacts under output\\_smoke\\orchestral_fluidsynth_benchmark_20260605_d",
+          "result": "PASS: renderer_path=fluidsynth, fluidsynth.success=true, render_status.success=true, audio_analysis.passed=true, genre_match_score=1.0, centroid_hz=1798.2, dynamic_range_db=101.9, warnings=[], manifest tracks=Drums/Bass/Strings/Brass/Choir/Harp/Timpani."
+        },
+        {
+          "command": "heroic_swell_96_dm: clean-env strict direct run to output\\_diagnostics\\cinematic_orchestral_quality_pass_20260605\\heroic_swell_96_dm_direct",
+          "result": "PASS: exit 0; renderer_path=fluidsynth, profile=classical:classical, fluidsynth_success=true, audio_analysis.passed=true, genre_match_score=1.0, centroid_hz=2348.2, dynamic_range_db=102.0, warnings=[], manifest tracks=Drums/Strings/Brass/Choir/Timpani."
+        },
+        {
+          "command": "lyrical_rise_78_gmaj: clean-env strict harness/direct artifact inspection under output\\_diagnostics\\cinematic_orchestral_quality_pass_20260605\\lyrical_rise_78_gmaj\\proof_20260605_175602",
+          "result": "PASS_WITH_QUALITY_NOTE: exit 0; renderer_path=fluidsynth, profile=classical:classical, fluidsynth_success=true, audio_analysis.passed=true, genre_match_score=0.84, centroid_hz=4382.5, dynamic_range_db=91.0, warnings=[], piano_detected=true, manifest tracks=Strings/Woodwinds/Choir/Harp (no first-class Piano track)."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-06-05T02:00:00Z",
+        "summary": "Quality-pass conclusion is well supported by artifacts: dark/heroic cinematic cues are objectively strong through clean-env FluidSynth, while the lyrical cue is the outlier on brightness and first-class piano identity. The next safe implementation target is a narrow lyrical/orchestral identity slice, not a global cinematic profile rewrite."
+      }
+    },
+    {
+      "id": "fluidsynth-proof-harness-shared-resolver-104",
+      "description": "Align scripts/fluidsynth_env_proof.py to the shared FluidSynth runtime resolver and current clean-JSON behavior so the harness itself becomes a truthful no-PATH proof path.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "fluidsynth-runtime-resolver-clean-benchmark-103"
+      ],
+      "files_to_modify": [
+        "scripts/fluidsynth_env_proof.py",
+        "tests/test_fluidsynth_env_proof_contract.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T01:05:00Z",
+      "updated": "2026-06-05T01:05:00Z",
+      "implementation": {
+        "files_changed": [
+          "scripts/fluidsynth_env_proof.py",
+          "tests/test_fluidsynth_env_proof_contract.py"
+        ],
+        "summary": "Removed the proof harness's internal local-PATH prepend and aligned it to the shared FluidSynth runtime resolver/probe truth. The script now bootstraps the repo root minimally so it can import multimodal_gen.fluidsynth_runtime from a standalone script context, records fluidsynth_executable and fluidsynth_probe in the proof summary, consumes stable main.py --json output for the generation leg, preserves generation_stdout.txt as JSON and generation_stderr.txt as progress logs, and reports generation.json_mode=true. A new focused contract test file proves the harness no longer mutates PATH, delegates to the shared resolver/probe, drops the stale fluidsynth_bin_prepended field, and uses --json for generation. A real clean-env harness run now produces proof_summary.json with schema_version=2, resolved executable present, diagnose_audio.fluidsynth_executable present, generation.json_mode=true, renderer_path=fluidsynth, and fluidsynth_success=true.",
+        "guardrails_preserved": [
+          "The harness remains a small proof helper and still avoids installation/deployment claims.",
+          "The runtime executable truth is now shared with the app rather than duplicated in the script.",
+          "Generation stdout/stderr artifacts remain persisted for inspection, with stdout now carrying the JSON payload and stderr carrying progress logs.",
+          "No broader audio-quality or renderer logic changed in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "get_errors on scripts/fluidsynth_env_proof.py and tests/test_fluidsynth_env_proof_contract.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest -q tests/test_fluidsynth_env_proof_contract.py",
+          "result": "PASS: 2 passed in 2.01s"
+        },
+        {
+          "command": "clean-env harness proof: remove c:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin from PATH for the child process and run .\\.venv\\Scripts\\python.exe .\\scripts\\fluidsynth_env_proof.py --duration-bars 4 --seed 20260605 --prompt \"dark cinematic orchestral film score with sweeping strings, brass, french horn, choir, harp, and timpani, 72 BPM in D minor\"",
+          "result": "PASS: exit 0; proof_summary.json at output\\_diagnostics\\fluidsynth_env_proof\\proof_20260605_173514\\proof_summary.json reports schema_version=2, fluidsynth_executable=C:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe, fluidsynth_probe.available=true, diagnose_audio.fluidsynth_executable set, generation.json_mode=true, renderer_mastering_indicators.renderer_path=fluidsynth, and renderer_mastering_indicators.fluidsynth_success=true."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-06-05T01:05:00Z",
+        "summary": "Independent verifier confirmed the harness no longer prepends PATH internally, now uses the shared resolver/probe truthfully, consumes stable main.py --json output for generation, and the real clean-env proof artifact closes the last remaining FluidSynth no-PATH caveat. No blocking caveat remains for this alignment slice."
+      }
+    },
+    {
+      "id": "fluidsynth-runtime-resolver-clean-benchmark-103",
+      "description": "Implement the shared runtime FluidSynth executable resolver, expose the resolved binary in diagnostics, align the secondary FluidSynth wrapper, and prove clean-env strict orchestral rendering without manual PATH prepending.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "fluidsynth-availability-setup-plan-102"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/fluidsynth_runtime.py",
+        "multimodal_gen/audio_renderer.py",
+        "multimodal_gen/synthesizers/fluidsynth_synth.py",
+        "main.py",
+        "tests/test_audio_renderer.py",
+        "tests/test_synthesizers.py",
+        "tests/test_main_render_diagnostics.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T00:20:00Z",
+      "updated": "2026-06-05T00:20:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/fluidsynth_runtime.py",
+          "multimodal_gen/audio_renderer.py",
+          "multimodal_gen/synthesizers/fluidsynth_synth.py",
+          "main.py",
+          "tests/test_audio_renderer.py",
+          "tests/test_synthesizers.py",
+          "tests/test_main_render_diagnostics.py"
+        ],
+        "summary": "Added multimodal_gen/fluidsynth_runtime.py as a shared runtime resolver/probe helper that searches MUSE_FLUIDSYNTH_EXE, then PATH, then workspace-local ../tools/fluidsynth*/bin/fluidsynth.exe, then repo-local tools/**/bin/fluidsynth.exe and returns an absolute executable path. Wired that resolver into audio_renderer check_fluidsynth_available(), get_fluidsynth_version(), and render_midi_with_fluidsynth() while preserving the --version then -V probe order. Exposed fluidsynth.executable in --diagnose-audio and render diagnostics, and aligned the secondary FluidSynthSynthesizer to use the same resolver. Focused tests passed, clean-env diagnose now resolves the workspace portable binary without manual PATH prepending, and the strict high-fidelity orchestral benchmark passed in a clean env with renderer_path=fluidsynth, fluidsynth.success=true, render_status.success=true, audio_analysis.passed=true, and clean JSON stdout.",
+        "guardrails_preserved": [
+          "No machine-specific absolute path was hard-coded; discovery remains relative to env/PATH/workspace/repo roots.",
+          "The Windows portable build compatibility fallback remains --version then -V.",
+          "SoundFont search behavior stayed unchanged aside from exposing the resolved executable in diagnostics.",
+          "The existing CLI JSON cleanliness and private bridge-key sanitization behavior remained intact during the benchmark rerun."
+        ]
+      },
+      "tests": [
+        {
+          "command": "get_errors on multimodal_gen/fluidsynth_runtime.py, multimodal_gen/audio_renderer.py, multimodal_gen/synthesizers/fluidsynth_synth.py, main.py, tests/test_audio_renderer.py, tests/test_synthesizers.py, tests/test_main_render_diagnostics.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest -q tests/test_audio_renderer.py::test_resolve_fluidsynth_executable_prefers_env_override tests/test_audio_renderer.py::test_resolve_fluidsynth_executable_prefers_path_over_workspace_tools tests/test_audio_renderer.py::test_resolve_fluidsynth_executable_finds_workspace_tools_when_path_absent tests/test_audio_renderer.py::test_check_fluidsynth_available_with_long_option tests/test_audio_renderer.py::test_check_fluidsynth_available_fallback_to_short_option tests/test_audio_renderer.py::test_check_fluidsynth_not_found tests/test_audio_renderer.py::test_get_fluidsynth_version_with_long_option tests/test_audio_renderer.py::test_get_fluidsynth_version_fallback_to_short_option tests/test_audio_renderer.py::test_get_fluidsynth_version_not_found tests/test_audio_renderer.py::test_render_midi_with_fluidsynth_uses_options_before_files tests/test_synthesizers.py::TestFluidSynthSynthesizer::test_version_detection_falls_back_to_short_option tests/test_synthesizers.py::TestFluidSynthSynthesizer::test_render_midi_file_uses_options_before_files tests/test_main_render_diagnostics.py::test_cli_diagnose_audio_reports_resolved_fluidsynth_executable",
+          "result": "PASS: 13 passed in 10.02s (independent rerun also passed in 2.47s)."
+        },
+        {
+          "command": "clean-env diagnose proof: remove c:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin from PATH for the child process and run .\\.venv\\Scripts\\python.exe .\\main.py --diagnose-audio --no-banner",
+          "result": "PASS: exit 0; fluidsynth.available=true, fluidsynth.executable=C:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe, discovered soundfont=./assets/soundfonts/FluidR3Mono_GM.sf3."
+        },
+        {
+          "command": "clean-env strict orchestral benchmark: remove c:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin from PATH for the child process and run .\\.venv\\Scripts\\python.exe .\\main.py --no-banner --json --output .\\output\\_smoke\\orchestral_fluidsynth_benchmark_20260605_d --duration-bars 16 --seed 20260605 --soundfont .\\assets\\soundfonts\\FluidR3Mono_GM.sf3 --require-soundfont --require-audio --skip-default-instruments --skip-expansions \"dark cinematic orchestral film score for a tense, awe-inspiring battle scene with sweeping strings, brass, french horn, contrabass, choir, harp, and timpani, evolving sections, 72 BPM in D minor\" with stdout/stderr redirected to files",
+          "result": "PASS: exit 0; stdout parsed as JSON with top-level fields success/results/metadata, no private bridge keys on stdout, render_report=output\\_smoke\\orchestral_fluidsynth_benchmark_20260605_d\\cinematic_72.0bpm_Dminor_20260605_094458_render_report.json, renderer_path=fluidsynth, fluidsynth.success=true, fluidsynth.executable=C:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe, soundfont_path=.\\assets\\soundfonts\\FluidR3Mono_GM.sf3, render_status.success=true, audio_analysis.passed=true."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_CAVEAT",
+        "timestamp": "2026-06-05T00:20:00Z",
+        "summary": "Independent verifier confirmed the shared resolver search order, audio_renderer wiring, diagnose field exposure, and FluidSynthSynthesizer alignment are correct, and that clean-env diagnose plus the strict orchestral benchmark prove runtime discovery works without manual PATH prepending. Remaining caveat: scripts/fluidsynth_env_proof.py still prepends the local tools bin internally, so that harness summary should not be cited as the sole no-PATH proof until it is aligned to the new shared resolver."
+      }
+    },
+    {
+      "id": "fluidsynth-availability-setup-plan-102",
+      "description": "Investigate the current workspace FluidSynth availability path, prove whether the local portable binary already works, and define the smallest robust setup plan before rerunning the high-fidelity orchestral benchmark.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [
+        "cli-json-clean-stdout-routing-101"
+      ],
+      "files_to_modify": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-04T22:15:00Z",
+      "updated": "2026-06-04T22:15:00Z",
+      "implementation": {
+        "files_changed": [],
+        "summary": "Read-only investigation proved the workspace already contains a working portable FluidSynth binary at c:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe. The binary rejects --version but succeeds with -V, prepending that bin folder to PATH makes main.py --diagnose-audio report fluidsynth.available=true and discover assets\\soundfonts\\FluidR3Mono_GM.sf3, and the repo's scripts/fluidsynth_env_proof.py strict smoke succeeds with renderer_path=fluidsynth, fluidsynth_success=true, mastering_status=applied, and profile=classical:classical. The remaining runtime limitation is that multimodal_gen/audio_renderer.py still invokes bare 'fluidsynth' on PATH, while the proof harness already has repo-local tools/ discovery logic. Recommended next slice is to lift that resolver into shared runtime code, add resolved executable diagnostics, then rerun the strict orchestral benchmark in a clean environment without manual PATH prepending.",
+        "guardrails_preserved": [
+          "This was investigation only; no source files or docs were changed in this slice.",
+          "The conclusion keeps the existing -V fallback for Windows portable builds rather than replacing it.",
+          "The recommendation is to avoid hard-coded machine paths and instead search relative repo/workspace tools locations plus PATH/env override.",
+          "The benchmark rerun is intentionally deferred until runtime detection is hardened."
+        ]
+      },
+      "tests": [
+        {
+          "command": "portable fluidsynth.exe probe under c:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin",
+          "result": "PASS: --version failed as expected for the portable build; -V succeeded and reported FluidSynth executable version 2.4.7."
+        },
+        {
+          "command": "prepend local tools bin to PATH and run .\\.venv\\Scripts\\python.exe .\\main.py --diagnose-audio --no-banner",
+          "result": "PASS: exit 0; diagnose report showed fluidsynth.available=true and discovered ./assets/soundfonts/FluidR3Mono_GM.sf3."
+        },
+        {
+          "command": "prepend local tools bin to PATH and run .\\.venv\\Scripts\\python.exe .\\scripts\\fluidsynth_env_proof.py --duration-bars 4 --seed 20260604 --prompt \"dark cinematic orchestral film score with sweeping strings, brass, french horn, choir, harp, and timpani, 72 BPM in D minor\"",
+          "result": "PASS: exit 0; proof summary reported renderer_path=fluidsynth, fluidsynth_success=True, mastering_status=applied, profile=classical:classical, soundfont=assets\\soundfonts\\FluidR3Mono_GM.sf3, diagnose_audio.fluidsynth_available=True."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-06-04T22:15:00Z",
+        "summary": "Read-only verifier confirmed the smallest robust next slice is to move repo-local FluidSynth executable discovery from the proof harness into the runtime code path, then prove clean-env detection and rerun the strict orchestral benchmark."
+      }
+    },
+    {
+      "id": "cli-json-clean-stdout-routing-101",
+      "description": "Route generation/refine progress off stdout in --json mode so machine-readable JSON stays parseable on stdout for automation while preserving the earlier bridge-object sanitization behavior.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "cli-json-serialization-bridge-sanitization-100"
+      ],
+      "files_to_modify": [
+        "main.py",
+        "tests/test_main_render_diagnostics.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-04T13:40:00Z",
+      "updated": "2026-06-04T13:40:00Z",
+      "implementation": {
+        "files_changed": [
+          "main.py",
+          "tests/test_main_render_diagnostics.py"
+        ],
+        "summary": "Added a small _json_progress_to_stderr() seam in main.py and wrapped both the normal generation flow and the --refine flow so progress/human-readable prints go to stderr when --json is active, while the final success/error JSON payload still prints to stdout. Updated the --json help text to reflect machine-readable stdout behavior. Focused regressions now prove stdout remains parseable JSON and progress lands on stderr for both success and failure in normal generation and refine mode, while the prior bridge-object sanitization and metadata behavior remain intact.",
+        "guardrails_preserved": [
+          "Non-JSON CLI behavior remains unchanged.",
+          "The earlier bridge-object fix is preserved: private bridge keys still stay out of exported JSON/metadata while live rerender bridge objects remain in memory.",
+          "The change stayed at the main.py orchestration seam rather than refactoring dozens of print sites.",
+          "No FluidSynth/environment work was included in this slice."
+        ]
+      },
+      "tests": [
+        {
+          "command": "get_errors on main.py and tests/test_main_render_diagnostics.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_main_render_diagnostics.py::test_cli_require_audio_returns_code_2_and_json_failure tests/test_main_render_diagnostics.py::test_cli_missing_audio_default_remains_success tests/test_main_render_diagnostics.py::test_cli_json_routes_progress_logs_to_stderr_on_success tests/test_main_render_diagnostics.py::test_cli_json_routes_progress_logs_to_stderr_on_error tests/test_main_render_diagnostics.py::test_cli_refine_json_routes_progress_logs_to_stderr_on_success tests/test_main_render_diagnostics.py::test_cli_refine_json_routes_progress_logs_to_stderr_on_error tests/test_main_render_diagnostics.py::test_cli_json_omits_private_bridge_objects_without_mutating_live_results tests/test_main_render_diagnostics.py::test_save_project_metadata_omits_private_bridge_objects_without_stringifying_them -q",
+          "result": "PASS: 8 passed in 2.44s"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe .\\main.py --no-banner --json --output .\\output\\_smoke\\json_clean_stdout_20260604 --duration-bars 8 --seed 20260604 --skip-default-instruments --skip-expansions \"dark cinematic orchestral film score for a tense, awe-inspiring battle scene with sweeping strings, brass, french horn, contrabass, choir, harp, and timpani, evolving sections, 72 BPM in D minor\" with stdout/stderr split to temp files",
+          "result": "PASS: exit 0; stdout parsed as JSON with top-level fields success/results/metadata, stdout contained no MixPolicy serialization error and no private bridge keys, and stderr contained the progress stream."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_CAVEAT",
+        "timestamp": "2026-06-04T13:40:00Z",
+        "summary": "Independent verifier confirmed normal generation and refine mode now keep stdout machine-readable in --json mode by routing progress to stderr, while the prior bridge-object sanitization behavior remains intact. Remaining caveat: there is still no single end-to-end test that drives the --record-part rerender branch after a JSON-mode generation with non-None bridge objects."
+      }
+    },
+    {
+      "id": "cli-json-serialization-bridge-sanitization-100",
+      "description": "Sanitize CLI and metadata JSON exports so live rerender bridge objects no longer crash --json while preserving in-memory MixPolicy/ReferenceProfile/preset bridge behavior.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [],
+      "files_to_modify": [
+        "main.py",
+        "tests/test_main_render_diagnostics.py",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-04T13:10:00Z",
+      "updated": "2026-06-04T13:10:00Z",
+      "implementation": {
+        "files_changed": [
+          "main.py",
+          "tests/test_main_render_diagnostics.py"
+        ],
+        "summary": "Added a JSON export helper in main.py that builds a sanitized JSON-safe copy, omits underscore-prefixed private bridge keys from CLI/project metadata exports, and leaves the live results dict untouched so rerender can still consume _reference_profile_obj, _mix_policy_obj, and _preset_values in-memory. save_project_metadata now serializes the sanitized export view instead of mutating results or relying on default=str. Focused regressions prove MixPolicy/ReferenceProfile no longer crash --json, private bridge keys stay out of exported JSON/metadata, and the live bridge objects remain intact for later rerender use.",
+        "guardrails_preserved": [
+          "The live rerender bridge still reads _reference_profile_obj, _mix_policy_obj, and _preset_values from the in-memory results dict after generation.",
+          "Private bridge keys are omitted from exported CLI/project metadata JSON instead of being stringified into opaque payloads.",
+          "No FluidSynth/environment work was included in this slice.",
+          "The fix stayed local to the JSON export seam and focused regression coverage."
+        ]
+      },
+      "tests": [
+        {
+          "command": "get_errors on main.py and tests/test_main_render_diagnostics.py",
+          "result": "PASS: no errors found"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe -m pytest tests/test_main_render_diagnostics.py::test_cli_require_audio_returns_code_2_and_json_failure tests/test_main_render_diagnostics.py::test_cli_missing_audio_default_remains_success tests/test_main_render_diagnostics.py::test_cli_json_omits_private_bridge_objects_without_mutating_live_results tests/test_main_render_diagnostics.py::test_save_project_metadata_omits_private_bridge_objects_without_stringifying_them -q",
+          "result": "PASS: 4 passed in 1.85s"
+        },
+        {
+          "command": ".\\.venv\\Scripts\\python.exe .\\main.py --no-banner --json --output .\\output\\_smoke\\json_fix_repro_20260604 --duration-bars 8 --seed 20260604 --skip-default-instruments --skip-expansions \"dark cinematic orchestral film score for a tense, awe-inspiring battle scene with sweeping strings, brass, french horn, contrabass, choir, harp, and timpani, evolving sections, 72 BPM in D minor\"",
+          "result": "PASS: exit 0; captured log contains success payload, omits _mix_policy_obj/_reference_profile_obj/_preset_values, and no longer reports 'Object of type MixPolicy is not JSON serializable'."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_CAVEAT",
+        "timestamp": "2026-06-04T13:10:00Z",
+        "summary": "Independent verifier confirmed the sanitizer exports a copy instead of mutating live rerender bridge objects, CLI/metadata JSON omit private bridge keys without crashing on MixPolicy or ReferenceProfile, and focused coverage is adequate for this slice. Remaining caveat: no single end-to-end test yet drives the --record-part rerender branch with a non-None ReferenceProfile after a CLI --json run."
+      }
+    },
+    {
       "id": "bounded-edm-lead-program-82-87-preset-expansion-099",
       "description": "Extend the existing EDM/pop-like procedural synth-lead fallback so GM lead programs 80..87 each use an explicit bounded unison preset approximation while non-EDM genres stay on the standard lead path.",
       "status": "completed",
@@ -6767,12 +7178,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-05-23T11:12:00Z",
-    "total_tasks_completed": 99,
+    "last_updated": "2026-06-05T03:40:00Z",
+    "total_tasks_completed": 106,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "local-proof-complete-awaiting-user-direction-after-bounded-edm-lead-program-82-87-preset-expansion-099"
+    "next_phase": "create-integration-commit-and-push-to-origin-master-after-vcs-sync-task-107"
   },
   "sprint_11": {
     "status": "COMPLETE",

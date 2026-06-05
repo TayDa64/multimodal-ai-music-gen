@@ -8,7 +8,7 @@ SoundFont, or change procedural/custom/expansion fallback behavior.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Sequence, Tuple
+from typing import Any, Dict, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -199,6 +199,10 @@ JAZZ_TONE_SHELVES: Tuple[ToneShelf, ...] = (
     ToneShelf(frequency_hz=4000.0, gain_db=-5.0, shelf_type="high"),
 )
 
+CLASSICAL_LYRICAL_PIANO_TONE_SHELVES: Tuple[ToneShelf, ...] = (
+    ToneShelf(frequency_hz=3500.0, gain_db=-3.0, shelf_type="high"),
+)
+
 DEFAULT_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     name="default",
     genre_family="default",
@@ -227,6 +231,13 @@ CLASSICAL_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
     genre_family="classical",
     aliases=tuple(sorted(CLASSICAL_FAMILY_GENRES)),
     tone_shelves=(),
+)
+
+CLASSICAL_LYRICAL_PIANO_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
+    name="classical_lyrical_piano",
+    genre_family="classical",
+    aliases=(),
+    tone_shelves=CLASSICAL_LYRICAL_PIANO_TONE_SHELVES,
 )
 
 JAZZ_FLUIDSYNTH_PROFILE = FluidSynthRendererProfile(
@@ -293,6 +304,109 @@ for _profile in FLUIDSYNTH_RENDERER_PROFILES:
 def get_fluidsynth_profile(genre) -> FluidSynthRendererProfile:
     """Return the FluidSynth renderer profile for ``genre`` or a no-op default."""
     return _PROFILE_BY_GENRE.get(normalize_genre(genre), DEFAULT_FLUIDSYNTH_PROFILE)
+
+
+def is_classical_family_genre(genre) -> bool:
+    """Return True when ``genre`` belongs to the cinematic/classical family."""
+    return normalize_genre(genre) in CLASSICAL_FAMILY_GENRES
+
+
+def _normalize_prompt_fragment(value: Any) -> str:
+    return str(value or "").strip().lower().replace("-", " ").replace("_", " ")
+
+
+def _parsed_prompt_search_blob(parsed: Any) -> str:
+    if parsed is None:
+        return ""
+
+    fragments = [
+        _normalize_prompt_fragment(getattr(parsed, "raw_prompt", "")),
+        _normalize_prompt_fragment(getattr(parsed, "mood", "")),
+    ]
+    for attribute in ("style_modifiers", "sonic_adjectives", "instruments"):
+        for value in getattr(parsed, attribute, ()) or ():
+            fragments.append(_normalize_prompt_fragment(value))
+    return " ".join(fragment for fragment in fragments if fragment)
+
+
+def _has_explicit_piano_request(parsed: Any) -> bool:
+    if parsed is None:
+        return False
+
+    piano_aliases = {
+        "piano",
+        "grand piano",
+        "grand_piano",
+        "acoustic piano",
+        "acoustic_piano",
+        "acoustic grand",
+        "acoustic_grand",
+        "acoustic grand piano",
+        "acoustic_grand_piano",
+    }
+    instruments = {
+        _normalize_prompt_fragment(instrument)
+        for instrument in getattr(parsed, "instruments", ()) or ()
+        if str(instrument or "").strip()
+    }
+    if instruments & piano_aliases:
+        return True
+
+    raw_prompt = _normalize_prompt_fragment(getattr(parsed, "raw_prompt", ""))
+    return any(phrase in raw_prompt for phrase in piano_aliases)
+
+
+def is_lyrical_orchestral_piano_prompt(parsed: Any, genre=None) -> bool:
+    """Return True only for narrow lyrical/warm/soft orchestral piano contexts."""
+    if parsed is None:
+        return False
+
+    resolved_genre = genre or getattr(parsed, "genre", None)
+    if not is_classical_family_genre(resolved_genre):
+        return False
+    if not _has_explicit_piano_request(parsed):
+        return False
+
+    searchable = _parsed_prompt_search_blob(parsed)
+    lyrical_emotion_cues = (
+        "lyrical",
+        "emotional",
+        "heartfelt",
+        "soulful",
+        "expressive",
+        "intimate",
+    )
+    softness_cues = (
+        "warm",
+        "soft",
+        "gentle",
+        "delicate",
+        "muted",
+        "tender",
+    )
+    has_lyrical_emotion = getattr(parsed, "mood", None) == "emotional" or any(
+        cue in searchable for cue in lyrical_emotion_cues
+    )
+    has_softness = any(cue in searchable for cue in softness_cues)
+    return has_lyrical_emotion and has_softness
+
+
+def get_contextual_fluidsynth_profile(
+    genre,
+    parsed: Any = None,
+) -> FluidSynthRendererProfile:
+    """Return a prompt-aware FluidSynth profile while preserving base genre defaults."""
+    resolved_genre = getattr(parsed, "genre", None) or genre
+    profile = get_fluidsynth_profile(resolved_genre)
+
+    if (
+        parsed is not None
+        and profile.genre_family == "classical"
+        and is_lyrical_orchestral_piano_prompt(parsed, resolved_genre)
+    ):
+        return CLASSICAL_LYRICAL_PIANO_FLUIDSYNTH_PROFILE
+
+    return profile
 
 
 def _format_gain_db(gain_db: float) -> str:

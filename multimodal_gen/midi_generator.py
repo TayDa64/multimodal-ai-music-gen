@@ -67,6 +67,7 @@ from .arranger import Arrangement, SongSection, SectionType, get_section_motif
 from .instrument_ranges import get_chord_octave, get_melody_octave, get_bass_octave, clamp_to_range, get_timpani_pitches
 from .groove_templates import GrooveTemplate, GrooveApplicator, get_groove_for_genre
 from .strategies.registry import StrategyRegistry
+from .fluidsynth_profiles import is_lyrical_orchestral_piano_prompt
 
 # Optional instrument resolution service for expansion instrument support
 try:
@@ -281,6 +282,59 @@ def _is_generic_jazz_keyboard_chord_comping(
         normalize_genre(getattr(parsed, 'genre', '') or '') == 'jazz'
         and _is_keyboard_chord_instrument(resolved_instrument, program)
     )
+
+
+def _normalized_instruments(parsed: ParsedPrompt) -> Tuple[set[str], set[str]]:
+    instruments_norm = {
+        str(inst).strip().lower().replace('-', '_')
+        for inst in getattr(parsed, 'instruments', [])
+        if str(inst).strip()
+    }
+    return instruments_norm, {inst.replace('_', ' ') for inst in instruments_norm}
+
+
+def _wants_guitar_chords(parsed: ParsedPrompt) -> bool:
+    normalized_genre = normalize_genre(getattr(parsed, 'genre', '') or '')
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower()
+    guitar_aliases = {
+        'guitar', 'guitars', 'electric_guitar', 'distortion_guitar',
+        'acoustic_guitar', 'crunchy_guitar', 'rock_guitar', 'gtr',
+        'electric guitar', 'distortion guitar', 'acoustic guitar',
+        'crunchy guitar', 'rock guitar',
+    }
+    parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+    has_guitar_alias = bool(parsed_instruments_norm & guitar_aliases) or bool(parsed_instruments_spaces & guitar_aliases)
+    has_raw_guitar = 'guitar' in raw_prompt or 'gtr' in raw_prompt
+    return has_guitar_alias or (normalized_genre in ROCK_FAMILY_GENRES and has_raw_guitar)
+
+
+def _select_primary_chord_instrument(parsed: ParsedPrompt) -> str:
+    is_ethiopian = normalize_genre(parsed.genre or '') in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
+    parsed_instruments_norm, _ = _normalized_instruments(parsed)
+
+    if 'krar' in parsed_instruments_norm and (is_ethiopian or 'piano' not in parsed_instruments_norm):
+        return 'krar'
+    if 'masenqo' in parsed_instruments_norm and (is_ethiopian or 'strings' not in parsed_instruments_norm):
+        return 'masenqo'
+    if 'begena' in parsed_instruments_norm:
+        return 'begena'
+    if 'washint' in parsed_instruments_norm:
+        return 'washint'
+    if _wants_guitar_chords(parsed):
+        return 'guitar'
+    if 'rhodes' in parsed_instruments_norm:
+        return 'rhodes'
+    if 'piano' in parsed_instruments_norm:
+        return 'piano'
+    if 'pad' in parsed_instruments_norm:
+        return 'pad'
+    if 'strings' in parsed_instruments_norm:
+        return 'strings'
+    if 'organ' in parsed_instruments_norm:
+        return 'organ'
+    if 'brass' in parsed_instruments_norm:
+        return 'brass'
+    return 'krar' if is_ethiopian else 'rhodes'
 
 
 def _has_bass_guitar_request(parsed: ParsedPrompt) -> bool:
@@ -2571,19 +2625,23 @@ class MidiGenerator:
         # Priority: Ethiopian genres should prefer Ethiopian instruments
         is_ethiopian = parsed.genre in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
         normalized_genre = normalize_genre(parsed.genre or '')
-        rock_family = {'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'}
-        guitar_aliases = {
-            'guitar', 'guitars', 'electric_guitar', 'distortion_guitar',
-            'acoustic_guitar', 'crunchy_guitar', 'rock_guitar', 'gtr',
-            'electric guitar', 'distortion guitar', 'acoustic guitar',
-            'crunchy guitar', 'rock guitar',
-        }
-        parsed_instruments_norm = {str(inst).lower().replace('-', '_') for inst in parsed.instruments}
-        parsed_instruments_spaces = {inst.replace('_', ' ') for inst in parsed_instruments_norm}
         raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower()
-        has_guitar_alias = bool(parsed_instruments_norm & guitar_aliases) or bool(parsed_instruments_spaces & guitar_aliases)
-        has_raw_guitar = 'guitar' in raw_prompt or 'gtr' in raw_prompt
-        wants_guitar = has_guitar_alias or (normalized_genre in rock_family and has_raw_guitar)
+        parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+        wants_guitar = _wants_guitar_chords(parsed)
+        primary_chord_instrument = _select_primary_chord_instrument(parsed)
+        instrument_display_names = {
+            'krar': 'Krar',
+            'masenqo': 'Masenqo',
+            'begena': 'Begena',
+            'washint': 'Washint',
+            'guitar': 'Guitar',
+            'rhodes': 'Rhodes',
+            'piano': 'Piano',
+            'pad': 'Pad',
+            'strings': 'Strings',
+            'organ': 'Organ',
+            'brass': 'Brass',
+        }
 
         def _guitar_program() -> int:
             guitar_context = ' '.join(
@@ -2603,41 +2661,12 @@ class MidiGenerator:
         resolved_instrument = None
         
         if self._instrument_service:
-            # Determine which instrument to resolve based on parsed instruments
-            instrument_to_resolve = None
-            
-            # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
-            if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
-                instrument_to_resolve = 'krar'
-            elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
-                instrument_to_resolve = 'masenqo'
-            elif 'begena' in parsed.instruments:
-                instrument_to_resolve = 'begena'
-            elif 'washint' in parsed.instruments:
-                instrument_to_resolve = 'washint'
-            elif wants_guitar:
-                instrument_to_resolve = 'guitar'
-            elif 'rhodes' in parsed.instruments:
-                instrument_to_resolve = 'rhodes'
-            elif 'piano' in parsed.instruments:
-                instrument_to_resolve = 'piano'
-            elif 'pad' in parsed.instruments:
-                instrument_to_resolve = 'pad'
-            elif 'strings' in parsed.instruments:
-                instrument_to_resolve = 'strings'
-            elif 'organ' in parsed.instruments:
-                instrument_to_resolve = 'organ'
-            elif 'brass' in parsed.instruments:
-                instrument_to_resolve = 'brass'
-            else:
-                instrument_to_resolve = 'krar' if is_ethiopian else 'rhodes'
-            
             resolved = self._instrument_service.resolve_instrument(
-                instrument_to_resolve,
+                primary_chord_instrument,
                 genre=parsed.genre or ""
             )
             program = resolved.program
-            resolved_instrument = instrument_to_resolve  # Use the instrument we asked to resolve
+            resolved_instrument = instrument_display_names.get(primary_chord_instrument, primary_chord_instrument)
             if wants_guitar:
                 if not (24 <= int(program) <= 31):
                     program = _guitar_program()
@@ -2645,39 +2674,37 @@ class MidiGenerator:
         
         # Fallback to hardcoded mappings if no service or resolution failed
         if program is None:
-            # Ethiopian instruments first (if Ethiopian genre or explicitly requested)
-            if 'krar' in parsed.instruments and (is_ethiopian or 'piano' not in parsed.instruments):
+            if primary_chord_instrument == 'krar':
                 program = 110  # Custom: Krar (Ethiopian lyre)
                 resolved_instrument = 'Krar'
-            elif 'masenqo' in parsed.instruments and (is_ethiopian or 'strings' not in parsed.instruments):
+            elif primary_chord_instrument == 'masenqo':
                 program = 111  # Custom: Masenqo (Ethiopian fiddle)
                 resolved_instrument = 'Masenqo'
-            elif 'begena' in parsed.instruments:
+            elif primary_chord_instrument == 'begena':
                 program = 113  # Custom: Begena (Ethiopian harp)
                 resolved_instrument = 'Begena'
-            elif 'washint' in parsed.instruments:
+            elif primary_chord_instrument == 'washint':
                 program = 112  # Custom: Washint (Ethiopian flute)
                 resolved_instrument = 'Washint'
-            elif wants_guitar:
+            elif primary_chord_instrument == 'guitar':
                 program = _guitar_program()
                 resolved_instrument = 'Guitar'
-            # Standard GM instruments
-            elif 'rhodes' in parsed.instruments:
+            elif primary_chord_instrument == 'rhodes':
                 program = 4  # Electric Piano 1
                 resolved_instrument = 'Rhodes'
-            elif 'piano' in parsed.instruments:
+            elif primary_chord_instrument == 'piano':
                 program = 0  # Acoustic Grand
                 resolved_instrument = 'Piano'
-            elif 'pad' in parsed.instruments:
+            elif primary_chord_instrument == 'pad':
                 program = 89  # Pad 2 (warm)
                 resolved_instrument = 'Pad'
-            elif 'strings' in parsed.instruments:
+            elif primary_chord_instrument == 'strings':
                 program = 48  # String Ensemble
                 resolved_instrument = 'Strings'
-            elif 'organ' in parsed.instruments:
+            elif primary_chord_instrument == 'organ':
                 program = 16  # Drawbar Organ
                 resolved_instrument = 'Organ'
-            elif 'brass' in parsed.instruments:
+            elif primary_chord_instrument == 'brass':
                 program = 61  # Brass Section
                 resolved_instrument = 'Brass'
             else:
@@ -2689,9 +2716,12 @@ class MidiGenerator:
                     program = 4  # Rhodes for others
                     resolved_instrument = 'Rhodes'
         
-        # Always use generic 'Chords' track name for API compatibility.
-        # Instrument identity preserved via program_change.
-        track.append(MetaMessage('track_name', name='Chords', time=0))
+        lyrical_orchestral_piano_identity = (
+            primary_chord_instrument == 'piano'
+            and is_lyrical_orchestral_piano_prompt(parsed)
+        )
+        track_name = 'Piano' if lyrical_orchestral_piano_identity else 'Chords'
+        track.append(MetaMessage('track_name', name=track_name, time=0))
         if resolved_instrument:
             track.append(MetaMessage('text', text=f'instrument:{resolved_instrument}', time=0))
         track.append(Message('program_change', program=program, channel=2, time=0))
@@ -3051,20 +3081,27 @@ class MidiGenerator:
         Create additional tracks for orchestral instruments that couldn't
         fit in the single chord track.
 
-        The primary chord track takes the first matching instrument (usually
-        strings). This method creates separate tracks for remaining orchestral
-        instruments: brass, harp, timpani, choir, woodwinds.
+        The primary chord track follows the same instrument priority as the
+        main chord track. This method adds bounded supporting orchestral
+        identities around that primary choice.
 
         Each secondary track gets its own MIDI channel and GM program.
         """
         tracks: List[MidiTrack] = []
 
-        # Determine which instrument the primary chord track already uses
-        primary_chord_inst = None
-        for inst in ['strings', 'krar', 'piano', 'rhodes', 'pad', 'brass']:
-            if inst in parsed.instruments:
-                primary_chord_inst = inst
-                break
+        primary_chord_inst = _select_primary_chord_instrument(parsed)
+        lyrical_orchestral_piano_identity = (
+            primary_chord_inst == 'piano'
+            and is_lyrical_orchestral_piano_prompt(parsed)
+        )
+
+        if lyrical_orchestral_piano_identity and 'strings' in parsed.instruments:
+            strings_track = self._create_secondary_chord_track(
+                arrangement, parsed, groove_template,
+                program=48, channel=10, name='Strings',
+                velocity_scale=0.82, octave_offset=0,
+            )
+            tracks.append(strings_track)
 
         # ── BRASS SECTION (if not primary chord instrument) ──
         if 'brass' in parsed.instruments and primary_chord_inst != 'brass':

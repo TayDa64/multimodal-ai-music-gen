@@ -3,15 +3,17 @@
 This script is intentionally small and reproducible. It aims to provide
 "active environment" proof that:
 
-1) The local FluidSynth binary can be found (optionally by prepending a
-   repo-local tools/ path when present).
+1) The shared FluidSynth runtime resolver/probe can locate a usable executable
+    in the active environment.
 2) `main.py --diagnose-audio` reports expected availability fields.
 3) A strict, isolated smoke render uses FluidSynth with an explicit SoundFont.
 4) The FluidSynth WAV still runs through the file-level mastering pipeline
-   (recorded via `pipeline_stages.fluidsynth_file_mastering.*`).
+    (recorded via `pipeline_stages.fluidsynth_file_mastering.*`).
 
 Truthfulness/Scope notes:
 - This is a proof harness, not a deployment installer.
+- It does not mutate PATH to make FluidSynth appear available; it reports the
+  same shared resolver/probe truth that the runtime uses.
 - It does not claim full timbral parity, only that the expected renderer and
   mastering diagnostics ran in this environment.
 """
@@ -52,31 +54,16 @@ def _find_repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
-def _find_local_fluidsynth_bin(repo_root: Path) -> Optional[Path]:
-    """Best-effort search for a repo-local FluidSynth binary folder.
+def _load_fluidsynth_runtime():
+    """Import the shared FluidSynth runtime helper from a standalone script context."""
+    repo_root = _find_repo_root()
+    repo_root_str = str(repo_root)
+    if repo_root_str not in sys.path:
+        sys.path.insert(0, repo_root_str)
 
-    We intentionally avoid hard-coded absolute paths. This prefers:
-    - <workspace>/tools/fluidsynth*/bin/fluidsynth.exe (common in this repo)
-    - <repo_root>/tools/... (fallback)
-    """
-    candidates: Sequence[Path] = (
-        repo_root.parent / "tools",
-        repo_root / "tools",
-    )
+    from multimodal_gen import fluidsynth_runtime
 
-    for base in candidates:
-        if not base.exists():
-            continue
-        for bin_dir in base.glob("fluidsynth*/bin"):
-            exe = bin_dir / "fluidsynth.exe"
-            if exe.exists():
-                return bin_dir
-        # One level deeper (some zips extract as tools/fluidsynth-*/fluid*/bin)
-        for bin_dir in base.glob("**/bin"):
-            exe = bin_dir / "fluidsynth.exe"
-            if exe.exists():
-                return bin_dir
-    return None
+    return fluidsynth_runtime
 
 
 def _find_soundfont(repo_root: Path, explicit: Optional[str]) -> Optional[Path]:
@@ -109,35 +96,14 @@ def _find_soundfont(repo_root: Path, explicit: Optional[str]) -> Optional[Path]:
     return None
 
 
-def _run_json_command(
-    cmd: Sequence[str],
-    *,
-    env: Dict[str, str],
-    cwd: Path,
-) -> Dict[str, Any]:
-    proc = subprocess.run(
-        list(cmd),
-        env=env,
-        cwd=str(cwd),
-        capture_output=True,
-        text=True,
-    )
-
-    if proc.returncode != 0:
-        raise RuntimeError(
-            "Command failed:\n"
-            f"  cmd: {' '.join(cmd)}\n"
-            f"  exit_code: {proc.returncode}\n"
-            f"  stdout: {proc.stdout[-2000:]}\n"
-            f"  stderr: {proc.stderr[-2000:]}\n"
-        )
-
-    stdout = (proc.stdout or "").strip()
+def _parse_json_stdout(stdout: str, *, cmd: Sequence[str]) -> Dict[str, Any]:
+    stdout = (stdout or "").strip()
     if not stdout:
         return {}
 
-    # main.py's --json is intended to be clean, but in real shells a stray log
-    # line can slip in. We tolerate this by extracting the last JSON object.
+    # main.py's --json now keeps stdout machine-readable. We keep the last-object
+    # extraction as a defensive fallback in case a surrounding launcher injects
+    # stray text around the JSON payload.
     try:
         return json.loads(stdout)
     except json.JSONDecodeError:
@@ -194,11 +160,6 @@ def _run_command_capture(
     )
 
 
-def _discover_latest_artifact(run_dir: Path, pattern: str) -> Optional[Path]:
-    matches = sorted(run_dir.glob(pattern), key=lambda p: p.stat().st_mtime if p.exists() else 0.0)
-    return matches[-1] if matches else None
-
-
 def _extract_mastering_indicators(render_report: Dict[str, Any]) -> Dict[str, Any]:
     stages = render_report.get("pipeline_stages")
     if not isinstance(stages, dict):
@@ -223,6 +184,7 @@ def _extract_mastering_indicators(render_report: Dict[str, Any]) -> Dict[str, An
 
 def run_proof(args: argparse.Namespace) -> ProofPaths:
     repo_root = _find_repo_root()
+    fluidsynth_runtime = _load_fluidsynth_runtime()
     main_py = repo_root / "main.py"
     if not main_py.exists():
         raise FileNotFoundError(f"main.py not found at expected path: {main_py}")
@@ -246,9 +208,10 @@ def run_proof(args: argparse.Namespace) -> ProofPaths:
     gen_stderr_path = run_dir / "generation_stderr.txt"
 
     env = dict(os.environ)
-    fluidsynth_bin = _find_local_fluidsynth_bin(repo_root)
-    if fluidsynth_bin is not None:
-        env["PATH"] = str(fluidsynth_bin) + os.pathsep + env.get("PATH", "")
+    fluidsynth_executable = fluidsynth_runtime.resolve_fluidsynth_executable()
+    probe_executable, probe_available, probe_version = fluidsynth_runtime.probe_fluidsynth(
+        fluidsynth_executable
+    )
 
     soundfont = _find_soundfont(repo_root, args.soundfont)
     if soundfont is None:
@@ -276,11 +239,7 @@ def run_proof(args: argparse.Namespace) -> ProofPaths:
             f"  stderr (tail): {(diagnose_proc.stderr or '')[-2000:]}"
         )
 
-    _diagnose_stdout = (diagnose_proc.stdout or "").strip()
-    try:
-        diagnose = json.loads(_diagnose_stdout) if _diagnose_stdout else {}
-    except Exception:
-        diagnose = _extract_last_json_object(_diagnose_stdout) or {}
+    diagnose = _parse_json_stdout(diagnose_proc.stdout or "", cmd=diagnose_cmd)
     paths.diagnose_json.write_text(json.dumps(diagnose, indent=2), encoding="utf-8")
 
     # 2) Strict isolated smoke render
@@ -302,6 +261,7 @@ def run_proof(args: argparse.Namespace) -> ProofPaths:
         "--seed",
         str(int(args.seed)),
         "--no-banner",
+        "--json",
     ]
     gen_proc = _run_command_capture(gen_cmd, env=env, cwd=repo_root)
     gen_stdout_path.write_text(gen_proc.stdout or "", encoding="utf-8")
@@ -314,41 +274,46 @@ def run_proof(args: argparse.Namespace) -> ProofPaths:
             f"  stderr (tail): {(gen_proc.stderr or '')[-2000:]}"
         )
 
-    # main.py does not produce stable machine-readable JSON in --json mode yet.
-    # We discover artifacts from the output directory instead.
-    render_report_path = _discover_latest_artifact(run_dir, "*_render_report.json")
-    audio_path = _discover_latest_artifact(run_dir, "*.wav")
-    midi_path = _discover_latest_artifact(run_dir, "*.mid")
-    results = {
-        "success": True,
-        "render_report": str(render_report_path) if render_report_path else None,
-        "audio": str(audio_path) if audio_path else None,
-        "midi": str(midi_path) if midi_path else None,
-    }
-    paths.results_json.write_text(json.dumps(results, indent=2), encoding="utf-8")
+    generation_payload = _parse_json_stdout(gen_proc.stdout or "", cmd=gen_cmd)
+    paths.results_json.write_text(json.dumps(generation_payload, indent=2), encoding="utf-8")
+
+    results = generation_payload.get("results") if isinstance(generation_payload, dict) else {}
+    if not isinstance(results, dict):
+        results = {}
+    render_report_value = results.get("render_report")
+    render_report_path = Path(render_report_value).resolve() if render_report_value else None
 
     render_report: Dict[str, Any] = {}
-    if render_report_path:
+    if render_report_path and render_report_path.exists():
         try:
             render_report = json.loads(Path(render_report_path).read_text(encoding="utf-8"))
         except Exception:
             render_report = {}
 
     summary = {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "python": sys.executable,
         "repo_root": str(repo_root),
-        "fluidsynth_bin_prepended": str(fluidsynth_bin) if fluidsynth_bin else None,
+        "fluidsynth_executable": probe_executable or fluidsynth_executable,
+        "fluidsynth_probe": {
+            "executable": probe_executable or fluidsynth_executable,
+            "available": probe_available,
+            "version": probe_version,
+        },
         "soundfont": str(soundfont),
         "diagnose_audio": {
             "fluidsynth_available": (diagnose.get("fluidsynth") or {}).get("available"),
+            "fluidsynth_executable": (diagnose.get("fluidsynth") or {}).get("executable"),
             "fluidsynth_version": (diagnose.get("fluidsynth") or {}).get("version"),
             "soundfont_discovered": (diagnose.get("soundfont") or {}).get("discovered"),
         },
         "generation": {
             "command": " ".join(gen_cmd),
+            "json_mode": True,
+            "success": generation_payload.get("success") if isinstance(generation_payload, dict) else None,
             "output_dir": str(run_dir),
+            "metadata": generation_payload.get("metadata") if isinstance(generation_payload, dict) else None,
             "audio": results.get("audio"),
             "midi": results.get("midi"),
             "render_report": results.get("render_report"),
@@ -361,6 +326,7 @@ def run_proof(args: argparse.Namespace) -> ProofPaths:
     print("\n=== FluidSynth environment proof summary ===")
     print(f"run_dir: {paths.run_dir}")
     print(f"summary_json: {paths.summary_json}")
+    print(f"fluidsynth_executable: {summary.get('fluidsynth_executable')}")
     indicators = summary["renderer_mastering_indicators"]
     print(f"renderer_path: {indicators.get('renderer_path')}")
     print(f"fluidsynth_success: {indicators.get('fluidsynth_success')}")

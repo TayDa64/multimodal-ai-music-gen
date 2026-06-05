@@ -289,6 +289,7 @@ class TestFluidSynthSynthesizer:
         from multimodal_gen.synthesizers import FluidSynthSynthesizer
         import subprocess
 
+        resolved_exe = "C:/portable/fluidsynth.exe"
         calls = []
 
         def fake_run(cmd, **kwargs):
@@ -297,13 +298,14 @@ class TestFluidSynthSynthesizer:
                 return subprocess.CompletedProcess(args=cmd, returncode=1, stdout='', stderr='no getopt')
             return subprocess.CompletedProcess(args=cmd, returncode=0, stdout='FluidSynth 2.4.7\n', stderr='')
 
+        monkeypatch.setattr('multimodal_gen.synthesizers.fluidsynth_synth.resolve_fluidsynth_executable', lambda: resolved_exe)
         monkeypatch.setattr('subprocess.run', fake_run)
 
         synth = FluidSynthSynthesizer()
 
         assert synth.is_available is True
         assert synth.version == 'FluidSynth 2.4.7'
-        assert calls == [['fluidsynth', '--version'], ['fluidsynth', '-V']]
+        assert calls == [[resolved_exe, '--version'], [resolved_exe, '-V']]
 
     def test_render_midi_file_uses_options_before_files(self, monkeypatch, tmp_path):
         """FluidSynthSynthesizer should use no-getopt-safe option ordering."""
@@ -315,6 +317,7 @@ class TestFluidSynthSynthesizer:
         import numpy as np
 
         captured = {}
+        resolved_exe = str((tmp_path / 'portable' / 'fluidsynth.exe').resolve())
         midi_path = str(tmp_path / 'song.mid')
         wav_path = str(tmp_path / 'song.wav')
         sf_path = str(tmp_path / 'FluidR3Mono_GM.sf3')
@@ -330,6 +333,7 @@ class TestFluidSynthSynthesizer:
         fake_soundfile = types.SimpleNamespace(read=lambda path: (np.zeros((8, 2), dtype=np.float32), 48000))
 
         monkeypatch.setattr(os.path, 'exists', fake_exists)
+        monkeypatch.setattr('multimodal_gen.synthesizers.fluidsynth_synth.resolve_fluidsynth_executable', lambda: resolved_exe)
         monkeypatch.setattr('subprocess.run', fake_run)
         monkeypatch.setitem(sys.modules, 'soundfile', fake_soundfile)
 
@@ -339,6 +343,6 @@ class TestFluidSynthSynthesizer:
         assert result.success is True
         render_cmd = captured['cmds'][-1]
         assert '-ni' not in render_cmd
-        assert render_cmd[:7] == ['fluidsynth', '-n', '-i', '-F', wav_path, '-r', '48000']
+        assert render_cmd[:7] == [resolved_exe, '-n', '-i', '-F', wav_path, '-r', '48000']
         assert render_cmd[-2:] == [sf_path, midi_path]
         assert captured['kwargs'][-1]['timeout'] == 60

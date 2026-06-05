@@ -2,11 +2,13 @@
 
 from multimodal_gen.fluidsynth_profiles import (
     ROCK_FAMILY_GENRES,
+    get_contextual_fluidsynth_profile,
     get_fluidsynth_profile,
     normalize_genre,
     profile_diagnostic,
     profile_tone_shelves_diagnostic,
 )
+from multimodal_gen.prompt_parser import PromptParser
 
 
 def test_normalize_genre_handles_common_lookup_aliases():
@@ -19,6 +21,12 @@ def test_normalize_genre_handles_common_lookup_aliases():
 
 
 ROCK_TONE_DIAGNOSTIC = "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz"
+LYRICAL_CINEMATIC_TONE_DIAGNOSTIC = "high_shelf=-3.0dB@3500Hz"
+
+LYRICAL_CINEMATIC_PIANO_PROMPT = (
+    "cinematic orchestral score with lyrical piano, warm strings, flute, oboe, "
+    "harp, and soft choir, emotional rising theme, 78 BPM in G major"
+)
 
 
 def test_unknown_genre_returns_default_noop_profile():
@@ -136,3 +144,29 @@ def test_jazz_aliases_resolve_to_measured_brightness_shelf():
     assert shelves[0].shelf_type == "high"
     assert shelves[0].frequency_hz == 4000.0
     assert shelves[0].gain_db == -5.0
+
+
+def test_lyrical_cinematic_piano_prompt_uses_narrow_contextual_classical_profile():
+    parsed = PromptParser().parse(LYRICAL_CINEMATIC_PIANO_PROMPT)
+
+    profile = get_contextual_fluidsynth_profile(parsed.genre, parsed)
+
+    assert profile.name == "classical_lyrical_piano"
+    assert profile.genre_family == "classical"
+    assert profile_diagnostic(profile) == "classical_lyrical_piano:classical"
+    assert profile_tone_shelves_diagnostic(profile) == LYRICAL_CINEMATIC_TONE_DIAGNOSTIC
+
+
+def test_dark_and_heroic_cinematic_prompts_keep_base_classical_profile():
+    prompts = [
+        "dark cinematic orchestral film score with sweeping strings, brass, french horn, choir, harp, and timpani, 72 BPM in D minor",
+        "heroic cinematic orchestral swell with strings, brass, choir, french horn, and timpani, triumphant rising theme, 96 BPM in D minor",
+    ]
+
+    for prompt in prompts:
+        parsed = PromptParser().parse(prompt)
+        profile = get_contextual_fluidsynth_profile(parsed.genre, parsed)
+        assert profile.name == "classical"
+        assert profile.genre_family == "classical"
+        assert profile_diagnostic(profile) == "classical:classical"
+        assert profile_tone_shelves_diagnostic(profile) == ""

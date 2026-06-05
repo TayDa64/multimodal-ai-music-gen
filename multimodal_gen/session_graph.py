@@ -44,6 +44,8 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 
+from .fluidsynth_profiles import is_lyrical_orchestral_piano_prompt
+
 # Schema version for manifest compatibility
 SCHEMA_VERSION = "1.0.0"
 
@@ -1619,6 +1621,8 @@ class SessionGraphBuilder:
             track.color = self.default_track_colors.get(role, "#808080")
             return track
 
+        lyrical_piano_identity = is_lyrical_orchestral_piano_prompt(parsed)
+
         has_timpani = (
             'timpani_drum' in drum_elements
             or _has_cue(('timpani', 'kettledrum', 'kettledrums', 'orchestral timpani'))
@@ -1638,12 +1642,15 @@ class SessionGraphBuilder:
         )):
             _add_track("Bass", Role.BASS.value, 1)
 
+        if lyrical_piano_identity:
+            _add_track("Piano", Role.CHORDS.value, 2)
+
         if _has_cue((
             'strings', 'string section', 'orchestral strings', 'violin',
             'violins', 'viola', 'violas', 'cello', 'cellos', 'orchestra',
             'orchestral',
         )):
-            _add_track("Strings", Role.PAD.value, 2)
+            _add_track("Strings", Role.PAD.value, 10 if lyrical_piano_identity else 2)
 
         if _has_cue(('woodwinds', 'woodwind', 'flute', 'oboe', 'clarinet')):
             _add_track("Woodwinds", Role.COUNTER_MELODY.value, 4)

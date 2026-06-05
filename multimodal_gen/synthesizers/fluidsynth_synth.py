@@ -5,6 +5,7 @@ import subprocess
 import os
 
 from .base import ISynthesizer, SynthNote, SynthResult
+from ..fluidsynth_runtime import probe_fluidsynth, resolve_fluidsynth_executable
 
 
 class FluidSynthSynthesizer(ISynthesizer):
@@ -36,6 +37,7 @@ class FluidSynthSynthesizer(ISynthesizer):
         self._soundfont_path = soundfont_path
         self._sample_rate = sample_rate
         self._fluidsynth_available: Optional[bool] = None
+        self._fluidsynth_executable: Optional[str] = None
         self._version: Optional[str] = None
     
     @property
@@ -58,30 +60,10 @@ class FluidSynthSynthesizer(ISynthesizer):
     
     def _check_availability(self) -> None:
         """Check if FluidSynth is installed."""
-        try:
-            result = subprocess.run(
-                ['fluidsynth', '--version'],
-                capture_output=True,
-                text=True,
-                timeout=3,
-            )
-            if result.returncode != 0:
-                # Official Windows portable builds can reject long options when
-                # compiled without getopt support. Fall back to the short flag.
-                result = subprocess.run(
-                    ['fluidsynth', '-V'],
-                    capture_output=True,
-                    text=True,
-                    timeout=3,
-                )
-            self._fluidsynth_available = result.returncode == 0
-            self._version = (result.stdout or result.stderr).strip() if result.returncode == 0 else None
-        except FileNotFoundError:
-            self._fluidsynth_available = False
-            self._version = None
-        except Exception:
-            self._fluidsynth_available = False
-            self._version = None
+        self._fluidsynth_executable = resolve_fluidsynth_executable()
+        _, available, version = probe_fluidsynth(self._fluidsynth_executable)
+        self._fluidsynth_available = available
+        self._version = version if available else None
     
     def configure(
         self,
@@ -170,13 +152,22 @@ class FluidSynthSynthesizer(ISynthesizer):
                 success=False,
                 message=f"MIDI file not found: {midi_path}"
             )
+
+        executable = self._fluidsynth_executable or resolve_fluidsynth_executable()
+        if not executable:
+            return SynthResult(
+                audio=np.array([]),
+                sample_rate=sample_rate,
+                success=False,
+                message="FluidSynth is not installed or not in PATH"
+            )
         
         try:
             # Keep options before SoundFont/MIDI for Windows portable builds
             # compiled without getopt support. Avoid bundled ``-ni``; split the
             # flags so the process never drops into an interactive shell.
             cmd = [
-                'fluidsynth',
+                executable,
                 '-n',                       # No MIDI input driver
                 '-i',                       # No interactive shell
                 '-F', output_path,          # Output file

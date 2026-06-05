@@ -30,10 +30,12 @@ import tempfile
 from .fluidsynth_profiles import (
     ROCK_FAMILY_GENRES,
     FluidSynthRendererProfile,
+    get_contextual_fluidsynth_profile,
     get_fluidsynth_profile,
     profile_diagnostic,
     profile_tone_shelves_diagnostic,
 )
+from .fluidsynth_runtime import probe_fluidsynth, resolve_fluidsynth_executable
 
 try:
     import soundfile as sf
@@ -463,67 +465,26 @@ def soft_clip(
 # FLUIDSYNTH INTERFACE
 # =============================================================================
 
-def check_fluidsynth_available() -> bool:
+def check_fluidsynth_available(fluidsynth_executable: Optional[str] = None) -> bool:
     """Check if FluidSynth is installed and available.
 
     Tries both --version (modern builds) and -V (Windows portable builds
     compiled without getopt support).
     """
-    try:
-        # Try modern long option first
-        result = subprocess.run(
-            ['fluidsynth', '--version'],
-            capture_output=True,
-            text=True,
-            timeout=3
-        )
-        if result.returncode == 0:
-            return True
-        # Fall back to short option for Windows portable builds
-        result = subprocess.run(
-            ['fluidsynth', '-V'],
-            capture_output=True,
-            text=True,
-            timeout=3
-        )
-        return result.returncode == 0
-    except FileNotFoundError:
-        return False
-    except Exception:
-        return False
+    executable = fluidsynth_executable or resolve_fluidsynth_executable()
+    _, available, _ = probe_fluidsynth(executable)
+    return available
 
 
-def get_fluidsynth_version() -> Optional[str]:
+def get_fluidsynth_version(fluidsynth_executable: Optional[str] = None) -> Optional[str]:
     """Return the FluidSynth version string if available, else None.
 
     Tries both --version (modern builds) and -V (Windows portable builds
     compiled without getopt support).
     """
-    try:
-        # Try modern long option first
-        result = subprocess.run(
-            ['fluidsynth', '--version'],
-            capture_output=True,
-            text=True,
-            timeout=3
-        )
-        if result.returncode == 0:
-            # Typical output: "FluidSynth 2.3.3"
-            return (result.stdout or result.stderr).strip() or None
-        # Fall back to short option for Windows portable builds
-        result = subprocess.run(
-            ['fluidsynth', '-V'],
-            capture_output=True,
-            text=True,
-            timeout=3
-        )
-        if result.returncode == 0:
-            return (result.stdout or result.stderr).strip() or None
-        return None
-    except FileNotFoundError:
-        return None
-    except Exception:
-        return None
+    executable = fluidsynth_executable or resolve_fluidsynth_executable()
+    _, available, version = probe_fluidsynth(executable)
+    return version if available else None
 
 
 def find_soundfont() -> Optional[str]:
@@ -566,7 +527,8 @@ def render_midi_with_fluidsynth(
     midi_path: str,
     output_path: str,
     soundfont_path: Optional[str] = None,
-    sample_rate: int = SAMPLE_RATE
+    sample_rate: int = SAMPLE_RATE,
+    fluidsynth_executable: Optional[str] = None,
 ) -> bool:
     """
     Render MIDI file to audio using FluidSynth.
@@ -578,6 +540,10 @@ def render_midi_with_fluidsynth(
         soundfont_path = find_soundfont()
         if soundfont_path is None:
             return False
+
+    executable = fluidsynth_executable or resolve_fluidsynth_executable()
+    if executable is None:
+        return False
     
     try:
         # Keep all options before positional SoundFont/MIDI arguments.
@@ -586,7 +552,7 @@ def render_midi_with_fluidsynth(
         # as additional files and can drop into an interactive shell. Avoid the
         # bundled ``-ni`` form for the same reason; split the flags explicitly.
         cmd = [
-            'fluidsynth',
+            executable,
             '-n',                       # No MIDI input driver
             '-i',                       # No interactive shell
             '-F', output_path,          # Output file
@@ -1700,8 +1666,13 @@ class AudioRenderer:
             synthesizer: Optional ISynthesizer instance (overrides auto-detection)
         """
         self.sample_rate = sample_rate
-        self.fluidsynth_available = check_fluidsynth_available()
-        self.fluidsynth_version = get_fluidsynth_version() if self.fluidsynth_available else None
+        self.fluidsynth_executable = resolve_fluidsynth_executable()
+        self.fluidsynth_available = check_fluidsynth_available(self.fluidsynth_executable)
+        self.fluidsynth_version = (
+            get_fluidsynth_version(self.fluidsynth_executable)
+            if self.fluidsynth_available
+            else None
+        )
         self.use_fluidsynth = use_fluidsynth and self.fluidsynth_available
         self.soundfont_path = soundfont_path or (find_soundfont() if self.use_fluidsynth else None)
         self.require_soundfont = require_soundfont
@@ -1944,6 +1915,16 @@ class AudioRenderer:
         """
         return (self.genre or '').lower().replace(' ', '_').replace('-', '_')
 
+    def _resolve_fluidsynth_profile(
+        self,
+        parsed: Optional[ParsedPrompt] = None,
+    ) -> FluidSynthRendererProfile:
+        """Resolve the effective FluidSynth mastering profile for the render context."""
+        return get_contextual_fluidsynth_profile(
+            getattr(parsed, 'genre', None) or self._normalize_genre(),
+            parsed=parsed,
+        )
+
     def _apply_rock_fluidsynth_tone_shaping(
         self,
         audio: np.ndarray,
@@ -1955,7 +1936,7 @@ class AudioRenderer:
             audio,
             sample_rate,
             stage_prefix,
-            profile=get_fluidsynth_profile(self._normalize_genre()),
+            profile=self._resolve_fluidsynth_profile(),
         )
 
     def _apply_fluidsynth_profile_tone_shaping(
@@ -2203,7 +2184,8 @@ class AudioRenderer:
                     midi_path,
                     output_path,
                     self.soundfont_path,
-                    self.sample_rate
+                    self.sample_rate,
+                    fluidsynth_executable=self.fluidsynth_executable,
                 )
 
                 if fluidsynth_success:
@@ -2976,6 +2958,7 @@ class AudioRenderer:
             "prompt_meta": prompt_meta,
             "fluidsynth": {
                 "available": bool(self.fluidsynth_available),
+                "executable": self.fluidsynth_executable,
                 "version": self.fluidsynth_version,
                 "enabled": bool(self.use_fluidsynth),
                 "allowed": bool(fluidsynth_allowed),
@@ -3737,7 +3720,10 @@ class AudioRenderer:
                     self._pipeline_stages[f'{stage_prefix}.reference_matching'] = 'error'
 
             audio = self._apply_fluidsynth_profile_tone_shaping(
-                audio, sr, stage_prefix
+                audio,
+                sr,
+                stage_prefix,
+                profile=self._resolve_fluidsynth_profile(parsed),
             )
 
             # Soft clip

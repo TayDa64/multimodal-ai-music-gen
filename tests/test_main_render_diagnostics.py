@@ -11,6 +11,8 @@ from multimodal_gen.instrument_patch import (
     build_track_scoped_instrument_patches,
     enrich_instrument_patches_with_resolved_samples,
 )
+from multimodal_gen.reference_matching import ReferenceProfile
+from multimodal_gen.style_policy import MixPolicy
 
 
 class DummyMidiFile:
@@ -340,6 +342,38 @@ def test_cli_fluidsynth_isolation_flags_reach_run_generation(monkeypatch, tmp_pa
     assert captured["skip_expansions"] is True
     assert captured["require_soundfont"] is True
     assert captured["soundfont_path"] == "assets/soundfonts/test.sf3"
+
+
+def test_cli_diagnose_audio_reports_resolved_fluidsynth_executable(monkeypatch, tmp_path, capsys):
+    sandbox_main = tmp_path / "sandbox" / "main.py"
+    sandbox_main.parent.mkdir(parents=True, exist_ok=True)
+
+    fake_exe = str((tmp_path / "portable" / "fluidsynth.exe").resolve())
+    fake_soundfont = str((sandbox_main.parent / "assets" / "soundfonts" / "FluidR3Mono_GM.sf3").resolve())
+
+    import multimodal_gen.audio_renderer as audio_renderer_module
+    import multimodal_gen.fluidsynth_runtime as fluidsynth_runtime_module
+
+    monkeypatch.setattr(main_module, "__file__", str(sandbox_main))
+    monkeypatch.setattr(audio_renderer_module, "check_fluidsynth_available", lambda executable=None: executable == fake_exe)
+    monkeypatch.setattr(audio_renderer_module, "get_fluidsynth_version", lambda executable=None: "FluidSynth 2.4.7")
+    monkeypatch.setattr(audio_renderer_module, "find_soundfont", lambda: fake_soundfont)
+    monkeypatch.setattr(fluidsynth_runtime_module, "resolve_fluidsynth_executable", lambda: fake_exe)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "--diagnose-audio",
+        "--no-banner",
+    ])
+
+    exit_code = main_module.main()
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert output["fluidsynth"]["available"] is True
+    assert output["fluidsynth"]["executable"] == fake_exe
+    assert output["fluidsynth"]["version"] == "FluidSynth 2.4.7"
+    assert output["soundfont"]["discovered"] == fake_soundfont
+    assert json.dumps(output)
 
 
 def test_run_generation_persists_render_diagnostics_on_step5_exception(monkeypatch, tmp_path):
@@ -939,6 +973,27 @@ def _missing_audio_results(tmp_path):
     }
 
 
+def _write_refine_metadata(tmp_path, *, seed=123):
+    metadata_path = tmp_path / "project_metadata.json"
+    metadata_path.write_text(
+        json.dumps(
+            {
+                "original_seed": seed,
+                "current": {
+                    "prompt": "neo soul smoke test 88 bpm in D minor",
+                    "parsed": {
+                        "bpm": 88,
+                        "key": "D",
+                        "genre": "neo_soul",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return metadata_path
+
+
 def test_cli_require_audio_returns_code_2_and_json_failure(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(main_module, "run_generation", lambda **_kwargs: _missing_audio_results(tmp_path))
     monkeypatch.setattr(sys, "argv", [
@@ -976,3 +1031,241 @@ def test_cli_missing_audio_default_remains_success(monkeypatch, tmp_path, capsys
     assert exit_code == 0
     assert output["success"] is True
     assert output["results"]["audio"] is None
+
+
+def test_cli_json_routes_progress_logs_to_stderr_on_success(monkeypatch, tmp_path, capsys):
+    progress_token = "progress: rendered step 4/6"
+
+    def fake_run_generation(**_kwargs):
+        print(progress_token)
+        return {
+            "midi": str(tmp_path / "smoke.mid"),
+            "audio": str(tmp_path / "smoke.wav"),
+            "mpc": None,
+            "stems": [],
+            "samples": [],
+            "takes": {},
+            "comps": {},
+            "seed": 123,
+            "synthesis_params": {},
+            "project_metadata": str(tmp_path / "project_metadata.json"),
+        }
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "neo soul smoke test 88 bpm in D minor",
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+    ])
+
+    exit_code = main_module.main()
+
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert exit_code == 0
+    assert output["success"] is True
+    assert progress_token not in captured.out
+    assert progress_token in captured.err
+
+
+def test_cli_json_routes_progress_logs_to_stderr_on_error(monkeypatch, tmp_path, capsys):
+    progress_token = "progress: rendered step 4/6"
+
+    def fake_run_generation(**_kwargs):
+        print(progress_token)
+        raise RuntimeError("boom during render")
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "neo soul smoke test 88 bpm in D minor",
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+    ])
+
+    exit_code = main_module.main()
+
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert exit_code == 1
+    assert output["success"] is False
+    assert output["error"] == "boom during render"
+    assert progress_token not in captured.out
+    assert progress_token in captured.err
+
+
+def test_cli_refine_json_routes_progress_logs_to_stderr_on_success(monkeypatch, tmp_path, capsys):
+    metadata_path = _write_refine_metadata(tmp_path)
+    progress_token = "progress: refined step 4/6"
+
+    def fake_run_generation(**_kwargs):
+        print(progress_token)
+        return {
+            "midi": str(tmp_path / "refined.mid"),
+            "audio": str(tmp_path / "refined.wav"),
+            "mpc": None,
+            "stems": [],
+            "samples": [],
+            "takes": {},
+            "comps": {},
+            "seed": 123,
+            "synthesis_params": {},
+            "project_metadata": str(metadata_path),
+        }
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "make the snare punchier",
+        "--refine",
+        str(metadata_path),
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+    ])
+
+    main_module.main()
+
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert output["success"] is True
+    assert output["results"]["audio"] == str(tmp_path / "refined.wav")
+    assert output["metadata"] == str(metadata_path)
+    assert progress_token not in captured.out
+    assert progress_token in captured.err
+    assert "Refining generation with original seed: 123" in captured.err
+    assert "Refinement prompt: make the snare punchier" in captured.err
+
+
+def test_cli_refine_json_routes_progress_logs_to_stderr_on_error(monkeypatch, tmp_path, capsys):
+    metadata_path = _write_refine_metadata(tmp_path)
+    progress_token = "progress: refined step 4/6"
+
+    def fake_run_generation(**_kwargs):
+        print(progress_token)
+        raise RuntimeError("boom during refine")
+
+    monkeypatch.setattr(main_module, "run_generation", fake_run_generation)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "make the snare punchier",
+        "--refine",
+        str(metadata_path),
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+    ])
+
+    try:
+        main_module.main()
+        raise AssertionError("Expected refine failure to exit")
+    except SystemExit as exc:
+        assert exc.code == 1
+
+    captured = capsys.readouterr()
+    output = json.loads(captured.out)
+    assert output["success"] is False
+    assert output["error"] == "boom during refine"
+    assert progress_token not in captured.out
+    assert progress_token in captured.err
+    assert "Refining generation with original seed: 123" in captured.err
+    assert "Refinement failed:" not in captured.err
+
+
+def test_cli_json_omits_private_bridge_objects_without_mutating_live_results(monkeypatch, tmp_path, capsys):
+    mix_policy = MixPolicy(saturation_type="tube")
+    reference_profile = ReferenceProfile(name="ref")
+    live_results = {
+        "midi": str(tmp_path / "smoke.mid"),
+        "audio": str(tmp_path / "smoke.wav"),
+        "mpc": None,
+        "stems": [],
+        "samples": [],
+        "takes": {},
+        "comps": {},
+        "seed": 123,
+        "synthesis_params": {},
+        "project_metadata": str(tmp_path / "project_metadata.json"),
+        "_mix_policy_obj": mix_policy,
+        "_reference_profile_obj": reference_profile,
+        "_preset_values": {"humanize_amount": 0.7},
+    }
+
+    monkeypatch.setattr(main_module, "run_generation", lambda **_kwargs: live_results)
+    monkeypatch.setattr(sys, "argv", [
+        "main.py",
+        "neo soul smoke test 88 bpm in D minor",
+        "--output",
+        str(tmp_path),
+        "--no-banner",
+        "--json",
+    ])
+
+    exit_code = main_module.main()
+
+    output = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert output["success"] is True
+    assert "_mix_policy_obj" not in output["results"]
+    assert "_reference_profile_obj" not in output["results"]
+    assert "_preset_values" not in output["results"]
+    assert live_results["_mix_policy_obj"] is mix_policy
+    assert live_results["_reference_profile_obj"] is reference_profile
+    assert live_results["_preset_values"] == {"humanize_amount": 0.7}
+
+
+def test_save_project_metadata_omits_private_bridge_objects_without_stringifying_them(tmp_path):
+    output_dir = tmp_path / "out"
+    output_dir.mkdir()
+
+    mix_policy = MixPolicy(saturation_type="tube")
+    reference_profile = ReferenceProfile(name="ref")
+    results = {
+        "midi": str(output_dir / "smoke.mid"),
+        "audio": None,
+        "mpc": None,
+        "stems": [],
+        "samples": [],
+        "takes": {},
+        "comps": {},
+        "seed": 123,
+        "synthesis_params": {},
+        "_mix_policy_obj": mix_policy,
+        "_reference_profile_obj": reference_profile,
+        "_preset_values": {"humanize_amount": 0.7},
+    }
+    parsed = main_module.ParsedPrompt(
+        raw_prompt="neo soul smoke test 88 bpm in D minor",
+        genre="neo_soul",
+        instruments=["piano"],
+        drum_elements=["kick"],
+    )
+
+    metadata_path = main_module.save_project_metadata(
+        output_dir=output_dir,
+        prompt=parsed.raw_prompt,
+        results=results,
+        parsed=parsed,
+        seed=123,
+        synthesis_params=results["synthesis_params"],
+    )
+
+    metadata_text = metadata_path.read_text(encoding="utf-8")
+    metadata = json.loads(metadata_text)
+    outputs = metadata["current"]["outputs"]
+
+    assert "_mix_policy_obj" not in outputs
+    assert "_reference_profile_obj" not in outputs
+    assert "_preset_values" not in outputs
+    assert "MixPolicy(" not in metadata_text
+    assert "ReferenceProfile(" not in metadata_text
+    assert results["_mix_policy_obj"] is mix_policy
+    assert results["_reference_profile_obj"] is reference_profile
+    assert results["_preset_values"] == {"humanize_amount": 0.7}

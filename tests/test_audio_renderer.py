@@ -13,11 +13,17 @@ from multimodal_gen.instrument_manager import (
     InstrumentLibrary,
     SonicProfile,
 )
-from multimodal_gen.prompt_parser import ParsedPrompt
+from multimodal_gen.prompt_parser import ParsedPrompt, PromptParser
 from multimodal_gen.utils import ScaleType
 
 
 ROCK_TONE_DIAGNOSTIC = "high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz"
+LYRICAL_CINEMATIC_TONE_DIAGNOSTIC = "high_shelf=-3.0dB@3500Hz"
+
+LYRICAL_CINEMATIC_PIANO_PROMPT = (
+    "cinematic orchestral score with lyrical piano, warm strings, flute, oboe, "
+    "harp, and soft choir, emotional rising theme, 78 BPM in G major"
+)
 
 
 def _note(program: int, duration_samples: int = 2205) -> SynthNote:
@@ -590,6 +596,55 @@ def test_trap_fluidsynth_profile_does_not_apply_rock_tone_shaping():
     )
 
 
+def test_lyrical_cinematic_contextual_profile_records_narrow_tonal_diagnostic():
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="cinematic")
+    parsed = PromptParser().parse(LYRICAL_CINEMATIC_PIANO_PROMPT)
+    duration = 1.0
+    t = np.linspace(0, duration, int(44100 * duration), endpoint=False, dtype=np.float32)
+    bright_mono = (
+        0.22 * np.sin(2 * np.pi * 220.0 * t)
+        + 0.20 * np.sin(2 * np.pi * 440.0 * t)
+        + 0.18 * np.sin(2 * np.pi * 7200.0 * t)
+    ).astype(np.float32)
+    bright_stereo = np.stack([bright_mono, bright_mono], axis=-1)
+
+    shaped = renderer._apply_fluidsynth_profile_tone_shaping(
+        bright_stereo,
+        44100,
+        "fluidsynth_file_mastering",
+        profile=renderer._resolve_fluidsynth_profile(parsed),
+    )
+
+    assert shaped.shape == bright_stereo.shape
+    assert np.all(np.isfinite(shaped))
+    assert _high_band_ratio(shaped[:, 0], 44100) < _high_band_ratio(bright_mono, 44100) * 0.9
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.profile"] == (
+        "classical_lyrical_piano:classical"
+    )
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.tone_shaping"] == (
+        LYRICAL_CINEMATIC_TONE_DIAGNOSTIC
+    )
+
+
+def test_non_lyrical_cinematic_context_keeps_base_profile_without_tone_shaping():
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="cinematic")
+    parsed = PromptParser().parse(
+        "dark cinematic orchestral film score with sweeping strings, brass, french horn, choir, harp, and timpani, 72 BPM in D minor"
+    )
+    audio = np.full((256, 2), 0.125, dtype=np.float32)
+
+    shaped = renderer._apply_fluidsynth_profile_tone_shaping(
+        audio,
+        44100,
+        "fluidsynth_file_mastering",
+        profile=renderer._resolve_fluidsynth_profile(parsed),
+    )
+
+    np.testing.assert_array_equal(shaped, audio)
+    assert renderer._pipeline_stages["fluidsynth_file_mastering.profile"] == "classical:classical"
+    assert "fluidsynth_file_mastering.tone_shaping" not in renderer._pipeline_stages
+
+
 def test_edm_lead_programs_80_87_dispatch_to_bounded_unison_wavetable_path_with_distinct_bounded_presets(monkeypatch):
     renderer = ProceduralRenderer(sample_rate=44100, genre="edm")
     sentinel = np.array([0.4, -0.4], dtype=np.float32)
@@ -743,7 +798,7 @@ def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):
     import soundfile as sf
 
     # Create a simple loud WAV to be "rendered" by fake FluidSynth
-    def fake_fluidsynth_render(midi_path, output_path, soundfont_path, sample_rate):
+    def fake_fluidsynth_render(midi_path, output_path, soundfont_path, sample_rate, **_kwargs):
         """Fake FluidSynth that writes a loud stereo WAV."""
         # Generate loud stereo audio (0.9 peak to test limiting)
         duration = 0.5
@@ -861,24 +916,88 @@ def test_apply_file_level_mastering_unit(tmp_path):
 # FluidSynth Detection Tests (Windows portable fallback)
 # ============================================================================
 
+def test_resolve_fluidsynth_executable_prefers_env_override(monkeypatch, tmp_path):
+    import multimodal_gen.fluidsynth_runtime as runtime_module
+
+    repo_root = tmp_path / "MUSE"
+    repo_root.mkdir()
+
+    env_exe = tmp_path / "override" / "fluidsynth.exe"
+    env_exe.parent.mkdir(parents=True)
+    env_exe.write_bytes(b"exe")
+
+    path_exe = tmp_path / "path" / "fluidsynth.exe"
+    path_exe.parent.mkdir(parents=True)
+    path_exe.write_bytes(b"exe")
+
+    workspace_exe = tmp_path / "tools" / "fluidsynth-2.4.7-win10-x64" / "bin" / "fluidsynth.exe"
+    workspace_exe.parent.mkdir(parents=True)
+    workspace_exe.write_bytes(b"exe")
+
+    monkeypatch.setattr(runtime_module, "_get_repo_root", lambda: repo_root)
+    monkeypatch.setenv("MUSE_FLUIDSYNTH_EXE", str(env_exe))
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda _name: str(path_exe))
+
+    assert runtime_module.resolve_fluidsynth_executable() == str(env_exe.resolve())
+
+
+def test_resolve_fluidsynth_executable_prefers_path_over_workspace_tools(monkeypatch, tmp_path):
+    import multimodal_gen.fluidsynth_runtime as runtime_module
+
+    repo_root = tmp_path / "MUSE"
+    repo_root.mkdir()
+
+    path_exe = tmp_path / "path" / "fluidsynth.exe"
+    path_exe.parent.mkdir(parents=True)
+    path_exe.write_bytes(b"exe")
+
+    workspace_exe = tmp_path / "tools" / "fluidsynth-2.4.7-win10-x64" / "bin" / "fluidsynth.exe"
+    workspace_exe.parent.mkdir(parents=True)
+    workspace_exe.write_bytes(b"exe")
+
+    monkeypatch.setattr(runtime_module, "_get_repo_root", lambda: repo_root)
+    monkeypatch.delenv("MUSE_FLUIDSYNTH_EXE", raising=False)
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda _name: str(path_exe))
+
+    assert runtime_module.resolve_fluidsynth_executable() == str(path_exe.resolve())
+
+
+def test_resolve_fluidsynth_executable_finds_workspace_tools_when_path_absent(monkeypatch, tmp_path):
+    import multimodal_gen.fluidsynth_runtime as runtime_module
+
+    repo_root = tmp_path / "MUSE"
+    repo_root.mkdir()
+
+    workspace_exe = tmp_path / "tools" / "fluidsynth-2.4.7-win10-x64" / "bin" / "fluidsynth.exe"
+    workspace_exe.parent.mkdir(parents=True)
+    workspace_exe.write_bytes(b"exe")
+
+    monkeypatch.setattr(runtime_module, "_get_repo_root", lambda: repo_root)
+    monkeypatch.delenv("MUSE_FLUIDSYNTH_EXE", raising=False)
+    monkeypatch.setattr(runtime_module.shutil, "which", lambda _name: None)
+
+    assert runtime_module.resolve_fluidsynth_executable() == str(workspace_exe.resolve())
+
+
 def test_check_fluidsynth_available_with_long_option(monkeypatch):
     """Test detection when modern --version works."""
     from multimodal_gen.audio_renderer import check_fluidsynth_available
     import subprocess
 
-    call_count = [0]
+    resolved_exe = "C:/portable/fluidsynth.exe"
+    calls = []
 
     def fake_run(cmd, **kwargs):
-        call_count[0] += 1
-        result = subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
-        return result
+        calls.append(cmd)
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
 
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: resolved_exe)
     monkeypatch.setattr("subprocess.run", fake_run)
 
     available = check_fluidsynth_available()
 
     assert available is True
-    assert call_count[0] == 1  # Should succeed on first try
+    assert calls == [[resolved_exe, "--version"]]
 
 
 def test_check_fluidsynth_available_fallback_to_short_option(monkeypatch):
@@ -886,10 +1005,11 @@ def test_check_fluidsynth_available_fallback_to_short_option(monkeypatch):
     from multimodal_gen.audio_renderer import check_fluidsynth_available
     import subprocess
 
-    call_count = [0]
+    resolved_exe = "C:/portable/fluidsynth.exe"
+    calls = []
 
     def fake_run(cmd, **kwargs):
-        call_count[0] += 1
+        calls.append(cmd)
         if '--version' in cmd:
             # Windows portable build rejects long options
             result = subprocess.CompletedProcess(
@@ -905,22 +1025,21 @@ def test_check_fluidsynth_available_fallback_to_short_option(monkeypatch):
             result = subprocess.CompletedProcess(args=cmd, returncode=1, stdout="", stderr="")
         return result
 
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: resolved_exe)
     monkeypatch.setattr("subprocess.run", fake_run)
 
     available = check_fluidsynth_available()
 
     assert available is True
-    assert call_count[0] == 2  # Should try both options
+    assert calls == [[resolved_exe, '--version'], [resolved_exe, '-V']]
 
 
 def test_check_fluidsynth_not_found(monkeypatch):
     """Test when FluidSynth binary is not in PATH."""
     from multimodal_gen.audio_renderer import check_fluidsynth_available
 
-    def fake_run(cmd, **kwargs):
-        raise FileNotFoundError("fluidsynth not found")
-
-    monkeypatch.setattr("subprocess.run", fake_run)
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: None)
+    monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("subprocess.run should not be called")))
 
     available = check_fluidsynth_available()
 
@@ -932,15 +1051,20 @@ def test_get_fluidsynth_version_with_long_option(monkeypatch):
     from multimodal_gen.audio_renderer import get_fluidsynth_version
     import subprocess
 
-    def fake_run(cmd, **kwargs):
-        result = subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
-        return result
+    resolved_exe = "C:/portable/fluidsynth.exe"
+    calls = []
 
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="FluidSynth 2.4.7\n", stderr="")
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: resolved_exe)
     monkeypatch.setattr("subprocess.run", fake_run)
 
     version = get_fluidsynth_version()
 
     assert version == "FluidSynth 2.4.7"
+    assert calls == [[resolved_exe, "--version"]]
 
 
 def test_get_fluidsynth_version_fallback_to_short_option(monkeypatch):
@@ -948,7 +1072,11 @@ def test_get_fluidsynth_version_fallback_to_short_option(monkeypatch):
     from multimodal_gen.audio_renderer import get_fluidsynth_version
     import subprocess
 
+    resolved_exe = "C:/portable/fluidsynth.exe"
+    calls = []
+
     def fake_run(cmd, **kwargs):
+        calls.append(cmd)
         if '--version' in cmd:
             result = subprocess.CompletedProcess(
                 args=cmd,
@@ -962,21 +1090,21 @@ def test_get_fluidsynth_version_fallback_to_short_option(monkeypatch):
             result = subprocess.CompletedProcess(args=cmd, returncode=1, stdout="", stderr="")
         return result
 
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: resolved_exe)
     monkeypatch.setattr("subprocess.run", fake_run)
 
     version = get_fluidsynth_version()
 
     assert version == "FluidSynth 2.4.7"
+    assert calls == [[resolved_exe, '--version'], [resolved_exe, '-V']]
 
 
 def test_get_fluidsynth_version_not_found(monkeypatch):
     """Test version retrieval when FluidSynth binary is not in PATH."""
     from multimodal_gen.audio_renderer import get_fluidsynth_version
 
-    def fake_run(cmd, **kwargs):
-        raise FileNotFoundError("fluidsynth not found")
-
-    monkeypatch.setattr("subprocess.run", fake_run)
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: None)
+    monkeypatch.setattr("subprocess.run", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("subprocess.run should not be called")))
 
     version = get_fluidsynth_version()
 
@@ -1062,6 +1190,7 @@ def test_render_midi_with_fluidsynth_uses_options_before_files(monkeypatch, tmp_
     import subprocess
 
     captured = {}
+    resolved_exe = str((tmp_path / "portable" / "fluidsynth.exe").resolve())
     midi_path = str(tmp_path / "song.mid")
     wav_path = str(tmp_path / "song.wav")
     sf_path = str(tmp_path / "FluidR3Mono_GM.sf3")
@@ -1074,6 +1203,7 @@ def test_render_midi_with_fluidsynth_uses_options_before_files(monkeypatch, tmp_
     def fake_exists(path):
         return path == wav_path
 
+    monkeypatch.setattr("multimodal_gen.audio_renderer.resolve_fluidsynth_executable", lambda: resolved_exe)
     monkeypatch.setattr("subprocess.run", fake_run)
     monkeypatch.setattr(os.path, "exists", fake_exists)
 
@@ -1081,6 +1211,6 @@ def test_render_midi_with_fluidsynth_uses_options_before_files(monkeypatch, tmp_
 
     cmd = captured["cmd"]
     assert "-ni" not in cmd
-    assert cmd[:7] == ["fluidsynth", "-n", "-i", "-F", wav_path, "-r", "48000"]
+    assert cmd[:7] == [resolved_exe, "-n", "-i", "-F", wav_path, "-r", "48000"]
     assert cmd[-2:] == [sf_path, midi_path]
     assert captured["kwargs"]["timeout"] == 60

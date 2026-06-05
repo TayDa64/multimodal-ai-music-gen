@@ -23,6 +23,11 @@ EXACT_1990S_ROCK_PROMPT = (
     "100 BPM in E minor"
 )
 
+LYRICAL_CINEMATIC_PIANO_PROMPT = (
+    "cinematic orchestral score with lyrical piano, warm strings, flute, oboe, "
+    "harp, and soft choir, emotional rising theme, 78 BPM in G major"
+)
+
 
 def _one_bar_arrangement(section_type: SectionType = SectionType.VERSE) -> Arrangement:
     section = SongSection(
@@ -49,12 +54,20 @@ def _bass_track(mid: MidiFile) -> MidiTrack:
     return _track_by_name(mid, "Bass")
 
 
+def _piano_track(mid: MidiFile) -> MidiTrack:
+    return _track_by_name(mid, "Piano")
+
+
 def _melody_track(mid: MidiFile) -> MidiTrack:
     return _track_by_name(mid, "Melody")
 
 
 def _organ_track(mid: MidiFile) -> MidiTrack:
     return _track_by_name(mid, "Organ")
+
+
+def _strings_track(mid: MidiFile) -> MidiTrack:
+    return _track_by_name(mid, "Strings")
 
 
 def _track_by_name(mid: MidiFile, name: str) -> MidiTrack:
@@ -84,6 +97,10 @@ def _channel_3_program(track: MidiTrack) -> int:
 
 def _channel_4_program(track: MidiTrack) -> int:
     return _channel_program(track, 4)
+
+
+def _channel_10_program(track: MidiTrack) -> int:
+    return _channel_program(track, 10)
 
 
 def _text_markers(track: MidiTrack) -> list[str]:
@@ -202,6 +219,29 @@ def test_non_guitar_rhodes_prompt_still_uses_rhodes_program():
     program = _channel_2_program(_chords_track(mid))
 
     assert program == 4
+
+
+def test_lyrical_cinematic_prompt_emits_first_class_piano_track_and_strings_bed():
+    parsed = PromptParser().parse(LYRICAL_CINEMATIC_PIANO_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    piano = _piano_track(mid)
+    strings = _strings_track(mid)
+
+    assert parsed.genre == "cinematic"
+    assert _channel_2_program(piano) == 0
+    assert "instrument:Piano" in _text_markers(piano)
+    assert _note_on_pitches(piano)
+    assert _channel_10_program(strings) == 48
+    assert "instrument:Strings" in _text_markers(strings)
+    assert _note_on_pitches(strings)
+    assert not any(
+        any(msg.type == "track_name" and msg.name == "Chords" for msg in track)
+        for track in mid.tracks
+    )
 
 
 def test_exact_jazz_sax_prompt_uses_sax_melody_program_and_capped_velocity():

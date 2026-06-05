@@ -20,18 +20,20 @@ Features:
 """
 
 import argparse
+import contextlib
 import sys
 import os
 import shutil
 import re
 import copy
 import traceback
+from enum import Enum
 from pathlib import Path
 from datetime import datetime, timezone
 import json
 import random
 import numpy as np
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 # Keep CLI/JSON outputs clean if pygame is imported indirectly
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
@@ -193,6 +195,52 @@ def print_success(message: str):
         print(f"{Fore.GREEN}✓{Style.RESET_ALL}  {message}")
     except UnicodeEncodeError:
         print(f"{Fore.GREEN}[v]{Style.RESET_ALL}  {message}")
+
+
+def _json_progress_to_stderr(enabled: bool):
+    """Keep machine-readable stdout clean by routing progress prints to stderr in JSON mode."""
+    return contextlib.redirect_stdout(sys.stderr) if enabled else contextlib.nullcontext()
+
+
+def _build_json_export_view(value: Any, *, omit_private_keys: bool = False) -> Any:
+    """Create a JSON-safe export view without mutating live in-memory objects."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+
+    if isinstance(value, Path):
+        return str(value)
+
+    if isinstance(value, Enum):
+        return _build_json_export_view(value.value, omit_private_keys=omit_private_keys)
+
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+
+    if isinstance(value, np.generic):
+        return _build_json_export_view(value.item(), omit_private_keys=omit_private_keys)
+
+    if isinstance(value, dict):
+        export_dict = {}
+        for key, item in value.items():
+            if omit_private_keys and isinstance(key, str) and key.startswith("_"):
+                continue
+            export_dict[str(key)] = _build_json_export_view(item, omit_private_keys=omit_private_keys)
+        return export_dict
+
+    if isinstance(value, (list, tuple, set)):
+        return [
+            _build_json_export_view(item, omit_private_keys=omit_private_keys)
+            for item in value
+        ]
+
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        try:
+            return _build_json_export_view(to_dict(), omit_private_keys=omit_private_keys)
+        except Exception:
+            pass
+
+    return str(value)
 
 
 def _get_render_failure_details(render_report: Optional[dict]) -> Optional[dict]:
@@ -2278,27 +2326,11 @@ def save_project_metadata(
         "refinement_capable": True,  # Indicates support for iterative refinement
         "original_seed": history[0].get('seed') if history else seed,  # Preserve original "soul"
     }
-    
-    # Strip non-serializable internal objects before writing to disk
-    # (_mix_policy_obj and _preset_values are only needed in-memory for CLI re-render)
-    outputs = metadata.get("current", {}).get("outputs", {})
-    _popped_mix = outputs.pop("_mix_policy_obj", None)
-    _popped_preset = outputs.pop("_preset_values", None)
-    
-    # Also strip from generation_history entries
-    for entry in metadata.get("generation_history", []):
-        entry_outputs = entry.get("outputs", {})
-        entry_outputs.pop("_mix_policy_obj", None)
-        entry_outputs.pop("_preset_values", None)
-    
+
+    metadata = _build_json_export_view(metadata, omit_private_keys=True)
+
     with open(metadata_path, 'w') as f:
-        json.dump(metadata, f, indent=2, default=str)
-    
-    # Restore in-memory references after serialization
-    if _popped_mix is not None:
-        outputs["_mix_policy_obj"] = _popped_mix
-    if _popped_preset is not None:
-        outputs["_preset_values"] = _popped_preset
+        json.dump(metadata, f, indent=2)
     
     return metadata_path
 
@@ -2939,7 +2971,7 @@ Server Mode (for JUCE integration):
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Output results as JSON (suppresses other output)",
+        help="Output final machine-readable JSON on stdout and route progress logs to stderr",
     )
     
     args = parser.parse_args()
@@ -2962,11 +2994,13 @@ Server Mode (for JUCE integration):
             get_fluidsynth_version,
             find_soundfont,
         )
+        from multimodal_gen.fluidsynth_runtime import resolve_fluidsynth_executable
 
         project_root = Path(__file__).parent
         default_instruments_dir = project_root / "instruments"
         soundfonts_dir = project_root / "assets" / "soundfonts"
         expansions_dir = project_root.parent / "expansions"
+        fluidsynth_executable = resolve_fluidsynth_executable()
 
         def count_audio_files(p: Path) -> int:
             if not p.exists() or not p.is_dir():
@@ -2980,8 +3014,9 @@ Server Mode (for JUCE integration):
         report = {
             "schema_version": 1,
             "fluidsynth": {
-                "available": bool(check_fluidsynth_available()),
-                "version": get_fluidsynth_version(),
+                "available": bool(check_fluidsynth_available(fluidsynth_executable)),
+                "executable": fluidsynth_executable,
+                "version": get_fluidsynth_version(fluidsynth_executable),
             },
             "soundfont": {
                 "cli_arg": args.soundfont,
@@ -3098,22 +3133,30 @@ Server Mode (for JUCE integration):
                 print()
             
             # Run refinement
-            results = refine_generation(
-                metadata_path=args.refine,
-                refinement_prompt=args.prompt,
-                output_dir=Path(args.output) if args.output != "./output" else None,
-                bpm=args.bpm,
-                key=args.key,
-                export_mpc=args.mpc,
-                export_stems=args.stems,
-                soundfont_path=args.soundfont,
-                instruments_paths=args.instruments,
-                skip_default_instruments=args.skip_default_instruments,
-                skip_expansions=args.skip_expansions,
-                verbose=args.verbose,
-            )
+            with _json_progress_to_stderr(args.json):
+                results = refine_generation(
+                    metadata_path=args.refine,
+                    refinement_prompt=args.prompt,
+                    output_dir=Path(args.output) if args.output != "./output" else None,
+                    bpm=args.bpm,
+                    key=args.key,
+                    export_mpc=args.mpc,
+                    export_stems=args.stems,
+                    soundfont_path=args.soundfont,
+                    instruments_paths=args.instruments,
+                    skip_default_instruments=args.skip_default_instruments,
+                    skip_expansions=args.skip_expansions,
+                    verbose=args.verbose,
+                )
             
-            if not args.json:
+            if args.json:
+                output = {
+                    "success": True,
+                    "results": results,
+                    "metadata": results.get("project_metadata"),
+                }
+                print(json.dumps(_build_json_export_view(output, omit_private_keys=True), indent=2))
+            else:
                 print_success("✓ Refinement complete!")
                 if results.get('midi'):
                     print_info(f"MIDI: {Path(results['midi']).name}")
@@ -3123,10 +3166,17 @@ Server Mode (for JUCE integration):
             return
             
         except Exception as e:
-            print_error(f"Refinement failed: {e}")
-            if args.verbose:
-                import traceback
-                traceback.print_exc()
+            if args.json:
+                output = {
+                    "success": False,
+                    "error": str(e),
+                }
+                print(json.dumps(output, indent=2))
+            else:
+                print_error(f"Refinement failed: {e}")
+                if args.verbose:
+                    import traceback
+                    traceback.print_exc()
             sys.exit(1)
     
     # Normal generation mode - require prompt
@@ -3157,150 +3207,151 @@ Server Mode (for JUCE integration):
         print()
     
     try:
-        recorded_midi_path = None
-        record_channel = None
+        with _json_progress_to_stderr(args.json):
+            recorded_midi_path = None
+            record_channel = None
 
-        if args.record_part:
-            if not args.midi_in:
-                raise ValueError("--midi-in is required when using --record-part")
+            if args.record_part:
+                if not args.midi_in:
+                    raise ValueError("--midi-in is required when using --record-part")
 
-            from multimodal_gen import (
-                RecordConfig,
-                record_midi_to_file,
-            )
+                from multimodal_gen import (
+                    RecordConfig,
+                    record_midi_to_file,
+                )
 
-            # Record at the intended BPM (args.bpm overrides prompt parsing)
-            # If BPM isn't provided, we let parsing decide later, but recording still needs a BPM.
-            # We'll default to 140 for trap-like usability if not specified.
-            record_bpm = float(args.bpm) if args.bpm else 140.0
-            record_channel = 9 if args.record_part == 'drums' else (2 if args.record_part == 'keys' else 3)
+                # Record at the intended BPM (args.bpm overrides prompt parsing)
+                # If BPM isn't provided, we let parsing decide later, but recording still needs a BPM.
+                # We'll default to 140 for trap-like usability if not specified.
+                record_bpm = float(args.bpm) if args.bpm else 140.0
+                record_channel = 9 if args.record_part == 'drums' else (2 if args.record_part == 'keys' else 3)
 
-            recorded_midi_path = str(output_dir / f"recorded_{args.record_part}.mid")
+                recorded_midi_path = str(output_dir / f"recorded_{args.record_part}.mid")
 
-            def rec_progress(msg: str):
+                def rec_progress(msg: str):
+                    if not args.json:
+                        print_info(msg)
+
+                cfg = RecordConfig(
+                    port_name=args.midi_in,
+                    bpm=record_bpm,
+                    part=args.record_part,
+                    bars=args.record_bars,
+                    seconds=args.record_seconds,
+                    count_in_bars=args.count_in,
+                    quantize=args.quantize,
+                )
+
+                print_step("0/6", f"Recording {args.record_part} from MIDI controller...")
+                record_midi_to_file(cfg, recorded_midi_path, progress=rec_progress)
                 if not args.json:
-                    print_info(msg)
+                    print_success(f"Recorded MIDI saved: {Path(recorded_midi_path).name}")
 
-            cfg = RecordConfig(
-                port_name=args.midi_in,
-                bpm=record_bpm,
-                part=args.record_part,
-                bars=args.record_bars,
-                seconds=args.record_seconds,
-                count_in_bars=args.count_in,
-                quantize=args.quantize,
-            )
-
-            print_step("0/6", f"Recording {args.record_part} from MIDI controller...")
-            record_midi_to_file(cfg, recorded_midi_path, progress=rec_progress)
-            if not args.json:
-                print_success(f"Recorded MIDI saved: {Path(recorded_midi_path).name}")
-
-        # Run generation pipeline
-        results = run_generation(
-            prompt=args.prompt or "",
-            output_dir=output_dir,
-            bpm_override=args.bpm,
-            key_override=args.key,
-            duration_bars=args.duration_bars,
-            reference_url=args.reference,
-            export_mpc=args.mpc,
-            export_stems=args.stems,
-            soundfont_path=args.soundfont,
-            template_path=args.template,
-            instruments_paths=args.instruments,
-            skip_default_instruments=args.skip_default_instruments,
-            skip_expansions=args.skip_expansions,
-            verbose=args.verbose,
-            seed=args.seed,
-            use_bwf=not args.no_bwf,
-            takes=args.takes,
-            comp=args.comp,
-            comp_bars=args.comp_bars,
-            require_soundfont=args.require_soundfont,
-            preset=args.preset,
-            style_preset=args.style_preset,
-            production_preset=args.production_preset,
-            use_agents=args.use_agents,
-            score_plan=score_plan_data,
-        )
-
-        require_soundfont_failed = bool(args.require_soundfont and not results.get('audio'))
-        require_audio_failed = bool(args.require_audio and _require_audio_failed(results))
-
-        # Replace generated part with recorded performance (if present)
-        if recorded_midi_path and results.get('midi'):
-            from multimodal_gen import replace_channel_in_midi
-
-            print_step("5.5/6", f"Applying recorded {args.record_part} to arrangement...")
-            replace_channel_in_midi(
-                midi_path=results['midi'],
-                replacement_midi_path=recorded_midi_path,
-                channel=int(record_channel),
-                output_path=results['midi'],
-                replacement_track_name=f"Recorded {args.record_part}",
-            )
-
-            # Re-render audio so the WAV reflects the new MIDI
-            print_step("5.7/6", "Re-rendering audio with recorded MIDI...")
-            renderer = AudioRenderer(
+            # Run generation pipeline
+            results = run_generation(
+                prompt=args.prompt or "",
+                output_dir=output_dir,
+                bpm_override=args.bpm,
+                key_override=args.key,
+                duration_bars=args.duration_bars,
+                reference_url=args.reference,
+                export_mpc=args.mpc,
+                export_stems=args.stems,
                 soundfont_path=args.soundfont,
-                output_dir=str(output_dir),
+                template_path=args.template,
+                instruments_paths=args.instruments,
+                skip_default_instruments=args.skip_default_instruments,
+                skip_expansions=args.skip_expansions,
                 verbose=args.verbose,
+                seed=args.seed,
                 use_bwf=not args.no_bwf,
+                takes=args.takes,
+                comp=args.comp,
+                comp_bars=args.comp_bars,
+                require_soundfont=args.require_soundfont,
+                preset=args.preset,
+                style_preset=args.style_preset,
+                production_preset=args.production_preset,
+                use_agents=args.use_agents,
+                score_plan=score_plan_data,
             )
-            # Sprint 9.4: Forward Sprint 8 bridges to re-render renderer
-            try:
-                _rp = results.get("_reference_profile_obj")
-                if _rp is not None:
-                    renderer.set_reference_profile(_rp)
-            except Exception:
-                pass
-            try:
-                _mp = results.get("_mix_policy_obj")
-                if _mp is not None:
-                    renderer.set_mix_policy(_mp)
-            except Exception:
-                pass
-            try:
-                _pv = results.get("_preset_values")
-                if _pv:
-                    renderer.set_preset_values(_pv)
-            except Exception:
-                pass
-            results['audio'] = renderer.render_midi_to_audio(results['midi'])
-        
-        # Parse prompt again for metadata (could optimize)
-        parser_instance = PromptParser()
-        parsed = parser_instance.parse(args.prompt)
-        if args.preset:
-            parsed.preset = str(args.preset).strip().lower().replace('-', '_')
-        if args.style_preset:
-            parsed.style_preset = str(args.style_preset).strip().lower().replace('-', '_')
-        if args.production_preset:
-            parsed.production_preset = str(args.production_preset).strip().lower().replace('-', '_')
-        if args.bpm:
-            parsed.bpm = args.bpm
-        if args.key:
-            if args.key.endswith("m"):
-                parsed.key = args.key[:-1]
-                parsed.scale = "minor"
-            else:
-                parsed.key = args.key
-                parsed.scale = "major"
-        
-        # Metadata is already persisted by run_generation() (used by JUCE Recent Files).
-        # Keep this as a fallback for older runs / unexpected failures.
-        metadata_path = results.get("project_metadata")
-        if not metadata_path:
-            metadata_path = save_project_metadata(
-                output_dir,
-                args.prompt,
-                results,
-                parsed,
-                seed=results.get('seed'),
-                synthesis_params=results.get('synthesis_params')
-            )
+
+            require_soundfont_failed = bool(args.require_soundfont and not results.get('audio'))
+            require_audio_failed = bool(args.require_audio and _require_audio_failed(results))
+
+            # Replace generated part with recorded performance (if present)
+            if recorded_midi_path and results.get('midi'):
+                from multimodal_gen import replace_channel_in_midi
+
+                print_step("5.5/6", f"Applying recorded {args.record_part} to arrangement...")
+                replace_channel_in_midi(
+                    midi_path=results['midi'],
+                    replacement_midi_path=recorded_midi_path,
+                    channel=int(record_channel),
+                    output_path=results['midi'],
+                    replacement_track_name=f"Recorded {args.record_part}",
+                )
+
+                # Re-render audio so the WAV reflects the new MIDI
+                print_step("5.7/6", "Re-rendering audio with recorded MIDI...")
+                renderer = AudioRenderer(
+                    soundfont_path=args.soundfont,
+                    output_dir=str(output_dir),
+                    verbose=args.verbose,
+                    use_bwf=not args.no_bwf,
+                )
+                # Sprint 9.4: Forward Sprint 8 bridges to re-render renderer
+                try:
+                    _rp = results.get("_reference_profile_obj")
+                    if _rp is not None:
+                        renderer.set_reference_profile(_rp)
+                except Exception:
+                    pass
+                try:
+                    _mp = results.get("_mix_policy_obj")
+                    if _mp is not None:
+                        renderer.set_mix_policy(_mp)
+                except Exception:
+                    pass
+                try:
+                    _pv = results.get("_preset_values")
+                    if _pv:
+                        renderer.set_preset_values(_pv)
+                except Exception:
+                    pass
+                results['audio'] = renderer.render_midi_to_audio(results['midi'])
+
+            # Parse prompt again for metadata (could optimize)
+            parser_instance = PromptParser()
+            parsed = parser_instance.parse(args.prompt)
+            if args.preset:
+                parsed.preset = str(args.preset).strip().lower().replace('-', '_')
+            if args.style_preset:
+                parsed.style_preset = str(args.style_preset).strip().lower().replace('-', '_')
+            if args.production_preset:
+                parsed.production_preset = str(args.production_preset).strip().lower().replace('-', '_')
+            if args.bpm:
+                parsed.bpm = args.bpm
+            if args.key:
+                if args.key.endswith("m"):
+                    parsed.key = args.key[:-1]
+                    parsed.scale = "minor"
+                else:
+                    parsed.key = args.key
+                    parsed.scale = "major"
+
+            # Metadata is already persisted by run_generation() (used by JUCE Recent Files).
+            # Keep this as a fallback for older runs / unexpected failures.
+            metadata_path = results.get("project_metadata")
+            if not metadata_path:
+                metadata_path = save_project_metadata(
+                    output_dir,
+                    args.prompt,
+                    results,
+                    parsed,
+                    seed=results.get('seed'),
+                    synthesis_params=results.get('synthesis_params')
+                )
         
         if args.json:
             # JSON output mode
@@ -3309,7 +3360,7 @@ Server Mode (for JUCE integration):
                 "results": results,
                 "metadata": str(metadata_path),
             }
-            print(json.dumps(output, indent=2))
+            print(json.dumps(_build_json_export_view(output, omit_private_keys=True), indent=2))
         else:
             # Human-readable summary
             has_audio = bool(results.get("audio"))

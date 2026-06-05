@@ -3,6 +3,46 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "When a repo still uses master as its only remote head/default branch, push to origin/master and explicitly avoid treating a user’s casual 'main' wording as permission to create a new remote main branch.",
+        "context": "The 2026-06-05 VCS sync preflight showed repo root C:/dev/MUSE-ai/MUSE, active branch master, remote origin=https://github.com/TayDa64/multimodal-ai-music-gen.git, and remote heads including master but not main. The safe move is to commit locally and push to origin/master rather than accidentally publishing a new main branch that diverges from the repo’s actual default branch.",
+        "timestamp": "2026-06-05T03:40:00Z"
+      },
+      {
+        "pattern": "When a lyrical orchestral cue is the outlier while darker and heroic cues are already green, fix identity first and apply only a narrow contextual tone adjustment instead of globally retuning the whole cinematic/classical profile family.",
+        "context": "The 2026-06-05 lyrical cinematic/orchestral slice left parser/analyzer thresholds/global classical profile untouched, then fixed the actual failure seams: session_graph had dropped first-class Piano, midi_generator had preserved piano sound but hidden it behind a generic Chords track, and the lyrical cue needed a mild contextual high-shelf reduction rather than a global cinematic retune. The resulting direct proof kept Fluidsynth rendering stable, restored Piano + Strings identity in the artifact set, and improved the lyrical cue from genre_match_score 0.84 / centroid 4382.5 Hz to 0.86 / centroid 4263.0 Hz without disturbing the already-green dark/heroic cues.",
+        "timestamp": "2026-06-05T03:10:00Z"
+      },
+      {
+        "pattern": "After stabilizing a high-fidelity renderer, use a small contrasting cue set and inspect both audio-analysis metrics and session-track identity before choosing the next quality slice.",
+        "context": "The 2026-06-05 cinematic/orchestral quality pass compared three strict clean-env FluidSynth cues: a dark battle scene, a heroic swell cue, and a lyrical rise cue. The dark and heroic cases both scored 1.0 with healthy centroids/dynamic range and expected orchestral track identity, while the lyrical cue still passed but dropped to genre_match_score 0.84, became much brighter (centroid 4382.5 Hz), and exposed no first-class Piano session track despite piano being detected in audio. The durable lesson is to pick the next slice from the weakest contrasting cue, not to retune globally when the other cues are already green.",
+        "timestamp": "2026-06-05T02:00:00Z"
+      },
+      {
+        "pattern": "After stabilizing a shared runtime resolver, align any standalone proof harness to that same source of truth, switch it to stable CLI JSON transport, and preserve stdout/stderr artifact capture so the harness itself becomes a trustworthy clean-env proof.",
+        "context": "The 2026-06-05 harness-alignment follow-up removed scripts/fluidsynth_env_proof.py's internal PATH prepend, added minimal repo-root bootstrap so the standalone script can import multimodal_gen.fluidsynth_runtime, recorded fluidsynth_executable and fluidsynth_probe in proof_summary.json, switched the generation leg to main.py --json, and preserved generation_stdout.txt as JSON plus generation_stderr.txt as progress logs. The resulting clean-env proof_summary.json became a trustworthy no-PATH artifact with schema_version=2, resolved executable, diagnose_audio.fluidsynth_executable, generation.json_mode=true, renderer_path=fluidsynth, and fluidsynth_success=true.",
+        "timestamp": "2026-06-05T01:05:00Z"
+      },
+      {
+        "pattern": "When a repo-local portable binary must become a first-class runtime dependency, extract one shared resolver with env override -> PATH -> workspace tools -> repo tools ordering, expose the resolved executable in diagnostics, and prove clean-shell success with both diagnosis and a strict end-to-end benchmark.",
+        "context": "The 2026-06-05 FluidSynth runtime slice closed the PATH-only discovery gap by adding a shared resolver/probe module, wiring audio_renderer and FluidSynthSynthesizer to use the resolved absolute executable, and exposing fluidsynth.executable in --diagnose-audio and render reports. The durable proof pattern is not the harness alone: remove the local tools bin from PATH for the child process, verify diagnose_audio still resolves the portable exe and SoundFont, then run a strict require-soundfont+require-audio benchmark and confirm clean JSON stdout, renderer_path=fluidsynth, fluidsynth.success=true, render_status.success=true, and audio_analysis.passed=true.",
+        "timestamp": "2026-06-05T00:20:00Z"
+      },
+      {
+        "pattern": "When a workspace already contains a portable FluidSynth binary, prove the environment first with PATH prepending and the repo's proof harness, then promote the harness's local-tools search into the shared runtime resolver rather than teaching users a permanent manual PATH workaround.",
+        "context": "The 2026-06-04 FluidSynth setup investigation showed a working local binary at c:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe that only supports -V, plus a discovered local SoundFont under assets\\soundfonts. Manual PATH prepending made --diagnose-audio green and the proof harness passed a strict orchestral smoke, proving the environment is already capable; the real missing piece is moving repo-local executable discovery from scripts/fluidsynth_env_proof.py into the runtime code path so clean shells and benchmark automation work without manual setup.",
+        "timestamp": "2026-06-04T22:15:00Z"
+      },
+      {
+        "pattern": "For machine-readable CLI modes, redirect generation-time stdout to stderr at the orchestration seam and emit only the final JSON payload on stdout.",
+        "context": "The 2026-06-04 clean-JSON follow-up kept the earlier bridge-object sanitization fix but still found progress logs breaking stdout parsing during real generation. The safe slice was a tiny main.py context-manager seam that wraps normal generation and refine flows with redirect_stdout(sys.stderr) only when --json is active, leaving the final success/error JSON print on stdout. This delivered parseable stdout for real CLI automation without refactoring every print site.",
+        "timestamp": "2026-06-04T13:40:00Z"
+      },
+      {
+        "pattern": "When CLI results carry live rerender bridge objects, export a sanitized JSON copy that omits underscore-prefixed bridge keys instead of mutating the results dict or stringifying opaque objects.",
+        "context": "The 2026-06-04 CLI JSON serialization fix closed a real runtime failure where main.py passed live MixPolicy and ReferenceProfile bridge objects straight into json.dumps during --json output. The safe slice was to add a local JSON export helper that recursively builds a JSON-safe copy, strips private bridge keys from CLI/project metadata exports, and preserves the original results dict so rerender can still consume _reference_profile_obj, _mix_policy_obj, and _preset_values in memory.",
+        "timestamp": "2026-06-04T13:10:00Z"
+      },
+      {
         "pattern": "When expanding a bounded EDM/pop procedural lead family, prefer explicit per-program kwargs inside the existing 80..87 branch and keep the comments honest that they are only GM-flavored approximations.",
         "context": "The 2026-05-23 follow-up to the earlier bounded wavetable work extended the existing EDM/pop/dance/electro/electropop/house synth-lead preset map from programs 80/81 to all GM programs 80..87 using only the already-supported generate_unison_lead_tone() kwargs (voices, detune_cents, table_position, table_motion). Programs 80 and 81 kept their prior square-ish/saw-ish intent, programs 82..87 received conservative bounded approximations only, non-EDM genres stayed on generate_lead_tone(), and no new wavetable source, renderer identity, or full-engine claim was introduced. The existing generator bounds already covered the parameter surface, so no extra assets_gen regression was required for this renderer-only expansion.",
         "timestamp": "2026-05-23T11:12:00Z"
@@ -721,6 +761,85 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Use origin/master as the push target for the integration commit because the repository’s actual remote/default branch is master and no remote main branch exists.",
+      "rationale": "The user asked to push to origin/main, but remote inspection showed only origin/master exists for this repository. Creating origin/main would be a branch-topology change rather than a normal sync. The safest interpretation is to push the validated integration commit to the repo’s actual default branch, origin/master, and note that choice clearly.",
+      "alternatives_considered": [
+        "Push HEAD to origin/main and create a new remote branch.",
+        "Stop entirely and require branch-name clarification before staging/committing anything."
+      ],
+      "timestamp": "2026-06-05T03:40:00Z"
+    },
+    {
+      "decision": "Implement the lyrical cinematic/orchestral follow-up as a narrow identity-plus-contextual-tone slice: preserve first-class Piano in session graph and MIDI only for lyrical piano-led orchestral prompts, and add a mild contextual Fluidsynth high-shelf reduction only for that same subcase.",
+      "rationale": "The quality pass showed the lyrical cue was the only outlier; dark battle and heroic swell cues were already objectively green. The parser already preserved piano, so the true structural bugs were downstream: the orchestral session graph dropped Piano entirely and the MIDI harmonic track hid piano behind generic Chords. A small contextual high-shelf reduction for lyrical/warm/soft/emotional piano-led orchestral prompts provides a bounded tonal correction without globally darkening already-healthy action-oriented cues.",
+      "alternatives_considered": [
+        "Globally retune the base classical/cinematic Fluidsynth profile family.",
+        "Change parser behavior even though parsed instruments already preserved piano correctly.",
+        "Loosen output analyzer thresholds instead of addressing the real identity/brightness issue."
+      ],
+      "timestamp": "2026-06-05T03:10:00Z"
+    },
+    {
+      "decision": "Treat lyrical cinematic/orchestral brightness and first-class piano identity as the next highest-value quality target, rather than applying a broad cinematic/global Fluidsynth profile change.",
+      "rationale": "The higher-bar quality pass showed dark battle and heroic swell cues are already objectively strong with genre_match_score=1.0 and clean orchestral role identity, while the lyrical cue is the outlier: score 0.84, centroid 4382.5 Hz, lower dynamic range, and no first-class Piano track in the manifest despite piano being detected in audio. A narrow lyrical/orchestral identity slice is therefore the safest next move because it addresses the weakest cue without regressing already-green dark/heroic behavior.",
+      "alternatives_considered": [
+        "Apply a global classical/cinematic profile brightness reduction even though two cues are already green.",
+        "Start with battle/heroic retuning despite those cues already scoring 1.0.",
+        "Defer further evaluation and guess at the next slice without a contrasting cue pass."
+      ],
+      "timestamp": "2026-06-05T02:00:00Z"
+    },
+    {
+      "decision": "Finish the FluidSynth enablement track by aligning scripts/fluidsynth_env_proof.py to the shared runtime resolver and clean-JSON contract before moving on to higher-bar listening evaluation.",
+      "rationale": "Once the runtime and benchmark were proven clean-env green, the only remaining inconsistency was the standalone proof harness still prepending PATH and carrying stale non-JSON assumptions. Aligning that script now closes the last proof-model caveat with a small isolated change, preserves artifact capture, and gives future sessions a single authoritative clean-env proof path before subjective orchestral quality work begins.",
+      "alternatives_considered": [
+        "Leave the harness stale and rely only on the benchmark run as proof.",
+        "Start subjective cinematic/orchestral quality work immediately and defer harness consistency.",
+        "Refactor the harness more broadly than needed instead of making a small resolver/JSON alignment slice."
+      ],
+      "timestamp": "2026-06-05T01:05:00Z"
+    },
+    {
+      "decision": "Implement the FluidSynth availability fix as a shared runtime resolver/probe module and use clean-env diagnose plus the strict orchestral benchmark as the authoritative no-PATH proof, while leaving the existing proof harness internal PATH prepend as a later consistency follow-up.",
+      "rationale": "The local portable binary and SoundFont were already working, so the smallest robust fix was not a new installation or broader renderer rewrite. A shared resolver unifies env/PATH/workspace/repo-local discovery across runtime code paths, keeps Windows portable -V fallback intact, and exposes the exact executable in diagnostics. Clean-env diagnose and the strict benchmark directly prove end-user/runtime behavior without waiting to refactor the already-working harness. The harness can remain as a later low-risk alignment task because it is no longer required to demonstrate runtime readiness.",
+      "alternatives_considered": [
+        "Rely on manual PATH prepending or documentation only.",
+        "Modify the proof harness first and defer runtime changes.",
+        "Install a second system-wide FluidSynth copy instead of using the repo-local portable binary."
+      ],
+      "timestamp": "2026-06-05T00:20:00Z"
+    },
+    {
+      "decision": "Treat the current FluidSynth problem as a runtime discovery/setup asymmetry, not as a missing binary or SoundFont problem, and plan the next implementation around a shared executable resolver.",
+      "rationale": "The local portable binary already works with -V, the local SoundFont is already discovered, PATH prepending already makes --diagnose-audio green, and the proof harness already passes a strict orchestral FluidSynth smoke. The actual gap is that runtime helpers in audio_renderer.py still invoke bare 'fluidsynth' on PATH while the proof harness has its own repo-local tools/ search. The smallest robust next slice is therefore to unify executable discovery across runtime and proof paths, then prove the app works in a clean shell without manual PATH edits.",
+      "alternatives_considered": [
+        "Treat this as a documentation-only issue and instruct users to prepend PATH manually every time.",
+        "Download or install a second FluidSynth copy even though a working portable binary already exists in the workspace.",
+        "Rerun the strict orchestral benchmark immediately with manual PATH prepending before hardening runtime detection."
+      ],
+      "timestamp": "2026-06-04T22:15:00Z"
+    },
+    {
+      "decision": "Keep --json stdout machine-readable by redirecting generation/refine progress to stderr at the main() seam, rather than suppressing or refactoring all progress printing call sites.",
+      "rationale": "The user wanted benchmark automation to parse stdout reliably. A tiny orchestration-level redirect keeps final JSON output clean on stdout for both normal generation and refine mode while preserving human progress logs on stderr and avoiding churn across dozens of print_* / print_parsed_prompt call sites. This also composes cleanly with the prior bridge-object sanitization fix.",
+      "alternatives_considered": [
+        "Refactor every print helper and direct print site to take a stream parameter or JSON-mode flag.",
+        "Suppress progress output entirely in --json mode instead of preserving it on stderr.",
+        "Leave refine mode inconsistent and document normal-generation-only JSON cleanliness."
+      ],
+      "timestamp": "2026-06-04T13:40:00Z"
+    },
+    {
+      "decision": "Fix CLI --json serialization by exporting a JSON-safe copy and omitting underscore-prefixed private bridge keys, rather than mutating live results or relying on default=str.",
+      "rationale": "The user-facing failure came from json.dumps receiving live MixPolicy/ReferenceProfile objects that exist only as in-memory rerender bridges. A copy-based export helper preserves the live results dict for later rerender use, keeps private bridge internals out of machine-facing CLI/project metadata output, and closes the runtime crash without broadening scope into FluidSynth/environment work.",
+      "alternatives_considered": [
+        "Pop the bridge keys directly off results before CLI JSON output, which risks breaking later rerender consumers.",
+        "Use default=str for CLI JSON, which would hide schema issues and leak opaque object reprs.",
+        "Convert private bridge objects into exported payload fields instead of keeping them private."
+      ],
+      "timestamp": "2026-06-04T13:10:00Z"
+    },
     {
       "decision": "Extend the existing EDM/pop-like synth-lead preset map to explicit bounded entries for GM programs 80..87 using only generate_unison_lead_tone()'s supported kwargs, while keeping non-EDM genres on generate_lead_tone().",
       "rationale": "This completes the next conservative slice of the procedural-only wavetable fallback without introducing a new renderer, new wavetable source, or broader synth architecture claim. Keeping the work inside the existing EDM/pop/dance/electro/electropop/house 80..87 branch preserves behavior elsewhere, and using only bounded voices/detune/table_position/table_motion kwargs keeps the implementation honest and compatible with the current generator. tests/test_assets_gen.py was intentionally left unchanged because the generator bounds already had direct coverage and this slice only changed renderer-side preset routing.",
@@ -1902,5 +2021,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-05-23T11:12:00Z"
+  "last_updated": "2026-06-05T03:40:00Z"
 }
