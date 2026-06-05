@@ -762,6 +762,15 @@
   },
   "decisions": [
     {
+      "decision": "After branch inspection showed remote master only, create the integration commit on local master and push it to origin/master rather than creating a new origin/main branch.",
+      "rationale": "The user asked to push to origin/main, but this repository's active and remote default branch is master. Pushing to main would have created a new branch topology unintentionally. Using origin/master respected the repo's existing branch model and delivered the validated work safely. The pushed integration commit was c9e396a275b616ccc9c68608be886e1ba2ea7a83.",
+      "alternatives_considered": [
+        "Push HEAD to origin/main and create a new remote branch.",
+        "Pause for branch-name clarification before committing validated work."
+      ],
+      "timestamp": "2026-06-05T03:55:00Z"
+    },
+    {
       "decision": "Use origin/master as the push target for the integration commit because the repository’s actual remote/default branch is master and no remote main branch exists.",
       "rationale": "The user asked to push to origin/main, but remote inspection showed only origin/master exists for this repository. Creating origin/main would be a branch-topology change rather than a normal sync. The safest interpretation is to push the validated integration commit to the repo’s actual default branch, origin/master, and note that choice clearly.",
       "alternatives_considered": [
@@ -2021,5 +2030,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-06-05T03:40:00Z"
+  "last_updated": "2026-06-05T03:55:00Z"
 }
