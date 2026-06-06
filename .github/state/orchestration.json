@@ -7,6 +7,97 @@
   },
   "task_queue": [
     {
+      "id": "commit-readme-sync-local-109",
+      "description": "Stage the refreshed README.md plus matching repo-state files and create a local docs commit without pushing, because the user asked to commit but did not explicitly request a push.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "readme-codebase-sync-108"
+      ],
+      "files_to_modify": [
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T04:15:00Z",
+      "updated": "2026-06-05T04:15:00Z",
+      "implementation": {
+        "files_changed": [
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "After the README drift was corrected, the refreshed README plus the matching repo-state files were staged, the staged diff was checked clean with `git diff --cached --check`, and a local commit was created on master with message `docs: refresh README for current CLI and FluidSynth workflow`. The user asked to commit but did not explicitly request a push, so this task intentionally stops at a local commit.",
+        "guardrails_preserved": [
+          "Only README.md and the matching repo-state files were staged for this docs commit.",
+          "The commit was created locally on master without pushing to origin.",
+          "The staged diff was checked clean before committing."
+        ]
+      },
+      "tests": [
+        {
+          "command": "git diff --cached --check",
+          "result": "PASS: staged README/state diff was clean before commit."
+        },
+        {
+          "command": "git commit -m \"docs: refresh README for current CLI and FluidSynth workflow\" && git rev-parse HEAD",
+          "result": "PASS: local docs commit created on master."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-06-05T04:15:00Z",
+        "summary": "The requested docs commit now exists locally on master and contains the README refresh plus matching repo-state updates; no push was performed because the user did not ask for one."
+      }
+    },
+    {
+      "id": "readme-codebase-sync-108",
+      "description": "Update README.md so the top-level documentation reflects the current CLI, FluidSynth diagnostics/runtime behavior, output artifact layout, and project structure before creating a docs commit.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "git-stage-commit-push-master-107"
+      ],
+      "files_to_modify": [
+        "README.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-06-05T04:05:00Z",
+      "updated": "2026-06-05T04:05:00Z",
+      "implementation": {
+        "files_changed": [
+          "README.md"
+        ],
+        "summary": "README.md now matches the current codebase more closely in the highest-value user-facing areas: Quick Start explains current FluidSynth + SoundFont behavior, `--diagnose-audio`, `.sf2/.sf3` support, portable executable discovery, and the `MUSE_FLUIDSYNTH_EXE` override; Command Reference removes stale `--midi-only` / `--duration SECS` docs and replaces them with grouped tables that reflect the current argparse surface; Output Files Explained documents render reports, session manifests, project metadata, render-error files, and the current `*_stems/` directory layout; Troubleshooting points users to diagnose-audio and render diagnostics instead of a nonexistent MIDI-only flag; and Development → Project Structure includes the current runtime and orchestration modules such as `session_graph.py`, `fluidsynth_runtime.py`, `fluidsynth_profiles.py`, `preset_system.py`, `instrument_patch.py`, `server/`, and `scripts/`.",
+        "guardrails_preserved": [
+          "Docs-only slice; no runtime or test code was changed in this task.",
+          "README avoids claiming that a committed SoundFont is guaranteed in the repo.",
+          "The update focuses on the highest-value mismatches rather than rewriting the entire README."
+        ]
+      },
+      "tests": [
+        {
+          "command": "git diff --check",
+          "result": "PASS: no whitespace or patch-format issues in the README update."
+        },
+        {
+          "command": "sanity grep/readback against README.md",
+          "result": "PASS: no stale `--midi-only` references remain, no bare `--duration` docs remain, and the updated sections reflect current `main.py` / FluidSynth runtime behavior."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-06-05T04:05:00Z",
+        "summary": "Read-only README drift check confirmed the updated sections now reflect the current CLI/runtime contracts more faithfully in the user-facing high-risk areas: flags, Fluidsynth diagnostics, output artifacts, and project structure."
+      }
+    },
+    {
       "id": "git-stage-commit-push-master-107",
       "description": "Stage the completed local changes, create a single integration commit, and push to the configured remote default branch without accidentally creating an unintended origin/main branch.",
       "status": "completed",
@@ -7191,12 +7282,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-06-05T03:55:00Z",
-    "total_tasks_completed": 107,
+    "last_updated": "2026-06-05T04:15:00Z",
+    "total_tasks_completed": 109,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "optional-further-lyrical-centroid-reduction-or-woodwind-melody-identity-on-top-of-pushed-master"
+    "next_phase": "optional-push-local-readme-docs-commit-or-continue-next-quality-slice"
   },
   "sprint_11": {
     "status": "COMPLETE",

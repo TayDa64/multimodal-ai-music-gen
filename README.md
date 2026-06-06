@@ -74,7 +74,7 @@ This single command creates:
 ### Step 1: Install Python Dependencies
 
 ```bash
-cd multimodal-ai-music-gen
+cd MUSE
 pip install -r requirements.txt
 
 # Optional: For reference analysis (YouTube/audio analysis)
@@ -102,19 +102,36 @@ sudo apt install fluidsynth
 
 > 💡 **Note:** FluidSynth is optional. The generator works without it using built-in synthesis.
 
-### Step 2.1: (Recommended) Add a SoundFont (.sf2)
+### Step 2.1: (Recommended) Add a SoundFont (.sf2 or .sf3)
 
-For best results with FluidSynth, place a SoundFont file in:
+For best results with FluidSynth, place your own licensed SoundFont file in:
 
-- `multimodal-ai-music-gen/assets/soundfonts/`
+- `./assets/soundfonts/`
 
-The renderer auto-detects common names there (see `assets/soundfonts/README.md`).
+The renderer auto-detects common `.sf2` and `.sf3` filenames there (see `assets/soundfonts/README.md`).
 
 Alternatively, pass an explicit path:
 
 ```bash
-python main.py "smooth g-funk beat at 92 BPM" --soundfont "./assets/soundfonts/default.sf2"
+python main.py "smooth g-funk beat at 92 BPM" --soundfont "./assets/soundfonts/my_soundfont.sf3"
 ```
+
+MUSE does not require or guarantee a committed SoundFont in the repo. Keep your preferred SoundFont locally or point to it explicitly with `--soundfont`.
+
+On Windows, FluidSynth discovery checks these locations in order:
+
+1. `MUSE_FLUIDSYNTH_EXE`
+2. `PATH`
+3. workspace-local portable installs such as `../tools/fluidsynth*/bin/fluidsynth.exe`
+4. repo-local portable installs under `tools/**/bin/fluidsynth.exe`
+
+Verify the audio toolchain at any time:
+
+```bash
+python main.py --diagnose-audio
+```
+
+The JSON diagnostics report includes `fluidsynth.available`, `fluidsynth.executable`, `fluidsynth.version`, and `soundfont.discovered`.
 
 If you want the run to fail instead of falling back to procedural audio:
 
@@ -363,46 +380,105 @@ Export separate tracks for mixing in your DAW:
 python main.py "full production at 128 BPM" --stems
 
 # Creates:
-# - project_drums.wav
-# - project_bass.wav  
-# - project_melody.wav
-# - project_pads.wav
-# - project_mix.wav (combined)
+# - <project_name>_stems/
+#   - <track_name>.wav  (one file per rendered track)
+#   - stems_manifest.json
 ```
 
 ---
 
 ## 📋 Command Reference
 
-```
-python main.py "prompt" [options]
+For the authoritative, current CLI surface, run:
+
+```bash
+python main.py --help
 ```
 
-| Option | Short | Description | Default |
-|--------|-------|-------------|---------|
-| `--reference URL` | `-r` | YouTube URL or audio file to analyze for style | None |
-| `--mpc` | | Export MPC-compatible .xpj project | Off |
-| `--stems` | | Export individual track stems | Off |
-| `--midi-only` | | Generate MIDI only, no audio | Off |
-| `--output DIR` | `-o` | Output directory path | `./output` |
-| `--bpm BPM` | | Override detected BPM (60-200) | Auto-detect |
-| `--key KEY` | | Override key (e.g., "C minor") | Auto-detect |
-| `--samples PATH` | | Path to custom samples folder or .xpm | None |
-| `--duration SECS` | | Target duration in seconds | 120-180 |
-| `--seed INT` | | Random seed for reproducibility | Random |
-| `--verbose` | `-v` | Show detailed progress | Off |
+Common forms:
+
+```
+python main.py "prompt" [options]
+python main.py --server [options]
+```
+
+### Core generation
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--output DIR` | `-o` | Output directory (default: `./output`) |
+| `--reference PATH_OR_URL` | `-r` | Analyze a YouTube URL or local audio file for style reference |
+| `--score-plan PATH` | | Load a score-plan JSON file |
+| `--bpm BPM` | | Override BPM from the prompt or reference |
+| `--key KEY` | | Override key (for example `Am`, `C`, `F#m`) |
+| `--duration-bars N` | | Override target generation length in bars |
+| `--seed INT` | | Make generation reproducible |
+| `--refine METADATA_PATH` | | Refine a previous run from `project_metadata.json` |
+| `--json` | | Emit final machine-readable JSON on stdout |
+| `--verbose` | `-v` | Show detailed progress |
+| `--no-banner` | | Suppress banner output |
+
+### Audio, SoundFont, and instruments
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--soundfont PATH` | | Use a specific `.sf2` or `.sf3` SoundFont for FluidSynth rendering |
+| `--require-soundfont` | | Fail instead of falling back when FluidSynth/SoundFont rendering is unavailable |
+| `--require-audio` | | Fail if no audio artifact is produced |
+| `--diagnose-audio` | | Print FluidSynth/SoundFont/instrument diagnostics and exit |
+| `--samples PATH` | | Import custom samples or MPC `.xpm` programs |
+| `--instruments PATH` | `-i` | Add one or more instruments directories for intelligent sample selection |
+| `--skip-default-instruments` | | Do not auto-load `./instruments` when `--instruments` is omitted |
+| `--skip-expansions` | | Do not scan `../expansions` for this run |
+
+### Presets, export, and iteration
+
+| Option | Description |
+|--------|-------------|
+| `--preset NAME` | Apply a base preset |
+| `--style-preset NAME` | Layer a style preset on top of `--preset` |
+| `--production-preset NAME` | Layer a production preset on top |
+| `--list-presets` | List available preset names and exit |
+| `--mpc` | Export an MPC `.xpj` project |
+| `--stems` | Render per-track stems into a `*_stems/` folder |
+| `--template PATH` | Use a custom MPC template |
+| `--takes N` | Generate alternative takes per track |
+| `--comp` | Build a comp track from generated takes (`--takes >= 2`) |
+| `--comp-bars N` | Bars per comp segment |
+| `--no-bwf` | Disable Broadcast Wave metadata |
+| `--use-agents` | Experimental Ethiopian-instrument agent workflow |
+
+### Live MIDI, history, and server mode
+
+| Option | Description |
+|--------|-------------|
+| `--list-midi` | List available MIDI input devices and exit |
+| `--midi-in NAME` | MIDI input device name/substr for recording |
+| `--record-part {drums,keys,lead}` | Replace a generated part with live MIDI |
+| `--record-bars N` | Bars to record |
+| `--record-seconds SECS` | Record by seconds (overrides `--record-bars`) |
+| `--count-in N` | Count-in bars before recording |
+| `--quantize {off,1/16,1/8}` | Quantize recorded notes |
+| `--history` | Show generation history from `project_metadata.json` |
+| `--compare VER_A VER_B` | Compare two saved versions from history |
+| `--server` | Start OSC server mode for JUCE integration |
+| `--port PORT` | OSC server port (responses go to `port+1`) |
+| `--no-signals` | Disable signal handlers (useful in some terminals) |
 
 ### Examples
 
 ```bash
-# Override everything
-python main.py "beat" --bpm 95 --key "D minor" --output "./my-beats" -v
+# Override BPM/key/output and cap the arrangement length
+python main.py "beat" --bpm 95 --key Am --duration-bars 16 --output "./my-beats" -v
 
 # Reproducible generation
-python main.py "trap beat" --seed 12345
+python main.py "trap beat" --seed 12345 --duration-bars 16
 
-# Quick MIDI export
-python main.py "drum pattern" --midi-only
+# Audio diagnostics
+python main.py --diagnose-audio
+
+# Strict FluidSynth render with explicit SoundFont
+python main.py "dark cinematic orchestral cue" --duration-bars 16 --soundfont "./assets/soundfonts/my_soundfont.sf3" --require-soundfont --require-audio
 
 # Full production with stems and MPC
 python main.py "full track at 130 BPM" --mpc --stems -v
@@ -527,16 +603,27 @@ flowchart LR
 
 ```
 output/
-├── trap_87.0bpm_Cminor_20241209_123456.mid    # MIDI file
-├── trap_87.0bpm_Cminor_20241209_123456.wav    # Mixed audio
-├── samples/                                     # Generated samples
+├── trap_87.0bpm_Cminor_20241209_123456.mid        # MIDI arrangement
+├── trap_87.0bpm_Cminor_20241209_123456.wav        # Mixed audio when render succeeds
+├── trap_87.0bpm_Cminor_20241209_123456_render_report.json  # Render diagnostics + analysis metadata
+├── session_manifest.json                          # Structured session graph
+├── project_metadata.json                          # Generation metadata + history
+├── samples/                                       # Generated/resolved samples when used
 │   ├── kick.wav
 │   ├── snare.wav
 │   └── ...
-└── project_metadata.json                        # Generation info
+└── trap_87.0bpm_Cminor_20241209_123456_render_error.txt   # Written only when rendering fails
 ```
 
+Key artifacts:
+- `*_render_report.json` captures renderer diagnostics such as `renderer_path`, `render_status`, FluidSynth details, and related analysis metadata.
+- `session_manifest.json` stores the structured session graph (sections, tracks, roles, and file references).
+- `project_metadata.json` stores generation history, reproducibility data, preset context, and exported artifact paths.
+- `*_render_error.txt` is only written when audio rendering fails or strict audio requirements abort the run.
+
 ### With --mpc Flag
+
+Standard artifacts remain in the output directory, plus:
 
 ```
 output/
@@ -554,13 +641,15 @@ output/
 
 ### With --stems Flag
 
+`--stems` adds a sibling `*_stems/` directory containing one rendered WAV per track plus a manifest:
+
 ```
 output/
-├── project_drums.wav      # Drums only
-├── project_bass.wav       # Bass only
-├── project_melody.wav     # Melodic elements
-├── project_pads.wav       # Pads/atmosphere
-└── project_mix.wav        # Full mix
+└── trap_87.0bpm_Cminor_20241209_123456_stems/
+    ├── <track_name>.wav      # One WAV per rendered track (names vary by session)
+    ├── <track_name>.wav
+    ├── ...
+    └── stems_manifest.json   # Stem metadata: role, peak, RMS, sample rate, bit depth
 ```
 
 ---
@@ -765,12 +854,21 @@ Generate an authentic Ethiopian Tizita ballad:
 
 ### "No audio output"
 
-**Cause:** FluidSynth not installed  
-**Solution:** 
+**Cause:** Audio rendering failed, or strict `--require-soundfont` / `--require-audio` blocked fallback.
+**Solution:**
 ```bash
-# Install FluidSynth OR use built-in synthesis
-python main.py "beat" --midi-only  # MIDI only
+python main.py --diagnose-audio
 ```
+
+Check these fields in the JSON output:
+- `fluidsynth.available`
+- `fluidsynth.executable`
+- `fluidsynth.version`
+- `soundfont.discovered`
+
+Then inspect `*_render_report.json` and, on failure, `*_render_error.txt` in your output directory. If needed, point directly to a portable FluidSynth binary with `MUSE_FLUIDSYNTH_EXE` and/or pass a local `.sf2` or `.sf3` file with `--soundfont`.
+
+Without strict flags, MUSE can fall back to procedural synthesis when FluidSynth or a SoundFont is unavailable.
 
 ### "MPC won't load project"
 
@@ -813,22 +911,30 @@ ls output/
 ### Project Structure
 
 ```
-multimodal-ai-music-gen/
-├── main.py                      # CLI entry point
+MUSE/
+├── main.py                      # CLI entry point and orchestration
 ├── multimodal_gen/
 │   ├── __init__.py              # Package exports
 │   ├── prompt_parser.py         # NLP & regex extraction
-│   ├── midi_generator.py        # MIDI composition + humanization
-│   ├── audio_renderer.py        # Synthesis + mixing + soft clip
-│   ├── mpc_exporter.py          # .xpj/.xpm XML generation
 │   ├── arranger.py              # Song structure generation
+│   ├── midi_generator.py        # MIDI composition + humanization
+│   ├── audio_renderer.py        # Rendering, diagnostics, stems, mixdown
+│   ├── session_graph.py         # Structured session manifest builder
+│   ├── fluidsynth_runtime.py    # FluidSynth executable discovery + probe helpers
+│   ├── fluidsynth_profiles.py   # Genre-scoped FluidSynth post-render policies
+│   ├── preset_system.py         # Genre/style/production preset registry
+│   ├── instrument_patch.py      # Shared instrument-patch contract / reporting
+│   ├── mpc_exporter.py          # .xpj/.xpm XML generation
 │   ├── assets_gen.py            # Procedural sample generation
 │   ├── sample_loader.py         # Custom sample import
+│   ├── server/                  # OSC / JSON-RPC / worker integration
 │   └── utils.py                 # Helpers, constants, MIDI utils
 ├── assets/
 │   ├── templates/               # MPC templates
 │   ├── samples/                 # Bundled samples
-│   └── soundfonts/              # FluidSynth .sf2 files
+│   └── soundfonts/              # User-provided .sf2/.sf3 SoundFonts when present
+├── instruments/                 # Local instrument/sample libraries (optional)
+├── scripts/                     # Smoke tests and environment proof helpers
 ├── output/                      # Generated projects
 ├── tests/                       # Test suite
 ├── requirements.txt             # Python dependencies

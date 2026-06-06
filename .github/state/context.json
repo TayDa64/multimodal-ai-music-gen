@@ -5,6 +5,55 @@
     {
       "path": ".github\\state\\orchestration.json",
       "action": "modified",
+      "timestamp": "2026-06-05T04:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed local docs commit task and advanced orchestration metadata past the README sync commit."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-05T04:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded local commit verification details for the README sync commit."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-05T04:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable rule to stop at a local commit when the user says commit but does not request a push."
+    },
+    {
+      "path": "README.md",
+      "action": "modified",
+      "timestamp": "2026-06-05T04:05:00Z",
+      "by_agent": "builder",
+      "changes": "Updated the top-level README to reflect the current CLI/runtime contracts, FluidSynth diagnostics, output artifact layout, and project structure."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-05T04:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed README sync task and upcoming docs commit action."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-05T04:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded touched-file, change-summary, and verification entries for the README sync."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-05T04:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable README drift-fix priority rule for stale flags, diagnostics, artifacts, and structure."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
       "timestamp": "2026-06-05T03:55:00Z",
       "by_agent": "supervisor",
       "changes": "Recorded the completed integration commit/push and the actual commit hash for task 107."
@@ -5549,6 +5598,24 @@
   ],
   "changes_made": [
     {
+      "file": "state-task-109",
+      "description": "Recorded the successful local docs commit for the README sync.",
+      "diff_summary": "State files now note that README.md plus the matching state files were staged, the staged diff passed `git diff --cached --check`, and a local master commit was created with message `docs: refresh README for current CLI and FluidSynth workflow` without pushing to origin.",
+      "timestamp": "2026-06-05T04:15:00Z"
+    },
+    {
+      "file": "README.md",
+      "description": "Synchronized the top-level README with the current CLI/runtime and artifact behavior.",
+      "diff_summary": "Removed stale `--midi-only` / `--duration SECS` docs, refreshed Fluidsynth setup and `--diagnose-audio` guidance (including `fluidsynth.executable` and `MUSE_FLUIDSYNTH_EXE`), updated output artifact descriptions for render reports/session manifests/stems, and refreshed the development tree to include current runtime/orchestration modules.",
+      "timestamp": "2026-06-05T04:05:00Z"
+    },
+    {
+      "file": "state-task-108",
+      "description": "Recorded the completed README/codebase synchronization and docs-commit preparation.",
+      "diff_summary": "State files now note that the README's highest-value stale sections were updated to match the current main.py CLI, FluidSynth diagnostics/runtime behavior, output artifact layout, and project structure, and that a docs-only commit is the next step.",
+      "timestamp": "2026-06-05T04:05:00Z"
+    },
+    {
       "file": "state-task-107",
       "description": "Recorded the completed integration commit and push to the remote default branch.",
       "diff_summary": "State files now note that all validated local changes were staged, committed as c9e396a275b616ccc9c68608be886e1ba2ea7a83 with message `Implement clean JSON, FluidSynth runtime proofing, and lyrical orchestral piano polish`, and pushed successfully to origin/master instead of creating a new origin/main branch.",
@@ -7072,6 +7139,20 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "commit-readme-sync-local-109",
+      "result": "PASS",
+      "details": "`git add README.md .github/state/orchestration.json .github/state/context.json .github/state/memory.json`, `git diff --cached --check`, `git commit -m \"docs: refresh README for current CLI and FluidSynth workflow\"`, and `git rev-parse HEAD` completed successfully on master. The docs commit was created locally and intentionally not pushed.",
+      "timestamp": "2026-06-05T04:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "readme-codebase-sync-108",
+      "result": "PASS",
+      "details": "README drift check confirmed the updated sections now reflect the current user-facing contracts: stale `--midi-only` references removed, `--duration-bars` documented instead of `--duration SECS`, FluidSynth diagnostics/setup updated with `fluidsynth.executable` and `MUSE_FLUIDSYNTH_EXE`, output artifact sections mention render reports/session manifests/render errors and `*_stems/` layout, and the development tree includes current runtime modules. Builder verification reported `git diff --check` PASS and no stale `--midi-only` / bare `--duration` references remained.",
+      "timestamp": "2026-06-05T04:05:00Z"
+    },
     {
       "type": "post",
       "target": "git-stage-commit-push-master-107 completion",
@@ -9275,6 +9356,27 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-commit-readme-sync-local-109",
+      "description": "State before recording the successful local docs commit for the README sync task.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-05T04:15:00Z"
+    },
+    {
+      "id": "rollback-readme-codebase-sync-108",
+      "description": "State before recording the README/codebase synchronization task and docs-commit preparation.",
+      "files": [
+        "README.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-05T04:05:00Z"
+    },
     {
       "id": "rollback-git-stage-commit-push-master-107-complete",
       "description": "State before recording the successful integration commit/push result for task 107.",
