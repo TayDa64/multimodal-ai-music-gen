@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "When procedural instrument synthesis plateaus far from real recordings, switch to sample-based reproduction: extract real note samples from the user recordings and render via pitch-shift + sustain-loop, reusing the renderer existing sample path.",
+        "context": "On 2026-06-28, after many procedural tuning passes still sounded synthetic, MUSE extracted real note samples from the user Krar/Masenqo/Begena MP3s into a cached bank and rendered Ethiopian instruments from those samples. librosa descriptor distance to the MP3s dropped ~37-49% vs procedural, and the workflow was made to prefer the sampled instruments by default for Ethiopian genres. This is the decisive move toward authentic timbre.",
+        "timestamp": "2026-06-28T14:00:00Z"
+      },
+      {
         "pattern": "For MP3-source-truth timbre passes, route user-shaped probes through explicit diagnostic profiles and record before/after descriptor movement without claiming solved timbre.",
         "context": "On 2026-06-28, user listening identified Begena clarity/hall issues, Krar amplified mixed-instrument conflict, and Masenqo muted-trumpet tone. The bounded pass added `mp3_reference_bright`, `mp3_reference_bow`, and Krar instrument-focus filtering only in the MP3-shaped diagnostic path. Begena and Masenqo moved toward user references, while Krar focus reduced low drone rendering but needs calibration. This is the correct pattern for iterative source-truth tuning.",
         "timestamp": "2026-06-28T01:45:00Z"
@@ -972,6 +977,15 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Make Ethiopian-family generation default to the MP3 sampled instrument bank, with procedural as fallback and an explicit opt-out.",
+      "rationale": "The user repeatedly said the workflow did not prefer the MP3-variant instruments and the synthesized sound did not match the recordings. Real-sample rendering both sounds authentic and addresses the workflow-preference complaint directly. Defaults preserve all prior procedural behavior when the bank is unavailable or opted out.",
+      "alternatives_considered": [
+        "Continue procedural parameter tuning (plateaued, repeatedly disappointing).",
+        "Keep MP3 profiles opt-in only via magic phrase (user explicitly wanted default preference)."
+      ],
+      "timestamp": "2026-06-28T14:00:00Z"
+    },
     {
       "decision": "Prioritize Krar amplified focus calibration next, then refine Begena high-mid/profile balance and Masenqo bow-noise detail from the MP3 references.",
       "rationale": "Verifier found the timbre-tuned pass valid but caveated: Krar amplified now avoids low Begena-like drone rendering but descriptor distance and effective duration regressed; Begena clarity improved but high-mid overshot; Masenqo improved but still too harmonic/noise-light. The Krar focus regression is the sharpest next engineering issue because it directly maps to the user finding that the Krar probe sounded like it was trying to play both Krar and Begena parts.",
@@ -2614,5 +2628,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-06-28T01:45:00Z"
+  "last_updated": "2026-06-28T14:00:00Z"
 }

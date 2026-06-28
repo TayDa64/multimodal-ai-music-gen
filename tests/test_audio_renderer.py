@@ -1356,3 +1356,139 @@ def test_render_midi_with_fluidsynth_uses_options_before_files(monkeypatch, tmp_
     assert cmd[:7] == [resolved_exe, "-n", "-i", "-F", wav_path, "-r", "48000"]
     assert cmd[-2:] == [sf_path, midi_path]
     assert captured["kwargs"]["timeout"] == 60
+
+
+# ---------------------------------------------------------------------------
+# Task 129: prefer_ethiopian_samples (MP3-variant sampled rendering)
+# ---------------------------------------------------------------------------
+def _fake_ethiopian_bank():
+    def _one(root):
+        return {
+            "audio": np.ones(8, dtype=np.float32),
+            "root_note": root,
+            "sample_rate": 44100,
+            "loop_start_sample": None,
+            "loop_end_sample": None,
+        }
+
+    return {
+        "krar": [_one(60)],
+        "masenqo": [_one(62)],
+        "begena": [_one(48)],
+    }
+
+
+def test_prefer_ethiopian_samples_routes_custom_programs_to_sampled_path(monkeypatch):
+    sampled_calls = []
+    sentinel = np.full(7, 0.42, dtype=np.float32)
+
+    def fake_render(samples, pitch, duration, velocity, sample_rate, *, seed=None):
+        sampled_calls.append((len(samples), int(pitch)))
+        return sentinel.copy()
+
+    monkeypatch.setattr(
+        "multimodal_gen.ethiopian_samples.render_note_from_bank", fake_render
+    )
+
+    def _boom(name):
+        def fake(*args, **kwargs):
+            raise AssertionError(f"procedural {name} must not be called when sampled")
+
+        return fake
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_krar_tone", _boom("krar"))
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_masenqo_tone", _boom("masenqo"))
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_begena_tone", _boom("begena"))
+
+    renderer = ProceduralRenderer(
+        sample_rate=44100,
+        genre="ethiopian_traditional",
+        prefer_ethiopian_samples=True,
+        ethiopian_sample_bank=_fake_ethiopian_bank(),
+    )
+
+    for program in (110, 111, 113):
+        out = renderer._synthesize_note(_note(program=program))
+        assert np.array_equal(out, sentinel)
+
+    assert len(sampled_calls) == 3
+
+    diagnostics = renderer.get_ethiopian_profile_diagnostics()
+    assert diagnostics["prefer_ethiopian_samples"] is True
+    assert diagnostics["sampled_rendering_used"] is True
+    assert diagnostics["sampled_rendering_programs"] == [110, 111, 113]
+    assert diagnostics["sampled_rendering_note_count"] == 3
+    assert "mp3_sample" in diagnostics["profiles_used"]
+
+
+def test_prefer_ethiopian_samples_false_keeps_procedural_dispatch(monkeypatch):
+    proc_calls = []
+
+    def _fake_tone(name):
+        def fake(*args, **kwargs):
+            proc_calls.append(name)
+            return np.zeros(16, dtype=np.float32)
+
+        return fake
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_krar_tone", _fake_tone("krar"))
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_masenqo_tone", _fake_tone("masenqo"))
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_begena_tone", _fake_tone("begena"))
+
+    def _no_sample(*args, **kwargs):
+        raise AssertionError("sampled path must not run when prefer flag is False")
+
+    monkeypatch.setattr(
+        "multimodal_gen.ethiopian_samples.render_note_from_bank", _no_sample
+    )
+
+    # Even with a bank injected, prefer flag False keeps the procedural path.
+    renderer = ProceduralRenderer(
+        sample_rate=44100,
+        genre="ethiopian_traditional",
+        prefer_ethiopian_samples=False,
+        ethiopian_sample_bank=_fake_ethiopian_bank(),
+    )
+
+    for program in (110, 111, 113):
+        assert renderer._synthesize_note(_note(program=program)).shape == (16,)
+
+    assert proc_calls == ["krar", "masenqo", "begena"]
+
+    diagnostics = renderer.get_ethiopian_profile_diagnostics()
+    assert diagnostics["sampled_rendering_used"] is False
+    assert "mp3_sample" not in diagnostics["profiles_used"]
+
+
+def test_audio_renderer_threads_prefer_ethiopian_samples_to_procedural():
+    fake_bank = _fake_ethiopian_bank()
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        soundfont_path=None,
+        require_soundfont=False,
+        genre="ethiopian_traditional",
+        prefer_ethiopian_samples=True,
+        ethiopian_sample_bank=fake_bank,
+    )
+
+    assert renderer.prefer_ethiopian_samples is True
+    assert renderer.procedural.prefer_ethiopian_samples is True
+    assert renderer.procedural._ethiopian_sample_bank is fake_bank
+
+
+def test_prefer_ethiopian_samples_for_generation_defaults_by_genre_and_instruments():
+    from main import _prefer_ethiopian_samples_for_generation
+
+    # Ethiopian-family genres default ON without any magic phrase.
+    for genre in ("ethiopian", "ethiopian_traditional", "eskista", "ethio_jazz"):
+        assert _prefer_ethiopian_samples_for_generation(genre, [], "make a song") is True
+
+    # Non-Ethiopian genre defaults OFF.
+    assert _prefer_ethiopian_samples_for_generation("trap", ["808", "hihat"], "trap beat") is False
+
+    # Ethiopian instruments requested in a neutral genre still default ON.
+    assert _prefer_ethiopian_samples_for_generation("world", ["krar"], "world tune with krar") is True
+
+    # Explicit opt-out phrase forces OFF even for an Ethiopian genre.
+    assert _prefer_ethiopian_samples_for_generation("eskista", [], "eskista but no mp3 samples") is False

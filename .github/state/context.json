@@ -3,6 +3,13 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": "multimodal_gen/ethiopian_samples.py; multimodal_gen/audio_renderer.py; main.py; scripts/compare_ethiopian_reference_audio.py; tests/test_ethiopian_samples.py; tests/test_audio_renderer.py; assets/references/ethiopian/source_mp3/*",
+      "action": "created/modified",
+      "timestamp": "2026-06-28T14:00:00Z",
+      "by_agent": "builder/verifier/supervisor",
+      "changes": "Sample-based Ethiopian instruments extracted from user MP3s; renderer + workflow prefer them by default; librosa descriptor distance improved 37-49%; 2-min Eskista proof rendered via mp3_sample."
+    },
+    {
       "path": "scripts\\compare_ethiopian_reference_audio.py; tests\\test_ethiopian_reference_comparison.py; multimodal_gen\\assets_gen.py; tests\\test_assets_gen.py; output\\_diagnostics\\task129_user_mp3_refs_timbre_tuned_20260628\\*",
       "action": "modified/created",
       "timestamp": "2026-06-28T01:45:00Z",
@@ -8812,6 +8819,13 @@
   "verifications": [
     {
       "type": "post",
+      "target": "task129-mp3-sampled-ethiopian-instrument-bank-and-workflow-default",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "render_note_from_bank shared by renderer + harness; sustain-loop fill; programs 110/111/113 route to mp3_sample when preferred, procedural fallback otherwise; main default-on for Ethiopian genres with opt-out; harness --use-mp3-samples. Tests: 57 passed (focused) / 75 passed (full 3 files). git diff --check exit 0. Descriptor distance krar 0.306->0.185, masenqo 0.287->0.181, begena 0.359->0.183. 2-min Eskista render_report: sampled_rendering_used true, 740 sampled notes (krar 386, masenqo 133, begena 221), washint 47 procedural.",
+      "timestamp": "2026-06-28T14:00:00Z"
+    },
+    {
+      "type": "post",
       "target": "task129-user-mp3-timbre-tuned-diagnostic-slice",
       "result": "PASS_WITH_CAVEAT",
       "details": "Verifier confirmed `PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_ethiopian_reference_comparison.py tests/test_assets_gen.py -q -k \"reference or krar or masenqo or begena\"` passed with 32 passed, 22 deselected; `git diff --check -- scripts/compare_ethiopian_reference_audio.py tests/test_ethiopian_reference_comparison.py multimodal_gen/assets_gen.py tests/test_assets_gen.py` passed; no diagnostics found. Begena distance improved 0.461511→0.359394 but high_mid overshot; Masenqo improved 0.347586→0.289536 but remains too harmonic/noise-light; Krar amplified focus is active but descriptor distance regressed 0.299692→0.328931 and effective duration fell.",
@@ -11312,6 +11326,23 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-task129-mp3-sampled-instrument-bank-20260628",
+      "description": "State around MP3 sample-based Ethiopian instrument bank + default workflow preference.",
+      "files": [
+        "multimodal_gen/ethiopian_samples.py",
+        "multimodal_gen/audio_renderer.py",
+        "main.py",
+        "scripts/compare_ethiopian_reference_audio.py",
+        "tests/test_ethiopian_samples.py",
+        "tests/test_audio_renderer.py",
+        "assets/references/ethiopian/source_mp3/*",
+        ".github/state/orchestration.json",
+        ".github/state/memory.json",
+        ".github/state/context.json"
+      ],
+      "timestamp": "2026-06-28T14:00:00Z"
+    },
     {
       "id": "rollback-task129-user-mp3-timbre-tuned-20260628",
       "description": "State around MP3-source timbre-tuned probes and profiles for Task 129.",

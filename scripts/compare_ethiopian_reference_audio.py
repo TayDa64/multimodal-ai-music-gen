@@ -35,6 +35,7 @@ from multimodal_gen.assets_gen import (
     generate_masenqo_tone,
     generate_washint_tone,
 )
+from multimodal_gen import ethiopian_samples
 
 INSTRUMENTS: Tuple[str, ...] = ("krar", "masenqo", "washint", "begena")
 
@@ -1417,6 +1418,155 @@ def generate_reference_shaped_probe_audio(
     return _as_mono_float(output), _clean_for_json(metadata)
 
 
+# Instruments backed by an extracted real-recording (MP3) sample bank.
+SAMPLE_BANK_INSTRUMENTS: Tuple[str, ...] = ("krar", "masenqo", "begena")
+
+
+def _frequency_to_midi(frequency_hz: float) -> int:
+    """Convert a frequency in Hz to the nearest MIDI note number."""
+    f = float(frequency_hz)
+    if not math.isfinite(f) or f <= 0.0:
+        return 60
+    return int(round(69.0 + 12.0 * math.log2(f / 440.0)))
+
+
+def generate_reference_shaped_probe_audio_from_samples(
+    instrument: str,
+    reference_schedule: Mapping[str, Any],
+    *,
+    reference_source_id: str,
+    sample_bank: Mapping[str, Any],
+    sample_rate: int = SAMPLE_RATE,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """Render the user-reference-shaped probe from the real-recording sample bank.
+
+    This uses the SAME shared ``ethiopian_samples.render_note_from_bank`` engine
+    as the renderer (pitch-shifted + sustain-looped real note samples) so the
+    sampled-shaped probe can be compared head-to-head with the procedural-shaped
+    probe against the MP3 reference. Monophonic Masenqo behavior is preserved:
+    note durations are constrained to the next onset by the reference schedule,
+    so no additive two-player overlap is introduced.
+    """
+    if instrument not in SAMPLE_BANK_INSTRUMENTS:
+        raise ValueError(f"Unsupported sampled probe instrument: {instrument}")
+
+    samples = list((sample_bank or {}).get(instrument) or [])
+    duration_seconds = _safe_float(
+        reference_schedule.get(
+            "generation_duration_seconds",
+            reference_schedule.get("duration_seconds", 0.0),
+        )
+    )
+    total_samples = max(1, int(round(max(0.0, duration_seconds) * sample_rate)))
+    output = np.zeros(total_samples, dtype=np.float64)
+    notes = _reference_shaped_note_schedule(
+        instrument,
+        reference_schedule,
+        mp3_source_truth=True,
+    )
+
+    midi_notes_used: List[int] = []
+    state = np.random.get_state()
+    np.random.seed(_reference_shape_seed(instrument, reference_source_id))
+    try:
+        for note in notes:
+            onset_sample = int(round(float(note["onset_seconds"]) * sample_rate))
+            if onset_sample >= total_samples:
+                continue
+            frequency_hz = float(note["frequency_hz"])
+            note_duration = float(note["duration_seconds"])
+            target_midi = _frequency_to_midi(frequency_hz)
+            midi_notes_used.append(target_midi)
+            note["render_action"] = "rendered"
+            note["realization"] = "mp3_sample"
+            note["target_midi"] = target_midi
+            # Deterministic per-note sample selection (round-robin via seed).
+            note_audio = ethiopian_samples.render_note_from_bank(
+                samples,
+                target_midi,
+                note_duration,
+                0.78,
+                sample_rate,
+                seed=int(note["index"]),
+            )
+            note_audio = _as_mono_float(note_audio)
+            if note_audio.size == 0:
+                continue
+            smoothed_note, smoothing_metadata = _apply_reference_note_smoothing(
+                note_audio,
+                sample_rate,
+                instrument=instrument,
+                mp3_source_truth=True,
+            )
+            note.update(smoothing_metadata)
+            note["composition_release_tail_seconds"] = smoothing_metadata["release_tail_seconds"]
+            end_sample = min(total_samples, onset_sample + len(smoothed_note))
+            if end_sample > onset_sample:
+                output[onset_sample:end_sample] += smoothed_note[: end_sample - onset_sample]
+    finally:
+        np.random.set_state(state)
+
+    peak = float(np.max(np.abs(output))) if output.size else 0.0
+    normalized_final_output = False
+    if peak > 0.98:
+        output = output / peak * 0.98
+        normalized_final_output = True
+
+    rendered_notes = [note for note in notes if not str(note.get("render_action", "")).startswith("skipped")]
+    release_tail_values = [float(note.get("composition_release_tail_seconds", 0.0)) for note in rendered_notes]
+    click_diagnostics = adjacent_sample_jump_diagnostics(output)
+    overlap_diagnostics = _reference_schedule_overlap_diagnostics(notes)
+    monophonic_source = instrument == "masenqo"
+    overlap_policy = "monophonic_fade_to_next_onset" if monophonic_source else "sustain_tail_overlap"
+    metadata: Dict[str, Any] = {
+        "instrument": instrument,
+        "sample_rate": sample_rate,
+        "source": "multimodal_gen.ethiopian_samples real-recording sample bank",
+        "probe_shape": "reference_performance_shape",
+        "realization": "mp3_sample",
+        "reference_source_id": reference_source_id,
+        "full_song_generation": False,
+        "diagnostic_only": True,
+        "click_smoothing": True,
+        "monophonic_source": bool(monophonic_source),
+        "overlap_policy": overlap_policy,
+        **overlap_diagnostics,
+        "composition_release_tail_seconds": _safe_float(max(release_tail_values) if release_tail_values else 0.0),
+        "mp3_source_truth": True,
+        "sample_bank_instrument_count": len(samples),
+        "sample_bank_empty": not samples,
+        "target_midi_notes": midi_notes_used,
+        "normalized_final_output": normalized_final_output,
+        "pre_normalization_peak": _safe_float(peak),
+        "click_diagnostics": click_diagnostics,
+        "source_notes": [
+            f"Reference-performance-shaped sampled probe for {instrument} rendered from the real-recording (MP3) sample bank via the shared render_note_from_bank engine; no full-song generation is used.",
+            "Samples are pitch-shifted and sustain-looped to follow the reference schedule's per-note MIDI/onset/duration.",
+            "Masenqo sampled probes remain monophonic: note ends are constrained to the next onset to avoid additive two-player overlap.",
+            "This sampled probe is a diagnostic source-truth comparison and does not by itself claim Ethiopian timbre is solved.",
+        ],
+        "warnings": list(reference_schedule.get("warnings", [])),
+        "probe_schedule": {
+            "shape": "reference_performance_shape",
+            "realization": "mp3_sample",
+            "duration_seconds": duration_seconds,
+            "reference_source_id": reference_source_id,
+            "click_smoothing": True,
+            "monophonic_source": bool(monophonic_source),
+            "overlap_policy": overlap_policy,
+            **overlap_diagnostics,
+            "composition_release_tail_seconds": _safe_float(max(release_tail_values) if release_tail_values else 0.0),
+            "mp3_source_truth": True,
+            "onset_times_seconds": [float(note["onset_seconds"]) for note in notes],
+            "frequencies_hz": [float(note["frequency_hz"]) for note in rendered_notes],
+            "target_midi_notes": midi_notes_used,
+            "click_diagnostics": click_diagnostics,
+            "notes": notes,
+        },
+    }
+    return _as_mono_float(output), _clean_for_json(metadata)
+
+
 def _flatten_numeric(value: Any, prefix: str = "") -> Dict[str, float]:
     flattened: Dict[str, float] = {}
     if isinstance(value, Mapping):
@@ -2020,6 +2170,7 @@ def run_comparison(
     match_user_ref_shape: bool = False,
     include_public_refs_with_user_refs: bool = False,
     write_generated_wavs: bool = True,
+    use_mp3_samples: bool = False,
     sample_rate: int = SAMPLE_RATE,
 ) -> Dict[str, Any]:
     """Run the bounded Task 129 comparison harness and write report artifacts."""
@@ -2028,6 +2179,18 @@ def run_comparison(
     resolved_out = _resolve_path(out_dir or default_output_dir())
     resolved_refs = _resolve_path(refs_dir)
     resolved_out.mkdir(parents=True, exist_ok=True)
+
+    # Lazy-load the real-recording sample bank once when sampled probes are
+    # requested. Guarded so the harness never hard-fails if the bank is missing.
+    sample_bank: Dict[str, Any] = {}
+    if use_mp3_samples:
+        try:
+            sample_bank = ethiopian_samples.load_ethiopian_sample_bank(
+                list(SAMPLE_BANK_INSTRUMENTS),
+                target_sample_rate=sample_rate,
+            ) or {}
+        except Exception:
+            sample_bank = {}
 
     reference_status, reference_candidates = build_reference_status(
         resolved_refs,
@@ -2045,6 +2208,10 @@ def run_comparison(
         "match_user_ref_shape": bool(match_user_ref_shape),
         "include_public_refs_with_user_refs": bool(include_public_refs_with_user_refs),
         "user_mp3_references_are_source_truth": bool(reference_status.get("user_mp3_references_are_source_truth")),
+        "use_mp3_samples": bool(use_mp3_samples),
+        "sampled_bank_instrument_counts": {
+            inst: len(list((sample_bank or {}).get(inst) or [])) for inst in SAMPLE_BANK_INSTRUMENTS
+        } if use_mp3_samples else {},
         "generated": {},
         "generated_reference_shaped": {instrument: [] for instrument in selected},
         "references": {instrument: [] for instrument in selected},
@@ -2105,13 +2272,23 @@ def run_comparison(
 
         generated_entry = descriptors["generated"][candidate.instrument]
         if reference_schedule is not None:
-            shaped_audio, shaped_metadata = generate_reference_shaped_probe_audio(
-                candidate.instrument,
-                reference_schedule,
-                reference_source_id=candidate.source_id,
-                sample_rate=sample_rate,
-                mp3_source_truth=True,
-            )
+            use_sampled = bool(use_mp3_samples) and candidate.instrument in SAMPLE_BANK_INSTRUMENTS
+            if use_sampled:
+                shaped_audio, shaped_metadata = generate_reference_shaped_probe_audio_from_samples(
+                    candidate.instrument,
+                    reference_schedule,
+                    reference_source_id=candidate.source_id,
+                    sample_bank=sample_bank,
+                    sample_rate=sample_rate,
+                )
+            else:
+                shaped_audio, shaped_metadata = generate_reference_shaped_probe_audio(
+                    candidate.instrument,
+                    reference_schedule,
+                    reference_source_id=candidate.source_id,
+                    sample_rate=sample_rate,
+                    mp3_source_truth=True,
+                )
             shaped_path: Optional[Path] = None
             if write_generated_wavs:
                 shaped_path = write_generated_probe_wav(
@@ -2230,6 +2407,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_false",
         help="Skip writing generated probe WAVs while still extracting in-memory generated descriptors.",
     )
+    parser.add_argument(
+        "--use-mp3-samples",
+        dest="use_mp3_samples",
+        action="store_true",
+        default=False,
+        help="Render the user-reference-shaped krar/masenqo/begena probes from the extracted real-recording (MP3) sample bank via render_note_from_bank instead of the procedural generators (diagnostic source-truth comparison).",
+    )
     return parser
 
 
@@ -2247,6 +2431,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             match_user_ref_shape=bool(args.match_user_ref_shape),
             include_public_refs_with_user_refs=bool(args.include_public_refs_with_user_refs),
             write_generated_wavs=bool(args.write_generated_wavs),
+            use_mp3_samples=bool(args.use_mp3_samples),
         )
     except Exception as exc:
         parser.exit(2, f"error: {exc}\n")

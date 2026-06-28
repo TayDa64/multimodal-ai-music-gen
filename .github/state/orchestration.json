@@ -649,7 +649,7 @@
         ".github/state/memory.json"
       ],
       "created": "2026-06-26T00:00:00Z",
-      "updated": "2026-06-28T01:45:00Z",
+      "updated": "2026-06-28T14:00:00Z",
       "implementation": {
         "files_changed": [
           "multimodal_gen/assets_gen.py",
@@ -1087,6 +1087,77 @@
             "Begena mp3_reference_bright improved clarity but high_mid overshoots the MP3 reference and HPSS moved away; refine after Krar focus or by listening priority.",
             "Masenqo moved strongly toward the MP3 reference but still lacks enough high/high-mid flatness and remains too harmonic versus the bowed-string target."
           ]
+        },
+        "mp3_sampled_instrument_bank": {
+          "timestamp": "2026-06-28T14:00:00Z",
+          "files_changed": [
+            "multimodal_gen/ethiopian_samples.py (new)",
+            "multimodal_gen/audio_renderer.py",
+            "main.py",
+            "scripts/compare_ethiopian_reference_audio.py",
+            "scripts/copy_ethiopian_mp3s.py (new)",
+            "scripts/task129_build_ethiopian_banks.py (new)",
+            "tests/test_ethiopian_samples.py (new)",
+            "tests/test_audio_renderer.py",
+            "assets/references/ethiopian/source_mp3/*.mp3 (new)"
+          ],
+          "summary": "Decisive direction change: instead of only tuning procedural synthesis, MUSE now extracts REAL note samples from the user MP3 recordings into a cached sample bank (krar 84, masenqo 22, begena 27 samples, with sustain loops) and renders Ethiopian instruments by pitch-shifting + sustain-looping those real samples. A shared render_note_from_bank() function is used by both the renderer and the librosa harness. The workflow now PREFERS the MP3-variant instruments BY DEFAULT for Ethiopian-family genres (no magic phrase required), with an explicit opt-out phrase. Public synth signatures and all prior procedural behavior remain as fallback.",
+          "descriptor_distance_improvement": {
+            "krar": [
+              0.305806,
+              0.185385
+            ],
+            "masenqo": [
+              0.287351,
+              0.180691
+            ],
+            "begena": [
+              0.359394,
+              0.182949
+            ],
+            "note": "lower is closer to the user MP3; ~37-49% improvement using real samples vs procedural."
+          },
+          "two_minute_eskista_workflow_proof": {
+            "output_dir": "output/_diagnostics/task129_eskista_2min_mp3_samples_workflow_20260628",
+            "midi": "eskista_120bpm_Cminor_20260628_130625.mid",
+            "wav": "eskista_120bpm_Cminor_20260628_130625.wav",
+            "render_report": "eskista_120bpm_Cminor_20260628_130625_render_report.json",
+            "renderer_path": "procedural",
+            "prefer_ethiopian_samples": true,
+            "sampled_rendering_used": true,
+            "sampled_rendering_programs": [
+              110,
+              111,
+              113
+            ],
+            "sampled_rendering_note_count": 740,
+            "program_profiles": {
+              "krar_110": {
+                "profile": "mp3_sample",
+                "note_count": 386
+              },
+              "masenqo_111": {
+                "profile": "mp3_sample",
+                "note_count": 133
+              },
+              "washint_112": {
+                "profile": "dance_call",
+                "note_count": 47,
+                "note": "no washint sample bank yet; procedural"
+              },
+              "begena_113": {
+                "profile": "mp3_sample",
+                "note_count": 221
+              }
+            }
+          },
+          "remaining_gaps": [
+            "Do not claim timbre fully solved; this is a major authenticity jump but bounded.",
+            "Pitch-shifting one-shot samples by resampling shifts formants on large intervals; coverage is single-sample-per-root, not full velocity/round-robin multisample.",
+            "Washint has no user MP3, so it still renders procedurally (dance_call/alto_breathy).",
+            "Bank coverage gaps exist outside the sampled root_note ranges (krar 38-71, masenqo 57-74, begena 35-50).",
+            "User listening approval of the 2-minute song and sampled probes is still pending."
+          ]
         }
       },
       "tests": [
@@ -1121,8 +1192,8 @@
       ],
       "post_verifier": {
         "verdict": "PASS_WITH_CAVEAT",
-        "timestamp": "2026-06-28T01:45:00Z",
-        "summary": "Verifier confirmed MP3 source truth remains active, public/paper Begena is excluded by default, Begena/Masenqo use MP3-specific profiles, Krar amplified uses instrument-focus filtering, public signatures remain unchanged, 32 focused tests pass, and diagnostics are clean. Caveats: timbre is not solved; Krar amplified focus regressed descriptor distance/effective duration; Begena high-mid overshoots; Masenqo remains too harmonic/noise-light."
+        "timestamp": "2026-06-28T14:00:00Z",
+        "summary": "Verifier confirmed shared render_note_from_bank, sustain-loop fill with no interior silence, renderer routing of programs 110/111/113 to mp3_sample when preferred (procedural fallback when not), AudioRenderer threading, main.py default-on for Ethiopian genres with opt-out, harness --use-mp3-samples, and 57/75 focused tests passing with clean git diff --check. Descriptor distances improved 37-49% sampled vs procedural. Caveats: formant shift on large pitch shifts, single-sample-per-root, washint still procedural, not a full multisample solve."
       },
       "integrity_reset": {
         "timestamp": "2026-06-27T00:00:00Z",
@@ -8914,12 +8985,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-06-28T01:45:00Z",
+    "last_updated": "2026-06-28T14:00:00Z",
     "total_tasks_completed": 129,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "continue-task129-krar-amplified-focus-calibration-then-begena-highmid-masenqo-bow-refinement"
+    "next_phase": "await-user-listening-approval-of-mp3-sampled-eskista-then-expand-multisample-coverage-and-washint-bank"
   },
   "sprint_11": {
     "status": "COMPLETE",

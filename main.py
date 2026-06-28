@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 import json
 import random
 import numpy as np
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 
 # Keep CLI/JSON outputs clean if pygame is imported indirectly
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
@@ -268,6 +268,60 @@ def _prompt_requests_ethiopian_mp3_reference_profiles(prompt: str) -> bool:
         "user mp3",
     )
     return any(phrase in normalized or phrase in normalized_space for phrase in phrases)
+
+
+# Ethiopian-family genres that default to the MP3-variant (real-recording) instruments.
+_ETHIOPIAN_SAMPLE_GENRES = {
+    "ethiopian",
+    "ethiopian_traditional",
+    "eskista",
+    "ethio_jazz",
+}
+
+# Ethiopian instruments that have an extracted real-recording sample bank.
+_ETHIOPIAN_SAMPLE_INSTRUMENTS = {"krar", "masenqo", "begena"}
+
+
+def _prompt_disables_ethiopian_mp3_samples(prompt: str) -> bool:
+    """Detect an explicit opt-out from the default MP3-variant Ethiopian instruments."""
+    normalized = str(prompt or "").strip().lower()
+    normalized_space = normalized.replace("-", " ").replace("_", " ")
+    phrases = (
+        "no mp3 samples",
+        "no mp3 sample",
+        "no mp3 variant",
+        "disable mp3 samples",
+        "disable mp3 sample",
+        "without mp3 samples",
+        "procedural ethiopian",
+    )
+    return any(phrase in normalized or phrase in normalized_space for phrase in phrases)
+
+
+def _prefer_ethiopian_samples_for_generation(
+    parsed_genre: Optional[str],
+    parsed_instruments: Optional[Sequence[str]],
+    prompt: str,
+) -> bool:
+    """Decide whether the workflow should prefer MP3-variant Ethiopian instruments.
+
+    Defaults ON for Ethiopian-family genres (and when Ethiopian sampled
+    instruments are explicitly requested) so the workflow prefers the user's
+    real-recording instruments without requiring a magic phrase. An explicit
+    opt-out phrase ('no mp3 samples', etc.) forces it back OFF.
+    """
+    if _prompt_disables_ethiopian_mp3_samples(prompt):
+        return False
+    try:
+        from multimodal_gen.utils import normalize_genre
+        genre_key = normalize_genre(parsed_genre)
+    except Exception:
+        genre_key = str(parsed_genre or "").strip().lower().replace(" ", "_").replace("-", "_")
+    if genre_key in _ETHIOPIAN_SAMPLE_GENRES:
+        return True
+    requested = {str(inst).strip().lower() for inst in (parsed_instruments or [])}
+    return bool(requested & _ETHIOPIAN_SAMPLE_INSTRUMENTS)
+
 
 
 def _write_render_error_artifact(
@@ -2241,6 +2295,9 @@ def run_generation(
         parsed_instruments=parsed.instruments + parsed.drum_elements,  # Pass explicit instruments
         resolved_sample_metadata=results.get("instruments_used", []),
         ethiopian_mp3_reference_profiles=_prompt_requests_ethiopian_mp3_reference_profiles(prompt),
+        prefer_ethiopian_samples=_prefer_ethiopian_samples_for_generation(
+            parsed.genre, parsed.instruments, prompt
+        ),
     )
 
     # Sprint 8.3: Bridge reference profile to renderer for mix matching

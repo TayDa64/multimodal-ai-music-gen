@@ -748,6 +748,70 @@ class ProceduralRenderer:
         """Reset per-render Ethiopian profile diagnostics."""
         self._ethiopian_profile_usage_counts = {}
 
+    # MIDI custom program -> Ethiopian sample-bank instrument key.
+    _ETHIOPIAN_PROGRAM_SAMPLE_KEYS = {110: 'krar', 111: 'masenqo', 113: 'begena'}
+
+    def _get_ethiopian_sample_bank(self) -> dict:
+        """Lazy-load and cache the real-recording Ethiopian sample bank.
+
+        Returns an empty dict (never raises) when sampled rendering is disabled
+        or the bank cannot be built. An injected bank (even empty) is honored
+        verbatim and skips the on-disk lazy load.
+        """
+        if self._ethiopian_sample_bank is not None:
+            return self._ethiopian_sample_bank
+        if not self.prefer_ethiopian_samples:
+            self._ethiopian_sample_bank = {}
+            return self._ethiopian_sample_bank
+        bank: dict = {}
+        try:
+            from . import ethiopian_samples
+            bank = ethiopian_samples.load_ethiopian_sample_bank(
+                ['krar', 'masenqo', 'begena'],
+                target_sample_rate=self.sample_rate,
+            ) or {}
+        except Exception:
+            bank = {}
+        self._ethiopian_sample_bank = bank
+        return self._ethiopian_sample_bank
+
+    def _try_render_ethiopian_sample(
+        self,
+        program: int,
+        instrument: str,
+        note: 'SynthNote',
+        duration: float,
+        velocity: float,
+    ) -> Optional[np.ndarray]:
+        """Render an Ethiopian note from the real-recording sample bank.
+
+        Returns ``None`` (so the caller falls back to the existing procedural
+        dispatch) when sampled rendering is disabled, the bank lacks samples for
+        this instrument, or rendering fails.
+        """
+        if not self.prefer_ethiopian_samples:
+            return None
+        bank = self._get_ethiopian_sample_bank()
+        samples = bank.get(instrument) if isinstance(bank, dict) else None
+        if not samples:
+            return None
+        try:
+            from . import ethiopian_samples
+            audio = ethiopian_samples.render_note_from_bank(
+                samples,
+                note.pitch,
+                duration,
+                velocity,
+                self.sample_rate,
+            )
+        except Exception:
+            return None
+        if audio is None or len(audio) == 0:
+            return None
+        # Distinct 'mp3_sample' realization label proves the sampled path fired.
+        self._record_ethiopian_profile_use(program, instrument, 'mp3_sample')
+        return np.asarray(audio, dtype=np.float32)
+
     def get_ethiopian_profile_diagnostics(self) -> Dict[str, object]:
         """Return compact runtime diagnostics for Ethiopian custom program profiles."""
         entries = [
@@ -761,8 +825,18 @@ class ProceduralRenderer:
             for (program, instrument, profile, mp3_enabled), count in sorted(self._ethiopian_profile_usage_counts.items())
         ]
         profiles_used = sorted({entry["profile"] for entry in entries})
+        sampled_programs = sorted(
+            {entry["program"] for entry in entries if entry["profile"] == "mp3_sample"}
+        )
+        sampled_note_count = sum(
+            int(entry["note_count"]) for entry in entries if entry["profile"] == "mp3_sample"
+        )
         return {
             "enabled": bool(self.ethiopian_mp3_reference_profiles),
+            "prefer_ethiopian_samples": bool(getattr(self, "prefer_ethiopian_samples", False)),
+            "sampled_rendering_used": bool(sampled_programs),
+            "sampled_rendering_programs": sampled_programs,
+            "sampled_rendering_note_count": int(sampled_note_count),
             "profiles_used": profiles_used,
             "program_profiles": entries,
         }
@@ -957,6 +1031,8 @@ class ProceduralRenderer:
         mood: str = None,
         parsed_instruments: list = None,  # NEW: Explicit instruments from prompt
         ethiopian_mp3_reference_profiles: bool = False,
+        prefer_ethiopian_samples: bool = False,
+        ethiopian_sample_bank: Optional[dict] = None,
     ):
         self.sample_rate = sample_rate
         self.instrument_library = instrument_library
@@ -966,6 +1042,11 @@ class ProceduralRenderer:
         self.mood = mood
         self._parsed_instruments = {str(inst).lower() for inst in parsed_instruments} if parsed_instruments else set()
         self.ethiopian_mp3_reference_profiles = bool(ethiopian_mp3_reference_profiles)
+        self.prefer_ethiopian_samples = bool(prefer_ethiopian_samples)
+        # Real-recording sample bank (krar/masenqo/begena). None => lazy-load on
+        # first use when prefer_ethiopian_samples is True; an injected dict
+        # (even empty) disables lazy loading.
+        self._ethiopian_sample_bank: Optional[dict] = ethiopian_sample_bank
         self._ethiopian_profile_usage_counts: Dict[Tuple[int, str, str, bool], int] = {}
         
         # Check if Ethiopian instruments are requested
@@ -1491,6 +1572,9 @@ class ProceduralRenderer:
             return generate_washint_tone(freq, duration, velocity)
         # Ethiopian instruments (custom program numbers 110-119)
         elif note.program == 110:  # Krar
+            sampled = self._try_render_ethiopian_sample(110, 'krar', note, duration, velocity)
+            if sampled is not None:
+                return sampled
             # Use Ethiopian tuning, optionally add ornaments on accented notes
             add_ornament = velocity > 0.7 and duration > 0.15
             genre_key = self._normalized_genre_key()
@@ -1508,6 +1592,9 @@ class ProceduralRenderer:
                 profile=krar_profile,
             )
         elif note.program == 111:  # Masenqo
+            sampled = self._try_render_ethiopian_sample(111, 'masenqo', note, duration, velocity)
+            if sampled is not None:
+                return sampled
             # High expressiveness for authentic Azmari sound
             expressiveness = 0.6 + velocity * 0.3
             add_ornament = velocity > 0.6 and duration > 0.25
@@ -1533,6 +1620,9 @@ class ProceduralRenderer:
                 profile=washint_profile,
             )
         elif note.program == 113:  # Begena
+            sampled = self._try_render_ethiopian_sample(113, 'begena', note, duration, velocity)
+            if sampled is not None:
+                return sampled
             begena_profile = 'mp3_reference_bright' if self.ethiopian_mp3_reference_profiles else 'paraliturgical_drone'
             self._record_ethiopian_profile_use(note.program, 'begena', begena_profile)
             return generate_begena_tone(
@@ -1746,6 +1836,8 @@ class AudioRenderer:
         neural_model_path: Optional[str] = None,
         neural_backend: Optional[OptionalNeuralRuntime] = None,
         ethiopian_mp3_reference_profiles: bool = False,
+        prefer_ethiopian_samples: bool = False,
+        ethiopian_sample_bank: Optional[dict] = None,
     ):
         """
         Initialize AudioRenderer.
@@ -1786,6 +1878,8 @@ class AudioRenderer:
         self.tail_seconds = tail_seconds
         self.enable_neural_render = bool(enable_neural_render)
         self.ethiopian_mp3_reference_profiles = bool(ethiopian_mp3_reference_profiles)
+        self.prefer_ethiopian_samples = bool(prefer_ethiopian_samples)
+        self._ethiopian_sample_bank: Optional[dict] = ethiopian_sample_bank
         self._parsed_instrument_names = [
             str(inst).strip()
             for inst in (parsed_instruments or [])
@@ -1880,6 +1974,8 @@ class AudioRenderer:
             mood=mood,
             parsed_instruments=parsed_instruments,  # Pass instruments for Ethiopian detection
             ethiopian_mp3_reference_profiles=self.ethiopian_mp3_reference_profiles,
+            prefer_ethiopian_samples=self.prefer_ethiopian_samples,
+            ethiopian_sample_bank=self._ethiopian_sample_bank,
         )
     
     def set_instrument_library(
@@ -1909,6 +2005,8 @@ class AudioRenderer:
             genre=self.genre,
             mood=self.mood,
             ethiopian_mp3_reference_profiles=self.ethiopian_mp3_reference_profiles,
+            prefer_ethiopian_samples=self.prefer_ethiopian_samples,
+            ethiopian_sample_bank=self._ethiopian_sample_bank,
         )
         
         # Update synthesizer if it supports configuration
