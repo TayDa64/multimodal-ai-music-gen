@@ -3,6 +3,201 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For MP3-source-truth timbre passes, route user-shaped probes through explicit diagnostic profiles and record before/after descriptor movement without claiming solved timbre.",
+        "context": "On 2026-06-28, user listening identified Begena clarity/hall issues, Krar amplified mixed-instrument conflict, and Masenqo muted-trumpet tone. The bounded pass added `mp3_reference_bright`, `mp3_reference_bow`, and Krar instrument-focus filtering only in the MP3-shaped diagnostic path. Begena and Masenqo moved toward user references, while Krar focus reduced low drone rendering but needs calibration. This is the correct pattern for iterative source-truth tuning.",
+        "timestamp": "2026-06-28T01:45:00Z"
+      },
+      {
+        "pattern": "Use MP3-source-truth-specific diagnostic profiles and metadata rather than globally replacing public/paper instrument defaults when user recordings conflict with public references.",
+        "context": "Task 129 on 2026-06-28 added `mp3_reference_bright` Begena and `mp3_reference_bow` Masenqo profiles only for MP3-shaped diagnostics, plus contained Krar instrument-focus filtering for the amplified/mixed user reference. This preserved public synthesis signatures/defaults while producing listening artifacts under task129_user_mp3_refs_timbre_tuned_20260628.",
+        "timestamp": "2026-06-28T02:10:00Z"
+      },
+      {
+        "pattern": "For user-reference-shaped probe generation, preserve musical sustain by rendering overlap tails and applying composition-level click smoothing before interpreting timbre descriptors.",
+        "context": "On 2026-06-28, user listening found pops and hard cutoffs in Begena, Krar, and Masenqo user-reference-shaped probes. The fix was in the diagnostic probe composer, not in renderer thresholds: notes now render with release tails/overlap, equal-power/cosine fades, objective adjacent-sample jump metrics, and MP3 source-truth metadata. This makes later timbre judgments more reliable.",
+        "timestamp": "2026-06-28T01:05:00Z"
+      },
+      {
+        "pattern": "When real user instrument recordings are supplied, add opt-in reference-shaped probes per user file before using descriptor deltas to tune source synthesis.",
+        "context": "On 2026-06-28, user supplied Krar acoustic, Krar amplified, Masenqo, and Begena MP3 references. The initial comparison exposed unfair 1.2s single-note Krar/Masenqo probes. The corrected harness added `--match-user-ref-shape`, extracted duration/onset/f0 schedules from each user MP3, and generated one isolated source probe per reference. This made f0/duration comparisons meaningful and showed remaining timbre gaps without pretending the instruments were solved.",
+        "timestamp": "2026-06-28T00:20:00Z"
+      },
+      {
+        "pattern": "For instrument-authenticity work, build a manifest-driven real-reference comparison harness before tuning synthesis, and make generated probes match the reference form before interpreting descriptor deltas.",
+        "context": "Task 129 recovery on 2026-06-27 found that comparing a 1.8s generated Begena note to the 24.6s Commons Begena scale was unfair. The harness was corrected to use a reference-scale-shaped isolated source probe, then active-region metrics were fixed for leading silence, and only then was a bounded Begena retune applied. This avoided claiming progress from reused approval songs or misleading metrics.",
+        "timestamp": "2026-06-27T00:45:00Z"
+      },
+      {
+        "pattern": "For user-rejected instrument timbre samples, invalidate incomplete proof folders explicitly and regenerate a clean, internally consistent approval pack before asking for listening approval again.",
+        "context": "On 2026-06-26, the user rejected the Task 129A Ethiopian approval songs and called out inconsistency between `task129A_approval_songs_20260626_170753` and `task129A_approval_songs_20260626_171330`. Inspection showed the 170753 folder was incomplete because the bash shell failed mid-run, while 171330 was the trustworthy baseline. After a Washint-only source-model deepening, the clean reapproval pack was generated under `output/_diagnostics/task129A_washint_reapproval_20260626_175811` with a primary Washint song plus Krar/Masenqo references, all in one bash-safe run.",
+        "timestamp": "2026-06-26T18:05:00Z"
+      },
+      {
+        "pattern": "After fixing an exact pre-render crash, close the adjacent follow-through gap with one exact isolated end-to-end proof before opening another production slice.",
+        "context": "Task 128 (2026-06-09) followed Task 127's Ambassel chord-safety fix. The verifier's precheck found no newly proven production bug after Task 127; the real missing piece was simply an exact end-to-end render/runtime artifact for the Ethiopian-traditional prompt. Running the exact prompt `ethiopian traditional azmari krar and masenqo with kebero` on the isolated no-agent path produced a full proof set with `render_status.success=true`, `renderer_path=procedural`, and `audio_analysis.passed=true`. The durable lesson is to prefer one clean end-to-end follow-through proof immediately after removing an upstream blocker, instead of assuming another code change is needed first.",
+        "timestamp": "2026-06-09T14:50:00Z"
+      },
+      {
+        "pattern": "For qenet/pentatonic chord safety bugs, fix the shared degree-to-chord generator with scale-length-aware defaults and in-scale modal stacks instead of patching individual callers or forcing 7-note Western harmony assumptions.",
+        "context": "Task 127 (2026-06-09) traced the Ethiopian-traditional runtime crash to `multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)`: the default non-minor progression still assumed degrees `[1, 5, 6, 4]` even when the active Ambassel scale had only 5 notes, causing `root_note = scale_notes[degree - 1]` to raise `IndexError`. The durable fix was to keep the repair inside the shared chord generator by deriving the scale length early, choosing a scale-length-aware fallback progression for reduced-degree scales, sanitizing degrees before indexing, and building conservative in-scale modal chord stacks for reduced-degree scales. That preserved the existing 7-note path and removed the exact Ethiopian-traditional crash without reopening caller-side or Task 120 code.",
+        "timestamp": "2026-06-09T14:12:00Z"
+      },
+      {
+        "pattern": "When a bounded timbre/subgenre slice is green but a representative runtime proof fails earlier in an untouched upstream subsystem, close the bounded slice and queue the upstream failure as a separate follow-up instead of broadening the task mid-flight.",
+        "context": "Task 120 (2026-06-09) completed the intended Kebero profile/dispatch and Ethiopian subgenre-map separation work with clean diagnostics, focused tests, distinct Kebero metrics, and separate explicit no-op Ethiopian FluidSynth diagnostics. The remaining exact `ethiopian_traditional` runtime proof failed before the new Task 120 surfaces were reached, inside `multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)` on `root_note = scale_notes[degree - 1]`. The verifier explicitly classified that as an adjacent chord-generation bug rather than a Task 120 blocker. The durable rule is to keep the bounded task closed once its own seams are proven and track the upstream pre-render bug separately.",
+        "timestamp": "2026-06-09T13:35:00Z"
+      },
+      {
+        "pattern": "When direct proof artifacts disagree with passing bounded timbre tests, rerun the proof under the same seeded note/range conditions and acceptance metrics as the tests before assuming the synthesis regressed.",
+        "context": "Task 126 (2026-06-09) initially used an exploratory Begena proof at a lower drone note with a coarse roughness proxy, which falsely suggested that the new buzzer/sustain behavior was not separating correctly. The aligned acceptance proof under `output\\_diagnostics\\task126_begena_proof_final_20260609_125002` instead mirrored the focused test conditions (`110 Hz` / `1.5s` defaults plus the `1.8s` sustain comparison) and reused the same difference, presence, tail-RMS, and low-vs-upper-band logic. That aligned proof matched the passing tests and showed the intended structured roughness, sustain, and low-register identity behavior clearly. The durable lesson is to keep direct proof conditions congruent with the bounded acceptance tests for instrument-timbre slices.",
+        "timestamp": "2026-06-09T12:52:00Z"
+      },
+      {
+        "pattern": "When a drum artifact sounds like a snare-like repetition on nearly every beat, prove the base pattern seam first before touching drum timbre; if the pattern is too dense, a pattern-only fix is safer and often sufficient.",
+        "context": "Task 124 (2026-06-09) began from the user's report that Kebero was the closest current timbre but carried a recurring muted/snare-like hit on every beat. Read-only pre-check showed the baseline Eskista issue was primarily the dense `kebero_slap` pulse grid in `generate_ethiopian_drum_pattern(style='eskista')`, not the currently unused muted-hit synthesis path. Thinning the slap grid in `multimodal_gen/midi_generator.py` from every non-bass pulse to the late off-pulse answers was enough to preserve low/high head contrast while removing the mechanical all-pulse feel, and it avoided destabilizing the timbre the user already partly liked.",
+        "timestamp": "2026-06-09T11:45:00Z"
+      },
+      {
+        "pattern": "For source-level realism reset tasks, trust a directly regenerated listening pack built from the current functions more than a generic artifact generator that may silently fall back to copying older clips.",
+        "context": "Task 123 (2026-06-09) used two different listening-pack generation attempts. The first helper produced a nominally successful pack but silently copied prior baseline clips after failing to synthesize some assets directly, making it unsuitable as acceptance evidence. The correct acceptance artifact was the second, direct regeneration under `output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003`, which explicitly called the current Krar/Masenqo/Washint generators and wrote a fresh suite plus clip set. The durable rule is to prefer a direct, function-driven proof pack when the task is explicitly about source-sound realism.",
+        "timestamp": "2026-06-09T10:20:00Z"
+      },
+      {
+        "pattern": "When a paper-backed instrument correction is strong but not the user's most urgent audible problem, queue it as a bounded subtask after the urgent realism/artifact slices instead of replacing the active next phase.",
+        "context": "On 2026-06-09, the Begena/Bagana paper synthesis was strong enough to justify a concrete implementation subtask, but the active roadmap still needed to keep Task 123 (melodic source realism reset) and Task 124 (Kebero muted-hit cleanup) ahead of broader follow-up work. The practical resolution was to define a bounded Begena-specific Task 126 and slot it after 124 while keeping `next_phase` on Task 123. This preserved user-priority order without losing the paper-backed Begena work.",
+        "timestamp": "2026-06-09T00:35:00Z"
+      },
+      {
+        "pattern": "For Begena/Bagana, do not over-optimize toward a single polished drone color: controlled timbral heterogeneity is part of the instrument's musical function in a repetitive five-pitch repertoire.",
+        "context": "After incorporating the full body text of 'The Ethiopian Lyre Bagana. An ethno-acoustical study' on 2026-06-09, the synthesis was strengthened by one specific ethnomusicological-acoustic point: because the repertoire is repetitive and the pitch inventory is sparse, variation in sound quality is not merely tolerated but functionally important, and the paper explicitly states that sound-color homogeneity is not achieved, nor probably desired. The durable implementation lesson is that future Begena work should preserve long-duration low-register identity while allowing meaningful note-to-note timbral variation from buzzer/string setup rather than smoothing everything into one static sacred-drone preset.",
+        "timestamp": "2026-06-09T00:20:00Z"
+      },
+      {
+        "pattern": "For Begena/Bagana realism, model the signature buzz as structured quasi-harmonic roughness controlled by bridge/leather setup and sustain intent, not as generic plucked-string noise.",
+        "context": "The 2026-06-09 synthesis of 'The Ethiopian Lyre Bagana. An ethno-acoustical study' against the current codebase found that the paper's most actionable acoustic result is that Begena/Bagana buzz is linked to roughness and inharmonicity descriptors rather than plain broadband noise. In code terms, the current `generate_begena_tone()` is directionally right because it already treats the buzz as detuned/beating structure, but it is too static. The durable lesson is to preserve the API and current path while making buzz behavior parameterized around buzzer position, string quality, and long-duration intent, instead of rewriting the instrument or adding random hiss.",
+        "timestamp": "2026-06-09T00:10:00Z"
+      },
+      {
+        "pattern": "If the user says nearly all melodic Ethiopian solo clips still sound wrong while Kebero is the only near-hit, do not proceed straight to Kebero/subgenre separation; first reset melodic source realism, then clean the specific Kebero artifact, then return to broader genre-target work.",
+        "context": "On 2026-06-08, after the user listened to the Ethiopian instrument pack, they reported that Krar, Masenqo, and Washint all still sounded toy-like / plucky / 8-bit, while Kebero sounded the closest to the real instrument but had a recurring muted/snare-like hit on every beat. The durable sequencing rule is therefore: Task 123 melodic source realism reset first, Task 124 Kebero muted-hit cleanup second, and only then Task 120 Kebero/subgenre separation. This avoids doing broader genre-target work on top of still-broken core source timbres.",
+        "timestamp": "2026-06-08T22:20:00Z"
+      },
+      {
+        "pattern": "When the user reports that instrument solo studies still sound '8-bit', toy-like, or uniformly plucky, treat that as evidence that the remaining problem is source-synthesis realism rather than just profile naming or arrangement context.",
+        "context": "On 2026-06-08, after listening to the Ethiopian instrument pack, the user reported that nearly all melodic instruments still sounded wrong, with a plucking/handheld-game quality, while only the Kebero baseline sounded somewhat close. This feedback is more specific than a generic 'still not authentic' report: it points directly at the source synthesis character of Krar, Masenqo, and Washint and suggests the next move should be a more targeted melodic timbre reset rather than assuming Task 120 alone will solve the dominant issue.",
+        "timestamp": "2026-06-08T22:05:00Z"
+      },
+      {
+        "pattern": "When spectral proof metrics start to feel abstract or suspicious for natural-instrument work, generate an isolated listening pack with labeled solo studies and one combined suite before continuing the next implementation slice.",
+        "context": "On 2026-06-08, after completing Tasks 118 and 119, the user questioned whether some of the spectral metric bands looked too high for natural instruments and asked for actual listening material before moving on to Task 120. The effective response was not more argument about metrics; it was to generate a listening pack under `output/_diagnostics/ethiopian_instrument_listening_pack_20260608_215805` containing labeled solo studies for Krar, Masenqo, Washint, Begena, and a pre-Task-120 Kebero baseline, plus a combined suite and manifest. The durable lesson is that ear-evaluation artifacts are the right next step when the user wants to judge instrument realism directly.",
+        "timestamp": "2026-06-08T21:58:05Z"
+      },
+      {
+        "pattern": "When a procedural instrument generator is used both by normalized runtime paths and by direct proof harnesses, clamp local velocity inputs to the intended domain so MIDI-style probe values cannot flatten the very timbre contrast you are trying to measure.",
+        "context": "Task 119 (2026-06-08) initially passed focused unit tests for the new Washint `dance_call` profile, but a broader direct proof using a higher-register note and a MIDI-style velocity value (`96`) failed to separate `dance_call` from `alto_breathy`. The bounded fix was not a broader timbre rewrite; it was a local velocity clamp inside `generate_washint_tone(...)` so direct proof callers using out-of-domain values no longer overdrive breath/chiff/output normalization and collapse the intended articulation contrast. The durable rule is to make the generator robust at the seam where proof harnesses and runtime call conventions differ.",
+        "timestamp": "2026-06-08T11:35:00Z"
+      },
+      {
+        "pattern": "For Ethiopian timbre/articulation slices, prefer isolated no-agent runtime proofs with `skip_default_instruments=True` and `skip_expansions=True` when a full CLI proof is confounded by unrelated expansion churn or long noisy logs.",
+        "context": "Task 119 used a clean isolated Eskista runtime proof via direct Python `main.run_generation(... use_agents=False, skip_default_instruments=True, skip_expansions=True)` after an earlier full CLI render attempt was confounded by heavy expansion/program-assignment noise and provided poor observability. The isolated proof under `output\\_diagnostics\\task119_verify_iso_20260608_143000` still exercised the relevant procedural Ethiopian synthesis path and produced clear acceptance artifacts (`.mid`, `.wav`, render report, manifest) with `render_status.success=true`, making it the better acceptance evidence for this bounded articulation slice.",
+        "timestamp": "2026-06-08T11:35:00Z"
+      },
+      {
+        "pattern": "For bounded timbre-profile splits, prefer spectral-band proof metrics over broadband attack RMS when asserting that a brighter profile is more present.",
+        "context": "Task 118 (2026-06-08) initially tried to prove the new Krar `azmari_bright` profile with a broadband attack-RMS expectation, but the bright profile's attack was more spectrally present than it was globally louder. The durable acceptance signal turned out to be upper-mid energy ratio (1800-4500 Hz) and attack upper-mid energy ratio, both of which clearly separated `azmari_bright` from `traditional_warm` in both tests and direct proof artifacts. The practical lesson is that timbre-profile assertions should track the intended spectral contrast, not assume higher overall early RMS.",
+        "timestamp": "2026-06-08T11:05:00Z"
+      },
+      {
+        "pattern": "When adding a bounded procedural timbre split, keep the dispatch proof in unit tests and use runtime artifacts mainly to confirm render success and artifact continuity; runtime metadata labels may lag behind the new dispatch semantics.",
+        "context": "Task 118 added a real Krar profile split and narrow genre-based dispatch in the procedural path, but the runtime render-report metadata still presents an older warm-Krar style label even though the dispatch unit test proves `eskista` and `ethio_jazz` now route to `azmari_bright`. The durable lesson is to treat runtime metadata labeling as a secondary alignment follow-up unless the task explicitly includes metadata refresh; the primary truth for bounded dispatch changes should come from monkeypatched unit tests plus direct synthesis proof artifacts.",
+        "timestamp": "2026-06-08T11:05:00Z"
+      },
+      {
+        "pattern": "Once Ethiopian authenticity work moves from structure to sonic identity, split the next phase by instrument-profile seam and prove each slice first with direct synthesis comparisons before relying on full-song listening.",
+        "context": "The 2026-06-08 timbre/phrasing planning pass found that the smallest truthful implementation seams are already present in `assets_gen.py`, `audio_renderer.py`, and `plugins/ethiopian/plugin.py`: Krar, Masenqo, Washint, and Kebero are each called through narrow direct generator dispatch points. The durable next-step pattern is therefore to add bounded optional timbre/articulation profiles per instrument, route those profiles through the existing renderer/plugin seams, and verify them with direct per-note comparisons (brightness/attack/noise/body-contrast metrics) before using short runtime prompts as secondary listening proofs.",
+        "timestamp": "2026-06-08T10:40:00Z"
+      },
+      {
+        "pattern": "Do not let Ethiopian subgenre identities share one implied authenticity target once the work reaches timbre/pattern routing; even no-op diagnostics and fallback maps should distinguish eskista, ethiopian_traditional, and ethio_jazz where the code can already route them separately.",
+        "context": "The 2026-06-08 planning follow-up found lingering target conflation in several bounded maps: `groove_templates.py` still maps `ethiopian_traditional` and `ethio_jazz` to `eskista`, `agents/personality.py` still gives `ethiopian_traditional` and `eskista` very similar coarse mappings, `expansion_manager.py` keeps `eskista` keywords too broad, and `tests/test_fluidsynth_profiles.py` still encodes one explicit Ethiopian-family no-op profile under `genre_family == \"ethio_jazz\"`. The durable rule is that once the goal is recognizable sonic authenticity, those subgenres must become distinct routing/diagnostic targets rather than one shared family bucket everywhere.",
+        "timestamp": "2026-06-08T10:40:00Z"
+      },
+      {
+        "pattern": "Once explicit roles, pulse, accompaniment vocabulary, and section density are corrected, persistent listener reports of 'no correlation with what Ethiopian instruments sound like' should be treated as a timbre/phrasing/song-practice problem, not as another structure problem.",
+        "context": "The 2026-06-08 post-step-4 research follow-up found that the strongest remaining gap is no longer Western block chords or constant accompaniment pressure. External references on Azmari, Asnaketch Worku, Tizita/qenet, and Ethiopian/Amhara performance practice paired with code inspection show the current generator still misses recognizable Ethiopian sonic identity because the timbre models remain too generic or over-sanitized: Krar is strongly biased toward soft harp-like warmth, Masenqo is explicitly stripped of bow noise, Washint is modeled as a single generic breathy flute, and Kebero is still framed partly through conga-like semantics. The durable lesson is that structural authenticity and sonic authenticity must now be treated as separate acceptance layers.",
+        "timestamp": "2026-06-08T10:15:00Z"
+      },
+      {
+        "pattern": "Internal docs that claim Ethiopian authenticity should be treated as provisional until they are reconciled with the actual synthesis code and fresh listening results.",
+        "context": "The 2026-06-08 research pass found a meaningful mismatch between documentation such as docs/ETHIOPIAN_INSTRUMENTS.md and the actual sound model behavior in assets_gen.py. For example, the doc describes Krar as bright/resonant with clear attack, but the current synthesis code repeatedly low-passes it and explicitly aims for a very warm, round, harp-like tone; similarly, the code comments for Masenqo explicitly remove bow noise even though a listener may need some bounded grit to recognize the instrument. The practical lesson is to treat the docs as aspiration unless verified against code + audio proofs.",
+        "timestamp": "2026-06-08T10:15:00Z"
+      },
+      {
+        "pattern": "After de-Westernizing accompaniment vocabulary, use section-level chord flags as the next low-risk lever to reduce harmonic pressure: thin intro/outro first, keep middle support intact, and prove it by bar occupancy rather than by subjective impression alone.",
+        "context": "Task 116 (2026-06-08) applied an Eskista-only compact override that disables chords only in intro and outro for <=16-bar Eskista requests, while leaving verse and variation accompaniment intact. A tiny matching guard in `_create_secondary_chord_track()` made the section flag authoritative for secondary support tracks too. The isolated runtime proof under `output\\_diagnostics\\task116_verify_iso_20260608_054532` verified the result structurally: Krar accompaniment was absent in intro bars, present in middle bars, and absent in outro bars, while explicit Ethiopian identity and render success remained intact.",
+        "timestamp": "2026-06-08T09:40:00Z"
+      },
+      {
+        "pattern": "For de-Westernization slices, prove the harmonic change structurally as well as musically: same-onset pitch-cluster shape is a reliable acceptance signal when replacing generic block-chord beds with modal/drone support.",
+        "context": "Task 115 (2026-06-08) targeted the real Eskista chord-bed seam in the base MIDI path and left the rest of the stack untouched. The clean isolated proof did not just rely on listening or labels; it verified that Krar accompaniment still existed (`krar_onset_count=64`) while no longer resolving to same-onset triadic block clusters (`krar_max_same_tick_unique_pitches=2`). That measurable reduction in simultaneous harmonic density is a durable proof pattern for future accompaniment de-Westernization work.",
+        "timestamp": "2026-06-08T09:05:00Z"
+      },
+      {
+        "pattern": "When an Ethiopian prompt sounds harmonically Western, identify the exact base-path accompaniment seam before touching agents or timbre; in Eskista, the first correction should target the base Krar support writer, not the lead instruments or agent merge path.",
+        "context": "The 2026-06-08 step-4 precheck found the active Western chord-bed source for the exact Eskista prompt is the base MIDI path: all compact Eskista sections still have `enable_chords=True`, `EskistaStrategy` customizes drums only, `_select_primary_chord_instrument()` forces Krar into the accompaniment slot, and `_create_chord_track()` still routes Eskista through generic `generate_chord_progression_midi()` in `block` mode, producing triadic same-onset Krar clusters like `[64, 67, 71]`. The safe next move is therefore to de-Westernize the base accompaniment vocabulary first, and only then thin section-level density or revisit timbre/agents.",
+        "timestamp": "2026-06-08T08:30:00Z"
+      },
+      {
+        "pattern": "For groove-strengthening slices, change the smallest real pattern source and verify it first on an isolated non-agent path; only then use full runtime renders for subjective listening, because merge artifacts can hide or exaggerate musical progress.",
+        "context": "Task 114 (2026-06-06) strengthened only the Eskista branch of `generate_ethiopian_drum_pattern()` by raising the secondary bass and accented slap velocities while keeping pulse positions, durations, returned keys, and GM mapping intact. The clean proof path was not a default end-to-end agent-enabled run; it was a direct `main.run_generation(... use_agents=False, skip_default_instruments=True, skip_expansions=True)` subprocess proof that produced a new isolated WAV under `output\\_diagnostics\\task114_verify_iso_subproc_20260606_132606`. This kept the step-3 result interpretable despite the still-open agent/base duplication caveat.",
+        "timestamp": "2026-06-06T08:00:00Z"
+      },
+      {
+        "pattern": "When a newly fixed agent path can still duplicate tracks at runtime, strengthen the underlying base-path musical behavior first and prove it with direct pattern/MIDI checks or `use_agents=False` runtime evidence so groove regressions are not confused with merge artifacts.",
+        "context": "The 2026-06-06 precheck for step 3 showed the real non-agent Eskista pulse comes from `generate_ethiopian_drum_pattern(style='eskista')` in `multimodal_gen/midi_generator.py`, not from the later agent append path. Because Task 112 currently appends agent-generated Ethiopian tracks alongside the now-explicit base tracks from Task 113, default runtime renders can show duplicate names. The safest next move is therefore to strengthen the base Eskista kebero pulse in the MIDI generator itself and prove it with deterministic pattern tests, base MIDI-track assertions, and/or a direct `run_generation(... use_agents=False)` proof rather than a default mixed agent+base render.",
+        "timestamp": "2026-06-06T07:35:00Z"
+      },
+      {
+        "pattern": "After preserving explicit Ethiopian roles in base session graph/MIDI, check for duplicate names introduced by Task 112’s agent-track append path before attributing remaining density problems to rhythm or timbre.",
+        "context": "Task 113 (2026-06-06) successfully preserved explicit `Krar`, `Washint`, `Masenqo`, and `Kebero` roles in the manifest and base MIDI contract for the exact Eskista prompt, and removed the generic `Melody` fallback. The post-verifier’s fresh runtime proof also showed a non-blocking but important caveat: final runtime MIDI can still contain duplicate Ethiopian track names because Task 112 appends agent-generated tracks alongside the now-more-explicit base generated tracks. The durable lesson is that the next Eskista musical slice should treat that as a merge-policy artifact, not immediately as a pulse/timbre regression.",
+        "timestamp": "2026-06-06T07:20:00Z"
+      },
+      {
+        "pattern": "When an orchestration subsystem already has a documented return contract, fix the caller and normalize at the merge boundary instead of mutating the subsystem to match an accidental caller assumption.",
+        "context": "Task 112 (2026-06-06) repaired the Ethiopian agent runtime path by keeping OfflineConductor's documented `Dict[str, List[NoteEvent]]` return shape intact and instead fixing `main.py` to call the conductor with the correct score/style/ensemble sequence and normalize the returned tracks when merging into MIDI. This avoided a broader contract churn across conductor/performer code while still unblocking the runtime path. The additive `create_score_from_arrangement(...)` helper also preserved arrangement parity without forcing a wider conductor refactor.",
+        "timestamp": "2026-06-06T06:50:00Z"
+      },
+      {
+        "pattern": "When a research pass shows both a broken runtime seam and a collapsed musical contract, decompose the next slice into a runtime-unblock task first and a role-preservation task second; otherwise later musical tuning proofs are polluted by plumbing failures.",
+        "context": "The 2026-06-06 Eskista planning follow-up converted the authenticity research into Task 112 (repair Ethiopian agent orchestration runtime handoff and MIDI merge contract) and Task 113 (preserve distinct Ethiopian roles through session graph and MIDI). This ordering is intentional: if the Ethiopian agent path still falls back and explicit instruments still collapse into one string plus one melody role, any later kebero-pulse or timbre work would be measured on the wrong architecture.",
+        "timestamp": "2026-06-06T06:20:00Z"
+      },
+      {
+        "pattern": "When Ethiopian authenticity sounds like generic world/procedural music, check the agent path and multi-instrument track contract before retuning synthesis: a broken agent handoff or role-collapsing MIDI/session contract can erase exactly the instrument interplay you are trying to hear.",
+        "context": "The 2026-06-06 Eskista research pass found that the codebase already contains richer Ethiopian-specific agent and performer logic than the audible output suggests, but the runtime path is not actually using it end-to-end. The fresh Eskista artifact's stderr proves the Ethiopian agent flow auto-starts and then fails with `Agent-based generation failed: 'Arrangement' object has no attribute 'instruments'`, falling back to standard generation. Source review then showed session_graph.py collapses krar/masenqo/begena into one `ethiopian_string` manifest role and midi_generator.py resolves only one primary Ethiopian chord instrument plus one melody instrument, which drops additional explicit Ethiopian voices from multi-instrument prompts. The durable lesson is that role/orchestration correctness comes before fine-grained timbre tweaking for this family.",
+        "timestamp": "2026-06-06T06:05:00Z"
+      },
+      {
+        "pattern": "For Eskista specifically, prioritize dance-driving kebero pulse and heterophonic lead/support interplay over Western block-chord fullness; Ethiopian authenticity will read stronger from rhythmic urgency and instrument conversation than from dense harmonic beds.",
+        "context": "External references gathered on 2026-06-06 describe Ethiopian highland music as qenet-based, pentatonic, and often monophonic/heterophonic, while Eskista is an Amhara shoulder dance centered on rapid upper-body movement and communal social energy. Krar is notable for the difference between soft plucked tone and strummed pulsation, masenqo is a voice-like bowed lute tied to azmari-style call/response, washint is an end-blown four-hole flute with breath-led phrasing, and kebero's low/high head contrast is central. In contrast, the current Eskista artifact shows low drum presence and a Western-seeming chord/melody reduction. The durable implementation bias should therefore be toward urgent kebero accents, krar ostinato/drone/strum behavior, and lead-response phrasing rather than fuller Western harmony.",
+        "timestamp": "2026-06-06T06:05:00Z"
+      },
+      {
+        "pattern": "For Ethiopian-family quality work, compare a near-neighbor traditional prompt and a genre-correct Eskista prompt before tuning; if both skip FluidSynth, the delta reveals whether the real gap is genre-specific rhythm/identity rather than renderer availability.",
+        "context": "The 2026-06-06 probe rendered both a near-neighbor ethiopian_traditional cue and a true eskista cue under the same environment with FluidSynth available and the same SoundFont path. Both runs explicitly skipped FluidSynth because Ethiopian instruments were requested, so the measured difference isolates current procedural/authenticity behavior: ethiopian_traditional scored 0.996 with only a mild drum-presence warning, while eskista scored 0.958 with a materially larger drum-presence warning (0.073 vs expected 0.16). The authentic next slice is therefore Eskista pulse/percussion energy and timbral identity, not SoundFont setup.",
+        "timestamp": "2026-06-06T05:35:00Z"
+      },
+      {
+        "pattern": "When prompting for an Eskista evaluation, avoid leading with 'traditional Ethiopian' if you need the parser to stay on eskista; use explicit 'eskista shoulder dance' wording or another genre-control mechanism.",
+        "context": "A 2026-06-06 runtime probe showed that the prompt 'traditional Ethiopian eskista shoulder dance ...' rendered successfully but normalized to ethiopian_traditional, whereas 'eskista shoulder dance groove with kebero and bright washint riffs ...' produced a clean genre=eskista render report and session manifest. The practical lesson is to use the parser's known-good Eskista phrasing when doing genre-specific acceptance probes.",
+        "timestamp": "2026-06-06T05:35:00Z"
+      },
+      {
+        "pattern": "When evaluating Ethiopian-family authenticity, treat FluidSynth as an availability signal only unless the prompt avoids Ethiopian instruments; the current renderer explicitly skips whole-file FluidSynth when Ethiopian instruments are requested and falls back to the built-in Ethiopian synth path.",
+        "context": "A 2026-06-06 probe across main.py, audio_renderer.py, and focused tests showed three aligned guardrails: main.py auto-enables the Ethiopian agent workflow for Ethiopian-family genres when use_agents is unset, ProceduralRenderer skips generic melodic sample loading whenever Krar/Masenqo/Washint/Begena/Kebero are requested, and AudioRenderer.render_midi() explicitly skips FluidSynth with skip_reason=ethiopian_instruments when Ethiopian instruments are present. This means Eskista authenticity work should focus first on the procedural/agent path and its arrangements, ornaments, instrument roles, and mix choices rather than expecting a SoundFont alone to improve those runs.",
+        "timestamp": "2026-06-06T05:10:00Z"
+      },
+      {
         "pattern": "When the user explicitly asks to commit but does not ask to push, create the local commit and stop there; offer push separately rather than assuming remote publication.",
         "context": "On 2026-06-05, after the README sync was verified, the correct VCS follow-through was to stage only README.md plus the matching repo-state files, verify the staged diff with `git diff --cached --check`, and create a local master commit without pushing because the user said 'then commit' but did not request a push. This preserves intent and avoids surprising remote changes.",
         "timestamp": "2026-06-05T04:15:00Z"
@@ -745,6 +940,12 @@
     ],
     "failed": [
       {
+        "pattern": "Do not offer a previously generated analyzer-passed approval song as proof of authentic Ethiopian timbre after the user has asked for source-truth/reference-audio work.",
+        "reason": "The artifact only demonstrates the remaining synthesized-western-instrument gap and bypasses the promised research, modular source-model correction, and librosa/reference comparison.",
+        "avoid_when": "When the acceptance criterion is real instrument timbre/character rather than runtime rendering success.",
+        "timestamp": "2026-06-27T00:00:00Z"
+      },
+      {
         "pattern": "ethio_jazz prompts that rely on generic parser defaults plus semantic expansion matching in a non-Ethiopian expansion environment can misresolve brass and Ethiopian-family requests into Funk o Rama bass/guitar assets while still looking analyzer-green",
         "reason": "The current parser falls back to generic ethio_jazz defaults for prompts like 'traditional key'; the normal app flow does not forward use_agents into the experimental Ethiopian agent branch; and in a Funk o Rama-only environment semantic resolver matching can map brass/washint to bass assets and krar/masenqo to guitar assets. The render report analyzer still reports audio_analysis.passed=true with genre_match_score=1.0 because the current ethio_jazz timbre expectations are broad.",
         "avoid_when": "Treating a passed ethio_jazz render report/analyzer score as proof of Ethiopian-jazz authenticity when the prompt relied on generic defaults, app/worker use_agents plumbing was absent, and only non-Ethiopian expansions/assets were active.",
@@ -771,6 +972,351 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "Prioritize Krar amplified focus calibration next, then refine Begena high-mid/profile balance and Masenqo bow-noise detail from the MP3 references.",
+      "rationale": "Verifier found the timbre-tuned pass valid but caveated: Krar amplified now avoids low Begena-like drone rendering but descriptor distance and effective duration regressed; Begena clarity improved but high-mid overshot; Masenqo improved but still too harmonic/noise-light. The Krar focus regression is the sharpest next engineering issue because it directly maps to the user finding that the Krar probe sounded like it was trying to play both Krar and Begena parts.",
+      "alternatives_considered": [
+        "Tune Begena brightness first because descriptor distance improved but high-mid overshot.",
+        "Tune Masenqo first because it still lacks high/noise/flatness despite improvement.",
+        "Stop after current pass and ask for listening approval even though Krar amplified caveat is known."
+      ],
+      "timestamp": "2026-06-28T01:45:00Z"
+    },
+    {
+      "decision": "Treat user MP3/local references as the active source of truth for `--match-user-ref-shape` runs, and exclude public/paper Begena by default in those runs.",
+      "rationale": "The user explicitly rejected the paper/Commons Begena target as primary and chose the current MP3 references as authentic source truth. Established functionality is preserved because public Begena remains available without user refs or through `--include-public-refs-with-user-refs`, but it is no longer mixed into MP3-source-truth diagnostics by default.",
+      "alternatives_considered": [
+        "Keep public/paper Begena in every Begena comparison despite user rejection.",
+        "Delete public-reference support entirely, risking loss of established diagnostic functionality."
+      ],
+      "timestamp": "2026-06-28T01:05:00Z"
+    },
+    {
+      "decision": "Preserve both Begena target interpretations rather than globally retuning the sacred low Begena model toward the brighter user MP3.",
+      "rationale": "The public Commons/paper-backed Begena reference is darker and low/low-mid dominant, while the user `Begena 2.mp3` has much higher centroid/rolloff/high-band content. A single global retune would risk destroying the paper-backed sacred/drone behavior. The safer path is target/profile-aware correction after keeping both references in diagnostics.",
+      "alternatives_considered": [
+        "Globally brighten `generate_begena_tone(...)` to chase the user MP3 centroid/rolloff.",
+        "Ignore the user Begena MP3 and keep only the public Commons target."
+      ],
+      "timestamp": "2026-06-28T00:20:00Z"
+    },
+    {
+      "decision": "Keep Task 129 in progress after the Begena reference-harness and retune pass; do not mark complete.",
+      "rationale": "The new public-reference comparison is real progress, but verifier metrics still show generated Begena has excessive mid/noisy/percussive character, and Krar/Masenqo/Washint lack downloadable public references unless the user supplies files. Completing Task 129 would overstate authenticity.",
+      "alternatives_considered": [
+        "Mark Task 129 complete because tests and harness verification pass.",
+        "Ignore the public Begena reference deltas and return another approval song."
+      ],
+      "timestamp": "2026-06-27T00:45:00Z"
+    },
+    {
+      "decision": "Reset Task 129 into source-truth/reference-comparison integrity recovery before further approval songs.",
+      "rationale": "Verifier and web probe found no existing instrument-reference comparison harness. Public downloadable reference audio was found for Begena/Bagana via Wikimedia Commons, while Krar/Masenqo/Washint require unavailable/user-supplied reference handling. Authenticity should be reported with generated-vs-reference descriptor artifacts, not `audio_analysis_passed=true` alone.",
+      "alternatives_considered": [
+        "Ask the user to listen to the previous Washint reapproval pack again.",
+        "Continue tweaking oscillator parameters without real reference descriptors."
+      ],
+      "timestamp": "2026-06-27T00:00:00Z"
+    },
+    {
+      "decision": "Keep Task 129 open for user listening approval after completing a Washint-only source-model deepening and generating a clean Washint-focused reapproval pack.",
+      "rationale": "The user explicitly did not approve the prior Ethiopian approval songs, so the correct state is not `completed` yet. The Washint-only implementation is technically green and verifier-accepted, and the clean reapproval pack under `output/_diagnostics/task129A_washint_reapproval_20260626_175811` is now the correct listening surface. Task 129 should remain open in verify/user-review posture until the user approves or identifies the next weakest timbre detail.",
+      "alternatives_considered": [
+        "Mark Task 129 complete immediately after tests and reapproval generation even though the user has not yet listened to or approved the new Washint result.",
+        "Continue editing Krar/Masenqo before the user judges whether the Washint-first correction improved the weakest instrument."
+      ],
+      "timestamp": "2026-06-26T18:05:00Z"
+    },
+    {
+      "decision": "Continue Task 129A as a Washint-only source-model deepening slice before widening back to Krar/Masenqo or returning to the Ethio-jazz analyzer miss.",
+      "rationale": "The user explicitly rejected the first approval songs as still sounding like synthesized western instruments and specifically called out the flute/Washint family as lacking. Fresh due diligence also supports Washint as the weakest current source model: current `generate_washint_tone(...)` still starts from a fairly generic additive flute scaffold with static odd-harmonic emphasis, filtered-noise breath layers, and post-filtered bore/tube coloration. The pre-verifier concluded this is best addressed as an `assets_gen.py`-only source-model slice first, with no renderer/plugin changes yet. The earlier `task129A_approval_songs_20260626_170753` directory also proved untrustworthy because the bash shell broke mid-run, leaving it incomplete, while `task129A_approval_songs_20260626_171330` is the trustworthy baseline for comparison.",
+      "alternatives_considered": [
+        "Broaden the next slice back into Krar and Masenqo immediately even though the user singled out the flute/Washint and the precheck judged it the weakest current model.",
+        "Jump straight to the queued Ethio-jazz audio-analysis miss even though the user rejected the upstream source timbre itself."
+      ],
+      "timestamp": "2026-06-26T00:20:00Z"
+    },
+    {
+      "decision": "Reprioritize the next Ethiopian slice from the Ethio-jazz audio-analysis miss to a source-timbre complexity expansion for Krar, Masenqo, and Washint.",
+      "rationale": "The user explicitly called out that most Ethiopian instrument timbres still sound digitally cheap, as if they are being synthesized with too few waves. Current code inspection supports that concern: although the generators already use some layering, the core source models remain too sparse and too static, especially for the Ethiopian string/flute family. Because source timbre realism is upstream of analyzer outcomes, it is more valuable to deepen the synthesis model first and only then return to the Ethio-jazz audio-analysis miss.",
+      "alternatives_considered": [
+        "Proceed directly to the queued Ethio-jazz audio-analysis quality miss even though the user believes the deeper timbre problem is more important.",
+        "Treat the complaint as requiring only more oscillators/waves rather than a richer multi-component acoustic model."
+      ],
+      "timestamp": "2026-06-26T00:00:00Z"
+    },
+    {
+      "decision": "Mark Task 128 complete and move the roadmap pointer to the Ethio-jazz audio-analysis quality miss as the next adjacent Ethiopian priority.",
+      "rationale": "The exact Ethiopian-traditional follow-through gap is now closed: the isolated no-agent proof writes MIDI, WAV, render report, project metadata, session manifest, and a local summary with `render_status_success=true` and `audio_analysis_passed=true`. Because the verifier also confirmed no further code change is required for that proof gap, the next adjacent unresolved item from the earlier pair is the Ethio-jazz audio-analysis miss rather than another traditional-runtime fix.",
+      "alternatives_considered": [
+        "Keep Task 128 open even after the exact isolated prompt fully rendered and passed audio analysis, simply because the earlier runs had been incomplete.",
+        "Open another production-code slice for Ethiopian-traditional before validating that the exact follow-through gap was already closed by the completed proof artifact."
+      ],
+      "timestamp": "2026-06-09T14:50:00Z"
+    },
+    {
+      "decision": "Treat the remaining Ethiopian-traditional follow-through gap as a proof-first Task 128 rather than assuming another production fix is needed immediately.",
+      "rationale": "The Task 128 precheck found that the only proven code blocker for the exact Ethiopian-traditional prompt was the old Ambassel chord-generation `IndexError`, and Task 127 already fixed that. No post-127 artifact proves a new production failure seam yet. The smallest truthful next move is therefore to run the exact prompt through the isolated no-agent path and require a full render/runtime proof before reopening any more code. If that exact proof reproduces a new failure after MIDI generation, then the next production file to touch is likely `multimodal_gen/audio_renderer.py`, but not before the failure is actually observed.",
+      "alternatives_considered": [
+        "Jump directly into another production-code slice without first proving whether a new post-127 blocker still exists.",
+        "Pivot immediately to the Ethio-jazz audio-analysis miss even though the exact Ethiopian-traditional full render follow-through remains the higher-priority unresolved runtime objective."
+      ],
+      "timestamp": "2026-06-09T14:20:00Z"
+    },
+    {
+      "decision": "Mark Task 127 complete after the shared chord generator became scale-length-safe for Ambassel/qenet-style scales and the original Ethiopian-traditional prompt got past the former pre-render crash point.",
+      "rationale": "The post-verifier confirmed the fix stayed local to `generate_chord_progression_midi(...)`, preserved the existing 7-note behavior, and solved the reduced-degree crash truthfully by choosing scale-length-aware defaults and in-scale modal chord stacks rather than caller-specific workarounds or Western 7-note coercion. Focused regression coverage passed, and the original exact prompt now saves MIDI on the isolated no-agent path where it previously died earlier with `IndexError`, which is sufficient evidence for the Task 127 acceptance target.",
+      "alternatives_considered": [
+        "Patch only caller sites such as `_create_chord_track()` even though other callers also funnel through the same unsafe shared chord generator.",
+        "Keep Task 127 open until a full end-to-end audio render proof exists, even though the scoped failure being fixed was the earlier pre-render chord-generation crash."
+      ],
+      "timestamp": "2026-06-09T14:12:00Z"
+    },
+    {
+      "decision": "Implement Task 127 as a local safety fix inside `multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)` with focused regression coverage in `tests/test_midi_generator.py`, rather than reopening Task 120 or broadening into caller-side workarounds.",
+      "rationale": "The read-only precheck confirmed the exact `ethiopian_traditional` runtime failure is caused by default chord-degree logic assuming a 7-note scale (`[1, 5, 6, 4]`) even when the active qenet scale has only 5 notes (Ambassel in the reproduced case). The crash occurs at `root_note = scale_notes[degree - 1]` before any of the Task 120 Kebero/subgenre routing changes are reached. Because multiple callers already funnel through `generate_chord_progression_midi(...)`, the smallest truthful fix is to make default progression selection and degree validation scale-length-aware in that shared function, with one focused regression file. Caller-side patches would leave other paths unsafe and would broaden scope unnecessarily.",
+      "alternatives_considered": [
+        "Patch only `_create_chord_track()` or another caller even though other callers also funnel through `generate_chord_progression_midi(...)`.",
+        "Coerce Ethiopian-traditional prompts onto a generic 7-note Western scale to avoid the index error, even though that would violate the qenet/pentatonic intent."
+      ],
+      "timestamp": "2026-06-09T13:42:00Z"
+    },
+    {
+      "decision": "Mark Task 120 complete and queue a separate follow-up for Ethiopian-traditional chord progression safety in `multimodal_gen/midi_generator.py`.",
+      "rationale": "The post-verifier confirmed the Task 120 slice itself is complete: the Kebero API remained backward-compatible, the Kebero profile/dispatch seam is real and tested, and Ethiopian subgenre routing/diagnostics no longer collapse to one shared target. The remaining exact `ethiopian_traditional` runtime failure occurs earlier in `generate_chord_progression_midi(...)` before the new Task 120 Kebero/subgenre surfaces are reached, so broadening Task 120 into `midi_generator.py` mid-flight would conflate two different bugs. The right move is to close the bounded Task 120 slice and queue a separate follow-up for the traditional-prompt chord safety issue.",
+      "alternatives_considered": [
+        "Broaden Task 120 into `multimodal_gen/midi_generator.py` immediately so the exact traditional prompt also renders before closing the slice.",
+        "Refuse to close Task 120 even though its own code/test/proof surfaces are green and the verifier classified the remaining runtime failure as adjacent rather than blocking."
+      ],
+      "timestamp": "2026-06-09T13:35:00Z"
+    },
+    {
+      "decision": "Implement Task 120 as a bounded Kebero/subgenre slice touching only the Kebero generator/dispatch seam and the narrow Ethiopian subgenre target maps, while leaving Task 124 pattern cleanup and Task 126 Begena work untouched.",
+      "rationale": "The read-only pre-check found that Task 120 is only partial: Kebero still has no profile split or genre-based dispatch, `groove_templates.py` still collapses `ethiopian_traditional` and `ethio_jazz` to `eskista`, `personality.py` still shares coarse Ethiopian drum/keys targets, `expansion_manager.py` still leaves `eskista` too broad, and `fluidsynth_profiles.py` plus its tests still codify one shared Ethiopian-family diagnostic identity. The minimal truthful surface is therefore `assets_gen.py`, `audio_renderer.py`, `plugins/ethiopian/plugin.py`, `groove_templates.py`, `agents/personality.py`, `expansion_manager.py`, and `fluidsynth_profiles.py`, plus focused tests. Reopening `midi_generator.py` would wrongly revisit Task 124, and broadening into Begena or melodic profile work would wrongly reopen Tasks 118/119/126.",
+      "alternatives_considered": [
+        "Reopen `midi_generator.py` to keep tuning Kebero pattern density even though Task 124 already solved the recurring slap-grid artifact separately.",
+        "Broaden Task 120 into Begena or melodic-instrument follow-up work even though the current missing work is specifically Kebero dispatch plus subgenre map separation."
+      ],
+      "timestamp": "2026-06-09T13:05:00Z"
+    },
+    {
+      "decision": "Mark Task 126 complete and advance the queued next phase back to Task 120 after verifier PASS and aligned direct Begena proof.",
+      "rationale": "The post-verifier confirmed the additive Begena generator path preserved API compatibility, runtime identities, and bounded scope, while the direct artifact set under `output\\_diagnostics\\task126_begena_proof_final_20260609_125002` showed buzz-on/off separation, stronger held-tail energy at higher sustain bias, preserved low-frequency dominance, and string-quality timbre variation without breaking identity. That is sufficient evidence to close the Begena slice without broadening into renderer/plugin work.",
+      "alternatives_considered": [
+        "Broaden Task 126 into renderer/plugin changes even though unchanged callers and the Begena plugin guard already proved that unnecessary.",
+        "Delay completion until exploratory lower-note proof metrics were reconciled, even though the seeded acceptance conditions already aligned the direct proof with the passing focused tests."
+      ],
+      "timestamp": "2026-06-09T12:52:00Z"
+    },
+    {
+      "decision": "Implement Task 126 as a tightly bounded Begena-only slice touching only `assets_gen.py`, `instrument_patch.py`, and focused Begena tests, while preserving the existing Begena API and runtime identities.",
+      "rationale": "The read-only pre-check showed the real missing work is centered on `generate_begena_tone(...)` plus Begena patch truthfulness; renderer/plugin/runtime callers can remain untouched if the new parameters are trailing and defaulted. That keeps the task aligned with the Begena spec and avoids destabilizing the just-completed Task 123/124 work.",
+      "alternatives_considered": [
+        "Broaden Task 126 into audio_renderer/plugin dispatch changes before proving the additive Begena generator path is sufficient.",
+        "Defer Begena metadata updates even though `_begena_patch()` is part of the bounded truthfulness scope."
+      ],
+      "timestamp": "2026-06-09T10:55:00Z"
+    },
+    {
+      "decision": "Complete Task 124 as a pattern-only Kebero cleanup and advance next to Task 126 rather than broadening into immediate Kebero timbre redesign.",
+      "rationale": "The read-only pre-check showed the recurring snare-like artifact was primarily a dense pattern-grid problem, and the user had already said the underlying Kebero timbre was the closest current sound to the real instrument. A pattern-only fix preserved that positive timbral baseline while solving the most obvious rhythmic artifact, and focused tests plus the isolated no-agent runtime proof were sufficient to mark the task complete. With Task 124 closed, the queued Begena-specific Task 126 is now the next planned implementation slice before Task 120.",
+      "alternatives_considered": [
+        "Change `assets_gen.py` slap/muted timbre immediately even though the pattern seam looked like the primary cause.",
+        "Skip the queued Begena task and jump directly to Task 120 after Task 124."
+      ],
+      "timestamp": "2026-06-09T11:45:00Z"
+    },
+    {
+      "decision": "Complete Task 123 now and advance the active roadmap to Task 124 using the direct regenerated listening pack as the primary acceptance artifact.",
+      "rationale": "Task 123 met its intended scope and proof requirements: only `assets_gen.py` and `tests/test_assets_gen.py` changed, focused synthesis tests passed, and a fresh melodic listening pack was regenerated directly from the current Task 123 code. An earlier helper-created pack was explicitly treated as exploratory because it fell back to copied baseline clips; the direct regenerated pack is the trustworthy acceptance evidence. With the melodic source reset recorded, the next highest-priority user-identified issue is the recurring muted/snare-like Kebero artifact, so the roadmap should advance to Task 124.",
+      "alternatives_considered": [
+        "Hold Task 123 open until a more generic listening-pack helper can regenerate the clips without fallback copying.",
+        "Jump directly to Task 126 Begena work despite the active roadmap and user feedback still prioritizing Kebero artifact cleanup next."
+      ],
+      "timestamp": "2026-06-09T10:20:00Z"
+    },
+    {
+      "decision": "Queue the Begena-specific implementation subtask as Task 126 after Task 124 and before Task 120, without changing the active next phase away from Task 123.",
+      "rationale": "The user asked for an implementation-ready Begena-specific subtask spec that could slot into the roadmap without disrupting the current priority order. The safest answer was to create a bounded spec and queue it after the already-agreed Task 123/124 slices, while moving Task 120 behind it. This keeps the immediate next move aligned with the user's most urgent audible feedback but makes the Begena work implementation-ready the moment the roadmap reaches it.",
+      "alternatives_considered": [
+        "Start Begena work immediately and replace Task 123 as the active next phase.",
+        "Leave the Begena synthesis only as a doc with no queued implementation task."
+      ],
+      "timestamp": "2026-06-09T00:35:00Z"
+    },
+    {
+      "decision": "Keep the Begena/Bagana paper synthesis as a guidance artifact for future Begena work without changing the active next implementation phase away from Task 123.",
+      "rationale": "The paper synthesis produced useful Begena-specific corrections, but the user's latest listening feedback still says the immediate practical priority is melodic source realism across Krar/Masenqo/Washint. The right move is therefore to preserve the Begena findings in a dedicated doc and memory while leaving the actual next implementation phase on Task 123. This keeps the roadmap aligned with the user's most urgent audible problems without losing the Begena research for later use.",
+      "alternatives_considered": [
+        "Change the next implementation phase from Task 123 to immediate Begena work because the paper provided new acoustic detail.",
+        "Leave the Begena paper findings only in the chat response without recording them in docs/state."
+      ],
+      "timestamp": "2026-06-09T00:10:00Z"
+    },
+    {
+      "decision": "Autonomously choose a pre-Task-120 remediation sequence: Task 123 melodic source realism reset, then Task 124 Kebero muted-hit cleanup, then Task 120.",
+      "rationale": "The user was not available for live follow-up through the structured question tool, but their existing listening feedback was specific enough to support a strong decision. The dominant issue is that the melodic Ethiopian instruments still all sound wrong and toy-like, while Kebero is already the closest current sound and only needs a targeted artifact cleanup before broader Kebero/subgenre work. That means the most rational autonomous path is to re-sequence the work rather than starting Task 120 directly.",
+      "alternatives_considered": [
+        "Start Task 120 immediately despite the user saying the melodic instruments all still sound wrong.",
+        "Do only the Kebero muted-hit cleanup next and leave the melodic realism problem untouched."
+      ],
+      "timestamp": "2026-06-08T22:20:00Z"
+    },
+    {
+      "decision": "Pause direct Task 120 start and gather targeted clarification from the user after the listening-pack feedback.",
+      "rationale": "The user reported that all melodic Ethiopian instruments still sound wrong and toy-like, while Kebero is the only clip that sounds somewhat close but includes an unwanted muted/snare-like hit on every beat. That means there are now two possible next priorities: a pre-Task-120 melodic timbre reset, or a narrower Kebero artifact cleanup / Task 120 start. Asking a few structured, high-value questions is the fastest way to avoid solving the wrong problem next.",
+      "alternatives_considered": [
+        "Proceed directly into Task 120 despite the user saying the melodic instruments still all sound wrong.",
+        "Assume the Kebero issue is the only actionable next problem and ignore the broader melodic feedback."
+      ],
+      "timestamp": "2026-06-08T22:05:00Z"
+    },
+    {
+      "decision": "Pause before Task 120 and give the user a concrete Ethiopian instrument listening pack to evaluate by ear.",
+      "rationale": "The user explicitly questioned whether the spectral metric bands looked too high for natural instruments and asked for a sequence of instrument examples to judge the sounds directly. Generating a labeled listening pack is the right response because it isolates the instrument timbres/articulation profiles and gives the user a trustworthy ear-checkpoint before the next Kebero/subgenre-separation slice. This keeps the workflow aligned with the user’s real evaluation mode rather than forcing more metric discussion.",
+      "alternatives_considered": [
+        "Proceed directly into Task 120 without giving the user isolated listening artifacts.",
+        "Respond only with explanation about why the metric bands can still be acceptable instead of generating audio examples."
+      ],
+      "timestamp": "2026-06-08T21:58:05Z"
+    },
+    {
+      "decision": "Complete Task 119 now and advance next to Task 120, using the final direct proof artifacts plus the isolated Eskista runtime proof as the acceptance evidence.",
+      "rationale": "Task 119 achieved its intended scope: Masenqo and Washint now have real bounded articulation-profile splits, renderer dispatch is narrow and correct, focused tests are green, and the isolated Eskista runtime proof rendered successfully. An earlier expansion-heavy CLI proof and one intermediate ad hoc direct-proof setup were treated as exploratory because they were confounded by unrelated expansion noise or mismatched proof conditions, but the final direct proof artifacts (`task119_profiles_finalpass_...` / `task119_profiles_final_...`) and the isolated runtime proof (`task119_verify_iso_...`) provide clean evidence aligned with the committed tests and the task plan.",
+      "alternatives_considered": [
+        "Hold Task 119 open until a full expansion-enabled CLI proof is quiet enough to serve as the primary acceptance artifact.",
+        "Broaden Task 119 further into Kebero or Ethiopian subgenre-routing work before recording completion."
+      ],
+      "timestamp": "2026-06-08T11:35:00Z"
+    },
+    {
+      "decision": "Complete Task 118 as a bounded Krar-only timbre split and advance next to Task 119 for Masenqo/Washint articulation, rather than expanding Task 118 to include more Ethiopian instruments or metadata cleanup.",
+      "rationale": "Task 118 achieved its intended scope: the Krar profile split is real and measurable, the renderer/plugin dispatch is narrow and correct, focused tests pass, and the short Eskista runtime proof renders successfully. The remaining metadata label mismatch is a non-blocking follow-up because the task plan and verifier both treat it as secondary to the actual synthesis and dispatch seam. Advancing to Task 119 preserves the instrument-by-instrument sequencing established in the implementation plan.",
+      "alternatives_considered": [
+        "Expand Task 118 further to include Masenqo, Washint, or Kebero changes before recording completion.",
+        "Block Task 118 completion on runtime metadata label alignment even though synthesis/dispatch/tests/proofs are already green."
+      ],
+      "timestamp": "2026-06-08T11:05:00Z"
+    },
+    {
+      "decision": "Queue the next Ethiopian authenticity implementation phase as Task 118 (Krar), Task 119 (Masenqo+Washint), and Task 120 (Kebero+subgenre separation), rather than as one broad timbre rewrite.",
+      "rationale": "The bounded code seams already support a narrow per-instrument approach: the Ethiopian generators are called directly from `audio_renderer.py` and the Ethiopian plugin, which means optional profile parameters can be added without a renderer rewrite. Krar is the highest-value first slice because its current warm/harp-like bias is the strongest recurring support-layer mismatch; Masenqo and Washint follow as the lead/support articulation layer; Kebero lands last together with explicit subgenre-target separation because drum identity and genre-family routing should be corrected together.",
+      "alternatives_considered": [
+        "Implement one large all-in-one Ethiopian timbre rewrite across all four instruments at once.",
+        "Keep iterating only on accompaniment structure even after the research concluded the dominant remaining gap is sonic/practice authenticity.",
+        "Reuse Task 117 numbering for the new implementation slice despite Task 117 already being occupied by the completed research follow-up."
+      ],
+      "timestamp": "2026-06-08T10:40:00Z"
+    },
+    {
+      "decision": "After step 4, treat the next Ethiopian authenticity slice as timbre/phrasing/articulation differentiation rather than more structural accompaniment work.",
+      "rationale": "The listener feedback explicitly reported that the new isolated step-4 WAV still did not sound correlated with real Ethiopian instruments. Further research confirmed that this is consistent with the codebase: the structure now relates more credibly to Ethiopian music, but the instrument sound models and phrase behaviors still do not correlate tightly enough with Ethiopian performance practice. That makes timbre/phrasing the next highest-value slice.",
+      "alternatives_considered": [
+        "Continue iterating only on accompaniment structure despite the listener reporting no clear Ethiopian sonic correlation.",
+        "Assume step-4 structural improvements are sufficient and skip the research into actual instrument/singer traditions."
+      ],
+      "timestamp": "2026-06-08T10:15:00Z"
+    },
+    {
+      "decision": "Complete Task 116 now and use the new isolated listening artifact to judge whether step 4 is musically sufficient before jumping to timbre polish or merge cleanup.",
+      "rationale": "Task 115 corrected the accompaniment vocabulary, but the accompaniment still risked feeling too constant. Task 116 delivered the intended second half of step 4 with minimal surface area by thinning only compact Eskista intro/outro accompaniment while preserving full-length behavior and explicit Ethiopian identity. The resulting no-agent artifact is the cleanest listening checkpoint for deciding whether the next highest-value slice is timbre/phrasing or runtime merge cleanup.",
+      "alternatives_considered": [
+        "Skip section-level thinning and move directly to timbre polish after Task 115.",
+        "Broaden Task 116 into a larger full-length or cross-Ethiopian-family accompaniment rewrite."
+      ],
+      "timestamp": "2026-06-08T09:40:00Z"
+    },
+    {
+      "decision": "Complete Task 115 as a base MIDI de-Westernization slice before starting section-level thinning or timbre work.",
+      "rationale": "The verifier confirmed the active Western seam for the exact Eskista prompt was the Krar accompaniment being generated by generic block-chord logic in the base MIDI path. A narrow Eskista-only accompaniment helper was enough to make the support materially less Western without disturbing Task 113 identity, non-Eskista behavior, or the pulse work from Task 114. That makes Task 116 the correct next follow-up instead of jumping to timbre polish.",
+      "alternatives_considered": [
+        "Skip directly to section-level thinning before changing the actual accompaniment vocabulary.",
+        "Jump straight to instrument timbre changes even though the harmonic bed was still structurally Western."
+      ],
+      "timestamp": "2026-06-08T09:05:00Z"
+    },
+    {
+      "decision": "Decompose step 4 into Task 115 (de-Westernize base Eskista accompaniment vocabulary) followed by Task 116 (section-level accompaniment thinning), and keep both tasks on isolated base-path proof routes where possible.",
+      "rationale": "The read-only precheck showed the most direct Westernization seam is not the agent path or timbre layer; it is the base Krar accompaniment being generated by generic Western block-chord logic in `midi_generator.py`. Fixing that first yields the highest authenticity payoff with the lowest regression risk. Once the harmonic vocabulary is corrected, section-level thinning becomes a small follow-up that reduces constant accompaniment pressure without broadening the first task.",
+      "alternatives_considered": [
+        "Jump straight to timbre polish for Krar/Washint/Masenqo before correcting the underlying harmonic structure.",
+        "Use full default agent-enabled runtime renders as the primary proof path for step 4 despite the known duplication caveat."
+      ],
+      "timestamp": "2026-06-08T08:30:00Z"
+    },
+    {
+      "decision": "Complete step 3 as a tiny base-path velocity-profile slice before touching deeper Eskista phrase structure or merge cleanup.",
+      "rationale": "The verifier confirmed the real non-agent Eskista pulse source is the `style='eskista'` branch in `generate_ethiopian_drum_pattern()`. A two-parameter accent lift there was enough to create a truthful first pulse-strengthening slice with minimal regression risk, while preserving positions, durations, keys, and mappings. This is the safest way to bank musical progress before tackling more invasive rhythmic or harmonic work.",
+      "alternatives_considered": [
+        "Start by rewriting groove templates or shared cross-track timing for Eskista.",
+        "Begin with a richer agent-kebero pattern swap despite the still-open duplication caveat."
+      ],
+      "timestamp": "2026-06-06T08:00:00Z"
+    },
+    {
+      "decision": "Implement step 3 as a bounded base-path Eskista kebero pulse slice (Task 114) before touching agent merge policy, timbre, or analyzer thresholds.",
+      "rationale": "The verifier confirmed the true non-agent Eskista pulse source is the `style='eskista'` branch of `generate_ethiopian_drum_pattern()` in `multimodal_gen/midi_generator.py`, while the richer kebero patterns exist separately in agent performer code. Because the current runtime can still duplicate track names after Tasks 112/113, the cleanest way to strengthen pulse without confusion is to adjust the base Eskista kebero velocity/accent profile and verify it with isolated pattern/MIDI proofs.",
+      "alternatives_considered": [
+        "Start by fixing the agent/base-track dedupe policy before touching the underlying Eskista pulse.",
+        "Retune timbre or analyzer thresholds before strengthening the actual drum pattern source."
+      ],
+      "timestamp": "2026-06-06T07:35:00Z"
+    },
+    {
+      "decision": "Complete Task 113 now and carry the duplicate-agent-track-name issue as a non-blocking follow-up for the next slice rather than reopening role-preservation work.",
+      "rationale": "The post-verifier confirmed Task 113 met its actual scope: explicit Ethiopian roles are preserved in session manifest + MIDI and the generic `Melody` fallback is gone for the exact Eskista prompt. The remaining duplicate names arise from Task 112's agent append policy interacting with the now-improved base MIDI contract; that is real but it is a different seam than role collapse, so recording it as a follow-up keeps proof boundaries honest.",
+      "alternatives_considered": [
+        "Hold Task 113 open until the agent/base track dedupe policy is solved as well.",
+        "Ignore the duplicate-track-name caveat and proceed as if the runtime output were perfectly normalized."
+      ],
+      "timestamp": "2026-06-06T07:20:00Z"
+    },
+    {
+      "decision": "Complete Task 112 by fixing the Ethiopian conductor call/merge seam in `main.py` and adding only an additive score-from-arrangement helper in `conductor_offline.py`, while leaving role preservation to Task 113.",
+      "rationale": "The verifier confirmed the failure was primarily a contract mismatch: `main.py` passed the wrong objects into OfflineConductor and then expected the wrong merge payload and NoteEvent field names. Correcting those seams was sufficient to stop the Ethiopian agent path from falling back in a real Eskista run. Broadening into session-graph or MIDI role work would have diluted the proof boundary and mixed Task 112 with Task 113.",
+      "alternatives_considered": [
+        "Change OfflineConductor to emit a new list-of-dicts payload just to match the old caller assumption.",
+        "Bundle role-preservation changes into the same patch as the runtime fix."
+      ],
+      "timestamp": "2026-06-06T06:50:00Z"
+    },
+    {
+      "decision": "Package the first Eskista authenticity implementation slice as Task 112 followed by Task 113, rather than one larger Ethiopian catch-all task.",
+      "rationale": "Task 112 isolates the runtime/orchestration seam that is currently preventing the richer Ethiopian performer system from executing at all, while Task 113 isolates the session-graph and MIDI contract changes required to preserve explicit krar/washint/masenqo/kebero roles. This decomposition gives cleaner proofs, smaller diffs, and a clearer acceptance boundary before rhythm/timbre work begins.",
+      "alternatives_considered": [
+        "Bundle agent-fix, role-preservation, kebero pulse redesign, and timbre retuning into a single large Eskista patch.",
+        "Start with role-preservation before fixing the broken Ethiopian agent runtime path."
+      ],
+      "timestamp": "2026-06-06T06:20:00Z"
+    },
+    {
+      "decision": "Implement Eskista authenticity improvements in this order: (1) repair Ethiopian agent orchestration so the richer performer system actually runs, (2) preserve distinct Ethiopian instrument roles through session graph and MIDI rather than collapsing them into one string plus one melody track, (3) promote a stronger Eskista-specific kebero pulse path and reduce Western chord-bed behavior, (4) refine synthesis/phrase identity only after those structural fixes land, and (5) consider a hybrid procedural-plus-support-layer renderer only later.",
+      "rationale": "The research pass showed the repo already contains more detailed Ethiopian-specific performer logic than the audible result, but the runtime and track contracts are discarding it. Fixing the orchestration/role path first yields the highest leverage because it can unlock authentic call/response, instrument balance, and dance pulse using logic that already exists. Only once the correct performers and roles are actually present should finer timbre work or hybrid rendering be considered.",
+      "alternatives_considered": [
+        "Start with FluidSynth or SoundFont research even though Ethiopian requests currently bypass that renderer.",
+        "Jump straight into retuning krar/washint synthesis while the agent path remains broken and the MIDI/session contract still collapses the ensemble.",
+        "Loosen output analyzer thresholds instead of fixing the actual rhythmic and role-balance gaps."
+      ],
+      "timestamp": "2026-06-06T06:05:00Z"
+    },
+    {
+      "decision": "Treat the next Ethiopian authenticity investigation as an Eskista percussion-and-timbre research slice, not a FluidSynth setup slice.",
+      "rationale": "The completed probe proved FluidSynth is installed, healthy, and even explicitly configured, but both Ethiopian runs skipped it by design. The genre-correct Eskista artifact passed overall while exposing two useful quality signals: drum presence is materially below the Eskista target, and the analyzer still detects piano-like content in a no-piano Ethiopian arrangement. Those are better research targets than SoundFont plumbing.",
+      "alternatives_considered": [
+        "Spend the next slice on more FluidSynth environment/setup work even though the renderer is already available and intentionally bypassed.",
+        "Treat the near-neighbor ethiopian_traditional pass as sufficient and skip the genre-correct Eskista comparison."
+      ],
+      "timestamp": "2026-06-06T05:35:00Z"
+    },
+    {
+      "decision": "Run the Eskista evaluation as a current-state authenticity probe, not as a FluidSynth high-fidelity benchmark, because Ethiopian-instrument requests currently bypass whole-file FluidSynth and use the built-in Ethiopian synth path.",
+      "rationale": "The user asked how FluidSynth might improve Ethiopian instruments, but the current runtime guardrails show it will not be the active renderer for a traditional Eskista prompt that explicitly requests Ethiopian instruments. The truthful next step is therefore to render a strong Eskista prompt, inspect the artifact quality and routing, and use that evidence to decide whether future work should target procedural Ethiopian timbres, arrangement/agent behavior, or a separate hybrid/Fluidsynth path.",
+      "alternatives_considered": [
+        "Assume FluidSynth is active for Ethiopian runs and benchmark it like the earlier orchestral pass.",
+        "Avoid running Eskista until a new hybrid renderer exists."
+      ],
+      "timestamp": "2026-06-06T05:10:00Z"
+    },
     {
       "decision": "Create a local docs commit for the refreshed README and do not push it automatically.",
       "rationale": "The user asked to update README.md and then commit. They did not ask for a push in this follow-up, so the lowest-surprise behavior is to create the local commit only and leave remote publication as an explicit next choice.",
@@ -1875,6 +2421,16 @@
         "Require full profile matrix proof despite optional trap-case stall"
       ],
       "timestamp": "2026-05-15T19:18:37Z"
+    },
+    {
+      "decision": "Keep Task 129 open after the MP3 timbre-tuned probe pass and use the new artifact folder for user listening review.",
+      "rationale": "The MP3-specific Begena/Masenqo profiles and Krar amplified-reference focus filtering produced measurable descriptor movement and clean tests, but remaining metric gaps and user-reported timbre issues mean this is a review artifact, not an authenticity completion claim.",
+      "alternatives_considered": [
+        "Mark Task 129 solved because metrics moved closer for some descriptors.",
+        "Globally replace public/paper Begena defaults with the user-MP3 bright profile.",
+        "Change analyzer thresholds to make descriptor deltas look closer."
+      ],
+      "timestamp": "2026-06-28T02:10:00Z"
     }
   ],
   "learnings": {
@@ -2058,5 +2614,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-06-05T04:15:00Z"
+  "last_updated": "2026-06-28T01:45:00Z"
 }

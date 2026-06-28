@@ -3,6 +3,1329 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": "scripts\\compare_ethiopian_reference_audio.py; tests\\test_ethiopian_reference_comparison.py; multimodal_gen\\assets_gen.py; tests\\test_assets_gen.py; output\\_diagnostics\\task129_user_mp3_refs_timbre_tuned_20260628\\*",
+      "action": "modified/created",
+      "timestamp": "2026-06-28T01:45:00Z",
+      "by_agent": "builder/verifier/supervisor",
+      "changes": "Added MP3-specific Begena/Masenqo profiles, Krar amplified instrument-focus routing, generated timbre-tuned MP3-source probes, and verified with PASS_WITH_CAVEAT."
+    },
+    {
+      "path": "scripts\\compare_ethiopian_reference_audio.py; tests\\test_ethiopian_reference_comparison.py; multimodal_gen\\assets_gen.py; tests\\test_assets_gen.py; output\\_diagnostics\\task129_user_mp3_refs_timbre_tuned_20260628\\*",
+      "action": "modified/created",
+      "timestamp": "2026-06-28T02:10:00Z",
+      "by_agent": "builder",
+      "changes": "Added MP3-specific Begena/Masenqo diagnostic profile routing, Krar amplified-reference instrument-focus filtering, shorter MP3 Begena shaped tails, focused tests, and generated timbre-tuned MP3-shaped probes for user review."
+    },
+    {
+      "path": "scripts\\compare_ethiopian_reference_audio.py; tests\\test_ethiopian_reference_comparison.py; tests\\test_assets_gen.py; output\\_diagnostics\\task129_user_mp3_refs_declicked_sustain_20260628\\*",
+      "action": "modified/created",
+      "timestamp": "2026-06-28T01:05:00Z",
+      "by_agent": "builder/verifier/supervisor",
+      "changes": "Fixed user-reference-shaped probe sustain/click smoothing, made user MP3 refs the active source truth, excluded public Begena by default in MP3-source runs, and verified de-clicked diagnostic artifacts."
+    },
+    {
+      "path": "scripts\\compare_ethiopian_reference_audio.py; tests\\test_ethiopian_reference_comparison.py; multimodal_gen\\assets_gen.py; tests\\test_assets_gen.py; output\\_diagnostics\\task129_user_mp3_refs_reference_shaped_20260628\\*",
+      "action": "modified/created",
+      "timestamp": "2026-06-28T00:20:00Z",
+      "by_agent": "builder/verifier/supervisor",
+      "changes": "Added opt-in user-reference-shaped probe generation for supplied MP3s, bounded Krar/Masenqo source corrections, and verified diagnostic artifacts."
+    },
+    {
+      "path": "scripts\\compare_ethiopian_reference_audio.py; tests\\test_ethiopian_reference_comparison.py; multimodal_gen\\assets_gen.py; tests\\test_assets_gen.py; assets\\references\\ethiopian\\BegenaScalePlucked.ogg",
+      "action": "created/modified",
+      "timestamp": "2026-06-27T00:45:00Z",
+      "by_agent": "builder/verifier/supervisor",
+      "changes": "Added reference-audio harness, tests, public Begena reference, active-region metric fix, and bounded Begena retune; verified with PASS_WITH_CAVEAT."
+    },
+    {
+      "path": ".github\\state\\orchestration.json/.github\\state\\memory.json/.github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-27T00:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded user-called integrity failure and reset Task 129 from approval-song review to source-truth/reference-comparison recovery."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T18:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Washint-only Task 129A implementation, tests, verifier PASS_WITH_CAVEAT, and the new user-review next phase."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T18:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the lesson to invalidate incomplete proof folders and regenerate a clean approval pack after user-rejected instrument timbre samples."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T18:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Washint reapproval artifacts and kept Task 129 open pending user listening approval."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-26T18:05:00Z",
+      "by_agent": "builder",
+      "changes": "Deepened the Washint source model with stronger air-jet/bore-column coupling, irregular pressure-led vibrato, register-sensitive tube focus, and profile-aware ornament entry behavior."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-26T18:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added/updated focused Washint regressions for bounded output, profile separation, air-jet/tube balance, register focus, and ornament-entry localization."
+    },
+    {
+      "path": "output\\_diagnostics\\task129A_washint_reapproval_20260626_175811\\washint_song_primary\\ethiopian_traditional_112.0bpm_Cminor_20260626_175814.wav",
+      "action": "created",
+      "timestamp": "2026-06-26T18:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the fresh primary Washint reapproval song after the Washint-only source-model deepening."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Washint-only bounded continuation of Task 129A and refreshed the task timestamp after due-diligence review."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the decision that Washint is the weakest current Ethiopian source model and that the earlier 170753 approval-song directory is not trustworthy because the bash shell failed mid-run."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Washint-only pre-verification outcome and the shell-error explanation before delegating the next bounded implementation slice."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T00:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued and activated Task 129 to probe a deeper Ethiopian source-timbre complexity slice ahead of the Ethio-jazz analyzer follow-up."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T00:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the user's reprioritization toward a multi-component Ethiopian timbre-complexity pass for the string/flute family."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-26T00:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the new Task 129 priority and the intent to probe a source-timbre complexity expansion before returning to the Ethio-jazz audio-analysis miss."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 128 complete with exact follow-through proof details and moved the next-phase pointer to the Ethio-jazz audio-analysis quality miss."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the Task 128 proof-first follow-through lesson and the decision to shift next priority to Ethio-jazz analysis quality."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 128 exact-prompt full render proof, verifier PASS_WITH_CAVEAT, and the new rollback point."
+    },
+    {
+      "path": "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\ethiopian_traditional_110bpm_Cambassel_20260609_144350.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T14:46:09Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the exact Ethiopian-traditional isolated full-render WAV proving the traditional prompt now completes audio rendering."
+    },
+    {
+      "path": "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\ethiopian_traditional_110bpm_Cambassel_20260609_144350_render_report.json",
+      "action": "created",
+      "timestamp": "2026-06-09T14:47:00Z",
+      "by_agent": "supervisor",
+      "changes": "Saved the exact Ethiopian-traditional render report confirming `render_status.success=true`, `renderer_path=procedural`, and `audio_analysis.passed=true`."
+    },
+    {
+      "path": "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\task128_summary.json",
+      "action": "created",
+      "timestamp": "2026-06-09T14:47:00Z",
+      "by_agent": "supervisor",
+      "changes": "Saved the local Task 128 proof summary for the exact Ethiopian-traditional isolated follow-through run."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued and activated Task 128 to run the exact Ethiopian-traditional prompt through the isolated no-agent full-render follow-through proof path."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the decision to treat the remaining Ethiopian-traditional gap as a proof-first follow-through task rather than assuming another code fix was needed immediately."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Task 128 proof-first follow-through scope and its exact prompt/isolated-runtime acceptance target."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the decision to treat the remaining Ethiopian-traditional gap as a proof-first follow-through task rather than assuming another code fix is needed immediately."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Task 128 proof-first follow-through scope and its exact prompt/isolated-runtime acceptance target."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:12:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 127 complete with focused proof details and advanced next-phase metadata back to an open user-priority state."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:12:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the Task 127 scale-length-aware chord-safety lesson and completion decision."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:12:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 127 implementation, focused pytest proof, exact-prompt MIDI reproduction, verifier PASS_WITH_CAVEAT, and the new rollback point."
+    },
+    {
+      "path": "output\\_diagnostics\\task127_exact_repro_20260609_140932\\ethiopian_traditional_110bpm_Cambassel_20260609_140934.mid",
+      "action": "created",
+      "timestamp": "2026-06-09T14:09:34Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the exact-prompt Task 127 reproduction MIDI, proving the old pre-render scale-degree `IndexError` no longer blocks Ethiopian-traditional generation at chord-track creation time."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:06:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused Ambassel/qenet chord-safety regressions plus a 7-note default-progression preservation assertion."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T14:06:00Z",
+      "by_agent": "builder",
+      "changes": "Made `generate_chord_progression_midi(...)` scale-length-aware with reduced-degree-safe defaults, degree sanitization, and in-scale modal chord building for qenet/pentatonic scales."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:42:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 127 as in-progress/probe after the read-only pre-check confirmed the local chord-generator safety seam."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:42:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the decision to keep Task 127 local to `generate_chord_progression_midi(...)` plus focused `tests/test_midi_generator.py` coverage."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:42:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Task 127 read-only pre-check, root-cause analysis, and do-not-broaden guardrails before builder delegation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 120 complete with proof/post-verifier details and queued the Ethiopian-traditional chord-generation follow-up as Task 127."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the Task 120 completion decision and the durable rule for splitting adjacent upstream runtime failures into a separate follow-up task."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 120 implementation, direct proof artifacts, Eskista/Ethio-jazz runtime corroboration, the Ethiopian-traditional runtime caveat, and the new rollback point."
+    },
+    {
+      "path": "output\\_diagnostics\\task120_proof_final_20260609_132600\\task120_summary.json",
+      "action": "created",
+      "timestamp": "2026-06-09T13:26:00Z",
+      "by_agent": "supervisor",
+      "changes": "Saved the final Task 120 proof summary with Kebero contrast metrics, distinct Ethiopian subgenre diagnostics, and per-subgenre runtime outcomes."
+    },
+    {
+      "path": "output\\_diagnostics\\task120_proof_final_20260609_132600\\kebero_profiles\\eskista_dance_bass.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T13:26:00Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the direct Kebero proof bass hit for the `eskista_dance` profile."
+    },
+    {
+      "path": "output\\_diagnostics\\task120_proof_final_20260609_132600\\kebero_profiles\\traditional_ceremony_bass.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T13:26:00Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the direct Kebero proof bass hit for the `traditional_ceremony` profile."
+    },
+    {
+      "path": "output\\_diagnostics\\task120_proof_final_20260609_132600\\kebero_profiles\\ethio_jazz_hybrid_bass.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T13:26:00Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the direct Kebero proof bass hit for the `ethio_jazz_hybrid` profile."
+    },
+    {
+      "path": "output\\_diagnostics\\task120_ethio_jazz_iso_20260609_132827\\ethio_jazz_105bpm_Cdorian_20260609_132830_render_report.json",
+      "action": "created",
+      "timestamp": "2026-06-09T13:28:30Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the isolated Ethio-jazz runtime corroboration for Task 120 with `render_status_success=true` and `parsed_genre=ethio_jazz`."
+    },
+    {
+      "path": "tests\\test_ethiopian_resolution_guardrails.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded Ethiopian subgenre guardrails for distinct groove/timing, personality, and resolution behavior across `eskista`, `ethiopian_traditional`, and `ethio_jazz`."
+    },
+    {
+      "path": "tests\\test_fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Replaced the old collapsed Ethiopian-family profile contract with distinct explicit no-op subgenre diagnostics."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added narrow renderer coverage proving Kebero profile dispatch differs by Ethiopian subgenre and stays conservative outside the targeted genres."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added direct Kebero profile regressions for boundedness and bass/slap contrast ordering."
+    },
+    {
+      "path": "multimodal_gen\\fluidsynth_profiles.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Split the old shared Ethiopian-family explicit no-op profile into distinct `ethiopian_traditional`, `eskista`, and `ethio_jazz` diagnostic identities."
+    },
+    {
+      "path": "multimodal_gen\\expansion_manager.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Refined Ethiopian subgenre keyword affinity so Eskista, Ethiopian-traditional, and Ethio-jazz no longer share one broad semantic bucket."
+    },
+    {
+      "path": "multimodal_gen\\agents\\personality.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Made Ethiopian subgenre DRUMS/KEYS personality targets explicitly distinct while keeping the changes additive and local."
+    },
+    {
+      "path": "multimodal_gen\\groove_templates.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Stopped collapsing `ethiopian_traditional` and `ethio_jazz` to `eskista` in the narrow groove fallback/timing maps."
+    },
+    {
+      "path": "multimodal_gen\\plugins\\ethiopian\\plugin.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded Kebero profile passthrough to mirror renderer-side synthesis behavior."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added Kebero profile dispatch by Ethiopian subgenre inside the existing procedural drum-synthesis seam."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded Kebero profiles (`eskista_dance`, `traditional_ceremony`, `ethio_jazz_hybrid`) as a trailing/defaulted kwarg while preserving GM compatibility."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 120 as in-progress/probe after the read-only pre-check confirmed the bounded Kebero/subgenre scope."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the decision to keep Task 120 bounded to the Kebero generator/dispatch seam plus narrow Ethiopian subgenre map separation."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T13:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Task 120 read-only pre-check, minimal file list, and explicit do-not-touch guardrails before builder delegation."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 126 complete with implementation/tests/post-verifier details and advanced the queued next phase to Task 120."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the Task 126 proof-alignment lesson and the completion decision grounded in the verifier plus direct Begena artifacts."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:52:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 126 implementation, direct proof artifacts, verifier PASS, and the new rollback point."
+    },
+    {
+      "path": "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_default.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T12:50:02Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the default direct Begena proof clip for Task 126 using the aligned seeded acceptance conditions."
+    },
+    {
+      "path": "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_buzzers_off.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T12:50:02Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the Begena proof clip with buzzers disabled for direct comparison against the default structured-roughness path."
+    },
+    {
+      "path": "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_high_sustain.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T12:50:02Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the high-sustain Begena proof clip used to confirm stronger held-tail energy."
+    },
+    {
+      "path": "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_string_quality_lively.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T12:50:02Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the lively-string-quality Begena proof clip to confirm timbre variation without losing low-register identity."
+    },
+    {
+      "path": "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_metrics.json",
+      "action": "created",
+      "timestamp": "2026-06-09T12:50:02Z",
+      "by_agent": "supervisor",
+      "changes": "Saved the aligned direct Begena proof metrics showing all intended Task 126 comparisons passing."
+    },
+    {
+      "path": "tests\\test_instrument_patch.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:49:00Z",
+      "by_agent": "builder",
+      "changes": "Added a narrow Begena patch regression to preserve `ethiopian.begena.track.v1` / `ethiopian_string` identity while requiring more truthful sacred-buzz metadata."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:49:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused Begena regressions for bounded output, buzzers on/off separation, sustain behavior, low-frequency dominance, and string-quality timbre variation."
+    },
+    {
+      "path": "multimodal_gen\\instrument_patch.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:49:00Z",
+      "by_agent": "builder",
+      "changes": "Updated `_begena_patch()` to keep the same patch id/family while describing a sacred buzzing bass-lyre identity more truthfully."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T12:49:00Z",
+      "by_agent": "builder",
+      "changes": "Implemented Task 126 Begena controls: trailing additive buzzer/string/sustain kwargs, a structured quasi-harmonic buzz cluster, bounded sustain modulation, and cleanup of the old unreachable code."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:55:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 126 as in-progress/probe after the read-only pre-check."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:55:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the decision to keep Task 126 tightly bounded to Begena generator/patch/test seams only."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:55:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Task 126 read-only pre-check and the bounded file scope before builder delegation."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T11:45:00Z",
+      "by_agent": "builder",
+      "changes": "Thinned the baseline Eskista `kebero_slap` layer from a near-continuous every-non-bass pulse grid to late off-pulse answers only, preserving the bass anchors and Kebero output contract."
+    },
+    {
+      "path": "tests\\test_strategies.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T11:45:00Z",
+      "by_agent": "builder",
+      "changes": "Updated the direct Eskista drum-pattern regression to assert the thinner high/slap layer while preserving bass anchors and shaker texture."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T11:45:00Z",
+      "by_agent": "builder",
+      "changes": "Updated the base-MIDI Kebero regression to prove the high-head layer is materially reduced while low-head/high-head evidence and `instrument:Kebero` are still present."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T11:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 124 complete with proof details and advanced the next phase to Task 126."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T11:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable Task 124 lesson that this Kebero artifact was a pattern-grid problem first and a timbre problem second."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T11:45:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 124 implementation, focused tests, isolated no-agent runtime proof, and final verifier PASS."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "builder",
+      "changes": "Retuned the shared source behavior of Krar, Masenqo, and Washint to reduce toy-like / 8-bit / fake-plucked character while preserving the existing profile splits from Tasks 118/119."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "builder",
+      "changes": "Adjusted and extended focused synthesis regressions for the Task 123 melodic realism reset, including a new body-vs-brittle-highs guardrail for Ethiopian melodic fallbacks."
+    },
+    {
+      "path": "output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003\\00_full_listening_suite.wav",
+      "action": "created",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the refreshed Task 123 melodic listening suite directly from the current Krar/Masenqo/Washint synthesis functions."
+    },
+    {
+      "path": "output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003\\listening_manifest.json",
+      "action": "created",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the manifest for the refreshed Task 123 melodic listening pack."
+    },
+    {
+      "path": "output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003\\task123_pack_summary.json",
+      "action": "created",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the files generated for the refreshed Task 123 melodic listening pack."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 123 complete with proof details and advanced the next phase to Task 124."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable Task 123 lesson that the direct regenerated listening pack is the trustworthy acceptance artifact, not the earlier copy-fallback helper pack."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T10:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 123 implementation, focused tests, regenerated listening-pack proof, and final verifier PASS."
+    },
+    {
+      "path": "docs\\BEGENA_SUBTASK_SPEC_2026-06-09.md",
+      "action": "created",
+      "timestamp": "2026-06-09T00:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created an implementation-ready Begena-specific subtask spec that can slot after Task 124 and before Task 120."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Inserted the new pending Begena Task 126 after Task 124, moved Task 120 behind it, and preserved Task 123 as the active next phase."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable roadmap rule for queuing paper-backed instrument subtasks after the current urgent realism/artifact slices instead of replacing the active next phase."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the new Begena subtask spec and its queue position after Task 124 and before Task 120."
+    },
+    {
+      "path": "docs\\BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Refined the Begana/Bagana synthesis doc with findings from the paper's full body text: five-pitch paired-string behavior, strict solo/homophonic role, jawari-like bridge comparison, desired timbral heterogeneity, and the player's priority on long effective duration over equal loudness."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Updated the Begana paper synthesis task summary to reflect the stronger conclusions enabled by the full paper text."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable Begena lesson that controlled timbral heterogeneity is part of the instrument's function, not just an imperfection."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the refinement of the Begana synthesis doc using the full paper text."
+    },
+    {
+      "path": "docs\\BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md",
+      "action": "created",
+      "timestamp": "2026-06-09T00:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created the Bagana/Begana paper synthesis doc mapping the paper's acoustic findings onto the current Begena code and safe additive correction path."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed Begana/Bagana paper synthesis task while leaving the active next implementation phase on Task 123."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable Begena lesson that its buzz should be treated as structured roughness/inhamonicity rather than generic plucked-string noise."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-09T00:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the Begana/Bagana paper synthesis doc, its safe correction recommendations, and the verification that the active next implementation phase remains Task 123."
+    },
+    {
+      "path": "docs\\ETHIOPIAN_POST_LISTENING_REMEDIATION_PLAN_2026-06-08.md",
+      "action": "created",
+      "timestamp": "2026-06-08T22:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created the implementation-ready post-listening remediation plan that sequences melodic source realism reset and Kebero muted-hit cleanup before Task 120."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T22:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked the clarification task complete, queued Tasks 123 and 124, and pushed Task 120 behind them."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T22:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable rule that broad melodic-source realism and the specific Kebero artifact must be fixed before Task 120 when the user's listening feedback demands it."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T22:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the autonomous post-listening decision and the new pre-Task-120 remediation sequence."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T22:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued a clarification task after the user's listening feedback and changed next-phase metadata to pause before Task 120."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T22:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the user's post-listening feedback and the decision to clarify priorities before Task 120."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T22:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the user's listening verdict that the melodic instruments still sound wrong/toy-like while Kebero is closest but has a recurring muted/snare-like artifact."
+    },
+    {
+      "path": "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805\\00_full_listening_suite.wav",
+      "action": "created",
+      "timestamp": "2026-06-08T21:58:05Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the combined Ethiopian instrument listening suite for user ear-evaluation before Task 120."
+    },
+    {
+      "path": "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805\\listening_manifest.json",
+      "action": "created",
+      "timestamp": "2026-06-08T21:58:05Z",
+      "by_agent": "supervisor",
+      "changes": "Generated the listening-pack manifest describing the order, profile/mode, and purpose of each instrument study clip."
+    },
+    {
+      "path": "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805\\README.txt",
+      "action": "created",
+      "timestamp": "2026-06-08T21:58:05Z",
+      "by_agent": "supervisor",
+      "changes": "Generated a short README explaining how to evaluate the listening pack and what each clip is meant to reveal."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T21:58:05Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the listening-pack generation task and changed next-phase metadata to wait for user evaluation before Task 120."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T21:58:05Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable lesson to generate isolated listening packs when natural-instrument metric discussions stop being persuasive."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T21:58:05Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the listening-pack artifact set and the evaluation checkpoint before Task 120."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded Masenqo/Washint articulation profile resolvers, extended both synthesis functions with trailing additive `profile` kwargs, and added a local Washint velocity clamp so direct proof callers using MIDI-style velocity values do not flatten the intended articulation split."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "builder",
+      "changes": "Added narrow renderer-only articulation dispatch for the Ethiopian custom Masenqo/Washint program branches (`111`/`112`), mapping Eskista to `azmari_grit` / `dance_call` and other genres to conservative defaults."
+    },
+    {
+      "path": "multimodal_gen\\plugins\\ethiopian\\plugin.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded `profile` passthroughs for Masenqo and Washint synthesis in the Ethiopian plugin path, defaulting to conservative articulation profiles."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "builder",
+      "changes": "Added deterministic Masenqo and Washint profile regressions covering finite/bounded output, measurable profile deltas, and a higher-register Washint case with MIDI-style velocity input."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused renderer dispatch coverage proving the expected Masenqo/Washint `profile=` kwargs are passed by genre while leaving generic reeds/flutes conservative."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 119 complete with implementation/proof details and advanced next-phase metadata to Task 120."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable Task 119 lessons about local velocity clamping for direct-proof robustness and preferring isolated no-agent runtime proofs when full CLI renders are confounded by unrelated expansion noise."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 119 implementation, final direct proof directories, isolated Eskista runtime proof, and the final PASS verifier verdict."
+    },
+    {
+      "path": "multimodal_gen\\assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded Krar profile resolution and extended `generate_krar_tone(...)` with a trailing additive `profile` kwarg supporting `traditional_warm` and `azmari_bright`."
+    },
+    {
+      "path": "multimodal_gen\\audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added narrow Krar-only profile dispatch inside the existing `program == 110` procedural branch, mapping Eskista/Ethio-jazz to `azmari_bright` and other cases to `traditional_warm`."
+    },
+    {
+      "path": "multimodal_gen\\plugins\\ethiopian\\plugin.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added bounded `profile` passthrough for Krar synthesis in the Ethiopian plugin path, defaulting to `traditional_warm`."
+    },
+    {
+      "path": "tests\\test_assets_gen.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added deterministic Krar synthesis regressions proving finite/bounded output and a measurable brighter/stronger upper-mid attack presence for `azmari_bright` vs `traditional_warm`."
+    },
+    {
+      "path": "tests\\test_audio_renderer.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused renderer dispatch coverage proving the expected Krar `profile=` kwarg is passed by genre while preserving the existing Krar render-report identity regression."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 118 complete with implementation/proof details and advanced next-phase metadata to Task 119."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable Task 118 lessons about spectral proof metrics and runtime metadata lag for bounded timbre splits."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T11:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 118 implementation, direct proof artifacts, runtime proof directory, and final PASS verifier verdict."
+    },
+    {
+      "path": "docs\\ETHIOPIAN_TIMBRE_PHRASING_IMPLEMENTATION_PLAN_2026-06-08.md",
+      "action": "created",
+      "timestamp": "2026-06-08T10:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created the implementation-ready Ethiopian timbre/phrasing/articulation plan with exact code seams, focused tests, and proof commands for Tasks 118/119/120."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T10:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed planning task, queued Tasks 118/119/120, and advanced next-phase metadata to Task 118 Krar timbre differentiation."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T10:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable decision to split the next Ethiopian authenticity phase by instrument-profile seam and to separate Ethiopian subgenre authenticity targets explicitly."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T10:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the new timbre/phrasing implementation plan and queued next tasks."
+    },
+    {
+      "path": "docs\\ETHIOPIAN_AUTHENTICITY_RESEARCH_2026-06-08.md",
+      "action": "created",
+      "timestamp": "2026-06-08T10:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created a durable research summary grounding the remaining Ethiopian authenticity gap in both external references and current codebase source of truth."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T10:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed post-step-4 Ethiopian authenticity research follow-up and advanced next-phase metadata toward timbre/phrasing planning."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T10:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable conclusion that the remaining Ethiopian gap is now mostly sonic/practice authenticity rather than more structure-only work."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T10:15:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the new Ethiopian authenticity research doc and the post-step-4 conclusion."
+    },
+    {
+      "path": "multimodal_gen\\arranger.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "builder",
+      "changes": "Added an Eskista-only compact section-config override so intro/outro disable chords while verse/variation keep accompaniment for <=16-bar Eskista requests."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "builder",
+      "changes": "Added a small guard so `_create_secondary_chord_track()` respects `section.config.enable_chords == False` and does not leak secondary accompaniment into thinned Eskista intro/outro sections."
+    },
+    {
+      "path": "tests\\test_arranger_ethiopian_family.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "builder",
+      "changes": "Added compact-Eskista and full-length-Eskista regressions proving intro/outro chord disablement is compact-only and leaves full-length behavior unchanged."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "builder",
+      "changes": "Added compact exact-prompt MIDI regressions proving Krar accompaniment is absent in intro/outro bars, present in middle bars, and that secondary support tracks honor intro/outro chord disablement while preserving Ethiopian identity contracts."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 116 complete and advanced next-phase metadata to a post-step-4 listening evaluation / next-slice choice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable lesson that section-level chord flags are a low-risk lever for reducing harmonic pressure after accompaniment vocabulary has already been de-Westernized."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:40:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 116 implementation, focused tests, and the fresh isolated no-agent Eskista listening artifact path."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added a narrow Eskista-only accompaniment helper and routed the base Eskista accompaniment paths through it to replace generic block-chord Krar support with sparser modal/drone/open-interval behavior."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:05:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused Eskista accompaniment regressions proving Krar no longer emits same-onset Western block-chord clusters while still preserving accompaniment presence and Task 113 identity/program contracts."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 115 complete and advanced next-phase metadata to Task 116."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable lesson that same-onset pitch-cluster shape is a reliable proof metric for accompaniment de-Westernization."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T09:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 115 implementation, focused MIDI tests, and the fresh isolated no-agent Eskista listening artifact path."
+    },
+    {
+      "path": "docs\\ESKISTA_STEP4_DEWESTERNIZE_CHORDBED_PLAN_2026-06-08.md",
+      "action": "created",
+      "timestamp": "2026-06-08T08:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created the implementation-ready step-4 plan doc for reducing Western chord-bed writing in Eskista through Tasks 115 and 116."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T08:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued pending Tasks 115 and 116 and advanced next-phase metadata to the base Eskista accompaniment de-Westernization slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T08:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the decision to attack the Western chord-bed seam first in the base MIDI path before timbre work or section-level thinning."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-08T08:30:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the new step-4 task sequence doc, queued tasks, and the precheck evidence that identified base Krar block-chord writing as the main seam."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T08:00:00Z",
+      "by_agent": "builder",
+      "changes": "Strengthened the base Eskista kebero accent profile in the `style='eskista'` branch of `generate_ethiopian_drum_pattern()` without changing pulse positions, keys, durations, or non-Eskista branches."
+    },
+    {
+      "path": "tests\\test_strategies.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T08:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added deterministic direct coverage for the strengthened Eskista pattern profile while preserving pulse positions and returned keys."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T08:00:00Z",
+      "by_agent": "builder",
+      "changes": "Added a focused base-MIDI regression proving Eskista still uses generic `Drums`, preserves `instrument:Kebero`, and includes both low-head and high-head drum-note evidence."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T08:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 114 complete and recorded the isolated no-agent runtime proof path and fresh listening artifact."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T08:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable rule to prove groove-strengthening slices first on the isolated base path before using mixed runtime renders for listening."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T08:00:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 114 implementation, focused tests, and the new isolated Eskista listening artifact path."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued Task 114 as an in-progress, bounded base-path Eskista kebero pulse slice."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the decision to strengthen the base Eskista pulse path first so runtime duplication artifacts do not contaminate the proof."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 114 start and the plan to verify pulse changes through direct pattern/MIDI evidence rather than default mixed agent+base renders."
+    },
+    {
+      "path": "multimodal_gen\\session_graph.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "builder",
+      "changes": "Preserved explicit Ethiopian-family instrument identity in the session graph by instrument rather than suppressing later tracks by shared role."
+    },
+    {
+      "path": "multimodal_gen\\midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "builder",
+      "changes": "Preserved explicit Ethiopian primary track names and added a narrow Ethiopian-only secondary-track path so Krar/Washint/Masenqo/Begena can coexist without collapsing into one accompaniment plus one melody voice."
+    },
+    {
+      "path": "tests\\test_session_graph_ethiopian_family.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused manifest regressions for explicit Ethiopian role preservation and the exact Eskista prompt."
+    },
+    {
+      "path": "tests\\test_midi_generator.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused Eskista MIDI regressions for distinct Krar/Washint/Masenqo track identity, preserved programs 110/111/112, and preserved `instrument:Kebero` on drums."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 113 complete and recorded the post-verifier caveat about duplicate Ethiopian runtime track names."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable lesson that agent-track appending can duplicate now-correct Ethiopian base-track identities after Task 113."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T07:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 113 implementation, focused tests, and the runtime proof/caveat."
+    },
+    {
+      "path": "main.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:50:00Z",
+      "by_agent": "builder",
+      "changes": "Fixed the Ethiopian agent branch to call OfflineConductor with the correct score/style/ensemble contract and repaired the agent-track MIDI merge path for dict-of-NoteEvent payloads."
+    },
+    {
+      "path": "multimodal_gen\\agents\\conductor_offline.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:50:00Z",
+      "by_agent": "builder",
+      "changes": "Added an additive score-from-arrangement helper so main.py can reuse the already-created arrangement when building the conductor score."
+    },
+    {
+      "path": "tests\\test_main_render_diagnostics.py",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:50:00Z",
+      "by_agent": "builder",
+      "changes": "Added focused Task 112 regressions covering the corrected OfflineConductor call sequence and dict-of-NoteEvent MIDI merge contract."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked Task 112 complete with implementation and runtime-proof evidence, and advanced next-phase metadata to Task 113."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored the durable lesson to keep conductor contracts stable and normalize at the caller/merge boundary instead."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:50:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded Task 112 source edits, verification bundle, and the real Eskista runtime proof."
+    },
+    {
+      "path": "docs\\ESKISTA_AUTHENTICITY_IMPLEMENTATION_PLAN_2026-06-06.md",
+      "action": "created",
+      "timestamp": "2026-06-06T06:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Created the implementation-ready Task 112/113 source-of-truth doc for the first Eskista authenticity slice."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued pending Tasks 112 and 113 and recorded the completed task-sequence planning entry."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the decomposition rule that Task 112 must unblock runtime orchestration before Task 113 preserves Ethiopian roles."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:20:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the new Task 112/113 planning doc and queued implementation sequence."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked the Eskista authenticity research/planning task complete and advanced next-phase metadata toward implementation."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored durable lessons about broken Ethiopian agent orchestration, role collapse, and the authentic priority of kebero pulse plus heterophonic role balance over generic harmonic fullness."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T06:05:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed Eskista authenticity research pass, external references consulted, and the code seams behind the improvement plan."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T05:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Marked the Ethiopian Eskista probe complete and recorded the measured artifact outcomes."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T05:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Stored durable lessons about Eskista prompt wording, FluidSynth bypass, and the measured percussion-energy gap."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T05:35:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the completed Ethiopian authenticity probe, artifact paths, and measured quality findings."
+    },
+    {
+      "path": ".github\\state\\orchestration.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T05:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Queued the Ethiopian Eskista quality probe task and advanced orchestration metadata toward the runtime evaluation."
+    },
+    {
+      "path": ".github\\state\\memory.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T05:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the routing decision that Ethiopian-family requests skip whole-file FluidSynth and use the built-in Ethiopian synth path instead."
+    },
+    {
+      "path": ".github\\state\\context.json",
+      "action": "modified",
+      "timestamp": "2026-06-06T05:10:00Z",
+      "by_agent": "supervisor",
+      "changes": "Recorded the preflight probe evidence and upcoming Eskista quality run."
+    },
+    {
       "path": ".github\\state\\orchestration.json",
       "action": "modified",
       "timestamp": "2026-06-05T04:15:00Z",
@@ -5598,6 +6921,354 @@
   ],
   "changes_made": [
     {
+      "file": "Task 129 MP3-source timbre-tuned diagnostic slice",
+      "description": "Produced a timbre-tuned listening set from user MP3 references after de-click/sustain fixes.",
+      "diff_summary": "MP3-shaped Begena now routes through `mp3_reference_bright`; MP3-shaped Masenqo routes through `mp3_reference_bow`; amplified Krar routes through instrument-focus filtering that skips/attenuates low drone-like events. Output is under `output/_diagnostics/task129_user_mp3_refs_timbre_tuned_20260628`.",
+      "timestamp": "2026-06-28T01:45:00Z"
+    },
+    {
+      "file": "Task 129 user MP3 timbre-tuned diagnostic slice",
+      "description": "Implemented bounded MP3-source-truth diagnostic profiles and Krar focus heuristics, preserving public generator signatures/defaults and analyzer thresholds.",
+      "diff_summary": "Harness now records band ratios in schedules, routes MP3-shaped Begena to mp3_reference_bright and Masenqo to mp3_reference_bow, and skips/attenuates low sustained Krar events in amplified/mixed refs. Assets add the two profiles with finite/bounded tests. New artifacts are in task129_user_mp3_refs_timbre_tuned_20260628.",
+      "timestamp": "2026-06-28T02:10:00Z"
+    },
+    {
+      "file": "Task 129 user MP3 de-click/sustain source-truth slice",
+      "description": "Resolved user-reported popping/cutoff issue in generated reference-shaped probes and made MP3 references authoritative for match-user-ref-shape diagnostics.",
+      "diff_summary": "Reference-shaped probe composition now renders overlap tails, applies per-note click smoothing/fades, records adjacent-sample jump/boundary diagnostics, and marks MP3 source-truth metadata. Public Begena/Commons is excluded by default when user refs are active and can be restored with `--include-public-refs-with-user-refs`.",
+      "timestamp": "2026-06-28T01:05:00Z"
+    },
+    {
+      "file": "Task 129 user MP3 reference-shaped comparison slice",
+      "description": "Integrated user-supplied Krar/Masenqo/Begena MP3 references into the diagnostic harness and improved Krar/Masenqo source models conservatively.",
+      "diff_summary": "`--match-user-ref-shape` now generates per-reference source probes with source-ID filenames and metadata. Krar/Masenqo source tests now cover lower-register contact/flux and bounded bow-friction floors. Diagnostic output under `task129_user_mp3_refs_reference_shaped_20260628` contains paired comparisons for four user MP3 references plus the public Begena reference.",
+      "timestamp": "2026-06-28T00:20:00Z"
+    },
+    {
+      "file": "Task 129 reference-audio integrity recovery",
+      "description": "Replaced approval-song proof with real source/reference diagnostics and a bounded Begena correction.",
+      "diff_summary": "Added `scripts/compare_ethiopian_reference_audio.py` plus tests, downloaded `BegenaScalePlucked.ogg`, generated diagnostic reports under `output/_diagnostics/task129_reference_compare_public_begena_after_metric_retune2_20260627`, fixed active-region sustain metrics, and retuned Begena body/buzz energy toward low/low-mid while preserving signature/kwargs.",
+      "timestamp": "2026-06-27T00:45:00Z"
+    },
+    {
+      "file": "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\*",
+      "description": "Completed the exact Ethiopian-traditional isolated full render/runtime follow-through proof.",
+      "diff_summary": "The exact prompt `ethiopian traditional azmari krar and masenqo with kebero` now completes successfully on the isolated no-agent path and writes MIDI, WAV, render report, project metadata, session manifest, and `task128_summary.json` under `output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338`. The proof summary records `returned_successfully=true`, `render_status_success=true`, `parsed_genre=ethiopian_traditional`, `renderer_path=procedural`, and `audio_analysis_passed=true`, closing the remaining Ethiopian-traditional follow-through gap left after Task 127.",
+      "timestamp": "2026-06-09T14:47:00Z"
+    },
+    {
+      "file": "state-task-128",
+      "description": "Recorded completed Task 128 with exact-prompt full render proof and verifier PASS_WITH_CAVEAT.",
+      "diff_summary": "State now records `ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128` as complete with a full exact-prompt proof artifact set and verifier confirmation that the Ethiopian-traditional isolated full render/runtime follow-through gap is closed. The next roadmap pointer is now the Ethio-jazz audio-analysis quality miss rather than another traditional-runtime fix.",
+      "timestamp": "2026-06-09T14:50:00Z"
+    },
+    {
+      "file": "state-task-128-prep",
+      "description": "Queued the exact Ethiopian-traditional isolated full-render follow-through proof task.",
+      "diff_summary": "State now records `ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128` as the active next slice. The verifier concluded that Task 127 already removed the only proven code blocker (the pre-render Ambassel chord `IndexError`), so Task 128 is intentionally proof-first: run the exact prompt `ethiopian traditional azmari krar and masenqo with kebero` through the isolated no-agent path, require the full artifact set (`.mid`, `.wav`, render report, project metadata, session manifest`), and reopen production code only if a new post-127 failure is actually reproduced.",
+      "timestamp": "2026-06-09T14:20:00Z"
+    },
+    {
+      "file": "multimodal_gen\\midi_generator.py / tests\\test_midi_generator.py",
+      "description": "Implemented Task 127 Ethiopian-traditional chord progression safety fix.",
+      "diff_summary": "`multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)` now derives the active scale length before choosing defaults, uses a bounded reduced-degree fallback progression for qenet/pentatonic scales, sanitizes progression degrees before indexing, and builds conservative in-scale modal chord stacks for reduced-degree scales instead of assuming 7-note harmony. `tests/test_midi_generator.py` now proves Ambassel chord generation stays safe and non-empty, an Ethiopian-traditional Ambassel prompt generates MIDI without the old `IndexError`, and the standard C-major I–V–vi–IV root movement remains unchanged.",
+      "timestamp": "2026-06-09T14:06:00Z"
+    },
+    {
+      "file": "output\\_diagnostics\\task127_exact_repro_20260609_140932\\ethiopian_traditional_110bpm_Cambassel_20260609_140934.mid",
+      "description": "Generated an exact-prompt Task 127 reproduction artifact.",
+      "diff_summary": "The original failing prompt `ethiopian traditional azmari krar and masenqo with kebero` now gets past the former pre-render chord-generation crash and saves `ethiopian_traditional_110bpm_Cambassel_20260609_140934.mid` on the isolated no-agent path. The reproduction was intentionally stopped later during rendering because Task 127’s acceptance target was removal of the earlier `generate_chord_progression_midi(...)` `IndexError`, not a full end-to-end audio render proof.",
+      "timestamp": "2026-06-09T14:09:34Z"
+    },
+    {
+      "file": "state-task-127",
+      "description": "Recorded completed Task 127 with focused tests, exact-prompt reproduction proof, and verifier PASS_WITH_CAVEAT.",
+      "diff_summary": "State now records `ethiopian-traditional-chord-progression-safety-followup-127` as complete with clean diagnostics, clean whitespace diff, focused Task 127 pytest (`8 passed, 14 deselected`), and an exact-prompt reproduction artifact under `output\\_diagnostics\\task127_exact_repro_20260609_140932`. The verifier accepted the slice as complete because the old pre-render `IndexError` is gone and the fix stayed local to the shared chord generator, with the only caveat being that the reproduction proof was stopped after MIDI generation rather than serving as a full audio render proof.",
+      "timestamp": "2026-06-09T14:12:00Z"
+    },
+    {
+      "file": "state-task-127-precheck",
+      "description": "Recorded the Task 127 pre-check and bounded chord-generator safety scope.",
+      "diff_summary": "The read-only pre-check confirmed the exact `ethiopian_traditional` runtime crash is local to `multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)`: the default non-minor progression still uses 7-degree assumptions (`[1, 5, 6, 4]`) while the reproduced qenet scale (`ScaleType.AMBASSEL`) has only 5 notes, so `root_note = scale_notes[degree - 1]` raises `IndexError`. Minimal fix surface is `multimodal_gen/midi_generator.py` plus focused regressions in `tests/test_midi_generator.py`. Guardrails: do not reopen Task 120 Kebero/subgenre work, do not revisit Task 124 pattern changes, and do not solve the crash by forcing Ethiopian-traditional prompts onto generic 7-note Western harmony logic.",
+      "timestamp": "2026-06-09T13:42:00Z"
+    },
+    {
+      "file": "multimodal_gen\\assets_gen.py / multimodal_gen\\audio_renderer.py / multimodal_gen\\plugins\\ethiopian\\plugin.py / multimodal_gen\\groove_templates.py / multimodal_gen\\agents\\personality.py / multimodal_gen\\expansion_manager.py / multimodal_gen\\fluidsynth_profiles.py / tests\\test_assets_gen.py / tests\\test_audio_renderer.py / tests\\test_fluidsynth_profiles.py / tests\\test_ethiopian_resolution_guardrails.py",
+      "description": "Implemented Task 120 Kebero profile differentiation and Ethiopian subgenre target separation.",
+      "diff_summary": "`multimodal_gen/assets_gen.py` now adds bounded Kebero profiles (`eskista_dance`, `traditional_ceremony`, `ethio_jazz_hybrid`) through a trailing/defaulted `profile` kwarg while preserving pitch compatibility and hand-drum warmth. `multimodal_gen/audio_renderer.py` and `multimodal_gen/plugins/ethiopian/plugin.py` now route/passthrough Kebero profiles by Ethiopian subgenre. `multimodal_gen/groove_templates.py`, `multimodal_gen/agents/personality.py`, `multimodal_gen/expansion_manager.py`, and `multimodal_gen/fluidsynth_profiles.py` no longer collapse `eskista`, `ethiopian_traditional`, and `ethio_jazz` into one shared target identity. Focused Task 120 tests now prove Kebero boundedness/contrast, renderer dispatch, distinct Ethiopian FluidSynth diagnostics, and semantic guardrails.",
+      "timestamp": "2026-06-09T13:20:00Z"
+    },
+    {
+      "file": "output\\_diagnostics\\task120_proof_final_20260609_132600\\*",
+      "description": "Generated final Task 120 proof artifacts.",
+      "diff_summary": "Created direct Kebero profile WAVs plus `task120_summary.json` under `output\\_diagnostics\\task120_proof_final_20260609_132600`. The saved proof confirms stronger Kebero bass/slap contrast for `eskista_dance` than `traditional_ceremony`, an intermediate `ethio_jazz_hybrid` contrast, and distinct Ethiopian FluidSynth diagnostics for traditional, Eskista, and Ethio-jazz. Runtime corroboration in the same summary shows `eskista` render success and `ethio_jazz` render success, while the exact `ethiopian_traditional` proof prompt fails earlier in untouched `multimodal_gen/midi_generator.py` chord generation with `IndexError: list index out of range` before the new Task 120 surfaces are reached.",
+      "timestamp": "2026-06-09T13:26:00Z"
+    },
+    {
+      "file": "state-task-120",
+      "description": "Recorded completed Task 120 with focused tests, direct proof artifacts, and verifier PASS_WITH_CAVEAT.",
+      "diff_summary": "State now records `ethiopian-kebero-identity-and-subgenre-separation-120` as complete with clean diagnostics, clean whitespace diff, focused Task 120 tests (`14 passed, 75 deselected`), optional Kebero plugin smoke (`1 passed, 22 deselected`), and final proof artifacts under `output\\_diagnostics\\task120_proof_final_20260609_132600`. The verifier explicitly classified the remaining exact `ethiopian_traditional` runtime failure as an adjacent `multimodal_gen/midi_generator.py` chord-generation issue rather than a Task 120 blocker, so a separate pending follow-up task now tracks that fix.",
+      "timestamp": "2026-06-09T13:35:00Z"
+    },
+    {
+      "file": "state-task-120-precheck",
+      "description": "Recorded the Task 120 pre-check and bounded Kebero/subgenre file scope.",
+      "diff_summary": "The read-only pre-check found Task 120 only partially implemented. Missing work is centered on `multimodal_gen/assets_gen.py::generate_kebero_hit(...)`, Kebero profile dispatch in `multimodal_gen/audio_renderer.py`, Kebero profile passthrough in `multimodal_gen/plugins/ethiopian/plugin.py`, and explicit Ethiopian subgenre separation in `multimodal_gen/groove_templates.py`, `multimodal_gen/agents/personality.py`, `multimodal_gen/expansion_manager.py`, and `multimodal_gen/fluidsynth_profiles.py`. Minimal test scope is `tests/test_assets_gen.py`, `tests/test_audio_renderer.py`, `tests/test_fluidsynth_profiles.py`, and `tests/test_ethiopian_resolution_guardrails.py`. Critical guardrails: leave `midi_generator.py` / Task 124 pattern cleanup untouched, do not broaden into Begena, and keep any new Kebero parameters trailing/defaulted so existing callers still work.",
+      "timestamp": "2026-06-09T13:05:00Z"
+    },
+    {
+      "file": "multimodal_gen\\assets_gen.py / multimodal_gen\\instrument_patch.py / tests\\test_assets_gen.py / tests\\test_instrument_patch.py",
+      "description": "Implemented Task 126 Begena structured roughness + sustain controls.",
+      "diff_summary": "`multimodal_gen/assets_gen.py` now keeps the original 4-positional Begena call surface and adds only trailing defaulted controls for `profile`, `buzzers_enabled`, `buzzer_position`, `string_quality`, and `sustain_bias`. The old single fixed buzz line was replaced with a bounded quasi-harmonic roughness cluster driven by buzzer position, string quality, and sustain intent; sustain bias now meaningfully affects held behavior in a bounded way; and the old dead/unreachable code after the active return path was removed. `multimodal_gen/instrument_patch.py` now preserves patch id `ethiopian.begena.track.v1` and family `ethiopian_string` while updating Begena display name/tags/notes truthfully, and focused Begena regressions were added in `tests/test_assets_gen.py` and `tests/test_instrument_patch.py`.",
+      "timestamp": "2026-06-09T12:49:00Z"
+    },
+    {
+      "file": "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\*",
+      "description": "Generated direct Task 126 Begena proof artifacts.",
+      "diff_summary": "Created `begena_default.wav`, `begena_buzzers_off.wav`, `begena_high_sustain.wav`, `begena_string_quality_lively.wav`, and `begena_metrics.json` under `output\\_diagnostics\\task126_begena_proof_final_20260609_125002`. The saved metrics intentionally mirror the focused Begena acceptance logic and report all intended comparisons true: buzzers change structured timbre, higher sustain bias increases held-tail energy, low-frequency dominance is preserved, and lively string quality changes timbre without breaking identity.",
+      "timestamp": "2026-06-09T12:50:02Z"
+    },
+    {
+      "file": "state-task-126",
+      "description": "Recorded completed Task 126 with focused tests, aligned direct proof, and final verifier PASS.",
+      "diff_summary": "State now records `begena-structured-roughness-and-sustain-controls-126` as complete with clean diagnostics, clean whitespace diff, focused Begena tests (`6 passed, 26 deselected`), plugin guard (`1 passed, 22 deselected`), and a direct proof pack under `output\\_diagnostics\\task126_begena_proof_final_20260609_125002`. The post-verifier confirmed API compatibility, bounded scope, preserved patch identity, and readiness to advance the queued next phase back to Task 120.",
+      "timestamp": "2026-06-09T12:52:00Z"
+    },
+    {
+      "file": "state-task-126-precheck",
+      "description": "Recorded the Begena Task 126 pre-check and bounded file scope.",
+      "diff_summary": "The read-only pre-check confirmed Task 126 is not yet implemented and identified the minimal safe surface: `multimodal_gen/assets_gen.py` and `multimodal_gen/instrument_patch.py`, with focused tests in `tests/test_assets_gen.py` and `tests/test_instrument_patch.py` plus an optional guard rerun of `tests/test_plugins.py -k begena`. The key compatibility constraint is to keep new Begena parameters trailing/defaulted so existing positional callers and program `113` / patch `ethiopian.begena.track.v1` identities remain stable.",
+      "timestamp": "2026-06-09T10:55:00Z"
+    },
+    {
+      "file": "multimodal_gen\\midi_generator.py / tests\\test_strategies.py / tests\\test_midi_generator.py",
+      "description": "Implemented Task 124 Kebero muted/snare artifact cleanup.",
+      "diff_summary": "`multimodal_gen/midi_generator.py` now thins the Eskista `kebero_slap` layer from a near-continuous every-non-bass grid to the late off-pulse answers only (`[2,5]` in 6/8 and `[2,5,8,11]` in 12/8) while preserving bass anchors, output keys, GM mapping, and `instrument:Kebero` behavior. Focused tests in `tests/test_strategies.py` and `tests/test_midi_generator.py` were updated to prove the reduced high-head layer while preserving low-head/high-head evidence and the generic `Drums` track contract. No `assets_gen.py` timbre change was needed.",
+      "timestamp": "2026-06-09T11:45:00Z"
+    },
+    {
+      "file": "state-task-124",
+      "description": "Recorded completed Task 124 with deterministic pattern proof and isolated runtime evidence.",
+      "diff_summary": "State now records Task 124 as complete with clean diagnostics, clean whitespace diff, focused Eskista/Kebero tests (`9 passed, 40 deselected`), and an isolated no-agent runtime proof under `output\\_diagnostics\\task124_verify_iso_20260609_114338` whose render report shows `render_status.success=true` and `audio_analysis.passed=true`. The strongest proof is deterministic pattern/test evidence that the baseline recurring high/slap layer was reduced while preserving Kebero body and identity, not the generic analyzer's coarse `has_snare_or_clap` flag.",
+      "timestamp": "2026-06-09T11:45:00Z"
+    },
+    {
+      "file": "multimodal_gen\\assets_gen.py / tests\\test_assets_gen.py",
+      "description": "Implemented Task 123 Ethiopian melodic source realism reset.",
+      "diff_summary": "`multimodal_gen/assets_gen.py` now retunes the shared melodic source behavior for Krar, Masenqo, and Washint without changing their existing public profile names or additive signatures. Krar now has stronger body/membrane weighting and less brittle pluck edge; Masenqo now uses a more bowed harmonic/nasal/bridge blend instead of an overly saw-led core while preserving the `vocal_clean` / `azmari_grit` split; and Washint now uses embouchure drift, tube-body focus, and less pure-oscillator vibrato blending while preserving the `alto_breathy` / `dance_call` split and the velocity clamp from Task 119. `tests/test_assets_gen.py` was updated to keep boundedness and profile-separation checks green and to add a body-energy-vs-brittle-highs guardrail for Ethiopian melodic fallbacks.",
+      "timestamp": "2026-06-09T10:20:00Z"
+    },
+    {
+      "file": "state-task-123",
+      "description": "Recorded completed Task 123 with a direct regenerated melodic listening pack.",
+      "diff_summary": "State now records Task 123 as complete with clean diagnostics, clean whitespace diff, focused synthesis tests (`7 passed, 14 deselected`), and a refreshed melodic listening pack generated directly from the current code under `output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003`. An earlier generic helper-created pack that fell back to copied baseline clips was intentionally excluded from acceptance evidence. The active next phase was advanced to Task 124 Kebero muted-hit cleanup.",
+      "timestamp": "2026-06-09T10:20:00Z"
+    },
+    {
+      "file": "docs\\BEGENA_SUBTASK_SPEC_2026-06-09.md",
+      "description": "Created an implementation-ready Begena-specific subtask spec.",
+      "diff_summary": "The new spec defines a bounded Task 126 for Begena structured roughness + sustain controls. It keeps the public Begena API compatible, confines production edits to `multimodal_gen/assets_gen.py` and `multimodal_gen/instrument_patch.py`, confines tests primarily to `tests/test_assets_gen.py` and `tests/test_instrument_patch.py`, and defines direct Begena proof artifacts (buzzers on/off, sustain bias, and structured roughness metrics) as acceptance evidence. The spec is explicitly designed to slot after Task 124 and before Task 120.",
+      "timestamp": "2026-06-09T00:35:00Z"
+    },
+    {
+      "file": "state-task-126",
+      "description": "Queued the Begena-specific implementation subtask after Task 124.",
+      "diff_summary": "State now includes pending `begena-structured-roughness-and-sustain-controls-126` with dependency on Task 124 and moves Task 120 behind it, while leaving `next_phase` unchanged at Task 123. This preserves the active roadmap order while making the Begena work implementation-ready.",
+      "timestamp": "2026-06-09T00:35:00Z"
+    },
+    {
+      "file": "docs\\BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md",
+      "description": "Refined the Begana/Bagana synthesis with the paper's full body-text findings.",
+      "diff_summary": "The Begana synthesis doc now goes beyond the abstract and incorporates the paper's additional body-text conclusions: ten strings functioning as five paired pitches, strict solo/homophonic role, jawari-like bridge mechanism, stronger evidence that the player optimizes leather-piece placement for long effective duration, and the explicit ethnomusicological claim that sound-color homogeneity is not achieved nor probably desired. This strengthens the recommendation to preserve API compatibility while parameterizing buzzer position/string quality/sustain intent and avoiding over-smoothing Begena into one static drone timbre.",
+      "timestamp": "2026-06-09T00:20:00Z"
+    },
+    {
+      "file": "docs\\BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md",
+      "description": "Created a grounded Bagana/Begana paper synthesis against the current codebase.",
+      "diff_summary": "The new doc synthesizes 'The Ethiopian Lyre Bagana. An ethno-acoustical study' with the current codebase and identifies the safest Begena improvements that preserve established functionality: parameterize `generate_begena_tone()` around buzzer position, string quality, and sustain intent; replace the single buzz line with a small structured roughness model; separate physical low-frequency behavior from musical response; clean unreachable code; and update Begena patch/report metadata to reflect the paper's acoustic identity more truthfully. The doc explicitly argues against treating the buzz as generic noise or rewriting the whole Begena path.",
+      "timestamp": "2026-06-09T00:10:00Z"
+    },
+    {
+      "file": "state-task-125",
+      "description": "Recorded the completed Begana/Bagana paper synthesis research task.",
+      "diff_summary": "State now records a completed research/documentation task for the Begana/Bagana paper synthesis and keeps `next_phase` on Task 123 because the user's latest listening feedback still prioritizes melodic source realism. The Bagana/Begana findings are preserved for later Begena-specific implementation without destabilizing the active roadmap.",
+      "timestamp": "2026-06-09T00:10:00Z"
+    },
+    {
+      "file": "docs\\ETHIOPIAN_POST_LISTENING_REMEDIATION_PLAN_2026-06-08.md",
+      "description": "Created an implementation-ready remediation plan from the user's listening feedback.",
+      "diff_summary": "The new plan captures the user's report that the melodic Ethiopian instruments still sound toy-like / plucky / 8-bit while Kebero is the closest current sound but contains a recurring muted/snare-like hit on every beat. It turns that feedback into a concrete new sequence: Task 123 melodic source realism reset, Task 124 Kebero muted-hit artifact cleanup, and only then Task 120 Kebero/subgenre separation.",
+      "timestamp": "2026-06-08T22:20:00Z"
+    },
+    {
+      "file": "state-tasks-123-124-before-120",
+      "description": "Re-sequenced the Ethiopian roadmap based on post-listening feedback.",
+      "diff_summary": "State now marks the clarification task complete, queues Task 123 (melodic source realism reset) and Task 124 (Kebero muted-hit artifact cleanup), and makes Task 120 depend on the new Kebero cleanup task rather than starting immediately after Task 119. The next phase is now `implement-task-123-ethiopian-melodic-source-realism-reset`.",
+      "timestamp": "2026-06-08T22:20:00Z"
+    },
+    {
+      "file": "state-task-122",
+      "description": "Recorded the user's post-listening feedback and opened a clarification checkpoint before Task 120.",
+      "diff_summary": "State now captures the user's listening verdict: all melodic Ethiopian instruments still sound wrong, with a plucking / handheld-game / 8-bit quality, while the Kebero baseline is the closest to a real instrument but includes a muted/snare-like sound on every beat. Based on that, the next phase was changed from directly starting Task 120 to first clarifying whether the next slice should prioritize melodic timbre reset, Kebero artifact cleanup, or a direct Task 120 start with a narrower target.",
+      "timestamp": "2026-06-08T22:05:00Z"
+    },
+    {
+      "file": "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805",
+      "description": "Generated an Ethiopian instrument listening pack for user evaluation before Task 120.",
+      "diff_summary": "Created a combined suite (`00_full_listening_suite.wav`) and nine labeled individual WAV studies covering current Krar profiles/tunings, current Masenqo articulation profiles, current Washint articulation profiles, a Begena baseline, and a pre-Task-120 Kebero baseline. Also wrote `listening_manifest.json` and `README.txt` so the user can evaluate the current instrument sounds by ear before the next Kebero/subgenre-separation slice.",
+      "timestamp": "2026-06-08T21:58:05Z"
+    },
+    {
+      "file": "state-task-121",
+      "description": "Recorded the completed listening-pack evaluation-support task.",
+      "diff_summary": "State now records a completed evaluation-support task for generating the Ethiopian listening pack and changes the next phase from direct Task 120 implementation to waiting for user listening evaluation first. No production code changed in this task.",
+      "timestamp": "2026-06-08T21:58:05Z"
+    },
+    {
+      "file": "multimodal_gen\\assets_gen.py / multimodal_gen\\audio_renderer.py / multimodal_gen\\plugins\\ethiopian\\plugin.py / tests\\test_assets_gen.py / tests\\test_audio_renderer.py",
+      "description": "Implemented Task 119 Masenqo + Washint articulation differentiation.",
+      "diff_summary": "`multimodal_gen/assets_gen.py` now adds trailing additive `profile` kwargs to `generate_masenqo_tone(...)` and `generate_washint_tone(...)`, with bounded profile resolvers for `vocal_clean` vs `azmari_grit` on Masenqo and `alto_breathy` vs `dance_call` on Washint. The Masenqo path now introduces controlled bow-noise/presence shaping, and the Washint path now introduces stronger lead-call articulation while clamping direct velocity input to the intended domain so proof callers using MIDI-style values do not collapse the contrast. `multimodal_gen/audio_renderer.py` now routes only the Ethiopian custom Masenqo/Washint program branches (`111`/`112`) by genre, and `multimodal_gen/plugins/ethiopian/plugin.py` passes explicit articulation profiles through without adding broader routing logic. New focused tests prove the articulation splits, the high-register Washint regression, and the narrow renderer dispatch behavior.",
+      "timestamp": "2026-06-08T11:35:00Z"
+    },
+    {
+      "file": "state-task-119",
+      "description": "Recorded completed Task 119 with final direct proof artifacts and the isolated Eskista runtime proof.",
+      "diff_summary": "State now records Task 119 as complete with clean diagnostics, clean whitespace diff, focused Masenqo/Washint pytest coverage, final direct proof artifacts under `output\\_diagnostics\\task119_profiles_finalpass_20260608_143146` and `output\\_diagnostics\\task119_profiles_final_20260608_143000`, and a clean isolated runtime proof under `output\\_diagnostics\\task119_verify_iso_20260608_143000` that produced MIDI/WAV/render-report/project-metadata/session-manifest artifacts with `render_status.success=true`. One earlier expansion-heavy CLI proof and one harsher intermediate direct proof were treated as exploratory rather than acceptance evidence. The next phase was advanced to Task 120 (Kebero identity + subgenre separation).",
+      "timestamp": "2026-06-08T11:35:00Z"
+    },
+    {
+      "file": "multimodal_gen\\assets_gen.py / multimodal_gen\\audio_renderer.py / multimodal_gen\\plugins\\ethiopian\\plugin.py / tests\\test_assets_gen.py / tests\\test_audio_renderer.py",
+      "description": "Implemented Task 118 Krar timbre differentiation and bounded profile dispatch.",
+      "diff_summary": "`multimodal_gen/assets_gen.py` now exposes a trailing additive `profile='traditional_warm'` kwarg on `generate_krar_tone(...)` and resolves two bounded Krar profiles: `traditional_warm` and `azmari_bright`. `multimodal_gen/audio_renderer.py` routes only the existing Krar procedural branch (`program == 110`) by genre, mapping `eskista` and `ethio_jazz` to `azmari_bright` while preserving `traditional_warm` elsewhere. `multimodal_gen/plugins/ethiopian/plugin.py` now passes through an optional Krar profile. New focused tests in `tests/test_assets_gen.py` and `tests/test_audio_renderer.py` prove the measurable timbre split and the narrow renderer dispatch behavior without broadening into other Ethiopian instruments.",
+      "timestamp": "2026-06-08T11:05:00Z"
+    },
+    {
+      "file": "state-task-118",
+      "description": "Recorded completed Task 118 with proof artifacts and the next-phase handoff to Task 119.",
+      "diff_summary": "State now records Task 118 as complete with clean diagnostics, clean whitespace diff, focused Krar pytest coverage, direct A/B proof artifacts under `output\\_diagnostics\\task118_krar_profiles_20260608_091626`, and a short Eskista runtime proof under `output\\_diagnostics\\task118_runtime_20260608_091626` that produced MIDI/WAV/render-report/project-metadata/session-manifest artifacts with `render_status.success=true`. The next phase was advanced to Task 119 (Masenqo/Washint articulation differentiation).",
+      "timestamp": "2026-06-08T11:05:00Z"
+    },
+    {
+      "file": "docs\\ETHIOPIAN_TIMBRE_PHRASING_IMPLEMENTATION_PLAN_2026-06-08.md",
+      "description": "Created the implementation-ready next-phase Ethiopian timbre/phrasing plan.",
+      "diff_summary": "The new plan doc turns the post-step-4 research into three bounded implementation tasks: Task 118 (Krar timbre differentiation and narrow profile dispatch), Task 119 (Masenqo + Washint articulation differentiation), and Task 120 (Kebero identity plus explicit Ethiopian subgenre-target separation). It grounds each task in concrete seams across `assets_gen.py`, `audio_renderer.py`, `plugins/ethiopian/plugin.py`, `groove_templates.py`, `agents/personality.py`, `expansion_manager.py`, and existing tests such as `tests/test_assets_gen.py`, `tests/test_audio_renderer.py`, `tests/test_fluidsynth_profiles.py`, and `tests/test_ethiopian_resolution_guardrails.py`.",
+      "timestamp": "2026-06-08T10:40:00Z"
+    },
+    {
+      "file": "state-tasks-118-119-120",
+      "description": "Queued the next Ethiopian authenticity implementation phase.",
+      "diff_summary": "State now records a completed planning task plus three pending implementation tasks. Task 118 targets Krar profile differentiation first because the current warm/harp-like Krar is the strongest recurring support-layer mismatch. Task 119 targets Masenqo and Washint articulation next. Task 120 combines Kebero identity work with explicit separation of `eskista`, `ethiopian_traditional`, and `ethio_jazz` across bounded routing and diagnostic maps. The plan explicitly notes that Task 117 was already consumed by the completed research follow-up, so the new implementation tasks were queued as 118/119/120 to keep orchestration IDs unique.",
+      "timestamp": "2026-06-08T10:40:00Z"
+    },
+    {
+      "file": "docs\\ETHIOPIAN_AUTHENTICITY_RESEARCH_2026-06-08.md",
+      "description": "Created a grounded research summary for the remaining Ethiopian authenticity gap.",
+      "diff_summary": "The new research doc pairs external references on Azmari, Asnaketch Worku, Tizita/qenet, Mulatu Astatke, and Ethiopian instrument/dance traditions with current code inspection across `assets_gen.py`, `ethio_melody.py`, Ethiopian performer agents, and internal docs. It concludes that after Tasks 113–116 the generator now shows stronger structural authenticity, but the dominant remaining gap is sonic/practice authenticity: Krar is modeled too harp-soft and warm, Masenqo too sanitized and clean, Washint too generic/unified, Kebero too conga-adjacent, and many richer Ethiopian performer behaviors remain more semantic than audible.",
+      "timestamp": "2026-06-08T10:15:00Z"
+    },
+    {
+      "file": "state-task-117",
+      "description": "Recorded the completed post-step-4 Ethiopian authenticity research follow-up.",
+      "diff_summary": "State now notes that listener feedback after the isolated Task 116 WAV is consistent with code reality: the system can now prove more structural relation to Ethiopian music, but the remaining problem is mostly timbre, phrasing/articulation, and song-practice correlation rather than more chord-bed structure work. The next recommendation is to plan a timbre/phrasing/articulation differentiation slice.",
+      "timestamp": "2026-06-08T10:15:00Z"
+    },
+    {
+      "file": "multimodal_gen\\arranger.py / multimodal_gen\\midi_generator.py / tests\\test_arranger_ethiopian_family.py / tests\\test_midi_generator.py",
+      "description": "Implemented Task 116 compact Eskista accompaniment thinning.",
+      "diff_summary": "Added an Eskista-only compact-request override in `multimodal_gen/arranger.py` so intro/outro disable chords while verse/variation keep accompaniment for <=16-bar Eskista prompts, and added a small guard in `_create_secondary_chord_track()` so secondary support tracks respect those same chord-disable flags. New focused tests prove compact intro/outro chord disablement, full-length Eskista stability, middle-section accompaniment persistence, and preserved Ethiopian identity/program contracts.",
+      "timestamp": "2026-06-08T09:40:00Z"
+    },
+    {
+      "file": "state-task-116",
+      "description": "Recorded Task 116 completion and the isolated no-agent section-thinning proof artifact.",
+      "diff_summary": "State now notes that compact Eskista intro/outro accompaniment was thinned successfully and verified with an isolated no-agent runtime proof under `output\\_diagnostics\\task116_verify_iso_20260608_054532`, where Krar accompaniment is absent in intro/outro bars, present in middle bars, and render success plus Ethiopian identity contracts remain intact.",
+      "timestamp": "2026-06-08T09:40:00Z"
+    },
+    {
+      "file": "multimodal_gen\\midi_generator.py / tests\\test_midi_generator.py",
+      "description": "Implemented Task 115 base-path Eskista accompaniment de-Westernization.",
+      "diff_summary": "Added a narrow Eskista-only accompaniment helper in `multimodal_gen/midi_generator.py` and routed both the primary and secondary Eskista chord-support paths through it so Krar accompaniment no longer uses generic block-chord triads. The helper preserves Task 113 identity/program/channel contracts while replacing same-onset triadic clusters with sparser modal/drone/open-interval support. Focused MIDI regressions now prove Krar accompaniment remains present while avoiding Western block-chord clusters.",
+      "timestamp": "2026-06-08T09:05:00Z"
+    },
+    {
+      "file": "state-task-115",
+      "description": "Recorded Task 115 completion and the isolated no-agent step-4 proof artifact.",
+      "diff_summary": "State now notes that the base Eskista accompaniment seam was de-Westernized and verified with an isolated no-agent runtime proof under `output\\_diagnostics\\task115_verify_iso_20260608_051354`, where Krar accompaniment still exists but no longer resolves to same-onset triadic block clusters while render success and Ethiopian identity contracts are preserved.",
+      "timestamp": "2026-06-08T09:05:00Z"
+    },
+    {
+      "file": "docs\\ESKISTA_STEP4_DEWESTERNIZE_CHORDBED_PLAN_2026-06-08.md",
+      "description": "Created an implementation-ready step-4 Eskista de-Westernization plan.",
+      "diff_summary": "The new doc decomposes step 4 into Task 115 (de-Westernize the base Eskista accompaniment vocabulary in the MIDI generator) and Task 116 (thin Eskista accompaniment by section), listing exact production/test file targets, focused pytest commands, isolated no-agent runtime proof paths, acceptance criteria, and deferred items.",
+      "timestamp": "2026-06-08T08:30:00Z"
+    },
+    {
+      "file": "state-task-sequence-115-116",
+      "description": "Queued the next Eskista implementation sequence for step 4.",
+      "diff_summary": "State now records Task 115 as the next implementation target for base Eskista accompaniment de-Westernization and Task 116 as the immediate follow-up for section-level accompaniment thinning, matching the new step-4 plan doc.",
+      "timestamp": "2026-06-08T08:30:00Z"
+    },
+    {
+      "file": "state-task-114",
+      "description": "Queued the next bounded Eskista kebero pulse-strengthening slice.",
+      "diff_summary": "State now records Task 114 as a base-path MIDI-generator pulse slice that will strengthen Eskista kebero accents without touching agent merge behavior, timbre synthesis, or analyzer thresholds, and will use artifact-safe proof methods that avoid the current agent/base-track duplication confusion.",
+      "timestamp": "2026-06-06T07:35:00Z"
+    },
+    {
+      "file": "multimodal_gen\\session_graph.py / multimodal_gen\\midi_generator.py / tests\\test_session_graph_ethiopian_family.py / tests\\test_midi_generator.py",
+      "description": "Implemented Task 113 Ethiopian role-preservation contract through session graph and MIDI.",
+      "diff_summary": "Ethiopian-family session graph creation now preserves explicit Krar/Washint/Masenqo/Kebero/Begena identities by instrument rather than suppressing later tracks by shared role, uses a stable explicit channel map, and suppresses generic `Melody` when explicit Ethiopian lead/support coverage already exists. MIDI generation now gives explicit Ethiopian primaries explicit track names and adds a narrow Ethiopian-only secondary-track path for remaining requested instruments while preserving custom programs 110/111/112/113 and keeping Kebero on the drum track.",
+      "timestamp": "2026-06-06T07:20:00Z"
+    },
+    {
+      "file": "state-task-113",
+      "description": "Recorded Task 113 completion and its non-blocking runtime caveat.",
+      "diff_summary": "State now notes that explicit Ethiopian roles are preserved in manifest + MIDI for the exact Eskista prompt and the generic `Melody` fallback is gone, but the runtime MIDI can still show duplicate Ethiopian track names because Task 112 appends agent-generated tracks alongside the now-more-explicit base generated tracks.",
+      "timestamp": "2026-06-06T07:20:00Z"
+    },
+    {
+      "file": "main.py / multimodal_gen\\agents\\conductor_offline.py / tests\\test_main_render_diagnostics.py",
+      "description": "Implemented Task 112 Ethiopian agent runtime handoff and MIDI merge repair.",
+      "diff_summary": "`run_generation()` now uses the correct OfflineConductor sequence (`research_style` -> score from arrangement -> `assemble_ensemble(parsed, style_intel)` -> `conduct_performance(score, ensemble)`), the agent merge path now accepts dict-of-NoteEvent tracks and uses `start_tick` / `duration_ticks` with deterministic Ethiopian track defaults, and focused tests now cover the corrected conductor call sequence plus dict-of-NoteEvent merge behavior.",
+      "timestamp": "2026-06-06T06:50:00Z"
+    },
+    {
+      "file": "state-task-112",
+      "description": "Recorded Task 112 completion and advanced the queue to Task 113.",
+      "diff_summary": "State now records that the Ethiopian agent path no longer falls back in the Eskista acceptance run, merged agent tracks are present in the final MIDI, and Task 113 is the next implementation target for role preservation.",
+      "timestamp": "2026-06-06T06:50:00Z"
+    },
+    {
+      "file": "docs\\ESKISTA_AUTHENTICITY_IMPLEMENTATION_PLAN_2026-06-06.md",
+      "description": "Created an implementation-ready Eskista authenticity task plan for the next coding slice.",
+      "diff_summary": "The new doc translates the Eskista research into Task 112 and Task 113 with exact production/test files to edit, focused pytest commands, direct runtime proof commands, concrete acceptance criteria, and an explicit statement of what remains deferred until later slices.",
+      "timestamp": "2026-06-06T06:20:00Z"
+    },
+    {
+      "file": "state-task-sequence-112-113",
+      "description": "Queued the next Eskista implementation sequence in state.",
+      "diff_summary": "State now records Task 112 (Ethiopian agent runtime handoff/merge repair) as the next implementation target and Task 113 (distinct Ethiopian role preservation through session graph and MIDI) as the immediate follow-up, matching the new implementation-plan doc.",
+      "timestamp": "2026-06-06T06:20:00Z"
+    },
+    {
+      "file": "state-task-111",
+      "description": "Recorded the completed Eskista authenticity research pass and concrete improvement plan.",
+      "diff_summary": "State now notes that external musical references plus source-grounded inspection showed the Ethiopian/Eskista authenticity gap is currently driven more by broken agent orchestration and multi-instrument role collapse than by SoundFont setup. The plan now prioritizes fixing the agent runtime handoff, preserving distinct Ethiopian instrument roles through session graph and MIDI, promoting a stronger Eskista-specific kebero pulse path, reducing Western chord-bed behavior, and only then refining procedural timbre or considering a later hybrid render path.",
+      "timestamp": "2026-06-06T06:05:00Z"
+    },
+    {
+      "file": "state-task-110",
+      "description": "Recorded the completed Ethiopian Eskista authenticity probe and its measured findings.",
+      "diff_summary": "State now notes that the first prompt variant rendered as ethiopian_traditional while the parser-safe Eskista prompt produced output/_diagnostics/eskista_genre_correct_probe_20260606_110159/eskista_126.0bpm_Eminor_20260606_110205.wav with genre=eskista, renderer_path=procedural, FluidSynth skip_reason=ethiopian_instruments, and audio_analysis that passed overall but flagged low drum presence for Eskista.",
+      "timestamp": "2026-06-06T05:35:00Z"
+    },
+    {
+      "file": "state-task-110",
+      "description": "Queued the Ethiopian Eskista quality probe and captured the current rendering-path decision.",
+      "diff_summary": "State now records that a traditional Eskista generation/artifact review is the next step and that current Ethiopian-instrument runs explicitly skip whole-file FluidSynth in favor of the built-in Ethiopian synth path, so this evaluation should be interpreted as an authenticity probe rather than a SoundFont-driven benchmark.",
+      "timestamp": "2026-06-06T05:10:00Z"
+    },
+    {
       "file": "state-task-109",
       "description": "Recorded the successful local docs commit for the README sync.",
       "diff_summary": "State files now note that README.md plus the matching state files were staged, the staged diff passed `git diff --cached --check`, and a local master commit was created with message `docs: refresh README for current CLI and FluidSynth workflow` without pushing to origin.",
@@ -5642,8 +7313,8 @@
     {
       "file": "state-task-106",
       "description": "Recorded the completed lyrical cinematic/orchestral identity + tone slice and its measured improvement.",
-      "diff_summary": "State files now note that the lyrical cue improved from score 0.84 / centroid 4382.5 Hz / no first-class Piano to score 0.86 / centroid 4263.0 Hz / first-class Piano + Strings preserved, while dark/heroic cues remained untouched."
-      ,"timestamp": "2026-06-05T03:10:00Z"
+      "diff_summary": "State files now note that the lyrical cue improved from score 0.84 / centroid 4382.5 Hz / no first-class Piano to score 0.86 / centroid 4263.0 Hz / first-class Piano + Strings preserved, while dark/heroic cues remained untouched.",
+      "timestamp": "2026-06-05T03:10:00Z"
     },
     {
       "file": "state-task-105",
@@ -7139,6 +8810,286 @@
     }
   ],
   "verifications": [
+    {
+      "type": "post",
+      "target": "task129-user-mp3-timbre-tuned-diagnostic-slice",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Verifier confirmed `PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_ethiopian_reference_comparison.py tests/test_assets_gen.py -q -k \"reference or krar or masenqo or begena\"` passed with 32 passed, 22 deselected; `git diff --check -- scripts/compare_ethiopian_reference_audio.py tests/test_ethiopian_reference_comparison.py multimodal_gen/assets_gen.py tests/test_assets_gen.py` passed; no diagnostics found. Begena distance improved 0.461511→0.359394 but high_mid overshot; Masenqo improved 0.347586→0.289536 but remains too harmonic/noise-light; Krar amplified focus is active but descriptor distance regressed 0.299692→0.328931 and effective duration fell.",
+      "timestamp": "2026-06-28T01:45:00Z"
+    },
+    {
+      "type": "builder-local",
+      "target": "task129-user-mp3-timbre-tuned-probes",
+      "result": "PASS_WITH_USER_REVIEW_REQUIRED",
+      "details": "Focused pytest passed (32 passed, 22 deselected); git diff --check reported no whitespace errors; get_errors found no diagnostics in touched files; harness generated the requested output directory. Do not claim timbre solved.",
+      "timestamp": "2026-06-28T02:10:00Z"
+    },
+    {
+      "type": "post",
+      "target": "task129-user-mp3-declick-sustain-source-truth",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Verifier confirmed active user-reference-shaped probes are not hard-cut at onsets, have click_smoothing=true, boundary discontinuity 0.0, and bounded adjacent-sample jumps. `PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests/test_ethiopian_reference_comparison.py tests/test_assets_gen.py -q -k \"reference or krar or masenqo or begena\"` passed with 28 passed, 22 deselected. `git diff --check -- scripts/compare_ethiopian_reference_audio.py tests/test_ethiopian_reference_comparison.py tests/test_assets_gen.py` passed; no diagnostics found. Caveat: timbre remains unsolved and baseline single-note Krar still has a boundary discontinuity outside the active MP3-shaped path.",
+      "timestamp": "2026-06-28T01:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "task129-user-mp3-reference-shaped-probes-and-bounded-krar-masenqo-correction",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Verifier confirmed CLI flag defaults false, per-user reference probes are isolated source synthesis with `full_song_generation=false`, generated WAVs include source IDs, reports are diagnostic-only, public generator signatures are unchanged, and focused tests passed: `24 passed, 22 deselected`. Descriptor distances remain non-trivial: Krar acoustic 0.267750, Krar amp 0.281220, Masenqo 0.307099, Begena user 0.353070, Begena public 0.388467. Timbre is not solved.",
+      "timestamp": "2026-06-28T00:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "task129-reference-harness-begena-retune",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Verifier confirmed diagnostic-only harness, opt-in download, Commons Begena manifest/license/attribution, unavailable-by-default Krar/Masenqo/Washint with user-ref support, isolated source probes, Begena reference-scale-shaped probe, active-region metric fix, and preserved Begena signature/tests. Latest descriptor distance 0.388467; low/low_mid close directionally but mid/flatness/HPSS gaps remain. Commands: `pytest tests/test_assets_gen.py -q -k begena` 7 passed; `pytest tests/test_ethiopian_reference_comparison.py -q` 5 passed; `git diff --check ...` passed with extra untracked-file whitespace check.",
+      "timestamp": "2026-06-27T00:45:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-source-timbre-complexity-expansion-129-integrity-reset",
+      "result": "PARTIAL_NOT_AUTHENTICITY_PROVEN",
+      "details": "Read-only verifier confirmed current Ethiopian instrument tests are generated-vs-generated guardrails only, no existing per-instrument reference-audio/librosa harness exists, and prior Washint approval artifacts must not be treated as authenticity proof. Web/source probe found downloadable Commons BegenaScalePlucked.ogg but no public downloadable Krar/Masenqo/Washint files in this pass.",
+      "timestamp": "2026-06-27T00:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-source-timbre-complexity-expansion-129-washint-slice",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Post-check confirmed the Washint-only source-model slice stayed bounded to `multimodal_gen/assets_gen.py` and `tests/test_assets_gen.py`, preserved `generate_washint_tone(...)` and profile names `alto_breathy` / `dance_call`, and did not require renderer/plugin changes. `get_errors` was clean, `git diff --check -- multimodal_gen/assets_gen.py tests/test_assets_gen.py` passed, and `./.venv/Scripts/python.exe -m pytest tests/test_assets_gen.py -q -k 'washint'` passed with 6 tests. Fresh reapproval songs were generated under `output\\_diagnostics\\task129A_washint_reapproval_20260626_175811`; user listening approval remains required before marking Task 129 complete.",
+      "timestamp": "2026-06-26T18:05:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-source-timbre-complexity-expansion-129-washint-slice",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Fresh source inspection and web-grounded instrument descriptions show that the current Washint model is still the weakest and most generically western/digital of the Ethiopian melodic family. The main limits are a fixed additive odd-harmonic scaffold, overly polished periodic vibrato, breath as layered filtered noise rather than a pressure-driven exciter, and bore/tube behavior that is still largely filtered self-coloration instead of stronger air-jet↔column coupling. Minimum next production seam is `multimodal_gen/assets_gen.py`, minimum test seam is `tests/test_assets_gen.py`, and current renderer/plugin dispatch can remain untouched if signatures and profile names stay stable.",
+      "timestamp": "2026-06-26T00:20:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-source-timbre-complexity-expansion-129",
+      "result": "PASS",
+      "details": "User reprioritization plus current code inspection justify probing a deeper Ethiopian source-timbre complexity slice before the queued Ethio-jazz analyzer follow-up. The current Ethiopian generators already use some layered harmonic/body/noise elements, but they are still too sparse and too static to fully avoid the cheap digital quality the user described. The likely minimum production seam is still centered on `multimodal_gen/assets_gen.py`, with `tests/test_assets_gen.py` as the minimum regression surface until a concrete need for renderer dispatch changes is proven.",
+      "timestamp": "2026-06-26T00:00:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Post-check confirmed the exact Ethiopian-traditional isolated full render/runtime follow-through gap is now closed. The proof directory `output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338` contains MIDI, WAV, render report, `project_metadata.json`, `session_manifest.json`, and `task128_summary.json`. The local summary records `returned_successfully=true`, `render_status_success=true`, `parsed_genre=ethiopian_traditional`, `renderer_path=procedural`, and `audio_analysis_passed=true`; a direct standalone `OutputAnalyzer` corroboration on the saved WAV also returned `passed=true` with `genre_match_score=0.956`. The verifier accepted the slice as complete with one non-blocking caveat: minor warning noise such as low drum-presence notes remains in the artifacts, but it does not reopen the exact follow-through objective.",
+      "timestamp": "2026-06-09T14:50:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128",
+      "result": "PASS",
+      "details": "Read-only pre-check confirmed the highest-priority remaining Ethiopian item is the exact Ethiopian-traditional full render/runtime follow-through, not the Ethio-jazz audio-analysis miss. The only proven code blocker for the exact traditional prompt was the old Ambassel chord `IndexError`, and Task 127 already fixed that. No post-127 artifact yet proves a new production bug, so the smallest truthful next step is a proof-first isolated no-agent exact-prompt follow-through run. If that proof reproduces a new post-MIDI failure, only then should the next production seam be reopened (most likely `multimodal_gen/audio_renderer.py`).",
+      "timestamp": "2026-06-09T14:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-traditional-chord-progression-safety-followup-127",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Post-check confirmed Task 127 stayed bounded to the shared chord-generator safety seam: only `multimodal_gen/midi_generator.py` and `tests/test_midi_generator.py` changed. `get_errors` found no diagnostics, `git diff --check -- multimodal_gen/midi_generator.py tests/test_midi_generator.py` was clean, and focused pytest passed (`.\\.venv\\Scripts\\python.exe -m pytest tests/test_midi_generator.py -q -k \"ethiopian or chord or ambassel or pentatonic\"` => 8 passed, 14 deselected). The exact original prompt reproduction on the isolated no-agent path saved `output\\_diagnostics\\task127_exact_repro_20260609_140932\\ethiopian_traditional_110bpm_Cambassel_20260609_140934.mid`, proving the former `generate_chord_progression_midi(...)` `IndexError` no longer blocks Ethiopian-traditional generation before render. The independent verifier accepted the slice as complete with one non-blocking caveat: the reproduction proof was stopped later during rendering, so it proves the old pre-render crash is gone rather than serving as a full end-to-end audio render proof.",
+      "timestamp": "2026-06-09T14:12:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-traditional-chord-progression-safety-followup-127",
+      "result": "PASS",
+      "details": "Read-only pre-check confirmed Task 127 is a local chord-generator safety bug rather than a Task 120 regression. In `multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)`, the default non-minor progression still assumes 7-note degree availability (`[1, 5, 6, 4]`) even when the active qenet scale has only 5 notes (`ScaleType.AMBASSEL` in the reproduced exact prompt). The failure occurs at `root_note = scale_notes[degree - 1]` before render. Minimal fix surface is `multimodal_gen/midi_generator.py` plus focused regression coverage in `tests/test_midi_generator.py`; caller-side workarounds or forcing Ethiopian-traditional prompts onto generic 7-note Western scales were explicitly ruled out.",
+      "timestamp": "2026-06-09T13:42:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-kebero-identity-and-subgenre-separation-120",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Post-check confirmed Task 120 stayed bounded to Kebero profile/dispatch plus Ethiopian subgenre map separation: only `multimodal_gen/assets_gen.py`, `multimodal_gen/audio_renderer.py`, `multimodal_gen/plugins/ethiopian/plugin.py`, `multimodal_gen/groove_templates.py`, `multimodal_gen/agents/personality.py`, `multimodal_gen/expansion_manager.py`, `multimodal_gen/fluidsynth_profiles.py`, and their focused tests changed. `get_errors` found no diagnostics, `git diff --check` was clean, focused pytest passed (`14 passed, 75 deselected`), and optional Kebero plugin smoke passed (`1 passed, 22 deselected`). Direct proof under `output\\_diagnostics\\task120_proof_final_20260609_132600` shows Kebero contrast metrics in the expected ordering and distinct Ethiopian FluidSynth diagnostics. Runtime corroboration shows `eskista` render success and `ethio_jazz` render success, while the exact `ethiopian_traditional` proof prompt fails earlier in untouched `multimodal_gen/midi_generator.py::generate_chord_progression_midi(...)` with `IndexError: list index out of range`. The independent verifier classified that as an adjacent upstream chord-generation follow-up rather than a Task 120 blocker.",
+      "timestamp": "2026-06-09T13:35:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-kebero-identity-and-subgenre-separation-120",
+      "result": "PASS",
+      "details": "Read-only pre-check confirmed Task 120 is only partial and can remain tightly bounded. The still-missing work is a Kebero profile split plus genre-based dispatch in `multimodal_gen/assets_gen.py`, `multimodal_gen/audio_renderer.py`, and `multimodal_gen/plugins/ethiopian/plugin.py`, along with explicit subgenre separation in `multimodal_gen/groove_templates.py`, `multimodal_gen/agents/personality.py`, `multimodal_gen/expansion_manager.py`, and `multimodal_gen/fluidsynth_profiles.py`. Minimal tests are `tests/test_assets_gen.py`, `tests/test_audio_renderer.py`, `tests/test_fluidsynth_profiles.py`, and `tests/test_ethiopian_resolution_guardrails.py`. Critical guardrails: do not reopen Task 124 pattern work in `midi_generator.py`, do not broaden into Begena or melodic profile work, and keep any new Kebero kwargs trailing/defaulted so existing callers and `generate_drum_kit(['kebero'])` remain compatible.",
+      "timestamp": "2026-06-09T13:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "begena-structured-roughness-and-sustain-controls-126",
+      "result": "PASS",
+      "details": "Post-check confirmed Task 126 stayed in scope: only `multimodal_gen/assets_gen.py`, `multimodal_gen/instrument_patch.py`, `tests/test_assets_gen.py`, and `tests/test_instrument_patch.py` changed materially, while renderer/plugin callers remained untouched and compatible. `get_errors` found no diagnostics, `git diff --check -- multimodal_gen/assets_gen.py multimodal_gen/instrument_patch.py tests/test_assets_gen.py tests/test_instrument_patch.py` was clean, focused pytest passed (`.\\.venv\\Scripts\\python.exe -m pytest tests/test_assets_gen.py tests/test_instrument_patch.py -k begena -q -ra` => 6 passed, 26 deselected; `.\\.venv\\Scripts\\python.exe -m pytest tests/test_plugins.py -k begena -q -ra` => 1 passed, 22 deselected), and the direct proof under `output\\_diagnostics\\task126_begena_proof_final_20260609_125002` produced `begena_default.wav`, `begena_buzzers_off.wav`, `begena_high_sustain.wav`, `begena_string_quality_lively.wav`, and `begena_metrics.json` with all intended comparisons true. The independent verifier then confirmed API compatibility, bounded scope, preserved patch id/family, and cleanup of the old unreachable code, and explicitly marked the task ready to complete.",
+      "timestamp": "2026-06-09T12:52:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "begena-structured-roughness-and-sustain-controls-126",
+      "result": "PASS",
+      "details": "Read-only pre-check confirmed Task 126 is not yet implemented and can remain tightly bounded. The current seams are `multimodal_gen/assets_gen.py::generate_begena_tone(...)` and `multimodal_gen/instrument_patch.py::_begena_patch()`. Minimal test work is `tests/test_assets_gen.py` and `tests/test_instrument_patch.py`, with `tests/test_plugins.py -k begena` as an optional guard. The critical constraint is to keep any new Begena kwargs trailing/defaulted so existing positional callers, MIDI program `113`, and patch identity `ethiopian.begena.track.v1` remain intact.",
+      "timestamp": "2026-06-09T10:55:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-kebero-muted-hit-artifact-cleanup-124",
+      "result": "PASS",
+      "details": "Post-check confirmed Task 124 stayed in scope: only `multimodal_gen/midi_generator.py`, `tests/test_strategies.py`, and `tests/test_midi_generator.py` changed. `get_errors` reported no diagnostics, `git diff --check -- multimodal_gen/midi_generator.py tests/test_strategies.py tests/test_midi_generator.py` was clean, and focused pytest passed (`.\\.venv\\Scripts\\python.exe -m pytest tests/test_strategies.py tests/test_midi_generator.py -q -k \"eskista or kebero\"` => 9 passed, 40 deselected). Deterministic pattern inspection proved the 6/8 Eskista base path now emits bass ticks `[0, 3*pulse]` and slap ticks `[2*pulse, 5*pulse]`, removing the old near-continuous non-bass slap layer. The isolated no-agent runtime proof under `output\\_diagnostics\\task124_verify_iso_20260609_114338` produced a successful WAV/render report with `render_status.success=true` and `audio_analysis.passed=true`.",
+      "timestamp": "2026-06-09T11:45:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-melodic-source-realism-reset-123",
+      "result": "PASS",
+      "details": "Post-check confirmed Task 123 stayed in scope: only `multimodal_gen/assets_gen.py` and `tests/test_assets_gen.py` changed. `get_errors` reported no diagnostics, `git diff --check -- multimodal_gen/assets_gen.py tests/test_assets_gen.py` was clean, and focused pytest passed (`.\\.venv\\Scripts\\python.exe -m pytest tests/test_assets_gen.py -q -k \"krar or masenqo or washint\"` => 7 passed, 14 deselected). A refreshed listening pack was generated directly from the current Task 123 functions under `output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003`, including a combined suite, the seven refreshed melodic clips, `listening_manifest.json`, `README.txt`, and `task123_pack_summary.json`. The verifier noted that an earlier helper-created pack used copied baseline clips, but the final direct regenerated pack is sound acceptance evidence.",
+      "timestamp": "2026-06-09T10:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "begena-subtask-spec-slotting-126",
+      "result": "PASS",
+      "details": "Created `docs/BEGENA_SUBTASK_SPEC_2026-06-09.md` as an implementation-ready Begena-specific subtask. The spec is bounded to `assets_gen.py`, `instrument_patch.py`, and focused tests, and the orchestration queue now places the pending Begena task after Task 124 and before Task 120 while preserving Task 123 as the active next phase.",
+      "timestamp": "2026-06-09T00:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "begana-paper-synthesis-and-codebase-gap-analysis-125 refinement",
+      "result": "PASS",
+      "details": "The Begana/Bagana synthesis doc was refined using the full paper text provided in-session, not just the abstract. The refined conclusions now explicitly include the instrument's five-pitch paired-string organization, repetitive repertoire with desired timbral heterogeneity, jawari-like bridge/leather mechanism, and the player's setup bias toward long effective duration rather than uniform loudness. These additions strengthen the same safe engineering direction: parameterize structured roughness and sustain behavior without rewriting the current Begena path.",
+      "timestamp": "2026-06-09T00:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "begana-paper-synthesis-and-codebase-gap-analysis-125",
+      "result": "PASS",
+      "details": "The Bagana/Begana paper synthesis was completed in `docs/BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md`. The resulting analysis is grounded in the paper's core acoustic claims (low-frequency ten-gut-string lyre, skin soundboard, leather-piece bridge buzz, roughness/inharmonicity rather than generic noise, and important timbre variation driven by string quality, buzzer placement, and long-duration intent) and maps them to current Begena code seams in `multimodal_gen/assets_gen.py`, the Begena agent layer, and patch/report metadata. The output is a safe additive correction path, not a rewrite, and it leaves the active next implementation phase unchanged at Task 123.",
+      "timestamp": "2026-06-09T00:10:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-post-listening-feedback-clarification-122",
+      "result": "PASS",
+      "details": "The user's listening feedback was strong enough to decide the next sequence even without live follow-up. A new implementation-ready remediation plan was created in `docs/ETHIOPIAN_POST_LISTENING_REMEDIATION_PLAN_2026-06-08.md`, and the task queue was re-sequenced so Task 123 (melodic source realism reset) and Task 124 (Kebero muted-hit cleanup) come before Task 120. This keeps the next implementation phase aligned with the actual problems the user heard in the listening pack.",
+      "timestamp": "2026-06-08T22:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-post-listening-feedback-clarification-122",
+      "result": "PARTIAL",
+      "details": "The user listened to the Ethiopian instrument pack and reported that nearly all melodic instruments still sound wrong, with plucking / handheld-game / 8-bit qualities, while Kebero is the only clip that sounds somewhat close but contains an unwanted muted/snare-like hit on every beat. This feedback was recorded and the next phase was paused pending targeted clarification questions before Task 120.",
+      "timestamp": "2026-06-08T22:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-instrument-listening-pack-generation-121",
+      "result": "PASS",
+      "details": "Listening pack generation succeeded under `output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805`. The artifact set includes a combined listening suite (`00_full_listening_suite.wav`), nine labeled individual clips (`01_...` through `09_...`), a manifest JSON, and a README. The pack intentionally isolates current Krar, Masenqo, Washint, Begena, and pre-Task-120 Kebero sounds so the user can evaluate instrument realism by ear before the next Kebero/subgenre-separation implementation slice.",
+      "timestamp": "2026-06-08T21:58:05Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-masenqo-washint-articulation-differentiation-119",
+      "result": "PASS",
+      "details": "Post-check confirmed Task 119 stayed in scope: only Masenqo/Washint synthesis/dispatch/test seams changed. `get_errors` reported no diagnostics on touched files, `git diff --check` was clean, and focused pytest coverage passed (`tests/test_assets_gen.py tests/test_audio_renderer.py -q -k \"masenqo or washint\"` => 7 passed, 55 deselected). Final direct proof artifacts under `output\\_diagnostics\\task119_profiles_finalpass_20260608_143146` and `output\\_diagnostics\\task119_profiles_final_20260608_143000` show both articulation splits. For Masenqo, `azmari_grit` exceeds `vocal_clean` on presence 1800-4200 Hz, attack presence 2200-5200 Hz, and noise band 4200-9000 Hz; for Washint, `dance_call` exceeds `alto_breathy` on upper ratio 2600-6200 Hz and attack ratio 2500-7200 Hz, including the higher-register proof case that previously failed. The isolated Eskista runtime proof under `output\\_diagnostics\\task119_verify_iso_20260608_143000` returned successfully and produced MIDI/WAV/render-report/project-metadata/session-manifest artifacts with `renderer_path=procedural` and `render_status.success=true`.",
+      "timestamp": "2026-06-08T11:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-krar-timbre-differentiation-118",
+      "result": "PASS",
+      "details": "Post-check confirmed Task 118 stayed in scope: only Krar synthesis/dispatch/test seams changed. `get_errors` reported no diagnostics on touched files, `git diff --check` was clean, and focused pytest coverage passed (`tests/test_assets_gen.py tests/test_audio_renderer.py tests/test_plugins.py -q -k \"krar\"` => 5 passed, 73 deselected). Direct proof artifacts under `output\\_diagnostics\\task118_krar_profiles_20260608_091626` show a real measurable Krar split with `azmari_bright` exceeding `traditional_warm` on both upper-mid energy ratio 1800-4500 Hz (`0.0001103` vs `0.0000597`) and attack upper-mid energy ratio 1800-4500 Hz (`0.02817` vs `0.00956`). The narrow Eskista runtime proof under `output\\_diagnostics\\task118_runtime_20260608_091626` exited 0 and produced MIDI/WAV/render-report/project-metadata/session-manifest artifacts with `renderer_path=procedural` and `render_status.success=true`.",
+      "timestamp": "2026-06-08T11:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-timbre-phrasing-task-sequence-planning",
+      "result": "PASS",
+      "details": "Planning precheck completed across `multimodal_gen/assets_gen.py`, `multimodal_gen/audio_renderer.py`, `multimodal_gen/plugins/ethiopian/plugin.py`, `multimodal_gen/groove_templates.py`, `multimodal_gen/agents/personality.py`, `multimodal_gen/expansion_manager.py`, and existing Ethiopian-family tests. The resulting plan is grounded in current direct synthesis dispatch seams and existing test surfaces, so Tasks 118/119/120 can remain bounded rather than requiring a renderer rewrite.",
+      "timestamp": "2026-06-08T10:40:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-authenticity-research-followup-117",
+      "result": "PASS",
+      "details": "Research pass completed using both external and internal evidence after the post-step-4 listening feedback. External material on Azmari, Asnaketch Worku, Tizita/qenet, Mulatu Astatke, and instrument descriptions was paired with code inspection across `docs/ETHIOPIAN_INSTRUMENTS.md`, `docs/muse-specs/MUSE-INTEGRATION-SYNTHESIS.md`, `multimodal_gen/assets_gen.py`, `multimodal_gen/ethio_melody.py`, and Ethiopian performer agents. The grounded conclusion is that structural authenticity has improved through Tasks 113–116, but the remaining gap is now mostly sonic/practice authenticity: timbre, phrasing/articulation, and performer/song-practice correlation.",
+      "timestamp": "2026-06-08T10:15:00Z"
+    },
+    {
+      "type": "post",
+      "target": "eskista-section-level-accompaniment-thinning-116",
+      "result": "PASS",
+      "details": "Builder verification passed (`git diff --check`, `pytest tests/test_arranger_ethiopian_family.py tests/test_midi_generator.py -q` => 23 passed). Independent verifier then confirmed the arranger change is Eskista-only and compact-request-only, that only intro/outro chord enablement was disabled, that shared templates/constants remain untouched, that full-length Eskista behavior stays unchanged, and that `_create_secondary_chord_track()` now respects `section.config.enable_chords == False`. The isolated runtime proof under output\\_diagnostics\\task116_verify_iso_20260608_054532 succeeded without agents, produced MIDI/WAV/render-report/session-manifest artifacts, preserved Task 113 identity (`Drums`, `Krar`, `Washint`, `Masenqo`, `instrument:Kebero`), and proved Krar accompaniment is absent in intro bars, present in middle bars, and absent in outro bars.",
+      "timestamp": "2026-06-08T09:40:00Z"
+    },
+    {
+      "type": "post",
+      "target": "eskista-dewesternize-base-accompaniment-115",
+      "result": "PASS",
+      "details": "Builder verification passed (`git diff --check`, `pytest tests/test_midi_generator.py -q` => 17 passed). Independent verifier then confirmed the new accompaniment logic is Eskista-only, that `generate_chord_progression_midi()` itself remained unchanged globally, that the same Eskista-only helper now handles both primary and secondary accompaniment/support chord paths, and that Task 113 identity/program contracts remain intact. The isolated no-agent runtime proof under output\\_diagnostics\\task115_verify_iso_20260608_051354 exited successfully, produced MIDI/WAV/render report/session manifest, preserved explicit Ethiopian track identity and `instrument:Kebero`, and showed Krar accompaniment remains present while no longer resolving to same-onset triadic block clusters (`krar_max_same_tick_unique_pitches=2`).",
+      "timestamp": "2026-06-08T09:05:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "eskista-dewesternize-base-accompaniment-115 / eskista-section-level-accompaniment-thinning-116 planning",
+      "result": "PASS",
+      "details": "Read-only precheck identified the exact current Western chord-bed seam for the Eskista prompt on the base path: all compact Eskista sections still keep `enable_chords=True`, `EskistaStrategy` customizes drums only, `_select_primary_chord_instrument()` forces Krar into the accompaniment slot, `_create_chord_track()` routes Eskista through generic `generate_chord_progression_midi()` in `block` mode, and direct base-MIDI inspection already showed same-onset Krar triads like `[64, 67, 71]`. The recommended decomposition is Task 115 in `multimodal_gen/midi_generator.py` + `tests/test_midi_generator.py`, followed by Task 116 in `multimodal_gen/arranger.py` + `tests/test_arranger_ethiopian_family.py` / `tests/test_midi_generator.py`, both using isolated no-agent runtime proofs to avoid the known duplication artifact.",
+      "timestamp": "2026-06-08T08:30:00Z"
+    },
+    {
+      "type": "post",
+      "target": "eskista-kebero-pulse-strengthening-114",
+      "result": "PASS",
+      "details": "Builder verification passed (`git diff --check`, `pytest tests/test_strategies.py tests/test_midi_generator.py -q` => 44 passed). Independent verifier then confirmed only the Eskista branch of `generate_ethiopian_drum_pattern()` was materially strengthened, with unchanged pulse positions, returned keys, and non-Eskista Ethiopian branches. The isolated runtime proof under output\\_diagnostics\\task114_verify_iso_subproc_20260606_132606 ran `main.run_generation(... use_agents=False, skip_default_instruments=True, skip_expansions=True)` via Python subprocess, exited successfully, produced MIDI/WAV/render-report/session-manifest artifacts, preserved a generic base `Drums` track with `instrument:Kebero`, showed both low-head and high-head drum-note evidence on that track, and avoided the current agent/base-track duplication artifact entirely.",
+      "timestamp": "2026-06-06T08:00:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "eskista-kebero-pulse-strengthening-114",
+      "result": "PASS",
+      "details": "Read-only precheck confirmed the true non-agent Eskista pulse source is the `style='eskista'` branch of `generate_ethiopian_drum_pattern()` in `multimodal_gen/midi_generator.py`, called from `EskistaStrategy.generate_drums()`. The richer `KeberoPatterns.eskista_basic/intense` logic exists separately in agent performer code, but default runtime acceptance is currently confounded by agent/base-track duplication after Task 112. The safest bounded next slice is therefore a base-path pulse change verified by deterministic pattern tests, base MIDI-track assertions, and/or a direct `run_generation(... use_agents=False)` proof.",
+      "timestamp": "2026-06-06T07:35:00Z"
+    },
+    {
+      "type": "post",
+      "target": "eskista-role-preservation-contract-113",
+      "result": "PASS_WITH_CAVEAT",
+      "details": "Builder verification passed (`git diff --check`, `pytest tests/test_session_graph_ethiopian_family.py tests/test_midi_generator.py -q` => 16 passed). Independent verifier then confirmed `session_graph.py` now preserves explicit Ethiopian-family tracks by instrument identity rather than by shared role, uses stable explicit channels (Krar=2, Washint=3, Masenqo=4, Kebero=5, Begena=6), and suppresses generic `Melody` when explicit Ethiopian lead/support tracks already exist. `midi_generator.py` now gives explicit Ethiopian primaries explicit track names, preserves programs Krar=110 / Masenqo=111 / Washint=112 / Begena=113, keeps Kebero on drums, and adds a narrow Ethiopian-only secondary-track path. The real runtime proof under output\\_diagnostics\\task113_verify_ro_20260606_125604 exited 0; `session_manifest.json` contained separate `Krar`, `Washint`, `Masenqo`, and `Kebero` tracks with no generic `Melody`; the generated MIDI contained program evidence for Krar (110), Washint (112), and Masenqo (111) plus `instrument:Kebero` on drums; and the render report still recorded success. Non-blocking caveat: final runtime MIDI can still show duplicate Ethiopian track names because Task 112 appends agent tracks alongside the now-more-explicit base generated tracks.",
+      "timestamp": "2026-06-06T07:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-agent-orchestration-runtime-fix-112",
+      "result": "PASS",
+      "details": "Builder verification passed (`git diff --check`, `pytest tests/test_main_render_diagnostics.py -q` => 21 passed). Independent verifier then confirmed the corrected conductor call sequence in `main.py`, the additive `create_score_from_arrangement(...)` helper in `conductor_offline.py`, and the repaired agent merge path using `NoteEvent.start_tick` / `duration_ticks`. The real runtime acceptance proof under output\\_diagnostics\\task112_verify_20260606_121512 exited 0; stderr contained `Using agent-based generation for Ethiopian instruments...`, `Ensemble: ['MasenqoAgent', 'KrarAgent', 'WashintAgent', 'KeberoAgent']`, `Agent-based generation: 3 performer tracks`, and `Merged 3 agent performances into MIDI`; stderr did not contain `Agent-based generation failed` or `falling back to standard`; output MIDI/WAV/report were produced; and the final MIDI contained explicit Ethiopian agent tracks including `Krar`, `Masenqo`, and `Kebero` while the render report still recorded success.",
+      "timestamp": "2026-06-06T06:50:00Z"
+    },
+    {
+      "type": "post",
+      "target": "eskista-authenticity-task-sequence-planning",
+      "result": "PASS",
+      "details": "git diff --check returned clean, the updated .github/state/orchestration.json, .github/state/memory.json, and .github/state/context.json all parsed as valid JSON, and docs/ESKISTA_AUTHENTICITY_IMPLEMENTATION_PLAN_2026-06-06.md exists as the new implementation-ready Task 112/113 source of truth.",
+      "timestamp": "2026-06-06T06:20:00Z"
+    },
+    {
+      "type": "post",
+      "target": "eskista-authenticity-research-plan-111",
+      "result": "PASS",
+      "details": "Research pass completed using both external and internal evidence. External reference material confirmed Ethiopian highland music's qenet-based pentatonic/modal character, Eskista's shoulder-dance/upper-body emphasis, and the expected instrument roles/timbral cues of krar, masenqo, washint, and kebero. Internal inspection then identified the main implementation blockers: main.py auto-enables Ethiopian agents but the live artifact stderr proves the path fails with `Agent-based generation failed: 'Arrangement' object has no attribute 'instruments'`; session_graph.py collapses krar/masenqo/begena into one `ethiopian_string` role; midi_generator.py picks only one primary Ethiopian chord instrument and one melody instrument, dropping additional explicit voices; and the render report for the fresh Eskista run proves only Drums/Chords/Melody realizations while the manifest advertises a richer ensemble. The resulting plan is therefore structurally grounded and implementation-ready.",
+      "timestamp": "2026-06-06T06:05:00Z"
+    },
+    {
+      "type": "post",
+      "target": "ethiopian-eskista-quality-probe-110",
+      "result": "PASS",
+      "details": "Artifact-backed probe completed. Diagnose output confirmed FluidSynth availability and executable resolution with discovered SoundFont ./assets/soundfonts/FluidR3Mono_GM.sf3. The near-neighbor run under output\\_diagnostics\\ethiopian_eskista_quality_probe_20260606_105801 rendered procedural WAV+MIDI with parsed genre ethiopian_traditional and genre_match_score=0.996, warning only that drum presence 0.092 was slightly below the ethiopian_traditional target. The genre-correct run under output\\_diagnostics\\eskista_genre_correct_probe_20260606_110159 rendered eskista_126.0bpm_Eminor_20260606_110205.wav plus render report, session manifest, and project metadata with prompt_meta.genre=eskista, time_signature=6/8, track set Drums/Bass/Krar/Washint/Kebero/Melody, renderer_path=procedural, fluidsynth.available=true, fluidsynth.enabled=true, fluidsynth.attempted=false, fluidsynth.skip_reason=ethiopian_instruments, audio_analysis.passed=true, genre_match_score=0.958, centroid_hz=1222.5, dynamic_range_db=119.3, and a single warning that drum presence 0.073 is below the Eskista target 0.16.",
+      "timestamp": "2026-06-06T05:35:00Z"
+    },
+    {
+      "type": "pre",
+      "target": "ethiopian-eskista-quality-probe-110",
+      "result": "PASS",
+      "details": "Read-only probe across main.py, audio_renderer.py, README.md, golden prompts, and focused tests confirmed: Eskista is a first-class parsed genre with a dedicated arrangement arc; main.py auto-enables the Ethiopian agent workflow for Ethiopian-family genres when use_agents is unset; the procedural renderer has explicit Krar/Masenqo/Washint/Begena/Kebero synthesis and skips generic melodic sample loading for Ethiopian requests; and AudioRenderer.render_midi() skips whole-file FluidSynth with skip_reason=ethiopian_instruments whenever Ethiopian instruments are present.",
+      "timestamp": "2026-06-06T05:10:00Z"
+    },
     {
       "type": "post",
       "target": "commit-readme-sync-local-109",
@@ -9315,6 +11266,11 @@
   },
   "errors_encountered": [
     {
+      "error": "Integrity gap: prior response reused a generated Washint approval song instead of completing source-truth/reference-audio comparison work.",
+      "resolution": "Task 129 reset to probe/reference-comparison recovery with explicit requirement to produce real A/B descriptor artifacts before claiming progress.",
+      "timestamp": "2026-06-27T00:00:00Z"
+    },
+    {
       "timestamp": "2026-05-22T10:20:00Z",
       "task_id": "final-mpc-inspired-ui-pass-082",
       "severity": "warning",
@@ -9356,6 +11312,494 @@
     }
   ],
   "rollback_points": [
+    {
+      "id": "rollback-task129-user-mp3-timbre-tuned-20260628",
+      "description": "State around MP3-source timbre-tuned probes and profiles for Task 129.",
+      "files": [
+        "scripts\\compare_ethiopian_reference_audio.py",
+        "tests\\test_ethiopian_reference_comparison.py",
+        "multimodal_gen\\assets_gen.py",
+        "tests\\test_assets_gen.py",
+        "output\\_diagnostics\\task129_user_mp3_refs_timbre_tuned_20260628\\*",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "timestamp": "2026-06-28T01:45:00Z"
+    },
+    {
+      "id": "rollback-task129-user-mp3-timbre-tuned-20260628",
+      "description": "State around MP3-specific Begena/Masenqo profile routing and Krar amplified-reference focus filtering for Task 129 diagnostic probes.",
+      "files": [
+        "scripts/compare_ethiopian_reference_audio.py",
+        "tests/test_ethiopian_reference_comparison.py",
+        "multimodal_gen/assets_gen.py",
+        "tests/test_assets_gen.py",
+        "output/_diagnostics/task129_user_mp3_refs_timbre_tuned_20260628/*"
+      ],
+      "timestamp": "2026-06-28T02:10:00Z"
+    },
+    {
+      "id": "rollback-task129-user-mp3-declick-sustain-20260628",
+      "description": "State around de-click/sustain and MP3 source-truth priority for Task 129 user-reference-shaped probes.",
+      "files": [
+        "scripts\\compare_ethiopian_reference_audio.py",
+        "tests\\test_ethiopian_reference_comparison.py",
+        "tests\\test_assets_gen.py",
+        "output\\_diagnostics\\task129_user_mp3_refs_declicked_sustain_20260628\\*",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "timestamp": "2026-06-28T01:05:00Z"
+    },
+    {
+      "id": "rollback-task129-user-mp3-reference-shaped-20260628",
+      "description": "State around user MP3 reference-shaped harness and bounded Krar/Masenqo source correction.",
+      "files": [
+        "scripts\\compare_ethiopian_reference_audio.py",
+        "tests\\test_ethiopian_reference_comparison.py",
+        "multimodal_gen\\assets_gen.py",
+        "tests\\test_assets_gen.py",
+        "output\\_diagnostics\\task129_user_mp3_refs_reference_shaped_20260628\\*",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "timestamp": "2026-06-28T00:20:00Z"
+    },
+    {
+      "id": "rollback-task129-reference-harness-begena-retune-20260627",
+      "description": "State before/around Task 129 reference harness + Begena retune caveated verification.",
+      "files": [
+        "scripts\\compare_ethiopian_reference_audio.py",
+        "tests\\test_ethiopian_reference_comparison.py",
+        "multimodal_gen\\assets_gen.py",
+        "tests\\test_assets_gen.py",
+        "assets\\references\\ethiopian\\BegenaScalePlucked.ogg",
+        "output\\_diagnostics\\task129_reference_compare_public_begena_after_metric_retune2_20260627\\*",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\memory.json",
+        ".github\\state\\context.json"
+      ],
+      "timestamp": "2026-06-27T00:45:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-source-timbre-complexity-expansion-129-washint-implementation",
+      "description": "State before recording the Washint-only Task 129A implementation and reapproval pack.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "tests\\test_assets_gen.py",
+        "output\\_diagnostics\\task129A_washint_reapproval_20260626_175811\\washint_song_primary\\ethiopian_traditional_112.0bpm_Cminor_20260626_175814.wav",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-26T18:05:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-source-timbre-complexity-expansion-129-washint-precheck",
+      "description": "State before recording the Washint-only bounded continuation of Task 129A.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-26T00:20:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-source-timbre-complexity-expansion-129-prep",
+      "description": "State before recording the reprioritized Ethiopian source-timbre complexity probe as the next active slice.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-26T00:00:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128",
+      "description": "State before recording the completed Task 128 exact Ethiopian-traditional full-render follow-through proof.",
+      "files": [
+        "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\ethiopian_traditional_110bpm_Cambassel_20260609_144350.mid",
+        "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\ethiopian_traditional_110bpm_Cambassel_20260609_144350.wav",
+        "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\ethiopian_traditional_110bpm_Cambassel_20260609_144350_render_report.json",
+        "output\\_diagnostics\\task128_ethiopian_traditional_followthrough_20260609_144338\\task128_summary.json",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T14:50:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128-prep",
+      "description": "State before recording the proof-first Task 128 exact Ethiopian-traditional follow-through slice.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T14:20:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-traditional-chord-progression-safety-followup-127",
+      "description": "State before recording the completed Task 127 Ethiopian-traditional chord progression safety slice.",
+      "files": [
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_midi_generator.py",
+        "output\\_diagnostics\\task127_exact_repro_20260609_140932\\ethiopian_traditional_110bpm_Cambassel_20260609_140934.mid",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T14:12:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-traditional-chord-progression-safety-followup-127-precheck",
+      "description": "State before recording the bounded Task 127 pre-check and builder handoff prep.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T13:42:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-kebero-identity-and-subgenre-separation-120",
+      "description": "State before recording the completed Task 120 Kebero/subgenre authenticity slice and its adjacent follow-up.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\plugins\\ethiopian\\plugin.py",
+        "multimodal_gen\\groove_templates.py",
+        "multimodal_gen\\agents\\personality.py",
+        "multimodal_gen\\expansion_manager.py",
+        "multimodal_gen\\fluidsynth_profiles.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_audio_renderer.py",
+        "tests\\test_fluidsynth_profiles.py",
+        "tests\\test_ethiopian_resolution_guardrails.py",
+        "output\\_diagnostics\\task120_proof_final_20260609_132600\\task120_summary.json",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T13:35:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-kebero-identity-and-subgenre-separation-120-precheck",
+      "description": "State before recording the bounded Task 120 pre-check and builder handoff prep.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T13:05:00Z"
+    },
+    {
+      "id": "rollback-begena-structured-roughness-and-sustain-controls-126",
+      "description": "State before recording the completed Task 126 Begena structured roughness + sustain controls slice.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\instrument_patch.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_instrument_patch.py",
+        "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_default.wav",
+        "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_buzzers_off.wav",
+        "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_high_sustain.wav",
+        "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_string_quality_lively.wav",
+        "output\\_diagnostics\\task126_begena_proof_final_20260609_125002\\begena_metrics.json",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T12:52:00Z"
+    },
+    {
+      "id": "rollback-begena-task-126-precheck",
+      "description": "State before recording the bounded Begena Task 126 pre-check and builder handoff prep.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T10:55:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-kebero-muted-hit-artifact-cleanup-124",
+      "description": "State before recording the completed Task 124 Kebero muted-hit artifact cleanup slice.",
+      "files": [
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_strategies.py",
+        "tests\\test_midi_generator.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T11:45:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-melodic-source-realism-reset-123",
+      "description": "State before recording the completed Task 123 melodic realism reset and regenerated listening-pack proof.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "tests\\test_assets_gen.py",
+        "output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003\\00_full_listening_suite.wav",
+        "output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003\\listening_manifest.json",
+        "output\\_diagnostics\\ethiopian_instrument_listening_pack_task123_regen_20260609_101003\\task123_pack_summary.json",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T10:20:00Z"
+    },
+    {
+      "id": "rollback-begena-subtask-spec-slotting-126",
+      "description": "State before recording the Begena-specific subtask spec and queueing Task 126 after Task 124.",
+      "files": [
+        "docs\\BEGENA_SUBTASK_SPEC_2026-06-09.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T00:35:00Z"
+    },
+    {
+      "id": "rollback-begana-paper-synthesis-full-text-refinement",
+      "description": "State before refining the Begana synthesis doc with the paper's full body-text findings.",
+      "files": [
+        "docs\\BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T00:20:00Z"
+    },
+    {
+      "id": "rollback-begana-paper-synthesis-and-codebase-gap-analysis-125",
+      "description": "State before recording the completed Begana/Bagana paper synthesis task.",
+      "files": [
+        "docs\\BEGANA_ETHNO_ACOUSTICAL_SYNTHESIS_2026-06-09.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-09T00:10:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-post-listening-remediation-plan-123-124",
+      "description": "State before recording the autonomous post-listening remediation plan and re-sequencing Tasks 123/124 before Task 120.",
+      "files": [
+        "docs\\ETHIOPIAN_POST_LISTENING_REMEDIATION_PLAN_2026-06-08.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T22:20:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-post-listening-feedback-clarification-122",
+      "description": "State before recording the user's post-listening feedback and pausing direct Task 120 start.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T22:05:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-instrument-listening-pack-generation-121",
+      "description": "State before recording the generated Ethiopian listening pack and pausing for user evaluation before Task 120.",
+      "files": [
+        "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805\\00_full_listening_suite.wav",
+        "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805\\listening_manifest.json",
+        "output\\_diagnostics\\ethiopian_instrument_listening_pack_20260608_215805\\README.txt",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T21:58:05Z"
+    },
+    {
+      "id": "rollback-ethiopian-masenqo-washint-articulation-differentiation-119",
+      "description": "State before recording the completed Task 119 Masenqo/Washint articulation differentiation slice.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\plugins\\ethiopian\\plugin.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_audio_renderer.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T11:35:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-krar-timbre-differentiation-118",
+      "description": "State before recording the completed Task 118 Krar timbre differentiation slice.",
+      "files": [
+        "multimodal_gen\\assets_gen.py",
+        "multimodal_gen\\audio_renderer.py",
+        "multimodal_gen\\plugins\\ethiopian\\plugin.py",
+        "tests\\test_assets_gen.py",
+        "tests\\test_audio_renderer.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T11:05:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-timbre-phrasing-task-sequence-planning",
+      "description": "State before recording the new Ethiopian timbre/phrasing implementation plan and queued Tasks 118/119/120.",
+      "files": [
+        "docs\\ETHIOPIAN_TIMBRE_PHRASING_IMPLEMENTATION_PLAN_2026-06-08.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T10:40:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-authenticity-research-followup-117",
+      "description": "State before recording the completed post-step-4 Ethiopian authenticity research follow-up and new research doc.",
+      "files": [
+        "docs\\ETHIOPIAN_AUTHENTICITY_RESEARCH_2026-06-08.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T10:15:00Z"
+    },
+    {
+      "id": "rollback-eskista-section-level-accompaniment-thinning-116-complete",
+      "description": "State before recording the completed Task 116 compact Eskista accompaniment-thinning slice.",
+      "files": [
+        "multimodal_gen\\arranger.py",
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_arranger_ethiopian_family.py",
+        "tests\\test_midi_generator.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T09:40:00Z"
+    },
+    {
+      "id": "rollback-eskista-dewesternize-base-accompaniment-115-complete",
+      "description": "State before recording the completed Task 115 base Eskista accompaniment de-Westernization slice.",
+      "files": [
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_midi_generator.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T09:05:00Z"
+    },
+    {
+      "id": "rollback-eskista-step4-task-sequence-planning",
+      "description": "State before recording the implementation-ready step-4 Eskista task sequence and new de-Westernization plan doc.",
+      "files": [
+        "docs\\ESKISTA_STEP4_DEWESTERNIZE_CHORDBED_PLAN_2026-06-08.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-08T08:30:00Z"
+    },
+    {
+      "id": "rollback-eskista-kebero-pulse-strengthening-114-complete",
+      "description": "State before recording the completed Task 114 base-path Eskista pulse-strengthening slice.",
+      "files": [
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_strategies.py",
+        "tests\\test_midi_generator.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T08:00:00Z"
+    },
+    {
+      "id": "rollback-eskista-kebero-pulse-strengthening-114-start",
+      "description": "State before recording the start of the bounded base-path Eskista kebero pulse slice.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T07:35:00Z"
+    },
+    {
+      "id": "rollback-eskista-role-preservation-contract-113-complete",
+      "description": "State before recording the completed Task 113 implementation and runtime verification bundle.",
+      "files": [
+        "multimodal_gen\\session_graph.py",
+        "multimodal_gen\\midi_generator.py",
+        "tests\\test_session_graph_ethiopian_family.py",
+        "tests\\test_midi_generator.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T07:20:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-agent-orchestration-runtime-fix-112-complete",
+      "description": "State before recording the completed Task 112 implementation and verification bundle.",
+      "files": [
+        "main.py",
+        "multimodal_gen\\agents\\conductor_offline.py",
+        "tests\\test_main_render_diagnostics.py",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T06:50:00Z"
+    },
+    {
+      "id": "rollback-eskista-authenticity-task-sequence-planning",
+      "description": "State before recording the validated Task 112/113 planning sequence and new Eskista implementation-plan doc.",
+      "files": [
+        "docs\\ESKISTA_AUTHENTICITY_IMPLEMENTATION_PLAN_2026-06-06.md",
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T06:20:00Z"
+    },
+    {
+      "id": "rollback-eskista-authenticity-research-plan-111",
+      "description": "State before recording the completed Eskista authenticity research pass and concrete implementation plan.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T06:05:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-eskista-quality-probe-110-complete",
+      "description": "State before recording the completed Ethiopian Eskista authenticity probe and its measured findings.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T05:35:00Z"
+    },
+    {
+      "id": "rollback-ethiopian-eskista-quality-probe-110",
+      "description": "State before recording the Eskista authenticity probe task and its current renderer-path decision.",
+      "files": [
+        ".github\\state\\orchestration.json",
+        ".github\\state\\context.json",
+        ".github\\state\\memory.json"
+      ],
+      "timestamp": "2026-06-06T05:10:00Z"
+    },
     {
       "id": "rollback-commit-readme-sync-local-109",
       "description": "State before recording the successful local docs commit for the README sync task.",
@@ -9903,7 +12347,7 @@
       "timestamp": "2026-05-16T16:25:00Z"
     },
     {
-      "file": "classic-rock-session-graph-manifest-061",
+      "file": "multimodal_gen\\session_graph.py / multimodal_gen\\midi_generator.py / tests\\test_session_graph_ethiopian_family.py / tests\\test_midi_generator.py",
       "description": "Completed classic-rock Hammond session graph/manifest metadata consistency fix.",
       "diff_summary": "SessionGraphBuilder now matches the Task 060 MIDI contract for explicit rock-family guitar/organ/bass prompts; added focused positive/negative tests and verified with a direct FluidSynth workflow render plus manifest inspection.",
       "timestamp": "2026-05-16T15:45:00Z"

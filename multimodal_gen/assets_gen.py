@@ -1767,13 +1767,221 @@ def _generate_room_ambience(
     return audio + reverbed * 0.4
 
 
+def _resolve_krar_profile(profile: str) -> Dict[str, object]:
+    """Return bounded Krar timbre parameters for the requested profile."""
+    normalized = str(profile or 'traditional_warm').strip().lower().replace('-', '_').replace(' ', '_')
+    profiles: Dict[str, Dict[str, object]] = {
+        'traditional_warm': {
+            'pick_position_base': 0.45,
+            'pick_position_velocity_span': 0.10,
+            'comb_strength': 0.20,
+            'excitation_smoothing_passes': 12,
+            'damping_base': 0.997,
+            'damping_velocity_scale': 0.002,
+            'body_mode_gains': (0.25, 0.18, 0.10),
+            'goatskin_lowpass_1': 1800.0,
+            'goatskin_lowpass_2': 2200.0,
+            'sympathetic_ratios': (1.5, 2.0),
+            'sympathetic_max_freq': 1000.0,
+            'sympathetic_gain': 0.012,
+            'attack_seconds': 0.015,
+            'attack_smoothing_passes': 15,
+            'attack_gain': 0.08,
+            'contact_transient_gain': 0.018,
+            'contact_presence_gain': 0.010,
+            'final_lowpass': 2000.0,
+            'final_highpass': 70.0,
+        },
+        'azmari_bright': {
+            'pick_position_base': 0.28,
+            'pick_position_velocity_span': 0.06,
+            'comb_strength': 0.32,
+            'excitation_smoothing_passes': 6,
+            'damping_base': 0.9965,
+            'damping_velocity_scale': 0.0025,
+            'body_mode_gains': (0.22, 0.17, 0.11),
+            'goatskin_lowpass_1': 2600.0,
+            'goatskin_lowpass_2': 3200.0,
+            'sympathetic_ratios': (1.5, 2.0, 2.5),
+            'sympathetic_max_freq': 1400.0,
+            'sympathetic_gain': 0.016,
+            'attack_seconds': 0.010,
+            'attack_smoothing_passes': 8,
+            'attack_gain': 0.12,
+            'contact_transient_gain': 0.030,
+            'contact_presence_gain': 0.018,
+            'final_lowpass': 3200.0,
+            'final_highpass': 80.0,
+        },
+    }
+    return profiles.get(normalized, profiles['traditional_warm'])
+
+
+def _resolve_masenqo_profile(profile: str) -> Dict[str, object]:
+    """Return bounded Masenqo articulation parameters for the requested profile."""
+    normalized = str(profile or 'vocal_clean').strip().lower().replace('-', '_').replace(' ', '_')
+    profiles: Dict[str, Dict[str, object]] = {
+        'vocal_clean': {
+            'smooth_period_divisor': 8.0,
+            'bow_pressure_depth': 0.04,
+            'bow_noise_low': 1400.0,
+            'bow_noise_high': 3600.0,
+            'bow_noise_amount': 0.010,
+            'bow_noise_decay': 0.085,
+            'bow_noise_floor': 0.075,
+            'direct_mix': 0.55,
+            'f1_mix': 0.20,
+            'f2_mix': 0.20,
+            'f3_mix': 0.05,
+            'attack_seconds': 0.05,
+            'release_seconds': 0.08,
+            'swell_depth': 0.08,
+            'attack_presence_low': 1600.0,
+            'attack_presence_high': 3600.0,
+            'attack_presence_gain': 0.014,
+            'attack_presence_decay': 0.06,
+            'sustained_rosin_gain': 0.014,
+            'scrape_flux_gain': 0.008,
+            'final_lowpass': 5000.0,
+            'final_highpass': 100.0,
+            'saturation_drive': 1.10,
+        },
+        'azmari_grit': {
+            'smooth_period_divisor': 11.0,
+            'bow_pressure_depth': 0.06,
+            'bow_noise_low': 1800.0,
+            'bow_noise_high': 5200.0,
+            'bow_noise_amount': 0.044,
+            'bow_noise_decay': 0.065,
+            'bow_noise_floor': 0.16,
+            'direct_mix': 0.50,
+            'f1_mix': 0.18,
+            'f2_mix': 0.22,
+            'f3_mix': 0.10,
+            'attack_seconds': 0.035,
+            'release_seconds': 0.07,
+            'swell_depth': 0.10,
+            'attack_presence_low': 1800.0,
+            'attack_presence_high': 4200.0,
+            'attack_presence_gain': 0.085,
+            'attack_presence_decay': 0.05,
+            'sustained_rosin_gain': 0.024,
+            'scrape_flux_gain': 0.028,
+            'final_lowpass': 5800.0,
+            'final_highpass': 110.0,
+            'saturation_drive': 1.18,
+        },
+        'mp3_reference_bow': {
+            'smooth_period_divisor': 14.0,
+            'bow_pressure_depth': 0.082,
+            'bow_noise_low': 1500.0,
+            'bow_noise_high': 9200.0,
+            'bow_noise_amount': 0.088,
+            'bow_noise_decay': 0.090,
+            'bow_noise_floor': 0.30,
+            'direct_mix': 0.44,
+            'f1_mix': 0.12,
+            'f2_mix': 0.13,
+            'f3_mix': 0.06,
+            'attack_seconds': 0.030,
+            'release_seconds': 0.060,
+            'swell_depth': 0.07,
+            'attack_presence_low': 1700.0,
+            'attack_presence_high': 6800.0,
+            'attack_presence_gain': 0.135,
+            'attack_presence_decay': 0.060,
+            'sustained_rosin_gain': 0.065,
+            'scrape_flux_gain': 0.082,
+            'rosin_air_gain': 0.040,
+            'harmonic_core_gain': 0.24,
+            'sawtooth_gain': 0.050,
+            'friction_layer_gain': 0.25,
+            'rosin_body_gain': 0.21,
+            'nasal_core_gain': 0.14,
+            'bridge_core_gain': 0.10,
+            'body_shell_gain': 0.06,
+            'final_lowpass': 9600.0,
+            'final_highpass': 120.0,
+            'saturation_drive': 1.06,
+        },
+    }
+    return profiles.get(normalized, profiles['vocal_clean'])
+
+
+def _resolve_washint_profile(profile: str) -> Dict[str, object]:
+    """Return bounded Washint articulation parameters for the requested profile."""
+    normalized = str(profile or 'alto_breathy').strip().lower().replace('-', '_').replace(' ', '_')
+    profiles: Dict[str, Dict[str, object]] = {
+        'alto_breathy': {
+            'harmonic_gains': (1.0, 0.25, 0.10, 0.05),
+            'breath_low': 1500.0,
+            'breath_high': 6000.0,
+            'breath_attack_scale': 0.30,
+            'breath_floor': 0.10,
+            'breath_amount': 0.12,
+            'vibrato_depth': 0.006,
+            'pressure_irregularity': 0.15,
+            'jet_drive': 0.24,
+            'grace_gain': 0.40,
+            'ornament_direction': -1.0,
+            'ornament_ratio': 0.050,
+            'ornament_seconds': 0.024,
+            'focus_shift': 0.06,
+            'presence_low': 2200.0,
+            'presence_high': 4200.0,
+            'presence_gain': 0.0,
+            'chiff_low': 2400.0,
+            'chiff_high': 7200.0,
+            'chiff_amount': 0.010,
+            'chiff_decay': 0.020,
+            'attack_seconds': 0.04,
+            'decay_seconds': 0.08,
+            'sustain_level': 0.85,
+            'release_seconds': 0.12,
+            'final_highpass': 200.0,
+            'final_lowpass': 6500.0,
+        },
+        'dance_call': {
+            'harmonic_gains': (1.0, 0.29, 0.15, 0.08),
+            'breath_low': 2000.0,
+            'breath_high': 7200.0,
+            'breath_attack_scale': 0.34,
+            'breath_floor': 0.08,
+            'breath_amount': 0.10,
+            'vibrato_depth': 0.0055,
+            'pressure_irregularity': 0.19,
+            'jet_drive': 0.32,
+            'grace_gain': 0.52,
+            'ornament_direction': 1.0,
+            'ornament_ratio': 0.090,
+            'ornament_seconds': 0.028,
+            'focus_shift': 0.10,
+            'presence_low': 2400.0,
+            'presence_high': 5200.0,
+            'presence_gain': 0.085,
+            'chiff_low': 2600.0,
+            'chiff_high': 8200.0,
+            'chiff_amount': 0.032,
+            'chiff_decay': 0.028,
+            'attack_seconds': 0.028,
+            'decay_seconds': 0.07,
+            'sustain_level': 0.87,
+            'release_seconds': 0.11,
+            'final_highpass': 220.0,
+            'final_lowpass': 7600.0,
+        },
+    }
+    return profiles.get(normalized, profiles['alto_breathy'])
+
+
 def generate_krar_tone(
     frequency: float,
     duration: float = 0.5,
     velocity: float = 0.8,
     sample_rate: int = SAMPLE_RATE,
     tuning: str = 'tizita',
-    add_ornament: bool = False
+    add_ornament: bool = False,
+    profile: str = 'traditional_warm',
 ) -> np.ndarray:
     """
     Generate authentic Krar (ክራር) - Ethiopian bowl lyre using Karplus-Strong.
@@ -1790,7 +1998,10 @@ def generate_krar_tone(
     - String-damping filter (natural decay)
     - Body resonance coloring
     """
+    krar_profile = _resolve_krar_profile(profile)
     num_samples = int(duration * sample_rate)
+    t = np.arange(num_samples) / sample_rate
+    low_register_support = float(np.clip((180.0 - float(frequency)) / 130.0, 0.0, 1.0))
     
     # === KARPLUS-STRONG CORE ===
     # Delay line length = samples per period
@@ -1798,73 +2009,126 @@ def generate_krar_tone(
     if period_samples < 2:
         period_samples = 2
     
-    # Fractional delay for precise tuning
-    frac_delay = (sample_rate / frequency) - period_samples
-    
-    # Initialize delay line with filtered noise burst (the "pluck")
-    # Use VERY soft excitation to avoid banjo twang
-    noise = np.random.randn(period_samples)
-    
     # Pick-position: Pluck at CENTER of string for maximum warmth
     # Center pluck (β=0.5) gives round, harp-like tone - NO twang
-    pick_position = 0.45 + (1 - velocity) * 0.10  # 0.45-0.55 (center = round)
-    pick_delay = max(1, int(pick_position * period_samples))
-    
-    # MINIMAL comb filter - we want round tone, not twangy
-    if pick_delay < len(noise):
-        noise_comb = noise.copy()
-        noise_comb[pick_delay:] -= noise[:-pick_delay] * 0.2  # Very subtle comb
-        noise = noise_comb
-    
-    # VERY HEAVY low-pass filtering - remove ALL twang/brightness
-    # Ethiopian Krar should sound like soft harp, not banjo
-    # Apply many passes of strong smoothing
-    for _ in range(12):  # 12 passes for ultra-smooth
-        noise = np.convolve(noise, [0.15, 0.7, 0.15], mode='same')  # Strong center-weighted smoothing
-    
-    # Output buffer
-    output = np.zeros(num_samples)
-    
-    # Initialize delay line
-    delay_line = noise.copy()
-    
+    pick_position = (
+        float(krar_profile['pick_position_base'])
+        + (1 - velocity) * float(krar_profile['pick_position_velocity_span'])
+    )
     # String damping coefficient (higher = longer sustain)
     # Real strings: 0.996-0.9995 for gut/nylon
     # Increased for longer, more audible sustain
-    damping = 0.997 + velocity * 0.002  # 0.997-0.999
-    
-    # String stiffness (causes slight inharmonicity)
-    stiffness = 0.0003
-    
-    # === MAIN SYNTHESIS LOOP ===
-    write_pos = 0
-    
-    # First-order allpass for fractional delay (tuning accuracy)
-    allpass_coef = (1 - frac_delay) / (1 + frac_delay)
-    allpass_state = 0.0
-    
-    for i in range(num_samples):
-        # Read from delay line (two-point averaging = lowpass)
-        read_pos = (write_pos + 1) % period_samples
-        next_pos = (read_pos + 1) % period_samples
-        
-        # Two-point averaging lowpass filter (the classic KS filter)
-        # This causes higher harmonics to decay faster than fundamental
-        filtered = 0.5 * (delay_line[read_pos] + delay_line[next_pos])
-        
-        # Apply damping
-        filtered *= damping
-        
-        # First-order allpass for fractional delay tuning
-        allpass_out = allpass_coef * filtered + allpass_state
-        allpass_state = filtered - allpass_coef * allpass_out
-        
-        # Write to output
-        output[i] = allpass_out
-        
-        # Write back to delay line
-        delay_line[write_pos] = allpass_out
-        write_pos = (write_pos + 1) % period_samples
+    damping = float(krar_profile['damping_base']) + velocity * float(krar_profile['damping_velocity_scale'])
+
+    def _render_course(
+        course_frequency: float,
+        *,
+        pick_shift: float = 0.0,
+        smoothing_bias: int = 0,
+        damping_bias: float = 0.0,
+        comb_scale: float = 1.0,
+    ) -> np.ndarray:
+        course_period = max(2, int(sample_rate / max(course_frequency, 1e-6)))
+        course_frac_delay = (sample_rate / max(course_frequency, 1e-6)) - course_period
+
+        course_noise = np.random.randn(course_period)
+        course_pick_position = float(np.clip(pick_position + pick_shift, 0.18, 0.62))
+        course_pick_delay = max(1, int(course_pick_position * course_period))
+
+        if course_pick_delay < len(course_noise):
+            noise_comb = course_noise.copy()
+            noise_comb[course_pick_delay:] -= (
+                course_noise[:-course_pick_delay]
+                * float(krar_profile['comb_strength'])
+                * comb_scale
+            )
+            course_noise = noise_comb
+
+        smoothing_passes = max(2, int(krar_profile['excitation_smoothing_passes']) + smoothing_bias)
+        for _ in range(smoothing_passes):
+            course_noise = np.convolve(course_noise, [0.15, 0.7, 0.15], mode='same')
+
+        course_output = np.zeros(num_samples)
+        delay_line = course_noise.copy()
+        course_damping = float(np.clip(damping + damping_bias, 0.9925, 0.9998))
+        write_pos = 0
+        allpass_coef = (1 - course_frac_delay) / (1 + course_frac_delay)
+        allpass_state = 0.0
+
+        for i in range(num_samples):
+            read_pos = (write_pos + 1) % course_period
+            next_pos = (read_pos + 1) % course_period
+            filtered = 0.5 * (delay_line[read_pos] + delay_line[next_pos])
+            filtered *= course_damping
+
+            allpass_out = allpass_coef * filtered + allpass_state
+            allpass_state = filtered - allpass_coef * allpass_out
+
+            course_output[i] = allpass_out
+            delay_line[write_pos] = allpass_out
+            write_pos = (write_pos + 1) % course_period
+
+        return course_output
+
+    main_course = _render_course(frequency)
+    course_detune_cents = float(np.clip(
+        np.interp(float(krar_profile['final_lowpass']), [1800.0, 3200.0], [2.4, 4.8]),
+        2.4,
+        4.8,
+    ))
+    companion_course = _render_course(
+        frequency * (2 ** (course_detune_cents / 1200.0)),
+        pick_shift=-0.08 if float(krar_profile['final_lowpass']) <= 2200.0 else -0.05,
+        smoothing_bias=-2 if float(krar_profile['final_lowpass']) > 2400.0 else -1,
+        damping_bias=-0.00045,
+        comb_scale=1.10,
+    )
+
+    course_delay = int(
+        sample_rate
+        * np.interp(float(krar_profile['sympathetic_gain']), [0.012, 0.016], [0.006, 0.004])
+    )
+    coupled_course = np.zeros(num_samples)
+    if 0 < course_delay < num_samples:
+        coupled_course[course_delay:] = companion_course[:-course_delay]
+    else:
+        coupled_course = companion_course.copy()
+
+    coupling_gate = 0.28 + 0.72 * np.clip((t - course_delay / sample_rate) / 0.06, 0.0, 1.0)
+    output = main_course * 0.78 + coupled_course * 0.22 * coupling_gate
+
+    _, amp_flutter, _ = _generate_organic_imperfections(num_samples, frequency, sample_rate)
+    output *= 0.985 + 0.015 * amp_flutter
+
+    course_interaction = bandpass_simple(
+        main_course * 0.58 + coupled_course * 0.42 + (main_course - coupled_course) * 0.16,
+        90.0,
+        min(float(krar_profile['goatskin_lowpass_2']) * 1.10, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    bridge_energy = np.abs(
+        np.diff(
+            main_course + coupled_course,
+            prepend=float(main_course[0] + coupled_course[0]),
+        )
+    )
+    bridge_energy = lowpass_filter(bridge_energy, 55.0, sample_rate)
+    bridge_peak = float(np.max(bridge_energy)) if bridge_energy.size else 0.0
+    if bridge_peak > 1e-9:
+        bridge_energy = bridge_energy / bridge_peak
+
+    bridge_delay = int(
+        sample_rate
+        * np.interp(float(krar_profile['sympathetic_gain']), [0.012, 0.016], [0.012, 0.008])
+    )
+    bridge_drive = np.zeros(num_samples, dtype=np.float64)
+    if 0 < bridge_delay < num_samples:
+        bridge_drive[bridge_delay:] = course_interaction[:-bridge_delay]
+    else:
+        bridge_drive = course_interaction.copy()
+    bridge_drive *= (
+        0.26 + 0.74 * np.clip((t - 0.006) / 0.075, 0.0, 1.0)
+    ) * (0.58 + 0.42 * bridge_energy)
     
     # === BODY RESONANCE (formant filtering) ===
     # Ethiopian lyre body: wooden bowl + goatskin membrane
@@ -1873,44 +2137,214 @@ def generate_krar_tone(
     
     # Body modes - very low and warm, like African drums
     # Emphasize fundamental and low harmonics only
-    for mode_freq, mode_q, mode_gain in [(90, 5, 0.25), (180, 4, 0.18), (280, 3, 0.10)]:
+    body_mode_gains = krar_profile['body_mode_gains']
+    for mode_freq, mode_q, mode_gain in [
+        (90, 5, float(body_mode_gains[0])),
+        (180, 4, float(body_mode_gains[1])),
+        (280, 3, float(body_mode_gains[2])),
+    ]:
         mode_band = bandpass_simple(output, mode_freq * 0.75, mode_freq * 1.25, sample_rate)
-        body_output += mode_band * mode_gain
+        low_register_mode_lift = 1.0 + low_register_support * (0.42 if mode_freq <= 180 else 0.24)
+        body_output += mode_band * mode_gain * low_register_mode_lift
     
     output = body_output
+
+    body_resonance_mix = float(np.clip(np.interp(float(krar_profile['final_lowpass']), [1800.0, 3400.0], [0.30, 0.22]), 0.22, 0.30))
+    body_resonance = _apply_body_resonance(output, [110, 210, 360, 720], [14, 11, 7, 4], sample_rate)
+    output = output * (1.0 - body_resonance_mix) + body_resonance * body_resonance_mix
+
+    membrane_excitation = output * 0.78 + bridge_drive * 0.52 + course_interaction * 0.14
+    membrane_body = _generate_membrane_resonance(
+        membrane_excitation,
+        membrane_freq=float(np.clip(frequency * 0.72, 180.0, 290.0)),
+        damping=float(np.clip(
+            np.interp(float(krar_profile['goatskin_lowpass_1']), [1800.0, 2600.0], [0.56, 0.44]),
+            0.44,
+            0.56,
+        )),
+        sample_rate=sample_rate,
+    )
+    body_bloom_gain = float(np.clip(
+        np.interp(float(krar_profile['final_lowpass']), [1800.0, 3200.0], [0.34, 0.26]),
+        0.26,
+        0.34,
+    ))
+    body_bloom = bandpass_simple(
+        membrane_body - membrane_excitation + bridge_drive * 0.28,
+        140.0,
+        820.0,
+        sample_rate,
+    )
+    body_bloom *= (
+        np.exp(-t / 0.44)
+        * np.clip((t - 0.012) / 0.060, 0.0, 1.0)
+        * (0.72 + 0.28 * bridge_energy)
+    )
+    output = output * 0.71 + membrane_body * 0.17 + body_bloom * body_bloom_gain + bridge_drive * 0.06
+
+    if low_register_support > 0.0:
+        low_body = bandpass_simple(
+            output + membrane_body * 0.45 + bridge_drive * 0.22,
+            55.0,
+            460.0,
+            sample_rate,
+        )
+        low_body_env = np.exp(-t / 0.78) * np.clip((t - 0.018) / 0.10, 0.0, 1.0)
+        output += low_body * low_body_env * (0.050 + 0.075 * low_register_support)
+
+    membrane_noise_gain = float(np.clip(np.interp(float(krar_profile['goatskin_lowpass_2']), [1800.0, 3200.0], [0.026, 0.018]), 0.018, 0.026))
+    membrane = bandpass_filter(np.random.randn(num_samples), 120.0, 950.0, sample_rate)
+    membrane = lowpass_filter(membrane, 900.0, sample_rate)
+    membrane_env = np.exp(-t / 0.18) * np.clip((t + 0.004) / 0.028, 0.0, 1.0)
+    output += membrane * membrane_env * membrane_noise_gain * velocity
     
     # === GOATSKIN MEMBRANE - STRONG HIGH ABSORPTION ===
     # Goatskin is soft and absorbs ALL high frequencies
     # This is what makes it NOT sound like banjo (which has tight drum head)
-    output = lowpass_filter(output, 1800, sample_rate)  # Very aggressive high cut
-    output = lowpass_filter(output, 2200, sample_rate)  # Double filter for steep rolloff
+    output = lowpass_filter(output, float(krar_profile['goatskin_lowpass_1']), sample_rate)
+    output = lowpass_filter(output, float(krar_profile['goatskin_lowpass_2']), sample_rate)
     
     # === SYMPATHETIC STRING RESONANCE ===
     # 5-6 strings ring sympathetically - warm shimmer only
-    t = np.arange(num_samples) / sample_rate
-    for ratio in [1.5, 2.0]:  # Fifth and octave only
+    sympathetic_lowpass = float(np.clip(float(krar_profile['goatskin_lowpass_2']) * 0.74, 1400.0, 2400.0))
+    helper_sympathetic = _generate_sympathetic_strings(
+        frequency,
+        duration,
+        num_strings=5 if float(krar_profile['sympathetic_max_freq']) < 1200.0 else 6,
+        tuning=tuning,
+        sample_rate=sample_rate,
+    )
+    helper_sympathetic = lowpass_filter(helper_sympathetic, sympathetic_lowpass, sample_rate)
+    helper_sympathetic = bandpass_simple(
+        helper_sympathetic,
+        160.0,
+        min(sympathetic_lowpass * 1.15, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    course_beating = lowpass_filter(np.abs(main_course - coupled_course), 24.0, sample_rate)
+    beating_peak = float(np.max(course_beating)) if course_beating.size else 0.0
+    if beating_peak > 1e-9:
+        course_beating = course_beating / beating_peak
+
+    sympathetic_memory = lowpass_filter(np.abs(body_bloom + bridge_drive * 0.65), 18.0, sample_rate)
+    sympathetic_peak = float(np.max(sympathetic_memory)) if sympathetic_memory.size else 0.0
+    if sympathetic_peak > 1e-9:
+        sympathetic_memory = sympathetic_memory / sympathetic_peak
+
+    helper_sympathetic *= (
+        np.exp(-t / 0.95)
+        * np.clip((t - 0.020) / 0.18, 0.0, 1.0)
+        * (0.44 + 0.28 * course_beating + 0.28 * sympathetic_memory)
+    )
+    output += helper_sympathetic * float(krar_profile['sympathetic_gain']) * 1.55
+
+    for ratio in krar_profile['sympathetic_ratios']:
         symp_freq = frequency * ratio
-        if symp_freq < 1000:  # Only very warm sympathetics
-            symp_env = np.exp(-t / 0.5) * np.clip((t - 0.04) / 0.2, 0, 1)
-            output += 0.012 * np.sin(2 * np.pi * symp_freq * t) * symp_env
+        if symp_freq < float(krar_profile['sympathetic_max_freq']):
+            symp_env = np.exp(-t / (0.52 + 0.06 * ratio)) * np.clip((t - 0.03) / 0.18, 0.0, 1.0)
+            symp_env *= 0.52 + 0.24 * course_beating + 0.24 * sympathetic_memory
+            symp_phase = 2 * np.pi * symp_freq * t
+            symp = np.sin(
+                symp_phase
+                + 0.03 * np.sin(2 * np.pi * (0.8 + 0.15 * ratio) * t)
+                + 0.01 * course_beating
+            )
+            symp += 0.18 * np.sin(2 * symp_phase + 0.35 + 0.04 * sympathetic_memory)
+            symp = lowpass_filter(symp, sympathetic_lowpass, sample_rate)
+            output += float(krar_profile['sympathetic_gain']) * 0.74 * symp * symp_env
     
     # === SOFT FINGER ATTACK ===
     # Finger plucking creates soft onset, not sharp attack
-    attack_samples = int(0.015 * sample_rate)  # 15ms soft attack
-    if attack_samples < num_samples:
+    attack_samples = int(float(krar_profile['attack_seconds']) * sample_rate)
+    if 0 < attack_samples < num_samples:
         soft_attack = np.random.randn(attack_samples)
-        for _ in range(15):  # Very heavy filtering
+        for _ in range(int(krar_profile['attack_smoothing_passes'])):
             soft_attack = np.convolve(soft_attack, [0.15, 0.7, 0.15], mode='same')
-        soft_attack *= np.exp(-np.arange(attack_samples) / (attack_samples * 0.4)) * 0.08 * velocity
+        pluck_brightness = float(np.clip(
+            np.interp(float(krar_profile['final_lowpass']), [1800.0, 3200.0], [0.34, 0.62]),
+            0.34,
+            0.62,
+        ))
+        pluck_attack = _generate_pluck_noise(attack_samples, brightness=pluck_brightness, sample_rate=sample_rate)
+        soft_attack = soft_attack * 0.42 + pluck_attack * 0.58
+        attack_lowpass = float(np.clip(float(krar_profile['goatskin_lowpass_2']) * 0.72, 1000.0, 2200.0))
+        soft_attack = lowpass_filter(soft_attack, attack_lowpass, sample_rate)
+        soft_attack *= (
+            np.exp(-np.arange(attack_samples) / max(1, attack_samples * 0.4))
+            * float(krar_profile['attack_gain'])
+            * velocity
+        )
         output[:attack_samples] += soft_attack
+
+    contact_samples = min(num_samples, max(1, int(0.040 * sample_rate)))
+    if contact_samples > 0:
+        contact_t = np.arange(contact_samples, dtype=np.float64) / sample_rate
+        contact_high = min(
+            sample_rate / 2 - 120.0,
+            max(1500.0, float(krar_profile['final_lowpass']) * 1.12),
+        )
+        contact = _generate_pluck_noise(
+            contact_samples,
+            brightness=float(np.clip(0.52 + 0.18 * float(krar_profile['comb_strength']), 0.48, 0.66)),
+            sample_rate=sample_rate,
+        )
+        contact = bandpass_filter(contact, 720.0, contact_high, sample_rate)
+        contact *= np.exp(-contact_t / (0.010 + 0.004 * low_register_support))
+        output[:contact_samples] += (
+            contact
+            * float(krar_profile['contact_transient_gain'])
+            * velocity
+            * (1.0 + 0.22 * low_register_support)
+        )
+
+    contact_presence_high = min(
+        sample_rate / 2 - 120.0,
+        max(1600.0, float(krar_profile['final_lowpass']) * 1.18),
+    )
+    contact_motion = bandpass_filter(np.random.randn(num_samples), 820.0, contact_presence_high, sample_rate)
+    contact_flux = lowpass_filter(
+        np.abs(bridge_drive) + np.abs(course_interaction) * 0.42 + bridge_energy * 0.20,
+        34.0,
+        sample_rate,
+    )
+    flux_peak = float(np.max(contact_flux)) if contact_flux.size else 0.0
+    if flux_peak > 1e-9:
+        contact_flux = contact_flux / flux_peak
+    contact_irregularity = np.clip(1.0 + 0.22 * _slow_noise_contour(num_samples, sample_rate, 9.0), 0.72, 1.28)
+    contact_presence_env = (
+        np.exp(-t / (0.36 + 0.20 * low_register_support))
+        * np.clip((t + 0.004) / 0.028, 0.0, 1.0)
+        * (0.34 + 0.66 * contact_flux)
+        * contact_irregularity
+    )
+    output += (
+        contact_motion
+        * contact_presence_env
+        * float(krar_profile['contact_presence_gain'])
+        * velocity
+    )
+
+    bridge_presence = bandpass_simple(
+        main_course + coupled_course + bridge_drive * 0.45,
+        900.0,
+        min(float(krar_profile['final_lowpass']) * 1.6, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    bridge_presence *= np.exp(-t / 0.24) * np.clip((t + 0.003) / 0.016, 0.0, 1.0)
+    output += bridge_presence * float(np.clip(
+        np.interp(float(krar_profile['final_lowpass']), [1800.0, 3200.0], [0.018, 0.042]),
+        0.018,
+        0.042,
+    )) * velocity
     
     # === FINAL WARMTH PROCESSING ===
     # Ethiopian Krar is WARM and ROUND - never bright or twangy
-    output = lowpass_filter(output, 2000, sample_rate)  # Strong high rolloff
-    output = highpass_filter(output, 70, sample_rate)  # Keep some low end
+    output = add_saturation(output, float(np.clip(0.06 + float(krar_profile['comb_strength']) * 0.10, 0.07, 0.10)))
+    output = lowpass_filter(output, float(krar_profile['final_lowpass']), sample_rate)
+    output = highpass_filter(output, float(krar_profile['final_highpass']), sample_rate)
     
     # Remove any DC offset
-    output = output - np.mean(output)
+    output = np.nan_to_num(output - np.mean(output), nan=0.0, posinf=0.0, neginf=0.0)
     
     # Output at moderate level to leave headroom for mixing (was 0.95)
     return normalize_audio(output, 0.70 * velocity)
@@ -1922,7 +2356,8 @@ def generate_masenqo_tone(
     velocity: float = 0.8,
     sample_rate: int = SAMPLE_RATE,
     expressiveness: float = 0.7,
-    add_ornament: bool = False
+    add_ornament: bool = False,
+    profile: str = 'vocal_clean',
 ) -> np.ndarray:
     """
     Generate authentic Masenqo (ማሲንቆ) - Ethiopian bowed string fiddle.
@@ -1938,6 +2373,7 @@ def generate_masenqo_tone(
     The Masenqo sound is described as "crying" or "singing" because
     it follows vocal melodies and has strong nasal formants.
     """
+    masenqo_profile = _resolve_masenqo_profile(profile)
     num_samples = int(duration * sample_rate)
     t = np.arange(num_samples) / sample_rate
     
@@ -1969,6 +2405,7 @@ def generate_masenqo_tone(
     # === STICK-SLIP SAWTOOTH GENERATION ===
     # Generate sawtooth by integrating frequency to get phase
     phase = np.cumsum(inst_freq) / sample_rate
+    phase_radians = 2 * np.pi * phase
     
     # Basic sawtooth: 2 * (phase mod 1) - 1
     raw_sawtooth = 2 * (phase % 1) - 1
@@ -1976,52 +2413,235 @@ def generate_masenqo_tone(
     # SMOOTH the sawtooth slightly to reduce digital harshness
     # Real bowed strings have softer transients than digital sawtooth
     # Use simple moving average to soften edges
-    smooth_window = max(3, int(sample_rate / frequency / 8))  # ~1/8 period
+    smooth_window = max(3, int(sample_rate / frequency / float(masenqo_profile['smooth_period_divisor'])))
     kernel = np.ones(smooth_window) / smooth_window
     sawtooth = np.convolve(raw_sawtooth, kernel, mode='same')
     
     # Add bow pressure variation (amplitude modulation from bow arm)
-    bow_pressure = 1 + 0.04 * expressiveness * np.sin(2 * np.pi * 3.5 * t)  # Subtle arm tremolo
+    bow_pressure = 1 + float(masenqo_profile['bow_pressure_depth']) * expressiveness * np.sin(2 * np.pi * 3.5 * t)
     sawtooth *= bow_pressure
-    
-    # NO BOW NOISE - Masenqo should be CLEAN and vocal-like
-    # The "crying" quality comes from vibrato and formants, not noise
-    audio = sawtooth * 0.7  # Clean sawtooth only
+
+    bow_drift = _slow_noise_contour(num_samples, sample_rate, 18.0)
+    harmonic_wander = _slow_noise_contour(num_samples, sample_rate, 26.0)
+    harmonic_core = np.zeros(num_samples, dtype=np.float64)
+    for harmonic, level in enumerate((1.0, 0.55, 0.31, 0.18, 0.11, 0.06), start=1):
+        if frequency * harmonic >= sample_rate / 2 - 200:
+            break
+        harmonic_gain = level * (
+            1.0
+            + harmonic_wander * (0.016 + 0.003 * harmonic)
+            + bow_drift * (0.010 + 0.0015 * harmonic)
+        )
+        harmonic_core += harmonic_gain * np.sin(
+            harmonic * phase_radians
+            + bow_drift * (0.010 + 0.002 * harmonic)
+            + harmonic_wander * (0.006 + 0.0015 * harmonic)
+            + 0.08 * harmonic
+        )
+    harmonic_core *= 0.95 + 0.05 * bow_pressure
+    harmonic_core = lowpass_filter(harmonic_core, 3600.0 + expressiveness * 500.0, sample_rate)
+    sawtooth = lowpass_filter(sawtooth, 2600.0 + expressiveness * 600.0, sample_rate)
+
+    slip_events = np.abs(np.diff(raw_sawtooth, prepend=raw_sawtooth[0]))
+    slip_events = lowpass_filter(slip_events, 900.0, sample_rate)
+    slip_peak = float(np.max(slip_events)) if slip_events.size else 0.0
+    if slip_peak > 1e-9:
+        slip_events = slip_events / slip_peak
+
+    friction_excitation = _generate_bow_excitation(
+        frequency,
+        duration,
+        bow_pressure=float(np.clip(0.56 + expressiveness * 0.18 + float(masenqo_profile['bow_pressure_depth']), 0.40, 0.95)),
+        bow_speed=float(np.clip(0.68 - float(masenqo_profile['bow_noise_amount']) * 2.0 + velocity * 0.08, 0.38, 0.88)),
+        sample_rate=sample_rate,
+    )
+    friction_core = bandpass_simple(
+        friction_excitation,
+        650.0,
+        min(float(masenqo_profile['final_lowpass']) * 0.96, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    friction_attack = bandpass_simple(
+        friction_excitation,
+        max(1200.0, float(masenqo_profile['attack_presence_low']) * 0.92),
+        min(float(masenqo_profile['attack_presence_high']) * 1.08, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    rosin_body = bandpass_simple(
+        friction_excitation,
+        260.0,
+        min(1600.0 + expressiveness * 280.0, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    rosin_grain = bandpass_simple(
+        friction_excitation,
+        max(1000.0, float(masenqo_profile['attack_presence_low']) * 0.68),
+        min(float(masenqo_profile['attack_presence_high']) * 0.88, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    bow_motion = 0.5 + 0.5 * np.clip(bow_drift, -1.0, 1.0)
+    rosin_memory = lowpass_filter(np.abs(rosin_body) + slip_events * 0.40, 26.0, sample_rate)
+    rosin_peak = float(np.max(rosin_memory)) if rosin_memory.size else 0.0
+    if rosin_peak > 1e-9:
+        rosin_memory = rosin_memory / rosin_peak
+    bow_capture = np.clip((t + 0.010) / 0.075, 0.16, 1.0)
+    bow_settle = np.clip((t - float(masenqo_profile['attack_seconds']) * 0.65) / 0.24, 0.0, 1.0)
+    friction_envelope = (
+        0.46 * np.exp(-t / 0.038) * (0.84 + 0.16 * slip_events)
+        + (0.18 + 0.20 * bow_motion) * bow_capture
+        + (0.12 + 0.22 * rosin_memory) * bow_settle
+    )
+    friction_drive = 0.32 * slip_events + 0.44 * bow_motion + 0.24 * rosin_memory
+    friction_layer = friction_core * friction_envelope * friction_drive * (0.07 + 0.11 * expressiveness)
+    rosin_body_layer = (
+        rosin_body
+        * (0.028 + 0.040 * velocity + 0.015 * expressiveness)
+        * (0.32 + 0.68 * bow_settle)
+        * (0.55 + 0.45 * rosin_memory)
+    )
+    attack_push = 1.0 + float(masenqo_profile['attack_presence_gain']) * 8.0 + float(masenqo_profile['bow_noise_amount']) * 2.0
+    friction_attack_layer = friction_attack * (
+        np.exp(-t / max(1e-4, float(masenqo_profile['attack_presence_decay']) * 0.72))
+        * (0.010 + float(masenqo_profile['attack_presence_gain']) * 0.90 + float(masenqo_profile['bow_noise_amount']) * 0.45)
+        * (0.50 + 0.50 * slip_events)
+        * attack_push
+        * velocity
+    )
+    rosin_grain_layer = rosin_grain * (
+        np.exp(-t / max(1e-4, float(masenqo_profile['attack_presence_decay']) * 0.85))
+        * (0.008 + float(masenqo_profile['bow_noise_amount']) * 0.16 + float(masenqo_profile['attack_presence_gain']) * 0.55)
+        * (0.45 + 0.55 * slip_events)
+        * velocity
+    )
+    sustained_rosin = bandpass_simple(
+        friction_excitation + rosin_body * 0.42 + rosin_grain * 0.18,
+        max(900.0, float(masenqo_profile['attack_presence_low']) * 0.70),
+        min(float(masenqo_profile['attack_presence_high']) * 1.08, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    scrape_flux = bandpass_simple(
+        friction_excitation * (0.70 + 0.30 * slip_events) + friction_attack * 0.22,
+        max(1500.0, float(masenqo_profile['attack_presence_low']) * 0.96),
+        min(float(masenqo_profile['bow_noise_high']) * 0.96, sample_rate / 2 - 100.0),
+        sample_rate,
+    )
+    rosin_floor_env = (
+        (0.30 + 0.70 * bow_settle)
+        * (0.48 + 0.30 * bow_motion + 0.22 * rosin_memory)
+        * np.clip((t + 0.006) / 0.070, 0.14, 1.0)
+    )
+    scrape_flux_env = (
+        np.exp(-t / max(1e-4, float(masenqo_profile['attack_presence_decay']) * 1.55)) * (0.62 + 0.70 * slip_events)
+        + 0.34 * (0.38 + 0.62 * rosin_memory) * bow_settle
+    )
+    sustained_rosin_layer = sustained_rosin * rosin_floor_env * float(masenqo_profile['sustained_rosin_gain']) * velocity
+    scrape_flux_layer = scrape_flux * scrape_flux_env * float(masenqo_profile['scrape_flux_gain']) * velocity
+
+    nasal_core = bandpass_simple(harmonic_core + friction_layer * 0.40 + rosin_body_layer * 0.30, 450.0, 2400.0, sample_rate)
+    bridge_core = bandpass_simple(harmonic_core + friction_layer * 0.20 + rosin_body_layer * 0.45, 220.0, 900.0, sample_rate)
+    audio = (
+        harmonic_core * float(masenqo_profile.get('harmonic_core_gain', 0.36))
+        + sawtooth * float(masenqo_profile.get('sawtooth_gain', 0.07))
+        + friction_layer * float(masenqo_profile.get('friction_layer_gain', 0.16))
+        + rosin_body_layer * float(masenqo_profile.get('rosin_body_gain', 0.14))
+        + sustained_rosin_layer
+        + scrape_flux_layer
+        + nasal_core * float(masenqo_profile.get('nasal_core_gain', 0.23))
+        + bridge_core * float(masenqo_profile.get('bridge_core_gain', 0.12))
+    )
+    audio += friction_attack_layer + rosin_grain_layer
+
+    # Bounded bow-noise and attack presence profiling.
+    bow_noise = bandpass_filter(
+        np.random.randn(num_samples),
+        float(masenqo_profile['bow_noise_low']),
+        float(masenqo_profile['bow_noise_high']),
+        sample_rate,
+    )
+    bow_noise_envelope = (
+        np.exp(-t / max(1e-4, float(masenqo_profile['bow_noise_decay']))) * (0.54 + 0.32 * slip_events + 0.14 * rosin_memory)
+        + float(masenqo_profile['bow_noise_floor'])
+        * (0.46 + 0.24 * bow_motion + 0.30 * rosin_memory)
+        * (0.52 + 0.48 * bow_settle)
+    )
+    audio += bow_noise * bow_noise_envelope * float(masenqo_profile['bow_noise_amount']) * velocity
+
+    rosin_air_gain = float(masenqo_profile.get('rosin_air_gain', 0.0))
+    if rosin_air_gain > 0.0:
+        rosin_air = bandpass_filter(
+            np.random.randn(num_samples),
+            max(4400.0, float(masenqo_profile['attack_presence_high']) * 0.72),
+            min(float(masenqo_profile['final_lowpass']) * 1.02, sample_rate / 2 - 100.0),
+            sample_rate,
+        )
+        rosin_air_env = (
+            (0.18 + 0.82 * rosin_memory)
+            * (0.38 + 0.62 * bow_motion)
+            * np.clip((t + 0.006) / 0.060, 0.12, 1.0)
+            * (0.58 + 0.42 * bow_settle)
+        )
+        audio += rosin_air * rosin_air_env * rosin_air_gain * velocity
+
+    attack_presence = bandpass_simple(
+        audio + rosin_grain_layer * 0.20,
+        float(masenqo_profile['attack_presence_low']),
+        float(masenqo_profile['attack_presence_high']),
+        sample_rate,
+    )
+    audio += (
+        attack_presence
+        * np.exp(-t / max(1e-4, float(masenqo_profile['attack_presence_decay'])))
+        * (float(masenqo_profile['attack_presence_gain']) + float(masenqo_profile['bow_noise_amount']) * 0.35)
+        * attack_push
+        * velocity
+    )
     
     # === BODY/FORMANT RESONANCES ===
     # The masenqo body creates voice-like formants
     # These are what make it "sing" - narrow resonant peaks
     # Key: SMOOTH formants, not harsh - like human voice
     
-    # F1: Chest/body warmth (~350 Hz) - foundation
-    f1_band = bandpass_simple(audio, 300, 420, sample_rate)
-    
-    # F2: Vocal nasal resonance (~900 Hz) - the "singing" quality
-    f2_band = bandpass_simple(audio, 800, 1050, sample_rate)
-    
-    # F3: Gentle presence (~1800 Hz) - REDUCED to avoid harshness
-    f3_band = bandpass_simple(audio, 1600, 2000, sample_rate)
-    
-    # Mix: More fundamental, less high presence for smoother tone
-    audio = audio * 0.55 + f1_band * 0.20 + f2_band * 0.20 + f3_band * 0.05
+    bridge_wander = 0.5 + 0.5 * _slow_noise_contour(num_samples, sample_rate, 8.0)
+
+    # F1/F2/F3 move subtly as bow pressure and bridge interaction evolve.
+    f1_band = bandpass_simple(audio, 300.0, 420.0, sample_rate)
+    f1_shifted = bandpass_simple(audio, 360.0, 620.0, sample_rate)
+    f2_band = bandpass_simple(audio + friction_layer * 0.35, 780.0, 1050.0, sample_rate)
+    f2_shifted = bandpass_simple(audio + friction_layer * 0.35, 980.0, 1320.0, sample_rate)
+    f3_band = bandpass_simple(audio + friction_layer * 0.50, 1550.0, 2050.0, sample_rate)
+    f3_shifted = bandpass_simple(audio + friction_layer * 0.50, 1850.0, 2550.0, sample_rate)
+
+    moving_f1 = f1_band * (0.60 + 0.20 * (1.0 - bridge_wander)) + f1_shifted * (0.08 + 0.08 * bow_settle + 0.08 * bridge_wander)
+    moving_f2 = f2_band * (0.48 + 0.18 * bridge_wander + 0.08 * bow_settle) + f2_shifted * (0.14 + 0.14 * (1.0 - bridge_wander))
+    moving_f3 = f3_band * (0.42 + 0.14 * np.sin(2 * np.pi * 1.6 * t + bridge_wander * 0.35) + 0.08 * (1.0 - bow_settle)) + f3_shifted * (0.12 + 0.08 * bow_settle)
+    body_shell = _apply_body_resonance(audio, [240.0, 420.0, 760.0], [8, 9, 6], sample_rate)
+
+    # Mix: More vocal/body evolution, less static fixed-formant emphasis.
+    audio = (
+        audio * float(masenqo_profile['direct_mix'])
+        + moving_f1 * float(masenqo_profile['f1_mix'])
+        + moving_f2 * float(masenqo_profile['f2_mix'])
+        + moving_f3 * float(masenqo_profile['f3_mix'])
+        + body_shell * (float(masenqo_profile.get('body_shell_gain', 0.05)) + 0.05 * bow_settle)
+    )
     
     # === ENVELOPE ===
     # Bowed instrument: soft attack as bow catches string
     envelope = np.ones(num_samples)
     
     # Attack: bow catching string (~50ms)
-    attack_samples = int(0.05 * sample_rate)
+    attack_samples = int(float(masenqo_profile['attack_seconds']) * sample_rate)
     if attack_samples > 0 and attack_samples < num_samples:
         # S-curve attack (realistic bow attack)
         attack_t = np.arange(attack_samples) / attack_samples
         envelope[:attack_samples] = 0.5 * (1 - np.cos(np.pi * attack_t))
     
     # Sustain: slight swell in middle (expressive bowing)
-    swell = 1 + 0.08 * expressiveness * np.sin(np.pi * t / duration)
+    swell = 1 + float(masenqo_profile['swell_depth']) * expressiveness * np.sin(np.pi * t / max(duration, 1e-6))
     envelope *= swell
     
     # Release: bow lifting (~80ms)
-    release_samples = int(0.08 * sample_rate)
+    release_samples = int(float(masenqo_profile['release_seconds']) * sample_rate)
     if release_samples > 0 and release_samples < num_samples:
         release_start = num_samples - release_samples
         release_t = np.arange(release_samples) / release_samples
@@ -2052,17 +2672,18 @@ def generate_masenqo_tone(
     audio = audio - np.mean(audio)
     
     # Warmth: acoustic instrument character
-    audio = lowpass_filter(audio, 5000, sample_rate)
-    audio = highpass_filter(audio, 100, sample_rate)
+    audio = lowpass_filter(audio, float(masenqo_profile['final_lowpass']), sample_rate)
+    audio = highpass_filter(audio, float(masenqo_profile['final_highpass']), sample_rate)
     
     # Remove any remaining DC offset after filtering - CRITICAL
     audio = audio - np.mean(audio)
     
     # Very gentle saturation for warmth (also helps symmetry)
-    audio = np.tanh(audio * 1.1) / 1.1
+    saturation_drive = float(masenqo_profile['saturation_drive'])
+    audio = np.tanh(audio * saturation_drive) / np.tanh(saturation_drive)
     
     # Remove any final DC offset after saturation
-    audio = audio - np.mean(audio)
+    audio = np.nan_to_num(audio - np.mean(audio), nan=0.0, posinf=0.0, neginf=0.0)
     
     # Final normalization to prevent clipping when mixed
     max_val = np.max(np.abs(audio))
@@ -2078,7 +2699,8 @@ def generate_washint_tone(
     duration: float = 0.5,
     velocity: float = 0.8,
     sample_rate: int = SAMPLE_RATE,
-    add_ornament: bool = False
+    add_ornament: bool = False,
+    profile: str = 'alto_breathy',
 ) -> np.ndarray:
     """
     Generate authentic Washint (ዋሺንት) - Ethiopian bamboo flute tone.
@@ -2106,103 +2728,666 @@ def generate_washint_tone(
     - Pitch bends by adjusting air angle
     - Circular breathing for long phrases
     """
+    washint_profile = _resolve_washint_profile(profile)
+    velocity = float(np.clip(velocity, 0.0, 1.0))
     num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float64)
+
     t = np.arange(num_samples) / sample_rate
-    
-    audio = np.zeros(num_samples)
-    
-    # === MAIN FLUTE OSCILLATOR ===
-    # Flutes have mostly odd harmonics (open pipe)
-    for i in [1, 3, 5, 7]:
-        harmonic_freq = frequency * i
-        
-        # Amplitude: strong fundamental, weak higher harmonics
-        if i == 1:
-            amp = 1.0
-        elif i == 3:
-            amp = 0.25
-        elif i == 5:
-            amp = 0.1
+    register_focus = float(np.clip((frequency - 480.0) / 520.0, 0.0, 1.0))
+
+    breath_rise = np.clip((t + 0.004) / (0.022 + 0.010 * (1.0 - velocity)), 0.0, 1.0)
+    column_settle = np.clip((t - 0.014) / (0.105 + 0.035 * (1.0 - register_focus)), 0.0, 1.0)
+    onset_gate = np.exp(-t / max(1e-4, 0.052 - 0.010 * register_focus))
+
+    embouchure_drift = _slow_noise_contour(num_samples, sample_rate, 22.0)
+    pressure_drift = _slow_noise_contour(num_samples, sample_rate, 12.0)
+    jet_flutter = _slow_noise_contour(num_samples, sample_rate, 34.0)
+    gesture_instability = _slow_noise_contour(num_samples, sample_rate, 18.0)
+
+    flute_variant = float(np.clip(
+        1.0 + 0.06 * np.mean(gesture_instability[: max(1, int(0.025 * sample_rate))]),
+        0.88,
+        1.12,
+    ))
+    register_instability = float(np.clip(frequency / 900.0, 0.45, 1.25))
+
+    # === IRREGULAR VIBRATO / EMBROUCHURE MOTION ===
+    # Washint pitch motion should feel pressure-led and unstable, not like a clean synth LFO.
+    vibrato_rate = np.clip(
+        4.4
+        + 0.48 * np.sin(2 * np.pi * (0.40 + 0.10 * register_focus) * t + 0.25 * jet_flutter)
+        + 0.24 * pressure_drift
+        + 0.12 * jet_flutter,
+        3.6,
+        6.4,
+    )
+    vibrato_phase = 2 * np.pi * np.cumsum(vibrato_rate) / sample_rate
+    vibrato_depth = float(washint_profile['vibrato_depth'])
+    vibrato_onset = np.clip((t - 0.14) / 0.22, 0.0, 1.0)
+    vibrato_increase = vibrato_onset * (1.0 + 0.35 * t / max(duration, 1e-6))
+    vibrato_shape = (
+        np.sin(vibrato_phase + 0.10 * embouchure_drift)
+        + 0.22 * np.sin(2.0 * vibrato_phase + 0.40 + 0.12 * pressure_drift)
+        + 0.10 * jet_flutter
+    )
+    pitch_motion = (
+        vibrato_shape * vibrato_depth * vibrato_increase
+        + embouchure_drift * 0.0012 * (0.60 + 0.40 * velocity)
+        + pressure_drift * register_instability * (0.0015 * onset_gate + 0.00055)
+        + gesture_instability * 0.0004 * (0.30 + 0.70 * column_settle)
+    )
+    phase = 2 * np.pi * np.cumsum(frequency * np.clip(1.0 + pitch_motion, 0.55, 1.80)) / sample_rate
+
+    # === HARMONIC / COLUMN SEED ===
+    # Keep the open-pipe odd-harmonic identity, but let the balance migrate from airy onset
+    # to more settled tube focus as the column locks in.
+    harmonic_motion = 0.50 * embouchure_drift + 0.30 * pressure_drift + 0.20 * gesture_instability
+    harmonic_core = np.zeros(num_samples, dtype=np.float64)
+    for idx, (harmonic, amp) in enumerate(zip([1, 3, 5, 7], washint_profile['harmonic_gains'])):
+        if harmonic == 1:
+            transition = 0.92 - 0.06 * onset_gate + 0.24 * column_settle * (1.0 - 0.25 * register_focus)
+        elif harmonic == 3:
+            transition = 0.88 + 0.12 * onset_gate + 0.10 * column_settle + 0.08 * register_focus
+        elif harmonic == 5:
+            transition = 0.72 + 0.28 * onset_gate + 0.14 * register_focus - 0.08 * column_settle
         else:
-            amp = 0.05
-        
-        audio += amp * np.sin(2 * np.pi * harmonic_freq * t)
-    
-    # === BREATH NOISE ===
-    # Characteristic breathy quality of end-blown flutes
+            transition = 0.62 + 0.34 * onset_gate + 0.18 * register_focus - 0.12 * column_settle
+
+        dynamic_gain = amp * transition * (1.0 + harmonic_motion * (0.045 + 0.012 * idx))
+        harmonic_core += dynamic_gain * np.sin(
+            harmonic * phase
+            + embouchure_drift * (0.012 + 0.003 * idx) * harmonic
+            + pressure_drift * 0.006 * (idx + 1)
+        )
+
+    harmonic_core += (
+        0.025 + 0.020 * onset_gate + 0.020 * register_focus
+    ) * np.sin(2 * phase + 0.25 + 0.18 * gesture_instability)
+    harmonic_core += (
+        0.008 + 0.012 * onset_gate
+    ) * np.sin(4 * phase + 0.55 + 0.10 * pressure_drift)
+
+    # === BREATH / AIR-JET EXCITATION ===
+    # Use breath as the exciter that drives the bore, instead of only layering filtered hiss.
     breath = np.random.randn(num_samples)
-    
-    # Filter breath to flute's resonant frequencies
-    breath = lowpass_filter(breath, 6000, sample_rate)
-    breath = highpass_filter(breath, 1500, sample_rate)
-    
-    # Breath follows note dynamics
-    breath_envelope = np.exp(-t / 0.1) * 0.3 + 0.1  # Stronger at attack
-    breath_envelope *= velocity
-    
-    audio += breath * breath_envelope * 0.12
-    
-    # === VIBRATO (delayed onset, increasing depth) ===
-    vibrato_rate = 5.0 + np.sin(t * 0.5) * 0.5  # Slight rate modulation
-    vibrato_depth = 0.006
-    
-    # Vibrato develops over time
-    vibrato_onset = np.clip((t - 0.15) / 0.2, 0, 1)  # Starts after 150ms
-    vibrato_increase = vibrato_onset * (1 + t / duration * 0.5)  # Increases through note
-    
-    vibrato = np.sin(2 * np.pi * vibrato_rate * t) * vibrato_depth * vibrato_increase
-    
-    # Apply vibrato to main tone
-    audio_vibrato = np.sin(2 * np.pi * frequency * (t + vibrato))
-    audio = audio * 0.5 + audio_vibrato * 0.5
-    
-    # === ORNAMENTAL GRACE NOTE (mordent) ===
-    # Ethiopian flutes often have quick ornamental turns at note onset
-    if duration > 0.2 and velocity > 0.5:
-        grace_duration = int(0.03 * sample_rate)  # 30ms grace note
-        grace_freq = frequency * 1.1  # Slightly higher pitch
-        grace_t = np.arange(grace_duration) / sample_rate
-        grace = np.sin(2 * np.pi * grace_freq * grace_t) * 0.4
-        grace *= np.exp(-grace_t / 0.01)  # Quick decay
-        audio[:grace_duration] += grace
+    jet_breath = bandpass_filter(
+        breath,
+        float(washint_profile['breath_low']),
+        float(washint_profile['breath_high']),
+        sample_rate,
+    )
+    tube_breath = bandpass_filter(
+        breath,
+        max(260.0, frequency * 0.52 * flute_variant),
+        min(2800.0, frequency * 3.5 * flute_variant),
+        sample_rate,
+    )
+    bore_breath = bandpass_filter(
+        breath,
+        max(220.0, frequency * 0.45),
+        min(2400.0, frequency * (2.9 + 0.7 * register_focus)),
+        sample_rate,
+    )
+
+    air_pressure = velocity * np.clip(
+        0.54
+        + 0.28 * breath_rise
+        + pressure_drift * float(washint_profile['pressure_irregularity'])
+        + onset_gate * (0.08 + 0.06 * register_focus),
+        0.04,
+        1.20,
+    )
+    jet_wave = np.sin(phase + 0.32 + embouchure_drift * 0.22 + jet_flutter * 0.10)
+    jet_pulse = 0.5 + 0.5 * np.tanh(1.8 * (jet_wave + 0.50 * pressure_drift - 0.18 * gesture_instability))
+    jet_vorticity = jet_breath * (0.42 + 0.58 * jet_pulse) * air_pressure
+    jet_edge = bandpass_simple(
+        jet_vorticity + harmonic_core * (0.04 + 0.07 * onset_gate),
+        max(260.0, frequency * 0.78),
+        min(5200.0, frequency * (4.8 + 1.4 * register_focus)),
+        sample_rate,
+    )
+    jet_memory = lowpass_filter(np.abs(jet_edge), 34.0, sample_rate)
+    jet_memory_peak = float(np.max(jet_memory)) if jet_memory.size else 0.0
+    if jet_memory_peak > 1e-9:
+        jet_memory = jet_memory / jet_memory_peak
+
+    tube_driver = harmonic_core * 0.58 + jet_edge * (0.22 + 0.18 * breath_rise) + tube_breath * 0.08 * onset_gate
+    tube_low = bandpass_simple(
+        tube_driver,
+        max(180.0, frequency * 0.72 * flute_variant),
+        min(1800.0, frequency * 2.3 * flute_variant),
+        sample_rate,
+    )
+    tube_mid = bandpass_simple(
+        tube_driver + jet_edge * 0.22,
+        max(260.0, frequency * 0.90),
+        min(3000.0, frequency * (3.7 + 0.5 * flute_variant)),
+        sample_rate,
+    )
+    tube_high = bandpass_simple(
+        tube_driver + jet_edge * 0.48,
+        max(1000.0, frequency * 1.65),
+        min(4700.0, frequency * (4.8 + 1.4 * register_focus)),
+        sample_rate,
+    )
+
+    column_seed = (
+        tube_low * 0.34
+        + tube_mid * 0.38
+        + tube_high * (0.10 + 0.08 * register_focus)
+        + jet_edge * 0.18
+    )
+    reflection_delay = max(
+        1,
+        int(
+            (sample_rate / max(frequency, 1e-6))
+            * np.clip((0.21 - 0.05 * register_focus) * flute_variant, 0.12, 0.24)
+        ),
+    )
+    bore_reflection = np.zeros(num_samples, dtype=np.float64)
+    if reflection_delay < num_samples:
+        bore_reflection[reflection_delay:] = column_seed[:-reflection_delay]
+    else:
+        bore_reflection = column_seed.copy()
+    bore_reflection = bandpass_simple(
+        bore_reflection,
+        max(200.0, frequency * 0.66 * flute_variant),
+        min(3900.0, frequency * (3.4 + 1.8 * register_focus)),
+        sample_rate,
+    )
+    column_edges = np.abs(np.diff(column_seed, prepend=column_seed[0]))
+    column_edges = lowpass_filter(column_edges, 1200.0, sample_rate)
+    column_peak = float(np.max(column_edges)) if column_edges.size else 0.0
+    if column_peak > 1e-9:
+        column_edges = column_edges / column_peak
+    column_memory = lowpass_filter(np.abs(column_seed) + 0.30 * column_edges + 0.18 * np.abs(bore_reflection), 24.0, sample_rate)
+    column_memory_peak = float(np.max(column_memory)) if column_memory.size else 0.0
+    if column_memory_peak > 1e-9:
+        column_memory = column_memory / column_memory_peak
+
+    column_core = (
+        tube_low * (0.22 + 0.16 * column_settle * (1.0 - register_focus))
+        + tube_mid * (0.28 + 0.16 * column_settle)
+        + tube_high * (
+            0.06
+            + (0.10 + float(washint_profile['focus_shift']))
+            * column_settle
+            * (0.35 + 0.65 * register_focus)
+        )
+        + bore_reflection * (0.10 + 0.12 * register_focus + 0.08 * column_memory)
+    )
+    audio = (
+        harmonic_core * (0.26 + 0.10 * onset_gate)
+        + column_core
+        + jet_edge * (
+            0.05
+            + float(washint_profile['jet_drive']) * onset_gate
+            + 0.05 * jet_memory
+        )
+    )
+
+    jet_envelope = (
+        np.exp(-t / 0.042) * float(washint_profile['breath_attack_scale']) * (1.20 + 0.18 * register_focus)
+        + float(washint_profile['breath_floor']) * (0.14 + 0.18 * jet_pulse + 0.18 * jet_memory)
+    ) * velocity
+    tube_air_envelope = (
+        0.08 + 0.92 * column_settle
+    ) * (0.72 + 0.28 * (1.0 - register_focus)) * velocity
+    bore_air_envelope = (
+        0.05 + 0.95 * column_settle
+    ) * (0.38 + 0.62 * register_focus + 0.18 * column_memory) * velocity
+    jet_coupling = np.clip(
+        0.18 + 0.22 * column_edges + 0.28 * jet_pulse + 0.24 * jet_memory + 0.08 * pressure_drift,
+        0.05,
+        1.60,
+    )
+    bore_coupling = np.clip(
+        0.20 + 0.24 * column_memory + 0.26 * register_focus + 0.18 * np.maximum(pressure_drift, 0.0),
+        0.10,
+        1.60,
+    )
+
+    audio += (
+        jet_breath
+        * jet_envelope
+        * jet_coupling
+        * float(washint_profile['breath_amount'])
+        * (0.36 + 0.18 * float(washint_profile['jet_drive']))
+    )
+    audio += (
+        tube_breath
+        * tube_air_envelope
+        * (0.010 + float(washint_profile['breath_amount']) * 0.060)
+        * (0.40 + 0.60 * column_memory)
+    )
+    audio += (
+        bore_breath
+        * bore_air_envelope
+        * (0.008 + float(washint_profile['breath_amount']) * 0.045 + 0.015 * float(washint_profile['jet_drive']))
+        * bore_coupling
+    )
+
+    # === PROFILE-AWARE ENTRY ORNAMENT ===
+    # Keep a subtle entry graze by default, but let add_ornament materially reshape the note entry.
+    if duration > 0.18 and velocity > 0.35:
+        ornament_seconds = float(washint_profile['ornament_seconds']) * (1.65 if add_ornament else 0.72)
+        ornament_duration = min(num_samples, int(ornament_seconds * sample_rate))
+        if ornament_duration > 4:
+            ornament_t = np.arange(ornament_duration) / sample_rate
+            ornament_direction = float(washint_profile['ornament_direction'])
+            ornament_ratio = float(washint_profile['ornament_ratio']) * (1.25 if add_ornament else 0.55)
+            start_ratio = 1.0 + ornament_direction * ornament_ratio
+            arrival_curve = np.clip(
+                (ornament_t / max(ornament_seconds, 1e-6)) ** (0.55 if ornament_direction < 0.0 else 0.72),
+                0.0,
+                1.0,
+            )
+            ornament_freq = frequency * (start_ratio + (1.0 - start_ratio) * arrival_curve)
+            ornament_phase = 2 * np.pi * np.cumsum(ornament_freq) / sample_rate
+            ornament_core = np.sin(ornament_phase)
+            ornament_core += 0.22 * np.sin(
+                3 * ornament_phase + 0.18 + 0.08 * embouchure_drift[:ornament_duration]
+            )
+            ornament_air = bandpass_simple(
+                jet_breath[:ornament_duration] * (0.62 + 0.38 * jet_pulse[:ornament_duration]),
+                max(1200.0, frequency * 1.15),
+                min(float(washint_profile['presence_high']) * 1.08, sample_rate / 2 - 100.0),
+                sample_rate,
+            )
+            ornament_shape = np.exp(
+                -ornament_t / max(1e-4, ornament_seconds * (0.38 if add_ornament else 0.30))
+            )
+            ornament_shape *= np.linspace(1.0, 0.10 if add_ornament else 0.0, ornament_duration)
+            ornament_mix = float(washint_profile['grace_gain']) * (0.16 + 0.52 * float(add_ornament)) * velocity
+            audio[:ornament_duration] += (
+                ornament_core * 0.56 + ornament_air * 0.44
+            ) * ornament_shape * ornament_mix
     
     # === BODY RESONANCE (bamboo tube) ===
     # Bamboo has characteristic resonances
-    body_resonances = [frequency * 2, frequency * 4, 2500, 4000]
-    body_qs = [15, 12, 6, 4]
-    audio = _apply_body_resonance(audio, body_resonances, body_qs, sample_rate)
+    body_resonances = [
+        max(210.0, frequency * (0.96 + 0.04 * flute_variant)),
+        min(2400.0, frequency * (2.05 + 0.20 * flute_variant)),
+        min(3600.0, max(1350.0, frequency * (4.3 + 0.9 * register_focus))),
+        min(
+            4600.0,
+            max(
+                2150.0,
+                frequency * (5.0 + 1.4 * register_focus + float(washint_profile['focus_shift'])),
+            ),
+        ),
+    ]
+    body_qs = [18, 12, 7, 4]
+    hollow_column = _apply_body_resonance(audio + bore_reflection * 0.12 + jet_edge * 0.08, body_resonances, body_qs, sample_rate)
+
+    woody_shell = bandpass_simple(
+        hollow_column + tube_low * 0.30,
+        max(220.0, frequency * 0.70),
+        min(1900.0, frequency * 2.6),
+        sample_rate,
+    )
+
+    lower_tube_focus = bandpass_simple(
+        hollow_column + tube_mid * 0.28,
+        max(220.0, frequency * 0.82),
+        min(2500.0, frequency * (3.1 + 0.3 * flute_variant)),
+        sample_rate,
+    )
+    upper_tube_focus = bandpass_simple(
+        hollow_column + bore_reflection * 0.55 + tube_high * 0.40,
+        max(1100.0, frequency * 1.65),
+        min(4600.0, frequency * (4.7 + 1.9 * register_focus)),
+        sample_rate,
+    )
+    sustain_focus = np.clip((t - 0.025) / 0.14, 0.0, 1.0)
+    audio = (
+        hollow_column * (0.40 + 0.14 * sustain_focus)
+        + woody_shell * (0.11 + 0.05 * (1.0 - register_focus))
+        + lower_tube_focus * (0.16 + 0.10 * sustain_focus * (1.0 - register_focus))
+        + upper_tube_focus * (
+            0.05
+            + (0.10 + float(washint_profile['focus_shift']))
+            * sustain_focus
+            * (0.30 + 0.70 * register_focus)
+        )
+        + audio * (0.12 + 0.06 * onset_gate + 0.04 * jet_memory)
+        + jet_edge * (0.04 + 0.12 * onset_gate)
+    )
+
+    presence_band = bandpass_simple(
+        jet_edge * (0.70 + 0.30 * jet_memory)
+        + upper_tube_focus * (0.32 + 0.36 * sustain_focus)
+        + bore_reflection * 0.18,
+        float(washint_profile['presence_low']),
+        float(washint_profile['presence_high']),
+        sample_rate,
+    )
+    audio += (
+        presence_band
+        * float(washint_profile['presence_gain'])
+        * (0.30 * onset_gate + (0.12 + 0.22 * register_focus) * sustain_focus + 0.18 * jet_memory)
+    )
+
+    chiff = bandpass_simple(
+        jet_breath * (0.44 + 0.56 * jet_pulse) + jet_edge * 0.26,
+        float(washint_profile['chiff_low']),
+        float(washint_profile['chiff_high']),
+        sample_rate,
+    )
+    audio += (
+        chiff
+        * np.exp(-t / max(1e-4, float(washint_profile['chiff_decay'])))
+        * (0.20 + 0.44 * jet_pulse + 0.18 * jet_memory + 0.18 * column_edges)
+        * float(washint_profile['chiff_amount'])
+        * velocity
+    )
     
     # === ENVELOPE ===
     # Soft attack (breath building), sustained, soft release
-    attack = int(0.04 * sample_rate)  # 40ms attack
-    decay = int(0.08 * sample_rate)
-    sustain_level = 0.85
-    release = int(0.12 * sample_rate)
+    attack = int(float(washint_profile['attack_seconds']) * sample_rate)
+    decay = int(float(washint_profile['decay_seconds']) * sample_rate)
+    sustain_level = float(washint_profile['sustain_level'])
+    release = int(float(washint_profile['release_seconds']) * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
     
-    audio = apply_envelope(audio, attack, decay, sustain_level, release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
     
     # === FINAL PROCESSING ===
     # Clarity boost
-    audio = highpass_filter(audio, 200, sample_rate)
+    audio = add_saturation(audio, 0.06 + 0.01 * float(washint_profile['jet_drive']))
+    audio = highpass_filter(audio, float(washint_profile['final_highpass']), sample_rate)
+    audio = lowpass_filter(audio, float(washint_profile['final_lowpass']), sample_rate)
+    audio = np.nan_to_num(audio - np.mean(audio), nan=0.0, posinf=0.0, neginf=0.0)
     
     return normalize_audio(audio, 0.72 * velocity)
+
+
+def _resolve_begena_profile(profile: str) -> Dict[str, object]:
+    """Return bounded Begena synthesis parameters for the requested profile."""
+    normalized = str(profile or 'paraliturgical_drone').strip().lower().replace('-', '_').replace(' ', '_')
+    if normalized in {'liturgical_drone', 'meditative_drone', 'sacred_drone'}:
+        normalized = 'paraliturgical_drone'
+
+    profiles: Dict[str, Dict[str, object]] = {
+        'paraliturgical_drone': {
+            'main_smoothing_passes': 32,
+            'damping_base': 0.99885,
+            'damping_sustain_scale': 0.00120,
+            'buzz_smoothing_passes': 12,
+            'buzz_damping_base': 0.99605,
+            'buzz_damping_sustain_scale': 0.00110,
+            'buzz_mix': 0.12,
+            'buzz_persistence_base': 0.44,
+            'buzz_persistence_scale': 0.72,
+            'sympathetic_ratios': (1.5, 2.0, 3.0, 4.0),
+            'sympathetic_gains': (0.030, 0.028, 0.020, 0.012),
+            'sympathetic_decay_base': 0.84,
+            'sympathetic_decay_scale': 0.76,
+            'body_low': 72.0,
+            'body_high': 240.0,
+            'body_gain': 0.28,
+            'body_low_mid_low': 230.0,
+            'body_low_mid_high': 495.0,
+            'body_low_mid_gain': 2.20,
+            'body_mode_ratios': (2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0),
+            'body_mode_gains': (0.006, 0.095, 0.165, 0.200, 0.190, 0.155, 0.115, 0.080),
+            'body_mode_gain': 2.25,
+            'attack_base_seconds': 0.078,
+            'attack_sustain_scale': 0.012,
+            'release_base_seconds': 0.12,
+            'release_sustain_scale': 0.14,
+            'bass_boost_gain': 0.22,
+            'sub_bass_gain': 0.035,
+            'roughness_lowpass_base': 360.0,
+            'roughness_lowpass_span': 28.0,
+            'final_lowpass': 520.0,
+            'final_highpass': 42.0,
+        },
+        'mp3_reference_bright': {
+            'main_smoothing_passes': 18,
+            'damping_base': 0.99825,
+            'damping_sustain_scale': 0.00070,
+            'buzz_smoothing_passes': 6,
+            'buzz_damping_base': 0.99545,
+            'buzz_damping_sustain_scale': 0.00062,
+            'buzz_mix': 0.155,
+            'buzz_persistence_base': 0.24,
+            'buzz_persistence_scale': 0.38,
+            'sympathetic_ratios': (1.5, 2.0, 2.5, 3.0),
+            'sympathetic_gains': (0.017, 0.016, 0.011, 0.008),
+            'sympathetic_decay_base': 0.46,
+            'sympathetic_decay_scale': 0.42,
+            'body_low': 72.0,
+            'body_high': 230.0,
+            'body_gain': 0.15,
+            'body_low_mid_low': 230.0,
+            'body_low_mid_high': 480.0,
+            'body_low_mid_gain': 0.78,
+            'body_mode_ratios': (2.0, 3.0, 4.0, 5.0, 6.0),
+            'body_mode_gains': (0.004, 0.040, 0.070, 0.080, 0.060),
+            'body_mode_gain': 0.72,
+            'attack_base_seconds': 0.040,
+            'attack_sustain_scale': 0.006,
+            'release_base_seconds': 0.060,
+            'release_sustain_scale': 0.065,
+            'bass_boost_gain': 0.070,
+            'sub_bass_gain': 0.008,
+            'roughness_lowpass_base': 900.0,
+            'roughness_lowpass_span': 170.0,
+            'roughness_component_lowpass_cap': 1800.0,
+            'roughness_cluster_high': 2200.0,
+            'roughness_cluster_ratio': 22.0,
+            'contact_surface_gain': 0.070,
+            'contact_surface_noise_gain': 0.010,
+            'contact_surface_decay': 0.42,
+            'presence_boost_gain': 0.085,
+            'presence_band_low': 420.0,
+            'presence_band_high': 2800.0,
+            'final_lowpass': 6200.0,
+            'final_highpass': 50.0,
+        },
+    }
+    return profiles.get(normalized, profiles['paraliturgical_drone'])
+
+
+def _resolve_begena_string_quality(string_quality: str) -> Dict[str, float]:
+    """Return bounded Begena string-quality parameters."""
+    normalized = str(string_quality or 'stable').strip().lower().replace('-', '_').replace(' ', '_')
+    qualities: Dict[str, Dict[str, float]] = {
+        'stable': {
+            'roughness_gain': 0.72,
+            'roughness_depth': 0.032,
+            'spread_scale': 0.90,
+            'main_damping_delta': 0.0,
+            'buzz_damping_delta': 0.0,
+            'buzz_persistence_delta': 0.0,
+            'body_gain': 1.28,
+            'sympathetic_gain': 1.00,
+            'attack_softness': 1.00,
+            'presence_gain': 0.50,
+        },
+        'worn': {
+            'roughness_gain': 0.84,
+            'roughness_depth': 0.055,
+            'spread_scale': 1.00,
+            'main_damping_delta': -0.00018,
+            'buzz_damping_delta': -0.00022,
+            'buzz_persistence_delta': -0.05,
+            'body_gain': 1.34,
+            'sympathetic_gain': 0.94,
+            'attack_softness': 1.10,
+            'presence_gain': 0.58,
+        },
+        'lively': {
+            'roughness_gain': 0.86,
+            'roughness_depth': 0.050,
+            'spread_scale': 0.86,
+            'main_damping_delta': 0.00008,
+            'buzz_damping_delta': 0.00010,
+            'buzz_persistence_delta': 0.05,
+            'body_gain': 1.42,
+            'sympathetic_gain': 1.06,
+            'attack_softness': 0.92,
+            'presence_gain': 0.68,
+        },
+    }
+    return qualities.get(normalized, qualities['stable'])
+
+
+def _generate_begena_delay_line(
+    num_samples: int,
+    period_samples: int,
+    damping: float,
+    smoothing_passes: int,
+    kernel: Tuple[float, float, float] = (0.2, 0.6, 0.2),
+) -> np.ndarray:
+    """Generate a softly excited Karplus-Strong-style delay line for Begena."""
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float64)
+
+    period_samples = max(2, int(period_samples))
+    excitation = np.random.randn(period_samples)
+    smoothing_kernel = np.asarray(kernel, dtype=np.float64)
+    kernel_sum = float(np.sum(smoothing_kernel))
+    if kernel_sum > 1e-12:
+        smoothing_kernel = smoothing_kernel / kernel_sum
+
+    for _ in range(max(0, int(smoothing_passes))):
+        excitation = np.convolve(excitation, smoothing_kernel, mode='same')
+
+    output = np.zeros(num_samples, dtype=np.float64)
+    delay_line = excitation.astype(np.float64, copy=True)
+    write_pos = 0
+    damping = float(damping)
+
+    for i in range(num_samples):
+        read_pos = (write_pos + 1) % period_samples
+        next_pos = (read_pos + 1) % period_samples
+        filtered = 0.5 * (delay_line[read_pos] + delay_line[next_pos])
+        filtered *= damping
+        output[i] = filtered
+        delay_line[write_pos] = filtered
+        write_pos = (write_pos + 1) % period_samples
+
+    return output
+
+
+def _generate_begena_buzz_cluster(
+    frequency: float,
+    duration: float,
+    sample_rate: int,
+    *,
+    buzzers_enabled: bool,
+    buzzer_position: float,
+    sustain_bias: float,
+    begena_profile: Dict[str, object],
+    string_profile: Dict[str, float],
+) -> np.ndarray:
+    """Generate a small quasi-harmonic roughness cluster for the Begena buzz."""
+    num_samples = int(duration * sample_rate)
+    if not buzzers_enabled or num_samples <= 0:
+        return np.zeros(0, dtype=np.float64)
+
+    t = np.arange(num_samples, dtype=np.float64) / sample_rate
+    position = float(np.clip(buzzer_position, 0.05, 0.95))
+    spread = (0.0022 + 0.0048 * position) * float(string_profile['spread_scale'])
+    buzz_damping = np.clip(
+        float(begena_profile['buzz_damping_base'])
+        + sustain_bias * float(begena_profile['buzz_damping_sustain_scale'])
+        + float(string_profile['buzz_damping_delta']),
+        0.9930,
+        0.9994,
+    )
+
+    component_specs = [
+        (1.0, -0.80 * spread, 0.24),
+        (1.0, 0.55 * spread, 0.18),
+        (2.0, -0.35 * spread, 0.09 + 0.02 * position),
+    ]
+    if position > 0.42 or float(string_profile['roughness_gain']) > 1.08:
+        component_specs.append((1.5, 0.90 * spread, 0.07 + 0.01 * position))
+
+    cluster = np.zeros(num_samples, dtype=np.float64)
+    for idx, (ratio, detune, gain) in enumerate(component_specs):
+        component_freq = max(35.0, frequency * ratio * (1.0 + detune))
+        if component_freq >= sample_rate / 2 - 120:
+            continue
+
+        component = _generate_begena_delay_line(
+            num_samples,
+            period_samples=int(sample_rate / component_freq),
+            damping=np.clip(buzz_damping - idx * 0.00010, 0.9925, 0.9994),
+            smoothing_passes=int(begena_profile['buzz_smoothing_passes']) + (2 if ratio > 1.0 else 0),
+            kernel=(0.24, 0.52, 0.24),
+        )
+        component = lowpass_filter(
+            component,
+            min(
+                float(begena_profile.get('roughness_component_lowpass_cap', 520.0)),
+                float(begena_profile['roughness_lowpass_base'])
+                + ratio * float(begena_profile['roughness_lowpass_span']),
+            ),
+            sample_rate,
+        )
+        cluster += component * gain
+
+    low_mid_contact = np.zeros(num_samples, dtype=np.float64)
+    contact_drift = _slow_noise_contour(num_samples, sample_rate, lowpass_hz=3.0 + 4.0 * position)
+    for idx, (ratio, gain) in enumerate(((3.0, 0.060), (4.0, 0.090), (5.0, 0.075))):
+        contact_freq = frequency * ratio * (1.0 + (idx - 1) * spread * 0.35)
+        if 180.0 <= contact_freq <= 500.0 and contact_freq < sample_rate / 2 - 120:
+            phase = 2 * np.pi * contact_freq * t + contact_drift * (0.010 + 0.001 * ratio) + idx * 0.65
+            low_mid_contact += gain * np.sin(phase)
+    if np.any(low_mid_contact):
+        low_mid_contact = bandpass_simple(low_mid_contact, 180.0, 500.0, sample_rate)
+        cluster += low_mid_contact * (0.78 + 0.22 * position)
+
+    contour = _slow_noise_contour(num_samples, sample_rate, lowpass_hz=4.0 + 6.0 * position)
+    contour = np.clip(1.0 + float(string_profile['roughness_depth']) * contour, 0.84, 1.16)
+    contact_ramp = np.clip(t / max(1e-4, 0.018 + 0.030 * (1.0 - position)), 0.0, 1.0)
+    persistence = np.exp(
+        -t / max(
+            0.20,
+            float(begena_profile['buzz_persistence_base'])
+            + sustain_bias * float(begena_profile['buzz_persistence_scale'])
+            + float(string_profile['buzz_persistence_delta']),
+        )
+    )
+    cluster = bandpass_simple(
+        cluster,
+        max(45.0, frequency * 0.60),
+        min(
+            float(begena_profile.get('roughness_cluster_high', 540.0)),
+            max(360.0, frequency * float(begena_profile.get('roughness_cluster_ratio', 5.8))),
+        ),
+        sample_rate,
+    )
+    cluster *= contour * (0.35 + 0.65 * contact_ramp) * persistence
+    return cluster * float(begena_profile['buzz_mix']) * float(string_profile['roughness_gain'])
 
 
 def generate_begena_tone(
     frequency: float,
     duration: float = 1.0,
     velocity: float = 0.7,
-    sample_rate: int = SAMPLE_RATE
+    sample_rate: int = SAMPLE_RATE,
+    profile: str = 'paraliturgical_drone',
+    buzzers_enabled: bool = True,
+    buzzer_position: float = 0.35,
+    string_quality: str = 'stable',
+    sustain_bias: float = 0.8,
 ) -> np.ndarray:
     """
     Generate authentic Begena (ባገና) - Ethiopian 10-string bass lyre.
-    
-    PHYSICAL MODELING with Karplus-Strong + characteristic "buzz".
-    
+
+    PHYSICAL MODELING with Karplus-Strong + characteristic structured roughness.
+
     The Begena has a unique buzzing quality from leather pieces (enzirotch)
-    wrapped around strings near the bridge. This creates beating between
-    slightly detuned frequency components - NOT noise!
-    
+    wrapped around strings near the bridge. This creates beating/roughness
+    between slightly detuned frequency components - NOT plain noise.
+
     Based on acoustic measurements:
     - Pitch range: 50-150 Hz (VERY low bass)
     - Characteristic "roughness" from leather buzzers
@@ -2210,143 +3395,227 @@ def generate_begena_tone(
     - Deep, spiritual quality
     """
     num_samples = int(duration * sample_rate)
-    t = np.arange(num_samples) / sample_rate
-    
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float64)
+
+    frequency = max(1.0, float(frequency))
+    sustain_bias = float(np.clip(sustain_bias, 0.0, 1.0))
+    buzzer_position = float(np.clip(buzzer_position, 0.05, 0.95))
+    t = np.arange(num_samples, dtype=np.float64) / sample_rate
+
+    begena_profile = _resolve_begena_profile(profile)
+    string_profile = _resolve_begena_string_quality(string_quality)
+
     # === KARPLUS-STRONG FOR MAIN STRING ===
-    period_samples = int(sample_rate / frequency)
-    if period_samples < 2:
-        period_samples = 2
-    
-    # Initialize with VERY soft filtered noise (liturgical = gentle, meditative)
-    noise = np.random.randn(period_samples)
-    # VERY heavy filtering for deep, meditative gut string tone
-    for _ in range(15):  # Many passes for ultra-soft attack
-        noise = np.convolve(noise, [0.2, 0.6, 0.2], mode='same')
-    
-    # Output buffer
-    output = np.zeros(num_samples)
-    
-    # Delay line for main string
-    delay_line = noise.copy()
-    
-    # VERY long sustain for deep meditative quality (liturgical drone)
-    damping = 0.9992  # Extremely high = very long, tranquil decay
-    
-    write_pos = 0
-    for i in range(num_samples):
-        read_pos = (write_pos + 1) % period_samples
-        next_pos = (read_pos + 1) % period_samples
-        
-        # Two-point averaging
-        filtered = 0.5 * (delay_line[read_pos] + delay_line[next_pos])
-        filtered *= damping
-        
-        output[i] = filtered
-        delay_line[write_pos] = filtered
-        write_pos = (write_pos + 1) % period_samples
-    
-    # === JAWARI BUZZ (leather buzzer effect) ===
-    # The leather creates a second, slightly detuned vibration
-    # This causes BEATING - periodic amplitude variation, NOT noise
-    
-    # Buzz frequency is slightly detuned from main
-    buzz_detune = 1.007  # ~12 cents sharp
-    buzz_period = int(sample_rate / (frequency * buzz_detune))
-    if buzz_period < 2:
-        buzz_period = 2
-    
-    # Initialize buzz delay line
-    buzz_noise = np.random.randn(buzz_period)
-    for _ in range(5):
-        buzz_noise = np.convolve(buzz_noise, [0.25, 0.5, 0.25], mode='same')
-    
-    buzz_output = np.zeros(num_samples)
-    buzz_delay = buzz_noise.copy()
-    buzz_damping = 0.997  # Slightly faster decay than main
-    
-    write_pos = 0
-    for i in range(num_samples):
-        read_pos = (write_pos + 1) % buzz_period
-        next_pos = (read_pos + 1) % buzz_period
-        
-        filtered = 0.5 * (buzz_delay[read_pos] + buzz_delay[next_pos])
-        filtered *= buzz_damping
-        
-        buzz_output[i] = filtered
-        buzz_delay[write_pos] = filtered
-        write_pos = (write_pos + 1) % buzz_period
-    
-    # Combine main and buzz (buzz creates the characteristic roughness)
-    output = output * 0.7 + buzz_output * 0.3
-    
+    main_damping = np.clip(
+        float(begena_profile['damping_base'])
+        + sustain_bias * float(begena_profile['damping_sustain_scale'])
+        + float(string_profile['main_damping_delta']),
+        0.9960,
+        0.99985,
+    )
+    output = _generate_begena_delay_line(
+        num_samples,
+        period_samples=int(sample_rate / frequency),
+        damping=main_damping,
+        smoothing_passes=int(begena_profile['main_smoothing_passes']),
+    )
+
+    # === STRUCTURED LEATHER-BUZZ ROUGHNESS ===
+    if buzzers_enabled:
+        output = output * 0.64 + _generate_begena_buzz_cluster(
+            frequency,
+            duration,
+            sample_rate,
+            buzzers_enabled=buzzers_enabled,
+            buzzer_position=buzzer_position,
+            sustain_bias=sustain_bias,
+            begena_profile=begena_profile,
+            string_profile=string_profile,
+        )
+    else:
+        output *= 0.90
+
     # === SYMPATHETIC STRINGS ===
-    # 10 strings create rich sympathetic resonance
-    for ratio in [1.5, 2.0, 3.0]:
-        symp_freq = frequency * ratio
-        if symp_freq < sample_rate / 2:
-            symp_env = np.exp(-t / 1.0) * np.clip((t - 0.05) / 0.2, 0, 1)
-            output += 0.03 * np.sin(2 * np.pi * symp_freq * t) * symp_env
-    
+    sympathetic_decay = np.exp(
+        -t / max(
+            0.20,
+            float(begena_profile['sympathetic_decay_base'])
+            + sustain_bias * float(begena_profile['sympathetic_decay_scale']),
+        )
+    )
+    sympathetic_gate = np.clip((t - 0.05) / 0.18, 0.0, 1.0)
+    sympathetic_drift = _slow_noise_contour(num_samples, sample_rate, 10.0)
+    for ratio, gain in zip(
+        begena_profile['sympathetic_ratios'],
+        begena_profile['sympathetic_gains'],
+    ):
+        symp_freq = frequency * float(ratio)
+        if symp_freq < sample_rate / 2 - 120:
+            output += (
+                float(gain)
+                * float(string_profile['sympathetic_gain'])
+                * np.sin(2 * np.pi * symp_freq * t + sympathetic_drift * (0.012 * float(ratio)))
+                * sympathetic_gate
+                * sympathetic_decay
+            )
+
     # === BODY RESONANCE ===
-    # Large wooden bowl body
-    body = bandpass_simple(output, 100, 250, sample_rate)
-    output = output + body * 0.2
-    
+    body = bandpass_simple(
+        output,
+        float(begena_profile['body_low']),
+        float(begena_profile['body_high']),
+        sample_rate,
+    )
+    output = output + body * float(begena_profile['body_gain']) * float(string_profile['body_gain'])
+
+    # Low-mid skin/box body reinforcement: a Begena-sized soundboard should
+    # carry weight in the 180-520 Hz body band rather than turning the buzzer
+    # into broadband edge.  These modes are quasi-harmonic multiples of the
+    # plucked string and remain low/low-mid after filtering.
+    body_low_mid = bandpass_simple(
+        output,
+        float(begena_profile['body_low_mid_low']),
+        float(begena_profile['body_low_mid_high']),
+        sample_rate,
+    )
+    output = output + body_low_mid * float(begena_profile['body_low_mid_gain']) * float(string_profile['body_gain'])
+
+    body_modes = np.zeros(num_samples, dtype=np.float64)
+    mode_drift = _slow_noise_contour(num_samples, sample_rate, lowpass_hz=4.0)
+    for ratio, gain in zip(
+        begena_profile['body_mode_ratios'],
+        begena_profile['body_mode_gains'],
+    ):
+        mode_freq = frequency * float(ratio)
+        if 150.0 <= mode_freq <= 500.0 and mode_freq < sample_rate / 2 - 120:
+            phase = 2 * np.pi * mode_freq * t + mode_drift * (0.010 + 0.0015 * float(ratio))
+            body_modes += float(gain) * np.sin(phase)
+    if np.any(body_modes):
+        mode_gate = np.clip(t / 0.055, 0.0, 1.0)
+        mode_decay = np.exp(-t / max(0.42, 0.72 + 1.20 * sustain_bias))
+        body_modes = bandpass_simple(
+            body_modes,
+            float(begena_profile['body_low_mid_low']),
+            float(begena_profile['body_low_mid_high']),
+            sample_rate,
+        )
+        output += (
+            body_modes
+            * mode_gate
+            * mode_decay
+            * float(begena_profile['body_mode_gain'])
+            * float(string_profile['body_gain'])
+        )
+
+    skin_box_modes = np.zeros(num_samples, dtype=np.float64)
+    for idx, (ratio, gain) in enumerate(((3.0, 0.070), (4.0, 0.120), (5.0, 0.135), (6.0, 0.115), (7.0, 0.085), (8.0, 0.060))):
+        mode_freq = frequency * ratio
+        if 250.0 <= mode_freq <= 495.0 and mode_freq < sample_rate / 2 - 120:
+            phase = 2 * np.pi * mode_freq * t + mode_drift * (0.006 + 0.001 * idx) + idx * 0.31
+            skin_box_modes += gain * np.sin(phase)
+    if np.any(skin_box_modes):
+        skin_gate = np.clip((t - 0.018) / 0.090, 0.0, 1.0)
+        skin_decay = np.exp(-t / max(0.55, 0.86 + 1.35 * sustain_bias))
+        skin_box_modes = bandpass_simple(skin_box_modes, 250.0, 495.0, sample_rate)
+        output += skin_box_modes * skin_gate * skin_decay * 1.25 * float(string_profile['body_gain'])
+
+    contact_surface_gain = float(begena_profile.get('contact_surface_gain', 0.0))
+    if buzzers_enabled and contact_surface_gain > 0.0:
+        contact_surface = np.zeros(num_samples, dtype=np.float64)
+        surface_drift = _slow_noise_contour(num_samples, sample_rate, lowpass_hz=18.0)
+        surface_ratios = (5.0, 6.0, 7.0, 8.5, 10.0, 12.0, 15.0, 18.0, 22.0, 27.0, 34.0, 43.0, 55.0)
+        for idx, ratio in enumerate(surface_ratios):
+            partial_freq = frequency * ratio * (1.0 + (idx % 3 - 1) * 0.0018)
+            if 520.0 <= partial_freq <= min(7600.0, sample_rate / 2 - 160.0):
+                partial_gain = (0.060 / (1.0 + idx * 0.18)) * (0.80 + 0.20 * buzzer_position)
+                phase = 2 * np.pi * partial_freq * t + surface_drift * (0.010 + 0.0007 * ratio) + idx * 0.41
+                contact_surface += partial_gain * np.sin(phase)
+        if np.any(contact_surface):
+            contact_surface = bandpass_simple(
+                contact_surface,
+                520.0,
+                min(float(begena_profile['final_lowpass']) * 1.10, sample_rate / 2 - 140.0),
+                sample_rate,
+            )
+            surface_gate = np.clip(t / 0.018, 0.0, 1.0)
+            surface_decay = np.exp(-t / max(0.16, float(begena_profile.get('contact_surface_decay', 0.42)) + 0.28 * sustain_bias))
+            surface_flutter = np.clip(1.0 + 0.06 * surface_drift, 0.86, 1.14)
+            output += contact_surface * surface_gate * surface_decay * surface_flutter * contact_surface_gain * float(string_profile['presence_gain'])
+
+        contact_noise_gain = float(begena_profile.get('contact_surface_noise_gain', 0.0))
+        if contact_noise_gain > 0.0:
+            contact_noise = bandpass_filter(
+                np.random.randn(num_samples),
+                2200.0,
+                min(float(begena_profile['final_lowpass']) * 1.25, sample_rate / 2 - 160.0),
+                sample_rate,
+            )
+            noise_gate = np.clip(t / 0.010, 0.0, 1.0) * np.exp(-t / max(0.12, 0.22 + 0.22 * sustain_bias))
+            output += contact_noise * noise_gate * contact_noise_gain * (0.68 + 0.32 * float(string_profile['presence_gain']))
+
+    sustain_support = lowpass_filter(output, 300.0, sample_rate)
+    sustain_envelope = np.exp(-t / max(0.30, 0.48 + 1.70 * sustain_bias))
+    sustain_late_ramp = np.clip((t - 0.16) / 0.58, 0.0, 1.0)
+    output += (
+        sustain_support
+        * (0.025 + 0.24 * (sustain_bias ** 1.35))
+        * sustain_envelope
+        * (0.25 + 0.75 * sustain_late_ramp)
+    )
+
     # === ENVELOPE ===
-    # Slow attack (measured ~90ms), long natural decay
-    attack_samples = int(0.09 * sample_rate)
-    envelope = np.ones(num_samples)
+    envelope = np.ones(num_samples, dtype=np.float64)
+    attack_seconds = (
+        float(begena_profile['attack_base_seconds'])
+        + sustain_bias * float(begena_profile['attack_sustain_scale']) * 0.20
+    ) * float(string_profile['attack_softness'])
+    attack_samples = int(attack_seconds * sample_rate)
     if attack_samples > 0 and attack_samples < num_samples:
-        envelope[:attack_samples] = np.linspace(0, 1, attack_samples)
-    
-    # Gentle release
-    release_samples = int(0.15 * sample_rate)
+        attack_t = np.arange(attack_samples, dtype=np.float64) / max(1, attack_samples)
+        envelope[:attack_samples] = 0.5 * (1.0 - np.cos(np.pi * attack_t))
+
+    release_seconds = min(
+        duration,
+        float(begena_profile['release_base_seconds'])
+        + sustain_bias * float(begena_profile['release_sustain_scale']),
+    )
+    release_samples = int(release_seconds * sample_rate)
     if release_samples > 0 and release_samples < num_samples:
         release_start = num_samples - release_samples
-        envelope[release_start:] *= np.linspace(1, 0, release_samples)
-    
+        release_t = np.arange(release_samples, dtype=np.float64) / max(1, release_samples)
+        envelope[release_start:] *= 0.5 * (1.0 + np.cos(np.pi * release_t))
+
     output *= envelope
-    
+
+    body_hold = lowpass_filter(output, 320.0, sample_rate)
+    body_hold_ramp = np.clip((t - max(0.16, attack_seconds)) / 0.72, 0.0, 1.0)
+    body_hold_decay = np.exp(-t / max(0.35, 0.66 + 2.35 * sustain_bias))
+    output += body_hold * (0.02 + 0.55 * (sustain_bias ** 1.40)) * body_hold_ramp * body_hold_decay
+
     # === FINAL PROCESSING ===
-    # DEEP bass emphasis for liturgical, meditative quality
-    # Begena should rumble like a prayer - felt more than heard
+    # Begena should rumble like a prayer - felt more than heard.
     bass_boost = lowpass_filter(output, 150, sample_rate)
-    output = output + bass_boost * 0.5  # Strong bass boost
-    
-    # Sub-bass presence for that deep spiritual feeling
+    output = output + bass_boost * float(begena_profile['bass_boost_gain'])
+
     sub_bass = lowpass_filter(output, 80, sample_rate)
-    output = output + sub_bass * 0.25
-    
-    # Warmth - remove all harshness, keep only tranquil tones
-    output = lowpass_filter(output, 1800, sample_rate)  # Very warm
-    output = highpass_filter(output, 30, sample_rate)  # Allow very deep bass
-    
-    return normalize_audio(output, 1.0 * velocity)  # Maximum for spectrum presence
-    
-    # === ENVELOPE ===
-    # Attack: 0.09s measured, Effective duration: 0.58s
-    attack = int(0.09 * sample_rate)
-    decay = int(0.35 * sample_rate)
-    sustain_level = 0.4
-    release = int(min(duration * 0.4, 0.6) * sample_rate)
-    
-    audio = apply_envelope(audio, attack, decay, sustain_level, release)
-    
-    # === ROOM AMBIENCE (zema performed in quiet rooms) ===
-    audio = _generate_room_ambience(audio, room_size=0.35, dampness=0.6, sample_rate=sample_rate)
-    
-    # === FINAL PROCESSING ===
-    # Spectral rolloff target: 793 Hz with buzzers
-    audio = lowpass_filter(audio, 2500, sample_rate)
-    
-    # Deep bass boost (this is a BASS instrument)
-    bass = lowpass_filter(audio, 200, sample_rate)
-    audio = audio + bass * 0.4
-    
-    # Subtle saturation for gut string warmth
-    audio = np.tanh(audio * 1.15) / 1.15
-    
-    return normalize_audio(audio, 0.72 * velocity)
+    output = output + sub_bass * float(begena_profile['sub_bass_gain'])
+
+    if buzzers_enabled:
+        presence_low = float(begena_profile.get('presence_band_low', max(120.0, frequency * 0.95)))
+        presence_high = float(begena_profile.get('presence_band_high', min(520.0, frequency * 4.6)))
+        presence_high = max(presence_low + 20.0, min(presence_high, sample_rate / 2 - 120.0))
+        presence = bandpass_simple(output, presence_low, presence_high, sample_rate)
+        output += presence * float(begena_profile.get('presence_boost_gain', 0.024)) * float(string_profile['presence_gain'])
+
+    output = add_saturation(output, 0.025)
+    output = lowpass_filter(output, float(begena_profile['final_lowpass']), sample_rate)
+    output = lowpass_filter(output, float(begena_profile['final_lowpass']) * 0.98, sample_rate)
+    output = highpass_filter(output, float(begena_profile['final_highpass']), sample_rate)
+    output = highpass_filter(output, float(begena_profile['final_highpass']) * 0.88, sample_rate)
+    output = np.nan_to_num(output - np.mean(output), nan=0.0, posinf=0.0, neginf=0.0)
+
+    return normalize_audio(output, 1.0 * velocity) if np.any(output) else output
 
 
 def generate_brass_tone(
@@ -2758,13 +4027,16 @@ def generate_choir_tone(
 def generate_kebero_hit(
     pitch: int = 63,
     velocity: float = 0.8,
-    sample_rate: int = SAMPLE_RATE
+    sample_rate: int = SAMPLE_RATE,
+    profile: str = 'eskista_dance',
 ) -> np.ndarray:
     """
-    Generate Kebero/Conga-style drum hit for Ethiopian percussion.
-    
-    The Kebero is a double-headed conical drum with goatskin heads.
-    This function also handles conga and bongo sounds for GM compatibility.
+    Generate a bounded Kebero-first hand-drum hit with GM compatibility.
+
+    The Kebero is a double-headed Ethiopian drum with distinct low-head and
+    slap articulation. GM conga/bongo notes are still supported for compatibility,
+    but the synthesis stays centered on warm hand-drum behavior rather than a
+    generic bright conga model.
     
     Pitch mappings (GM standard):
     - 60: High Bongo (Atamo - small drum)
@@ -2778,6 +4050,115 @@ def generate_kebero_hit(
     - 51: Kebero slap
     - 52: Kebero muted
     """
+    def _resolve_kebero_profile(profile_name: str) -> Dict[str, float]:
+        key = str(profile_name or 'eskista_dance').strip().lower().replace('-', '_').replace(' ', '_')
+        profiles: Dict[str, Dict[str, float]] = {
+            'eskista_dance': {
+                'bass_pitch_scale': 0.92,
+                'bass_pitch_drop': 0.95,
+                'bass_body_gain': 0.44,
+                'bass_overtone_gain': 0.22,
+                'bass_noise_gain': 0.072,
+                'bass_noise_cutoff': 420.0,
+                'bass_noise_decay': 0.10,
+                'bass_decay': 0.18,
+                'bass_gain': 1.22,
+                'slap_custom_freq': 195.0,
+                'slap_gm_freq': 215.0,
+                'slap_pitch_drop': 1.08,
+                'slap_tone_gain': 0.68,
+                'slap_noise_gain': 0.34,
+                'slap_band_low': 700.0,
+                'slap_band_high': 2300.0,
+                'slap_noise_decay': 0.011,
+                'slap_decay': 0.07,
+                'slap_gain': 1.22,
+                'slap_lowpass': 3100.0,
+                'bongo_freq': 278.0,
+                'bongo_harmonic_gain': 0.22,
+                'bongo_attack_low': 850.0,
+                'bongo_attack_high': 2400.0,
+                'bongo_attack_gain': 0.18,
+                'bongo_decay': 0.058,
+                'muted_freq': 96.0,
+                'muted_decay': 0.04,
+                'muted_gain': 0.76,
+                'medium_freq': 145.0,
+                'medium_decay': 0.115,
+                'medium_gain': 1.0,
+            },
+            'traditional_ceremony': {
+                'bass_pitch_scale': 1.02,
+                'bass_pitch_drop': 0.55,
+                'bass_body_gain': 0.34,
+                'bass_overtone_gain': 0.15,
+                'bass_noise_gain': 0.055,
+                'bass_noise_cutoff': 320.0,
+                'bass_noise_decay': 0.085,
+                'bass_decay': 0.145,
+                'bass_gain': 1.10,
+                'slap_custom_freq': 180.0,
+                'slap_gm_freq': 195.0,
+                'slap_pitch_drop': 0.82,
+                'slap_tone_gain': 0.60,
+                'slap_noise_gain': 0.26,
+                'slap_band_low': 580.0,
+                'slap_band_high': 1750.0,
+                'slap_noise_decay': 0.016,
+                'slap_decay': 0.095,
+                'slap_gain': 1.08,
+                'slap_lowpass': 2500.0,
+                'bongo_freq': 255.0,
+                'bongo_harmonic_gain': 0.18,
+                'bongo_attack_low': 750.0,
+                'bongo_attack_high': 2000.0,
+                'bongo_attack_gain': 0.14,
+                'bongo_decay': 0.07,
+                'muted_freq': 92.0,
+                'muted_decay': 0.05,
+                'muted_gain': 0.64,
+                'medium_freq': 155.0,
+                'medium_decay': 0.13,
+                'medium_gain': 0.96,
+            },
+            'ethio_jazz_hybrid': {
+                'bass_pitch_scale': 1.0,
+                'bass_pitch_drop': 0.70,
+                'bass_body_gain': 0.38,
+                'bass_overtone_gain': 0.18,
+                'bass_noise_gain': 0.05,
+                'bass_noise_cutoff': 360.0,
+                'bass_noise_decay': 0.09,
+                'bass_decay': 0.13,
+                'bass_gain': 1.12,
+                'slap_custom_freq': 188.0,
+                'slap_gm_freq': 205.0,
+                'slap_pitch_drop': 0.92,
+                'slap_tone_gain': 0.64,
+                'slap_noise_gain': 0.29,
+                'slap_band_low': 640.0,
+                'slap_band_high': 2100.0,
+                'slap_noise_decay': 0.013,
+                'slap_decay': 0.08,
+                'slap_gain': 1.15,
+                'slap_lowpass': 2900.0,
+                'bongo_freq': 268.0,
+                'bongo_harmonic_gain': 0.2,
+                'bongo_attack_low': 800.0,
+                'bongo_attack_high': 2250.0,
+                'bongo_attack_gain': 0.16,
+                'bongo_decay': 0.064,
+                'muted_freq': 94.0,
+                'muted_decay': 0.045,
+                'muted_gain': 0.7,
+                'medium_freq': 150.0,
+                'medium_decay': 0.12,
+                'medium_gain': 0.98,
+            },
+        }
+        return profiles.get(key, profiles['eskista_dance'])
+
+    cfg = _resolve_kebero_profile(profile)
     duration = 0.4
     num_samples = int(duration * sample_rate)
     t = np.arange(num_samples) / sample_rate
@@ -2785,87 +4166,87 @@ def generate_kebero_hit(
     audio = np.zeros(num_samples)
     
     if pitch in [63, 50, 61]:  # Low Conga / Kebero bass / Low Bongo
-        # Deep "doom" sound - the foundation of Ethiopian rhythm
-        base_freq = 75 if pitch == 63 else (65 if pitch == 50 else 85)
+        # Deep low-head / bass response
+        base_freq = (75 if pitch == 63 else (65 if pitch == 50 else 85)) * cfg['bass_pitch_scale']
         
         # Characteristic pitch drop of hand drums
-        freq_env = base_freq * (1 + 0.8 * np.exp(-t / 0.015))
+        freq_env = base_freq * (1 + cfg['bass_pitch_drop'] * np.exp(-t / 0.015))
         phase = 2 * np.pi * np.cumsum(freq_env) / sample_rate
         audio = np.sin(phase)
         
         # Add body resonance harmonics
-        audio += 0.4 * np.sin(2 * np.pi * base_freq * 2.3 * t) * np.exp(-t / 0.08)
-        audio += 0.2 * np.sin(2 * np.pi * base_freq * 3.5 * t) * np.exp(-t / 0.05)
+        audio += cfg['bass_body_gain'] * np.sin(2 * np.pi * base_freq * 2.3 * t) * np.exp(-t / 0.08)
+        audio += cfg['bass_overtone_gain'] * np.sin(2 * np.pi * base_freq * 3.5 * t) * np.exp(-t / 0.05)
         
         # Skin vibration texture
-        skin_noise = np.random.randn(num_samples) * 0.08
-        skin_noise = lowpass_filter(skin_noise, 400, sample_rate)
-        audio += skin_noise * np.exp(-t / 0.1)
+        skin_noise = np.random.randn(num_samples) * cfg['bass_noise_gain']
+        skin_noise = lowpass_filter(skin_noise, cfg['bass_noise_cutoff'], sample_rate)
+        audio += skin_noise * np.exp(-t / cfg['bass_noise_decay'])
         
         # Envelope - quick attack, medium decay
-        env = np.exp(-t / 0.18) * (1 - np.exp(-t / 0.003))
-        audio *= env * velocity * 1.25  # Boost for mix presence
+        env = np.exp(-t / cfg['bass_decay']) * (1 - np.exp(-t / 0.003))
+        audio *= env * velocity * cfg['bass_gain']
         
     elif pitch in [62, 51]:  # High Conga / Kebero slap
-        # Sharp "tek" slap sound
-        base_freq = 220 if pitch == 62 else 200
+        # Pointed but still warm high-head / slap response
+        base_freq = cfg['slap_gm_freq'] if pitch == 62 else cfg['slap_custom_freq']
         
         # Slap has faster pitch drop
-        freq_env = base_freq * (1 + 1.2 * np.exp(-t / 0.008))
+        freq_env = base_freq * (1 + cfg['slap_pitch_drop'] * np.exp(-t / 0.008))
         phase = 2 * np.pi * np.cumsum(freq_env) / sample_rate
-        audio = np.sin(phase) * 0.7
+        audio = np.sin(phase) * cfg['slap_tone_gain']
         
-        # Attack transient (hand slap) - warmer for traditional drum
+        # Attack transient (controlled hand slap, never conga-bright)
         slap = np.random.randn(num_samples)
-        slap = bandpass_simple(slap, 600, 2500, sample_rate)  # Lower range
-        slap *= np.exp(-t / 0.012)
-        audio += slap * 0.4
+        slap = bandpass_simple(slap, cfg['slap_band_low'], cfg['slap_band_high'], sample_rate)
+        slap *= np.exp(-t / cfg['slap_noise_decay'])
+        audio += slap * cfg['slap_noise_gain']
         
         # Quick decay
-        env = np.exp(-t / 0.08) * (1 - np.exp(-t / 0.001))
-        audio *= env * velocity * 1.3  # Boost for mix presence
+        env = np.exp(-t / cfg['slap_decay']) * (1 - np.exp(-t / 0.001))
+        audio *= env * velocity * cfg['slap_gain']
         
-        # Roll off highs for warm traditional sound
-        audio = lowpass_filter(audio, 3500, sample_rate)
+        # Roll off highs to keep the hand-drum identity warm
+        audio = lowpass_filter(audio, cfg['slap_lowpass'], sample_rate)
         
     elif pitch in [60]:  # High Bongo / Atamo
-        # Bright but warm attack sound (traditional drum)
-        base_freq = 280
+        # Compact upper-head articulation used for GM compatibility
+        base_freq = cfg['bongo_freq']
         
         freq_env = base_freq * (1 + 0.5 * np.exp(-t / 0.006))
         phase = 2 * np.pi * np.cumsum(freq_env) / sample_rate
         audio = np.sin(phase) * 0.6
         
         # Add harmonic brightness (but controlled)
-        audio += 0.25 * np.sin(2 * np.pi * base_freq * 2.2 * t) * np.exp(-t / 0.03)
+        audio += cfg['bongo_harmonic_gain'] * np.sin(2 * np.pi * base_freq * 2.2 * t) * np.exp(-t / 0.03)
         
         # Attack with moderate brightness
         attack = np.random.randn(num_samples)
-        attack = bandpass_simple(attack, 800, 2500, sample_rate)  # Not too harsh
+        attack = bandpass_simple(attack, cfg['bongo_attack_low'], cfg['bongo_attack_high'], sample_rate)
         attack *= np.exp(-t / 0.008)
-        audio += attack * 0.2
+        audio += attack * cfg['bongo_attack_gain']
         
         # Very short envelope
-        env = np.exp(-t / 0.06) * (1 - np.exp(-t / 0.001))
+        env = np.exp(-t / cfg['bongo_decay']) * (1 - np.exp(-t / 0.001))
         audio *= env * velocity
         
     elif pitch == 52:  # Muted kebero
         # Damped hit with very short decay
-        base_freq = 100
-        audio = np.sin(2 * np.pi * base_freq * t) * np.exp(-t / 0.03)
+        base_freq = cfg['muted_freq']
+        audio = np.sin(2 * np.pi * base_freq * t) * np.exp(-t / cfg['muted_decay'])
         audio += 0.3 * np.sin(2 * np.pi * 180 * t) * np.exp(-t / 0.02)
         
-        env = np.exp(-t / 0.04)
-        audio *= env * velocity * 0.7
+        env = np.exp(-t / cfg['muted_decay'])
+        audio *= env * velocity * cfg['muted_gain']
         
-    else:  # Default - medium conga-like sound
-        base_freq = 150
+    else:  # Default - controlled medium hand-drum sound
+        base_freq = cfg['medium_freq']
         freq_env = base_freq * (1 + 0.6 * np.exp(-t / 0.01))
         phase = 2 * np.pi * np.cumsum(freq_env) / sample_rate
         audio = np.sin(phase)
         
-        env = np.exp(-t / 0.12)
-        audio *= env * velocity
+        env = np.exp(-t / cfg['medium_decay'])
+        audio *= env * velocity * cfg['medium_gain']
     
     return normalize_audio(audio, 0.92)  # Increased from 0.75 for presence
 
@@ -2880,6 +4261,25 @@ def bandpass_simple(
     audio = lowpass_filter(audio, high_freq, sample_rate)
     audio = highpass_filter(audio, low_freq, sample_rate)
     return audio
+
+
+def _slow_noise_contour(
+    num_samples: int,
+    sample_rate: int = SAMPLE_RATE,
+    lowpass_hz: float = 24.0,
+) -> np.ndarray:
+    """Generate a bounded slow-noise contour for acoustic micro-variation."""
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float64)
+
+    contour = np.random.randn(num_samples)
+    contour = lowpass_filter(contour, max(1.0, lowpass_hz), sample_rate)
+    contour = np.nan_to_num(contour - np.mean(contour), nan=0.0, posinf=0.0, neginf=0.0)
+
+    peak = float(np.max(np.abs(contour))) if contour.size else 0.0
+    if peak > 1e-9:
+        contour = contour / peak
+    return contour
 
 
 def generate_shaker_hit(

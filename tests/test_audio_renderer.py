@@ -4,6 +4,7 @@ import mido
 import numpy as np
 import soundfile as sf
 
+from main import _prompt_requests_ethiopian_mp3_reference_profiles
 from multimodal_gen.assets_gen import generate_guitar_tone
 from multimodal_gen.audio_renderer import AudioRenderer, ProceduralRenderer, SynthNote
 from multimodal_gen.synthesizers.neural_runtime import OptionalNeuralRuntime
@@ -474,6 +475,147 @@ def test_render_report_track_realization_statuses_match_krar_patch_by_canonical_
             "notes": [],
         }
     ]
+
+
+def test_audio_renderer_krar_dispatch_passes_expected_profile_by_genre(monkeypatch):
+    calls = []
+
+    def fake_generate_krar_tone(*args, **kwargs):
+        calls.append(kwargs.copy())
+        return np.zeros(16, dtype=np.float32)
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_krar_tone", fake_generate_krar_tone)
+
+    expectations = [
+        ("eskista", "azmari_bright"),
+        ("ethiopian_traditional", "traditional_warm"),
+        ("ethio_jazz", "azmari_bright"),
+        ("trap", "traditional_warm"),
+    ]
+
+    for genre, expected_profile in expectations:
+        renderer = ProceduralRenderer(sample_rate=44100, genre=genre)
+        rendered = renderer._synthesize_note(_note(program=110))
+        assert rendered.shape == (16,)
+        assert calls[-1]["profile"] == expected_profile
+
+
+def test_audio_renderer_mp3_reference_profile_flag_routes_custom_ethiopian_programs(monkeypatch):
+    calls = []
+
+    def _fake_tone(name):
+        def fake(*args, **kwargs):
+            calls.append((name, kwargs.copy()))
+            return np.zeros(16, dtype=np.float32)
+
+        return fake
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_krar_tone", _fake_tone("krar"))
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_masenqo_tone", _fake_tone("masenqo"))
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_begena_tone", _fake_tone("begena"))
+
+    renderer = ProceduralRenderer(
+        sample_rate=44100,
+        genre="ethiopian_traditional",
+        ethiopian_mp3_reference_profiles=True,
+    )
+
+    assert renderer._synthesize_note(_note(program=110)).shape == (16,)
+    assert renderer._synthesize_note(_note(program=111)).shape == (16,)
+    assert renderer._synthesize_note(_note(program=113)).shape == (16,)
+
+    by_name = {name: kwargs for name, kwargs in calls}
+    assert by_name["krar"]["profile"] == "azmari_bright"
+    assert by_name["masenqo"]["profile"] == "mp3_reference_bow"
+    assert by_name["begena"]["profile"] == "mp3_reference_bright"
+
+    diagnostics = renderer.get_ethiopian_profile_diagnostics()
+    assert diagnostics["enabled"] is True
+    assert set(diagnostics["profiles_used"]) == {"azmari_bright", "mp3_reference_bow", "mp3_reference_bright"}
+    assert {entry["instrument"] for entry in diagnostics["program_profiles"]} == {"krar", "masenqo", "begena"}
+
+
+def test_main_mp3_reference_prompt_opt_in_phrases_are_explicit():
+    positive_prompts = [
+        "eskista with mp3 variant instruments",
+        "use the MP3 reference timbres",
+        "masenqo mp3-source probe",
+        "source-truth instruments for Ethiopian timbres",
+        "use my user mp3 instruments",
+    ]
+    for prompt in positive_prompts:
+        assert _prompt_requests_ethiopian_mp3_reference_profiles(prompt) is True
+
+    assert _prompt_requests_ethiopian_mp3_reference_profiles("eskista shoulder dance with krar") is False
+
+
+def test_audio_renderer_masenqo_dispatch_passes_expected_profile_by_genre(monkeypatch):
+    calls = []
+
+    def fake_generate_masenqo_tone(*args, **kwargs):
+        calls.append(kwargs.copy())
+        return np.zeros(16, dtype=np.float32)
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_masenqo_tone", fake_generate_masenqo_tone)
+
+    expectations = [
+        ("eskista", "azmari_grit"),
+        ("ethiopian_traditional", "vocal_clean"),
+        ("ethio_jazz", "vocal_clean"),
+        ("trap", "vocal_clean"),
+    ]
+
+    for genre, expected_profile in expectations:
+        renderer = ProceduralRenderer(sample_rate=44100, genre=genre)
+        rendered = renderer._synthesize_note(_note(program=111))
+        assert rendered.shape == (16,)
+        assert calls[-1]["profile"] == expected_profile
+
+
+def test_audio_renderer_washint_dispatch_passes_expected_profile_by_genre(monkeypatch):
+    calls = []
+
+    def fake_generate_washint_tone(*args, **kwargs):
+        calls.append(kwargs.copy())
+        return np.zeros(16, dtype=np.float32)
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.generate_washint_tone", fake_generate_washint_tone)
+
+    expectations = [
+        ("eskista", "dance_call"),
+        ("ethiopian_traditional", "alto_breathy"),
+        ("ethio_jazz", "alto_breathy"),
+        ("trap", "alto_breathy"),
+    ]
+
+    for genre, expected_profile in expectations:
+        renderer = ProceduralRenderer(sample_rate=44100, genre=genre)
+        rendered = renderer._synthesize_note(_note(program=112))
+        assert rendered.shape == (16,)
+        assert calls[-1]["profile"] == expected_profile
+
+
+def test_audio_renderer_kebero_dispatch_passes_expected_profile_by_genre(monkeypatch):
+    calls = []
+
+    def fake_generate_kebero_hit(*args, **kwargs):
+        calls.append(kwargs.copy())
+        return np.zeros(16, dtype=np.float32)
+
+    monkeypatch.setattr("multimodal_gen.assets_gen.generate_kebero_hit", fake_generate_kebero_hit)
+
+    expectations = [
+        ("eskista", "eskista_dance"),
+        ("ethiopian_traditional", "traditional_ceremony"),
+        ("ethio_jazz", "ethio_jazz_hybrid"),
+        ("trap", "traditional_ceremony"),
+    ]
+
+    for genre, expected_profile in expectations:
+        renderer = ProceduralRenderer(sample_rate=44100, genre=genre)
+        rendered = renderer._get_drum_sample(50)
+        assert rendered.shape == (16,)
+        assert calls[-1]["profile"] == expected_profile
 
 
 def test_ethiopian_prompt_guardrail_skips_generic_melodic_cache():

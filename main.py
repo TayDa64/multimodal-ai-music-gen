@@ -256,6 +256,20 @@ def _get_render_failure_details(render_report: Optional[dict]) -> Optional[dict]
     return failure if isinstance(failure, dict) else None
 
 
+def _prompt_requests_ethiopian_mp3_reference_profiles(prompt: str) -> bool:
+    """Detect explicit prompt opt-in for MP3-source Ethiopian instrument profiles."""
+    normalized = str(prompt or "").strip().lower()
+    normalized_space = normalized.replace("-", " ").replace("_", " ")
+    phrases = (
+        "mp3 variant",
+        "mp3 reference",
+        "mp3 source",
+        "source truth instruments",
+        "user mp3",
+    )
+    return any(phrase in normalized or phrase in normalized_space for phrase in phrases)
+
+
 def _write_render_error_artifact(
     error_path: Path,
     render_report: Optional[dict] = None,
@@ -588,6 +602,147 @@ def generate_project_name(parsed: ParsedPrompt) -> str:
 from typing import Callable, Optional
 
 ProgressCallback = Callable[[str, float, str], None]
+
+
+_ETHIOPIAN_AGENT_TRACK_DEFAULTS = {
+    "kebero": {"agent_name": "Kebero", "channel": 9, "program": 0},
+    "drums": {"agent_name": "Drums", "channel": 9, "program": 0},
+    "krar": {"agent_name": "Krar", "channel": 2, "program": 110},
+    "washint": {"agent_name": "Washint", "channel": 3, "program": 112},
+    "masenqo": {"agent_name": "Masenqo", "channel": 4, "program": 111},
+    "begena": {"agent_name": "Begena", "channel": 5, "program": 113},
+    "bass": {"agent_name": "Bass", "channel": 1, "program": 38},
+}
+
+
+def _normalize_agent_track_key(track_name: Any) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", " ", str(track_name or "").strip().lower())
+    normalized = " ".join(normalized.split())
+    if not normalized:
+        return ""
+    if "kebero" in normalized or "atamo" in normalized:
+        return "kebero"
+    if "drum" in normalized:
+        return "drums"
+    if "krar" in normalized:
+        return "krar"
+    if "washint" in normalized:
+        return "washint"
+    if "masenqo" in normalized:
+        return "masenqo"
+    if "begena" in normalized:
+        return "begena"
+    if "bass" in normalized:
+        return "bass"
+    return normalized.replace(" ", "_")
+
+
+def _get_agent_track_defaults(track_name: Any) -> dict[str, Any]:
+    normalized_key = _normalize_agent_track_key(track_name)
+    defaults = dict(_ETHIOPIAN_AGENT_TRACK_DEFAULTS.get(normalized_key, {}))
+    display_name = defaults.get("agent_name") or str(track_name or "Agent").strip() or "Agent"
+    defaults.setdefault("agent_name", display_name)
+    defaults.setdefault("channel", 0)
+    defaults.setdefault("program", 0)
+    return defaults
+
+
+def _extract_nondefault_agent_note_channel(note: Any) -> Optional[int]:
+    candidate = None
+    if isinstance(note, dict):
+        candidate = note.get("channel")
+    else:
+        candidate = getattr(note, "channel", None)
+    try:
+        value = int(candidate)
+    except (TypeError, ValueError):
+        return None
+    return value if value != 0 else None
+
+
+def _normalize_agent_performances(agent_performances: Any) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+
+    if isinstance(agent_performances, dict):
+        for track_name, notes in agent_performances.items():
+            defaults = _get_agent_track_defaults(track_name)
+            note_list = list(notes or [])
+            preserved_channel = next(
+                (
+                    channel
+                    for channel in (
+                        _extract_nondefault_agent_note_channel(note) for note in note_list
+                    )
+                    if channel is not None
+                ),
+                None,
+            )
+            normalized.append(
+                {
+                    "agent_name": defaults["agent_name"],
+                    "notes": note_list,
+                    "channel": preserved_channel if preserved_channel is not None else defaults["channel"],
+                    "program": defaults["program"],
+                }
+            )
+        return normalized
+
+    if isinstance(agent_performances, list):
+        for perf in agent_performances:
+            if not isinstance(perf, dict):
+                continue
+            agent_name = perf.get("agent_name") or perf.get("track_name") or "Agent"
+            defaults = _get_agent_track_defaults(agent_name)
+            normalized.append(
+                {
+                    "agent_name": agent_name,
+                    "notes": list(perf.get("notes") or []),
+                    "channel": perf.get("channel", defaults["channel"]),
+                    "program": perf.get("program", defaults["program"]),
+                }
+            )
+    return normalized
+
+
+def _extract_agent_note_payload(note: Any, default_channel: int) -> tuple[int, int, int, int, int]:
+    if isinstance(note, dict):
+        tick = note.get("start_tick", note.get("tick", 0))
+        duration = note.get("duration_ticks", note.get("duration", 480))
+        pitch = note.get("pitch", 60)
+        velocity = note.get("velocity", 80)
+        channel = note.get("channel", default_channel)
+    else:
+        tick = getattr(note, "start_tick", getattr(note, "tick", 0))
+        duration = getattr(note, "duration_ticks", getattr(note, "duration", 480))
+        pitch = getattr(note, "pitch", 60)
+        velocity = getattr(note, "velocity", 80)
+        channel = getattr(note, "channel", default_channel)
+
+    try:
+        tick = max(0, int(tick))
+    except (TypeError, ValueError):
+        tick = 0
+    try:
+        duration = max(1, int(duration))
+    except (TypeError, ValueError):
+        duration = 480
+    try:
+        pitch = max(0, min(127, int(pitch)))
+    except (TypeError, ValueError):
+        pitch = 60
+    try:
+        velocity = max(0, min(127, int(velocity)))
+    except (TypeError, ValueError):
+        velocity = 80
+    try:
+        channel = int(channel)
+    except (TypeError, ValueError):
+        channel = default_channel
+
+    if channel == 0 and default_channel not in (None, 0):
+        channel = int(default_channel)
+
+    return tick, pitch, velocity, duration, max(0, min(15, int(channel)))
 
 
 def run_generation(
@@ -1398,18 +1553,20 @@ def run_generation(
                     print_info(f"Conductor style research: {mood} mood")
                 else:
                     print_info(f"Conductor style research: energy={energy:.0%}")
+
+                create_score_from_arrangement = getattr(conductor, "create_score_from_arrangement", None)
+                if callable(create_score_from_arrangement):
+                    score = create_score_from_arrangement(arrangement, parsed, style_intel)
+                else:
+                    score = conductor.create_score(parsed, style_intel)
                 
                 # Assemble Ethiopian ensemble
-                ensemble = conductor.assemble_ensemble(arrangement, parsed)
+                ensemble = conductor.assemble_ensemble(parsed, style_intel)
                 if ensemble:
-                    print_info(f"Ensemble: {[a.__class__.__name__ for a in ensemble]}")
+                    print_info(f"Ensemble: {[agent.__class__.__name__ for agent in ensemble.values()]}")
                 
                 # Conduct performance (generates MIDI tracks per agent)
-                agent_performances = conductor.conduct_performance(
-                    ensemble=ensemble,
-                    arrangement=arrangement,
-                    parsed=parsed
-                )
+                agent_performances = conductor.conduct_performance(score, ensemble)
                 
                 if agent_performances:
                     print_success(f"Agent-based generation: {len(agent_performances)} performer tracks")
@@ -1495,18 +1652,19 @@ def run_generation(
     if agent_performances:
         try:
             import mido
-            from multimodal_gen.midi_generator import NoteEvent
             
             # Load the generated MIDI to merge agent tracks
             temp_path = output_dir / "_temp_midi_for_merge.mid"
             midi_file.save(str(temp_path))
             mid = mido.MidiFile(str(temp_path))
+            normalized_agent_performances = _normalize_agent_performances(agent_performances)
+            merged_track_count = 0
             
-            for perf in agent_performances:
+            for perf in normalized_agent_performances:
                 agent_name = perf.get('agent_name', 'Agent')
-                notes = perf.get('notes', [])
-                channel = perf.get('channel', 0)
-                program = perf.get('program', 0)
+                notes = list(perf.get('notes') or [])
+                channel = int(perf.get('channel', 0) or 0)
+                program = int(perf.get('program', 0) or 0)
                 
                 if not notes:
                     continue
@@ -1515,31 +1673,23 @@ def run_generation(
                 track = mido.MidiTrack()
                 track.name = agent_name
                 
-                # Set program
-                track.append(mido.Message('program_change', channel=channel, program=program, time=0))
-                
-                # Sort notes by tick
-                sorted_notes = sorted(notes, key=lambda n: n.tick if hasattr(n, 'tick') else n.get('tick', 0))
-                
                 # Convert to MIDI messages with delta times
                 messages = []
-                for note in sorted_notes:
-                    if isinstance(note, NoteEvent):
-                        tick = note.tick
-                        pitch = note.pitch
-                        vel = note.velocity
-                        dur = note.duration
-                    else:
-                        tick = note.get('tick', 0)
-                        pitch = note.get('pitch', 60)
-                        vel = note.get('velocity', 80)
-                        dur = note.get('duration', 480)
-                    
-                    messages.append(('note_on', tick, pitch, vel, channel))
-                    messages.append(('note_off', tick + dur, pitch, 0, channel))
+                used_channels = set()
+                for note in notes:
+                    tick, pitch, vel, dur, note_channel = _extract_agent_note_payload(note, channel)
+                    used_channels.add(note_channel)
+                    messages.append(('note_on', tick, pitch, vel, note_channel))
+                    messages.append(('note_off', tick + dur, pitch, 0, note_channel))
+
+                if not messages:
+                    continue
+
+                for program_channel in sorted(used_channels or {channel}):
+                    track.append(mido.Message('program_change', channel=program_channel, program=program, time=0))
                 
                 # Sort all messages by time
-                messages.sort(key=lambda m: m[1])
+                messages.sort(key=lambda m: (m[1], 0 if m[0] == 'note_off' else 1, m[2], m[4]))
                 
                 # Convert to delta times
                 last_tick = 0
@@ -1552,6 +1702,7 @@ def run_generation(
                     last_tick = abs_tick
                 
                 mid.tracks.append(track)
+                merged_track_count += 1
                 if verbose:
                     print_info(f"  Added agent track: {agent_name} ({len(notes)} notes)")
             
@@ -1567,7 +1718,7 @@ def run_generation(
             except:
                 pass
             
-            print_success(f"Merged {len(agent_performances)} agent performances into MIDI")
+            print_success(f"Merged {merged_track_count} agent performances into MIDI")
             
         except Exception as e:
             print_warning(f"Failed to merge agent performances: {e}")
@@ -2073,6 +2224,7 @@ def run_generation(
         'bpm': parsed.bpm,
         'key': parsed.key,
         'genre': parsed.genre,
+        'ethiopian_mp3_reference_profiles': _prompt_requests_ethiopian_mp3_reference_profiles(prompt),
         'synthesis_params': results.get('synthesis_params', {}),
     }
     
@@ -2088,6 +2240,7 @@ def run_generation(
         ai_metadata=ai_metadata,
         parsed_instruments=parsed.instruments + parsed.drum_elements,  # Pass explicit instruments
         resolved_sample_metadata=results.get("instruments_used", []),
+        ethiopian_mp3_reference_profiles=_prompt_requests_ethiopian_mp3_reference_profiles(prompt),
     )
 
     # Sprint 8.3: Bridge reference profile to renderer for mix matching

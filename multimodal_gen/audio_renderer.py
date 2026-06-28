@@ -722,8 +722,59 @@ class ProceduralRenderer:
 
     def _is_rock_family_genre(self) -> bool:
         """Return True for rock-family renderers using normalized genre keys."""
-        genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
-        return genre_key in ROCK_FAMILY_GENRES
+        return self._normalized_genre_key() in ROCK_FAMILY_GENRES
+
+    def _normalized_genre_key(self) -> str:
+        """Normalize the current renderer genre into a stable lookup key."""
+        return str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
+
+    def _resolve_ethiopian_articulation_profile(self, program: int) -> Optional[str]:
+        """Resolve conservative Ethiopian articulation profiles for custom programs only."""
+        genre_key = self._normalized_genre_key()
+        if program == 111:
+            if self.ethiopian_mp3_reference_profiles:
+                return 'mp3_reference_bow'
+            return 'azmari_grit' if genre_key == 'eskista' else 'vocal_clean'
+        if program == 112:
+            return 'dance_call' if genre_key == 'eskista' else 'alto_breathy'
+        return None
+
+    def _record_ethiopian_profile_use(self, program: int, instrument: str, profile: str) -> None:
+        """Record bounded profile diagnostics for runtime proof reports."""
+        key = (int(program), str(instrument), str(profile), bool(self.ethiopian_mp3_reference_profiles))
+        self._ethiopian_profile_usage_counts[key] = self._ethiopian_profile_usage_counts.get(key, 0) + 1
+
+    def reset_ethiopian_profile_usage(self) -> None:
+        """Reset per-render Ethiopian profile diagnostics."""
+        self._ethiopian_profile_usage_counts = {}
+
+    def get_ethiopian_profile_diagnostics(self) -> Dict[str, object]:
+        """Return compact runtime diagnostics for Ethiopian custom program profiles."""
+        entries = [
+            {
+                "program": program,
+                "instrument": instrument,
+                "profile": profile,
+                "mp3_reference_profiles": mp3_enabled,
+                "note_count": count,
+            }
+            for (program, instrument, profile, mp3_enabled), count in sorted(self._ethiopian_profile_usage_counts.items())
+        ]
+        profiles_used = sorted({entry["profile"] for entry in entries})
+        return {
+            "enabled": bool(self.ethiopian_mp3_reference_profiles),
+            "profiles_used": profiles_used,
+            "program_profiles": entries,
+        }
+
+    def _resolve_kebero_profile(self) -> str:
+        """Resolve bounded Kebero timbre profiles by Ethiopian subgenre."""
+        genre_key = self._normalized_genre_key()
+        if genre_key == 'eskista':
+            return 'eskista_dance'
+        if genre_key == 'ethio_jazz':
+            return 'ethio_jazz_hybrid'
+        return 'traditional_ceremony'
 
     @classmethod
     def _get_render_drum_name_for_pitch(cls, pitch: int) -> str:
@@ -905,6 +956,7 @@ class ProceduralRenderer:
         genre: str = None,
         mood: str = None,
         parsed_instruments: list = None,  # NEW: Explicit instruments from prompt
+        ethiopian_mp3_reference_profiles: bool = False,
     ):
         self.sample_rate = sample_rate
         self.instrument_library = instrument_library
@@ -913,6 +965,8 @@ class ProceduralRenderer:
         self.genre = genre or "trap"
         self.mood = mood
         self._parsed_instruments = {str(inst).lower() for inst in parsed_instruments} if parsed_instruments else set()
+        self.ethiopian_mp3_reference_profiles = bool(ethiopian_mp3_reference_profiles)
+        self._ethiopian_profile_usage_counts: Dict[Tuple[int, str, str, bool], int] = {}
         
         # Check if Ethiopian instruments are requested
         self._has_ethiopian_instruments = bool(self._parsed_instruments & self.ETHIOPIAN_INSTRUMENTS)
@@ -1182,6 +1236,7 @@ class ProceduralRenderer:
                     'eskista': ['krar', 'masenqo', 'washint', 'kebero'],
                     'tizita': ['krar', 'masenqo', 'washint', 'begena'],
                     'ethiopian': ['krar', 'masenqo', 'washint', 'kebero'],
+                    'ethiopian_traditional': ['krar', 'masenqo', 'washint', 'begena', 'kebero'],
                     'ethio_jazz': ['krar', 'masenqo', 'washint', 'piano', 'bass'],
                     'g_funk': ['synth', 'bass', 'piano'],
                     'trap': ['808', 'piano', 'synth'],
@@ -1296,8 +1351,13 @@ class ProceduralRenderer:
             if drum_name == 'shaker':
                 return generate_shaker_hit(velocity, self.sample_rate)
             else:
-                # Map conga/bongo to kebero-like sounds
-                return generate_kebero_hit(pitch, velocity, self.sample_rate)
+                # Map conga/bongo to bounded Kebero-compatible timbres
+                return generate_kebero_hit(
+                    pitch,
+                    velocity,
+                    self.sample_rate,
+                    profile=self._resolve_kebero_profile(),
+                )
         
         # Prefer custom instruments from library
         if drum_name in self._custom_drum_cache:
@@ -1433,16 +1493,55 @@ class ProceduralRenderer:
         elif note.program == 110:  # Krar
             # Use Ethiopian tuning, optionally add ornaments on accented notes
             add_ornament = velocity > 0.7 and duration > 0.15
-            return generate_krar_tone(freq, duration, velocity, self.sample_rate, 'tizita', add_ornament)
+            genre_key = self._normalized_genre_key()
+            krar_profile = 'traditional_warm'
+            if self.ethiopian_mp3_reference_profiles or genre_key in {'eskista', 'ethio_jazz'}:
+                krar_profile = 'azmari_bright'
+            self._record_ethiopian_profile_use(note.program, 'krar', krar_profile)
+            return generate_krar_tone(
+                freq,
+                duration,
+                velocity,
+                self.sample_rate,
+                'tizita',
+                add_ornament,
+                profile=krar_profile,
+            )
         elif note.program == 111:  # Masenqo
             # High expressiveness for authentic Azmari sound
             expressiveness = 0.6 + velocity * 0.3
             add_ornament = velocity > 0.6 and duration > 0.25
-            return generate_masenqo_tone(freq, duration, velocity, self.sample_rate, expressiveness, add_ornament)
+            masenqo_profile = self._resolve_ethiopian_articulation_profile(note.program) or 'vocal_clean'
+            self._record_ethiopian_profile_use(note.program, 'masenqo', masenqo_profile)
+            return generate_masenqo_tone(
+                freq,
+                duration,
+                velocity,
+                self.sample_rate,
+                expressiveness,
+                add_ornament,
+                profile=masenqo_profile,
+            )
         elif note.program == 112:  # Washint
-            return generate_washint_tone(freq, duration, velocity, self.sample_rate)
+            washint_profile = self._resolve_ethiopian_articulation_profile(note.program) or 'alto_breathy'
+            self._record_ethiopian_profile_use(note.program, 'washint', washint_profile)
+            return generate_washint_tone(
+                freq,
+                duration,
+                velocity,
+                self.sample_rate,
+                profile=washint_profile,
+            )
         elif note.program == 113:  # Begena
-            return generate_begena_tone(freq, duration, velocity, self.sample_rate)
+            begena_profile = 'mp3_reference_bright' if self.ethiopian_mp3_reference_profiles else 'paraliturgical_drone'
+            self._record_ethiopian_profile_use(note.program, 'begena', begena_profile)
+            return generate_begena_tone(
+                freq,
+                duration,
+                velocity,
+                self.sample_rate,
+                profile=begena_profile,
+            )
         else:
             # Default to FM pluck
             return generate_fm_pluck(freq, duration)
@@ -1646,6 +1745,7 @@ class AudioRenderer:
         enable_neural_render: bool = False,
         neural_model_path: Optional[str] = None,
         neural_backend: Optional[OptionalNeuralRuntime] = None,
+        ethiopian_mp3_reference_profiles: bool = False,
     ):
         """
         Initialize AudioRenderer.
@@ -1685,6 +1785,7 @@ class AudioRenderer:
         self.ai_metadata = ai_metadata or {}
         self.tail_seconds = tail_seconds
         self.enable_neural_render = bool(enable_neural_render)
+        self.ethiopian_mp3_reference_profiles = bool(ethiopian_mp3_reference_profiles)
         self._parsed_instrument_names = [
             str(inst).strip()
             for inst in (parsed_instruments or [])
@@ -1778,6 +1879,7 @@ class AudioRenderer:
             genre=genre,
             mood=mood,
             parsed_instruments=parsed_instruments,  # Pass instruments for Ethiopian detection
+            ethiopian_mp3_reference_profiles=self.ethiopian_mp3_reference_profiles,
         )
     
     def set_instrument_library(
@@ -1805,7 +1907,8 @@ class AudioRenderer:
             expansion_manager=self.expansion_manager,
             instrument_service=self._instrument_service,
             genre=self.genre,
-            mood=self.mood
+            mood=self.mood,
+            ethiopian_mp3_reference_profiles=self.ethiopian_mp3_reference_profiles,
         )
         
         # Update synthesizer if it supports configuration
@@ -2024,6 +2127,10 @@ class AudioRenderer:
         self._render_failure_context = None
         self._current_render_stage = None
         self._pipeline_stages = {}
+        try:
+            self.procedural.reset_ethiopian_profile_usage()
+        except Exception:
+            pass
 
     def _set_render_stage(self, stage: Optional[str]) -> None:
         """Record the current render stage for diagnostics."""
@@ -2978,6 +3085,9 @@ class AudioRenderer:
                 "custom_drums_loaded": custom_drums_loaded,
                 "custom_melodic_loaded": custom_melodic_loaded,
             },
+            "ethiopian_mp3_reference_profiles": self.procedural.get_ethiopian_profile_diagnostics()
+            if hasattr(self.procedural, 'get_ethiopian_profile_diagnostics')
+            else {"enabled": bool(self.ethiopian_mp3_reference_profiles), "profiles_used": [], "program_profiles": []},
             "instrument_library": instrument_stats,
             "expansions": expansion_stats,
             "instrument_patches": instrument_patches,
