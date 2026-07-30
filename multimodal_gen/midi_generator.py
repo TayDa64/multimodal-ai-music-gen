@@ -202,6 +202,50 @@ EXPLICIT_HORN_MELODY_CHOICES: Tuple[Tuple[Tuple[str, ...], str, int, str], ...] 
     (TROMBONE_MELODY_ALIASES, 'trombone', 57, 'Trombone'),
 )
 
+ETHIOPIAN_FAMILY_GENRES = {
+    'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'
+}
+
+ETHIOPIAN_EXPLICIT_INSTRUMENTS: Tuple[str, ...] = (
+    'krar', 'washint', 'masenqo', 'begena'
+)
+
+ETHIOPIAN_DISPLAY_NAMES: Dict[str, str] = {
+    'krar': 'Krar',
+    'washint': 'Washint',
+    'masenqo': 'Masenqo',
+    'begena': 'Begena',
+}
+
+ETHIOPIAN_PROGRAMS: Dict[str, int] = {
+    'krar': 110,
+    'masenqo': 111,
+    'washint': 112,
+    'begena': 113,
+}
+
+ETHIOPIAN_SECONDARY_CHANNEL_PREFERENCES: Dict[str, int] = {
+    'krar': 2,
+    'washint': 3,
+    'masenqo': 4,
+    'begena': 6,
+}
+
+
+def _is_ethiopian_family(parsed: ParsedPrompt) -> bool:
+    return normalize_genre(getattr(parsed, 'genre', '') or '') in ETHIOPIAN_FAMILY_GENRES
+
+
+def _explicit_ethiopian_instruments(parsed: ParsedPrompt) -> List[str]:
+    parsed_instruments_norm, _ = _normalized_instruments(parsed)
+    return [inst for inst in ETHIOPIAN_EXPLICIT_INSTRUMENTS if inst in parsed_instruments_norm]
+
+
+def _ethiopian_display_name(instrument_id: Optional[str]) -> Optional[str]:
+    if not instrument_id:
+        return None
+    return ETHIOPIAN_DISPLAY_NAMES.get(instrument_id)
+
 
 def _instrument_alias_present(parsed: ParsedPrompt, aliases: Tuple[str, ...]) -> bool:
     instruments_norm = {
@@ -221,6 +265,35 @@ def _explicit_horn_melody_choice(parsed: ParsedPrompt) -> Optional[Tuple[str, in
         if _instrument_alias_present(parsed, aliases):
             return instrument_to_resolve, program, display_name
     return None
+
+
+def _select_primary_melody_instrument(
+    parsed: ParsedPrompt,
+    horn_choice: Optional[Tuple[str, int, str]] = None,
+) -> str:
+    parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+
+    if 'washint' in parsed_instruments_norm:
+        return 'washint'
+    if 'masenqo' in parsed_instruments_norm:
+        return 'masenqo'
+    if 'krar' in parsed_instruments_norm:
+        return 'krar'
+    if 'begena' in parsed_instruments_norm:
+        return 'begena'
+    if 'flute' in parsed_instruments_norm or 'flute' in parsed_instruments_spaces:
+        return 'flute'
+    if horn_choice:
+        return horn_choice[0]
+    if 'brass' in parsed_instruments_norm or 'brass' in parsed_instruments_spaces:
+        return 'brass'
+    if _has_explicit_rock_synth_lead(parsed):
+        return 'synth_lead'
+    if _has_explicit_rock_guitar_lead(parsed):
+        return 'guitar'
+    if 'synth_lead' in parsed_instruments_norm or 'synth' in parsed_instruments_norm:
+        return 'synth_lead'
+    return 'synth_lead'
 
 
 def _is_jazz_horn_melody(parsed: ParsedPrompt, horn_choice: Optional[Tuple[str, int, str]]) -> bool:
@@ -257,6 +330,80 @@ def _has_explicit_melody_cue(parsed: ParsedPrompt) -> bool:
     )
     searchable = f"{raw_prompt} {instruments}"
     return any(re.search(r'\b' + re.escape(cue) + r'\b', searchable) for cue in cues)
+
+
+def _has_explicit_rock_guitar_lead(parsed: ParsedPrompt) -> bool:
+    """Return True for rock-family prompts that ask guitar to carry the lead line."""
+    import re
+
+    if normalize_genre(getattr(parsed, 'genre', '') or '') not in ROCK_FAMILY_GENRES:
+        return False
+
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+    has_guitar = 'guitar' in parsed_instruments_norm or 'guitar' in parsed_instruments_spaces or 'guitar' in raw_prompt
+    if not has_guitar:
+        return False
+
+    guitar_lead_patterns = (
+        r'\blead\s+guitar\b',
+        r'\bguitar\s+lead\b',
+        r'\bguitar\s+solo\b',
+        r'\bsolo\s+guitar\b',
+        r'\bguitar\s+hook\b',
+    )
+    return any(re.search(pattern, raw_prompt) for pattern in guitar_lead_patterns)
+
+
+def _has_explicit_rock_synth_lead(parsed: ParsedPrompt) -> bool:
+    """Return True when a rock-family prompt explicitly asks for a synth lead."""
+    import re
+
+    if normalize_genre(getattr(parsed, 'genre', '') or '') not in ROCK_FAMILY_GENRES:
+        return False
+
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+    if 'synth_lead' in parsed_instruments_norm or 'synth lead' in parsed_instruments_spaces:
+        return True
+    return bool(re.search(r'\b(?:synth\s+lead|lead\s+synth|square\s+lead|saw(?:tooth)?\s+lead)\b', raw_prompt))
+
+
+def _has_explicit_rock_melody_request(parsed: ParsedPrompt) -> bool:
+    """Return True when a rock-family prompt explicitly requests a Melody/lead track."""
+    if normalize_genre(getattr(parsed, 'genre', '') or '') not in ROCK_FAMILY_GENRES:
+        return False
+    if _has_explicit_melody_cue(parsed) or _has_explicit_rock_guitar_lead(parsed) or _has_explicit_rock_synth_lead(parsed):
+        return True
+
+    parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+    explicit_lead_instruments = {
+        'flute', 'oboe', 'clarinet', 'french_horn', 'french horn',
+        'tenor_sax', 'tenor sax', 'alto_sax', 'alto sax', 'sax', 'saxophone',
+        'trumpet', 'trombone', 'brass', 'horns', 'synth_lead', 'synth lead',
+    }
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    return (
+        bool((parsed_instruments_norm | parsed_instruments_spaces) & explicit_lead_instruments)
+        or any(f' {alias} ' in f' {raw_prompt} ' for alias in explicit_lead_instruments)
+    )
+
+
+def _rock_guitar_lead_program(parsed: ParsedPrompt) -> int:
+    """Choose the GM guitar program for explicit rock lead Melody tracks."""
+    raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower().replace('-', ' ')
+    parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
+    guitar_context = ' '.join(
+        list(parsed_instruments_norm)
+        + list(parsed_instruments_spaces)
+        + list(getattr(parsed, 'style_modifiers', []) or [])
+        + [raw_prompt, normalize_genre(getattr(parsed, 'genre', '') or '')]
+    )
+    if any(term in guitar_context for term in ['distortion', 'distorted', 'crunch', 'crunchy', 'grunge', 'rock', 'overdrive']):
+        return 30  # GM Distortion Guitar
+    if 'acoustic_guitar' in parsed_instruments_norm or 'acoustic guitar' in parsed_instruments_spaces:
+        return 25  # GM Steel-string Acoustic Guitar
+    return 27  # GM Clean Electric Guitar
 
 
 def _is_keyboard_chord_instrument(resolved_instrument: Optional[str], program: Optional[int]) -> bool:
@@ -309,7 +456,7 @@ def _wants_guitar_chords(parsed: ParsedPrompt) -> bool:
 
 
 def _select_primary_chord_instrument(parsed: ParsedPrompt) -> str:
-    is_ethiopian = normalize_genre(parsed.genre or '') in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
+    is_ethiopian = _is_ethiopian_family(parsed)
     parsed_instruments_norm, _ = _normalized_instruments(parsed)
 
     if 'krar' in parsed_instruments_norm and (is_ethiopian or 'piano' not in parsed_instruments_norm):
@@ -1030,7 +1177,7 @@ def generate_ethiopian_drum_pattern(
     
     Ethiopian music is characterized by:
     - Compound meters (6/8, 12/8) creating a "triplet" or "shuffle" feel
-    - The kebero drum with interlocking bass (doom) and slap (tek) patterns
+    - The kebero drum with interlocking large-head (low tone) and small-head (high tone) patterns
     - Polyrhythmic layering with atamo (small drum) and shakers
     - Call-and-response between different drums
     
@@ -1074,8 +1221,8 @@ def generate_ethiopian_drum_pattern(
     # Each "pulse" is one eighth note in compound meter
     pulse = ticks_per_bar // num_pulses
     
-    kebero_bass = []      # Deep "doom" sounds
-    kebero_slap = []      # Higher "tek" sounds  
+    kebero_low = []      # Large head (low tone)
+    kebero_high = []      # Small head (high tone)
     atamo = []            # Small drum fills
     shaker = []           # Continuous texture
     
@@ -1085,9 +1232,9 @@ def generate_ethiopian_drum_pattern(
         if style == 'eskista':
             # ESKISTA: Fast, energetic shoulder dance
             # Characteristic: Strong accents on 1, 4, 7, 10 (of 12)
-            # with syncopated slaps creating the "bounce" for shoulder movement
+            # with syncopated high-head strokes creating the "bounce" for shoulder movement
             
-            # Kebero bass - the foundation groove
+            # Kebero large head (low tone) - the foundation groove
             # For 6/8: pulses 0, 3 (beat 1 and beat 2 in compound duple)
             # For 12/8: pulses 0, 3, 6, 9 (every 3rd pulse = strong beats)
             bass_pulses = [0, 3] if num_pulses == 6 else [0, 3, 6, 9]
@@ -1098,14 +1245,17 @@ def generate_ethiopian_drum_pattern(
                 if pulse_num == 0 or (num_pulses == 12 and pulse_num == 6):
                     vel = humanize_velocity(base_velocity, variation=0.08)
                 else:
-                    vel = humanize_velocity(base_velocity - 12, variation=0.1)
-                kebero_bass.append((tick, pulse * 2, vel))
+                    vel = humanize_velocity(base_velocity - 6, variation=0.1)
+                kebero_low.append((tick, pulse * 2, vel))
             
-            # Kebero slap - creates the characteristic bounce
-            # Syncopated pattern between bass hits
-            # For 6/8: pulses 1, 2, 4, 5
-            # For 12/8: pulses 1, 2, 4, 5, 7, 8, 10, 11
-            slap_pulses = [1, 2, 4, 5] if num_pulses == 6 else [1, 2, 4, 5, 7, 8, 10, 11]
+            # Kebero small head (high tone) - keep the contrasting high-head response, but avoid
+            # the old near-continuous layer on every non-bass pulse.
+            # For Eskista, keep only the late off-pulse answer in each triplet
+            # group so the body remains urgent without reading like a muted snare
+            # on every pulse.
+            # For 6/8: pulses 2, 5
+            # For 12/8: pulses 2, 5, 8, 11
+            slap_pulses = [2, 5] if num_pulses == 6 else [2, 5, 8, 11]
             for pulse_num in slap_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.05, timing_variation=0.025)
@@ -1113,10 +1263,10 @@ def generate_ethiopian_drum_pattern(
                 # Off-pulse accents: 2, 5 in 6/8; 2, 5, 8, 11 in 12/8
                 off_pulse_accents = [2, 5] if num_pulses == 6 else [2, 5, 8, 11]
                 if pulse_num in off_pulse_accents:
-                    vel = humanize_velocity(base_velocity - 8, variation=0.1)
+                    vel = humanize_velocity(base_velocity - 4, variation=0.1)
                 else:
                     vel = humanize_velocity(base_velocity - 20, variation=0.12)
-                kebero_slap.append((tick, pulse, vel))
+                kebero_high.append((tick, pulse, vel))
             
             # Atamo - fills and accents
             # Fast triplet fills on every other bar for variation
@@ -1143,7 +1293,7 @@ def generate_ethiopian_drum_pattern(
             # Traditional slower kebero pattern
             # More call-and-response, less continuous
             
-            # Bass on main beats: pulse 0 and midpoint
+            # Low (large head) on main beats: pulse 0 and midpoint
             # In 6/8: pulses 0, 3 (beat 1 and beat 2)
             # In 12/8: pulses 0, 6 (beat 1 and beat 3)
             trad_bass_pulses = [0, 3] if num_pulses == 6 else [0, 6]
@@ -1151,9 +1301,9 @@ def generate_ethiopian_drum_pattern(
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0, timing_variation=0.02)
                 vel = humanize_velocity(base_velocity, variation=0.1)
-                kebero_bass.append((tick, pulse * 3, vel))
+                kebero_low.append((tick, pulse * 3, vel))
             
-            # Slaps creating the "response" 
+            # High (small head) strokes creating the "response"
             # Traditional pattern: bass-slap-slap, bass-slap-slap
             # In 6/8: pulses 2, 4 (responses after each bass)
             # In 12/8: pulses 2, 4, 8, 10
@@ -1162,7 +1312,7 @@ def generate_ethiopian_drum_pattern(
                 tick = bar_offset + (pulse_num * pulse)
                 tick = humanize_timing(tick, swing=0.04, timing_variation=0.03)
                 vel = humanize_velocity(base_velocity - 15, variation=0.12)
-                kebero_slap.append((tick, pulse, vel))
+                kebero_high.append((tick, pulse, vel))
             
             # Occasional atamo accent
             if random.random() < 0.5:
@@ -1191,7 +1341,7 @@ def generate_ethiopian_drum_pattern(
             for pulse_num in jazz_kick_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity, variation=0.08)
-                kebero_bass.append((tick, pulse * 2, vel))
+                kebero_low.append((tick, pulse * 2, vel))
             
             # Snare backbeat with ghost notes
             # In 6/8: pulse 3 (beat 2)
@@ -1200,7 +1350,7 @@ def generate_ethiopian_drum_pattern(
             for pulse_num in snare_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity - 5, variation=0.1)
-                kebero_slap.append((tick, pulse, vel))
+                kebero_high.append((tick, pulse, vel))
             
             # Ghost notes for jazz feel
             # In 6/8: pulses 1, 4
@@ -1232,7 +1382,7 @@ def generate_ethiopian_drum_pattern(
             for pulse_num in modern_kick_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity, variation=0.08)
-                kebero_bass.append((tick, pulse * 2, vel))
+                kebero_low.append((tick, pulse * 2, vel))
             
             # Snare/clap on backbeats
             # In 6/8: pulse 3 (beat 2)
@@ -1241,7 +1391,7 @@ def generate_ethiopian_drum_pattern(
             for pulse_num in modern_snare_pulses:
                 tick = bar_offset + (pulse_num * pulse)
                 vel = humanize_velocity(base_velocity - 10, variation=0.1)
-                kebero_slap.append((tick, pulse, vel))
+                kebero_high.append((tick, pulse, vel))
             
             # Hihat in compound meter with swing
             # Use the pulse grid for proper 6/8 or 12/8 feel
@@ -1263,10 +1413,14 @@ def generate_ethiopian_drum_pattern(
                     vel = humanize_velocity(base_velocity - 35, variation=0.15)
                     atamo.append((tick, pulse // 2, vel))
     
-    # Return with semantic names for proper mapping
+    # Return with semantic names for proper mapping.
+    # NOTE: dict keys remain the legacy 'kebero_bass'/'kebero_slap' strings to
+    # preserve the downstream mapping contract (e.g. ethiopian_strategy.py).
+    # The values are the authentic head-based large-head (low) / small-head
+    # (high) note lists.
     return {
-        'kebero_bass': kebero_bass,
-        'kebero_slap': kebero_slap,
+        'kebero_bass': kebero_low,
+        'kebero_slap': kebero_high,
         'atamo': atamo,
         'shaker': shaker,
     }
@@ -1390,11 +1544,49 @@ def generate_chord_progression_midi(
     """
     complexity = max(0.0, min(1.0, float(complexity)))
     genre_lower = (genre or "").lower().strip()
+    scale_notes = get_scale_notes(key, scale_type, octave, 1)
+    scale_degree_count = len(scale_notes)
+
+    if scale_degree_count == 0:
+        return []
 
     def _base_degree_qualities() -> List[str]:
         if scale_type in [ScaleType.MAJOR, ScaleType.MIXOLYDIAN, ScaleType.LYDIAN]:
             return ['major', 'minor', 'minor', 'major', 'major', 'minor', 'dim']
         return ['minor', 'dim', 'major', 'minor', 'minor', 'major', 'major']
+
+    def _default_progression_for_scale() -> List[int]:
+        if scale_type == ScaleType.MINOR:
+            default_progression = [1, 6, 3, 7]  # i VI III VII
+        else:
+            default_progression = [1, 5, 6, 4]  # I V vi IV
+
+        if all(1 <= degree <= scale_degree_count for degree in default_progression):
+            return default_progression
+
+        # Pentatonic/qenet scales need a bounded modal fallback rather than
+        # forcing 7-degree Western defaults onto a shorter scale.
+        if scale_degree_count == 5:
+            return [1, 4, 5, 4]
+
+        bounded_progression = [
+            degree for degree in default_progression if 1 <= degree <= scale_degree_count
+        ]
+        if bounded_progression:
+            return bounded_progression
+
+        return [1]
+
+    def _sanitize_progression(raw_progression: Optional[List[int]]) -> List[int]:
+        sanitized: List[int] = []
+        for degree in raw_progression or []:
+            try:
+                degree_int = int(degree)
+            except (TypeError, ValueError):
+                continue
+            if 1 <= degree_int <= scale_degree_count:
+                sanitized.append(degree_int)
+        return sanitized
 
     def _color_quality_for_degree(base_quality: str, degree: int) -> str:
         """Map triad quality to 7th/9th/sus/add9 flavor based on complexity + genre."""
@@ -1466,30 +1658,59 @@ def generate_chord_progression_midi(
 
         return best
 
+    def _build_chord_for_degree(degree: int, base_qualities: List[str]) -> List[int]:
+        if not (1 <= degree <= scale_degree_count):
+            return []
+
+        if scale_degree_count < 7:
+            # For reduced-degree modal scales (e.g. Ethiopian qenet/pentatonic),
+            # keep chord tones inside the active scale instead of inferring
+            # unavailable 7-degree harmony.
+            modal_chord: List[int] = []
+            seen_notes: set[int] = set()
+            for step in (0, 2, 4):
+                note_index = (degree - 1) + step
+                octave_shift = note_index // scale_degree_count
+                scale_index = note_index % scale_degree_count
+                note = scale_notes[scale_index] + (12 * octave_shift)
+                if note not in seen_notes:
+                    modal_chord.append(note)
+                    seen_notes.add(note)
+            return modal_chord
+
+        root_note = scale_notes[degree - 1]
+        root_name, _ = midi_to_note_name(root_note)
+        base_quality = base_qualities[degree - 1]
+        quality = _color_quality_for_degree(base_quality, degree)
+        return get_chord_notes(root_name, quality, octave)
+
     if progression is None:
-        # Default progressions by mood
-        if scale_type == ScaleType.MINOR:
-            progression = [1, 6, 3, 7]  # i VI III VII
-        else:
-            progression = [1, 5, 6, 4]  # I V vi IV
+        progression = _default_progression_for_scale()
+    else:
+        progression = _sanitize_progression(progression)
+
+    if not progression:
+        progression = _default_progression_for_scale()
     
     pattern = []
     ticks_per_bar = TICKS_PER_BAR_4_4
 
     # Build scale degrees to chord notes with complexity-aware qualities.
-    scale_notes = get_scale_notes(key, scale_type, octave, 1)
     base_qualities = _base_degree_qualities()
-    chords = []
+    chords: List[List[int]] = []
     for degree in progression:
-        if 1 <= degree <= 7:
-            root_note = scale_notes[degree - 1]
-            root_name, _ = midi_to_note_name(root_note)
-            base_quality = base_qualities[degree - 1]
-            quality = _color_quality_for_degree(base_quality, degree)
-            chords.append(get_chord_notes(root_name, quality, octave))
+        chord_notes = _build_chord_for_degree(degree, base_qualities)
+        if chord_notes:
+            chords.append(chord_notes)
+
+    if not chords:
+        fallback_chord = _build_chord_for_degree(1, base_qualities)
+        if not fallback_chord:
+            return pattern
+        chords = [fallback_chord]
     
     # How many bars per chord
-    bars_per_chord = max(1, bars // len(progression))
+    bars_per_chord = max(1, bars // len(chords))
     
     chord_index = 0
     prev_chord_notes: Optional[List[int]] = None
@@ -1557,6 +1778,120 @@ def generate_chord_progression_midi(
                     vel = humanize_velocity(base_velocity, variation=0.10)
                     pattern.append((tick, dur, pitch, vel))
     
+    return pattern
+
+
+def _is_eskista_support_instrument(parsed: ParsedPrompt, instrument_id: Optional[str]) -> bool:
+    normalized_instrument = str(instrument_id or '').strip().lower().replace('-', '_').replace(' ', '_')
+    return (
+        normalize_genre(getattr(parsed, 'genre', '') or '') == 'eskista'
+        and normalized_instrument in ETHIOPIAN_EXPLICIT_INSTRUMENTS
+    )
+
+
+def generate_eskista_support_pattern(
+    bars: int,
+    key: str,
+    scale_type: ScaleType,
+    progression: Optional[List[int]] = None,
+    octave: int = 4,
+    base_velocity: int = 78,
+    instrument_id: str = 'krar',
+    time_signature: Tuple[int, int] = (4, 4),
+) -> List[Tuple[int, int, int, int]]:
+    """Generate sparse modal support for Eskista accompaniment instruments.
+
+    This helper intentionally avoids same-onset triads/7ths and instead favors
+    tonic/fifth drones plus sparse repeated support notes.
+    """
+    instrument_key = str(instrument_id or 'krar').strip().lower().replace('-', '_').replace(' ', '_')
+    if progression is None:
+        progression = [1, 6, 3, 7] if scale_type == ScaleType.MINOR else [1, 5, 6, 4]
+
+    ticks_per_bar = get_ticks_per_bar(time_signature)
+    scale_notes = get_scale_notes(key, scale_type, octave, 2)
+    if len(scale_notes) < 5:
+        return []
+
+    pattern: List[Tuple[int, int, int, int]] = []
+    bars_per_degree = max(1, bars // max(1, len(progression)))
+    chord_index = 0
+    compound_meter = time_signature[1] == 8 and time_signature[0] % 3 == 0
+    drone_root = scale_notes[0]
+    drone_fifth = scale_notes[4]
+
+    def _append_note(bar_offset: int, tick_offset: int, duration: int, pitch: int, velocity: int) -> None:
+        if tick_offset >= ticks_per_bar:
+            return
+        clamped_pitch = clamp_to_range(pitch, instrument_key)
+        actual_duration = max(TICKS_PER_16TH, min(duration, ticks_per_bar - tick_offset))
+        actual_velocity = max(1, min(127, int(velocity)))
+        pattern.append((
+            bar_offset + tick_offset,
+            actual_duration,
+            clamped_pitch,
+            humanize_velocity(actual_velocity, variation=0.06),
+        ))
+
+    for bar in range(bars):
+        bar_offset = bar * ticks_per_bar
+        if bar > 0 and bar % bars_per_degree == 0:
+            chord_index = (chord_index + 1) % len(progression)
+
+        degree = progression[chord_index] if progression else 1
+        degree_idx = max(0, min(6, int(degree) - 1))
+        current_root = scale_notes[degree_idx]
+        current_fifth = scale_notes[min(len(scale_notes) - 1, degree_idx + 4)]
+
+        if instrument_key == 'washint':
+            pulse_positions = [0.0, 1.5, 3.0] if not compound_meter else [0.0, 1.5, 2.25]
+            for beat_pos, pitch, vel_mult in (
+                (pulse_positions[0], current_root, 0.96),
+                (pulse_positions[1], current_fifth, 0.88),
+                (pulse_positions[2], drone_root, 0.84),
+            ):
+                _append_note(
+                    bar_offset,
+                    beats_to_ticks(beat_pos),
+                    TICKS_PER_8TH,
+                    pitch,
+                    int(base_velocity * vel_mult),
+                )
+            continue
+
+        drone_duration = beats_to_ticks(1.5 if compound_meter or instrument_key == 'begena' else 1.0)
+        drone_notes = []
+        for pitch in (drone_root, drone_fifth):
+            clamped = clamp_to_range(pitch, instrument_key)
+            if clamped not in drone_notes:
+                drone_notes.append(clamped)
+        for idx, pitch in enumerate(drone_notes):
+            _append_note(
+                bar_offset,
+                0,
+                drone_duration,
+                pitch,
+                int(base_velocity * (0.92 if idx == 0 else 0.84)),
+            )
+
+        pulse_positions = [1.5, 2.5, 3.5] if not compound_meter else [1.5, 2.25, 2.75]
+        pulse_duration = TICKS_PER_8TH if instrument_key != 'begena' else TICKS_PER_BEAT
+        pulse_plan = [
+            (pulse_positions[0], current_root, 0.90),
+            (pulse_positions[1], current_fifth if bar % 2 == 0 else drone_root, 0.84),
+        ]
+        if instrument_key != 'begena':
+            pulse_plan.append((pulse_positions[2], drone_root if bar % 2 == 0 else current_root, 0.80))
+
+        for beat_pos, pitch, vel_mult in pulse_plan:
+            _append_note(
+                bar_offset,
+                beats_to_ticks(beat_pos),
+                pulse_duration,
+                pitch,
+                int(base_velocity * vel_mult),
+            )
+
     return pattern
 
 
@@ -1870,19 +2205,25 @@ class MidiGenerator:
         # Track 1: Drums (channel 10)
         drum_track = self._create_drum_track(arrangement, parsed, groove_template)
         mid.tracks.append(drum_track)
+        consumed_ethiopian_instruments: set[str] = set()
+        occupied_ethiopian_channels: set[int] = {9}
         
         # Track 2: Bass/808
         is_orchestral = parsed.genre in ['cinematic', 'classical', 'orchestral', 'film_score']
         if '808' in parsed.instruments or 'bass' in parsed.instruments or _has_bass_guitar_request(parsed):
             bass_track = self._create_bass_track(arrangement, parsed, groove_template)
             mid.tracks.append(bass_track)
+            occupied_ethiopian_channels.add(1)
         elif is_orchestral and 'contrabass' in parsed.instruments:
             bass_track = self._create_bass_track(arrangement, parsed, groove_template)
             mid.tracks.append(bass_track)
+            occupied_ethiopian_channels.add(1)
         
         # Track 3: Chords - includes both standard and Ethiopian instruments
         _genre_norm_for_chords = normalize_genre(parsed.genre or '')
         _raw_for_chords = (getattr(parsed, 'raw_prompt', '') or '').lower()
+        primary_chord_instrument = _select_primary_chord_instrument(parsed)
+        chord_track_created = False
         _rock_family_with_guitar = _genre_norm_for_chords in {
             'rock', 'classic_rock', 'alternative_rock', 'grunge', 'punk_rock', 'indie_rock'
         } and ('guitar' in _raw_for_chords or 'gtr' in _raw_for_chords)
@@ -1900,6 +2241,10 @@ class MidiGenerator:
         if any(inst in parsed.instruments for inst in chord_instruments) or _rock_family_with_guitar:
             chord_track = self._create_chord_track(arrangement, parsed, groove_template)
             mid.tracks.append(chord_track)
+            chord_track_created = True
+            occupied_ethiopian_channels.add(2)
+            if primary_chord_instrument in ETHIOPIAN_EXPLICIT_INSTRUMENTS:
+                consumed_ethiopian_instruments.add(primary_chord_instrument)
 
         # ── Orchestral secondary tracks ──
         # For cinematic/classical genres, create additional tracks for
@@ -1924,17 +2269,45 @@ class MidiGenerator:
             'washint', 'flute', 'synth_lead', 'synth', 'oboe', 'clarinet', 'french_horn',
             'tenor_sax', 'alto_sax', 'sax', 'saxophone', 'trumpet', 'trombone', 'brass',
         ]
+        horn_choice = _explicit_horn_melody_choice(parsed)
+        primary_melody_instrument = _select_primary_melody_instrument(parsed, horn_choice)
         has_melody_inst = any(inst in parsed.instruments for inst in melody_instruments)
+        suppress_rock_default_melody = (
+            normalize_genre(getattr(parsed, 'genre', '') or '') in ROCK_FAMILY_GENRES
+            and not _has_explicit_rock_melody_request(parsed)
+        )
         suppress_rnb_default_melody = _is_rnb_family(parsed) and not _has_explicit_melody_cue(parsed)
         suppress_lofi_default_melody = _is_lofi_family(parsed) and not _has_explicit_melody_cue(parsed)
+        suppress_duplicate_ethiopian_melody = (
+            chord_track_created
+            and _is_ethiopian_family(parsed)
+            and primary_melody_instrument in ETHIOPIAN_EXPLICIT_INSTRUMENTS
+            and primary_melody_instrument == primary_chord_instrument
+        )
         if (
             (parsed.genre not in ['ambient', 'lofi'] or has_melody_inst)
+            and not suppress_rock_default_melody
             and not suppress_rnb_default_melody
             and not suppress_lofi_default_melody
+            and not suppress_duplicate_ethiopian_melody
         ):
             melody_track = self._create_melody_track(arrangement, parsed, groove_template)
             if len(melody_track) > 1:  # Has notes beyond track name
                 mid.tracks.append(melody_track)
+                occupied_ethiopian_channels.add(3)
+                if primary_melody_instrument in ETHIOPIAN_EXPLICIT_INSTRUMENTS:
+                    consumed_ethiopian_instruments.add(primary_melody_instrument)
+
+        if _is_ethiopian_family(parsed):
+            ethiopian_secondary_tracks = self._create_ethiopian_secondary_tracks(
+                arrangement,
+                parsed,
+                groove_template,
+                consumed_instruments=consumed_ethiopian_instruments,
+                occupied_channels=occupied_ethiopian_channels,
+            )
+            for trk in ethiopian_secondary_tracks:
+                mid.tracks.append(trk)
 
         # Track 5: Ambient/Cinematic texture pad (optional)
         wants_texture = (parsed.genre or '').lower() in ['ambient', 'cinematic', 'soundscape']
@@ -2623,17 +2996,14 @@ class MidiGenerator:
         
         # Program change based on instrument
         # Priority: Ethiopian genres should prefer Ethiopian instruments
-        is_ethiopian = parsed.genre in ['ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista']
+        is_ethiopian = _is_ethiopian_family(parsed)
         normalized_genre = normalize_genre(parsed.genre or '')
         raw_prompt = (getattr(parsed, 'raw_prompt', '') or '').lower()
         parsed_instruments_norm, parsed_instruments_spaces = _normalized_instruments(parsed)
         wants_guitar = _wants_guitar_chords(parsed)
         primary_chord_instrument = _select_primary_chord_instrument(parsed)
         instrument_display_names = {
-            'krar': 'Krar',
-            'masenqo': 'Masenqo',
-            'begena': 'Begena',
-            'washint': 'Washint',
+            **ETHIOPIAN_DISPLAY_NAMES,
             'guitar': 'Guitar',
             'rhodes': 'Rhodes',
             'piano': 'Piano',
@@ -2674,18 +3044,9 @@ class MidiGenerator:
         
         # Fallback to hardcoded mappings if no service or resolution failed
         if program is None:
-            if primary_chord_instrument == 'krar':
-                program = 110  # Custom: Krar (Ethiopian lyre)
-                resolved_instrument = 'Krar'
-            elif primary_chord_instrument == 'masenqo':
-                program = 111  # Custom: Masenqo (Ethiopian fiddle)
-                resolved_instrument = 'Masenqo'
-            elif primary_chord_instrument == 'begena':
-                program = 113  # Custom: Begena (Ethiopian harp)
-                resolved_instrument = 'Begena'
-            elif primary_chord_instrument == 'washint':
-                program = 112  # Custom: Washint (Ethiopian flute)
-                resolved_instrument = 'Washint'
+            if primary_chord_instrument in ETHIOPIAN_PROGRAMS:
+                program = ETHIOPIAN_PROGRAMS[primary_chord_instrument]
+                resolved_instrument = instrument_display_names[primary_chord_instrument]
             elif primary_chord_instrument == 'guitar':
                 program = _guitar_program()
                 resolved_instrument = 'Guitar'
@@ -2710,8 +3071,8 @@ class MidiGenerator:
             else:
                 # Default based on genre
                 if is_ethiopian:
-                    program = 110  # Krar for Ethiopian
-                    resolved_instrument = 'Krar'
+                    program = ETHIOPIAN_PROGRAMS['krar']
+                    resolved_instrument = instrument_display_names['krar']
                 else:
                     program = 4  # Rhodes for others
                     resolved_instrument = 'Rhodes'
@@ -2720,7 +3081,12 @@ class MidiGenerator:
             primary_chord_instrument == 'piano'
             and is_lyrical_orchestral_piano_prompt(parsed)
         )
-        track_name = 'Piano' if lyrical_orchestral_piano_identity else 'Chords'
+        explicit_ethiopian_track_name = _ethiopian_display_name(primary_chord_instrument) if is_ethiopian else None
+        track_name = (
+            'Piano'
+            if lyrical_orchestral_piano_identity
+            else explicit_ethiopian_track_name or 'Chords'
+        )
         track.append(MetaMessage('track_name', name=track_name, time=0))
         if resolved_instrument:
             track.append(MetaMessage('text', text=f'instrument:{resolved_instrument}', time=0))
@@ -2792,20 +3158,32 @@ class MidiGenerator:
                     _sp_progression = self._chord_map_to_progression(
                         arrangement.chord_map, section, parsed.key, parsed.scale_type
                     )
-                
-                chord_pattern = generate_chord_progression_midi(
-                    section.bars,
-                    parsed.key,
-                    parsed.scale_type,
-                    progression=_sp_progression,
-                    octave=get_chord_octave(_chord_inst),
-                    base_velocity=int(85 * section.config.instrument_density * vel_mult),
-                    rhythm_style=rhythm_style,
-                    chord_color=wants_church,
-                    complexity=complexity,
-                    genre=parsed.genre,
-                    section_type=section.section_type.value
-                )
+
+                if _is_eskista_support_instrument(parsed, primary_chord_instrument):
+                    chord_pattern = generate_eskista_support_pattern(
+                        section.bars,
+                        parsed.key,
+                        parsed.scale_type,
+                        progression=_sp_progression,
+                        octave=get_chord_octave(_chord_inst),
+                        base_velocity=int(85 * section.config.instrument_density * vel_mult),
+                        instrument_id=primary_chord_instrument,
+                        time_signature=arrangement.time_signature,
+                    )
+                else:
+                    chord_pattern = generate_chord_progression_midi(
+                        section.bars,
+                        parsed.key,
+                        parsed.scale_type,
+                        progression=_sp_progression,
+                        octave=get_chord_octave(_chord_inst),
+                        base_velocity=int(85 * section.config.instrument_density * vel_mult),
+                        rhythm_style=rhythm_style,
+                        chord_color=wants_church,
+                        complexity=complexity,
+                        genre=parsed.genre,
+                        section_type=section.section_type.value
+                    )
                 
                 # Apply voice-leading if HarmonicBrain available (Sprint 5)
                 if self._harmonic_brain and _HAS_HARMONIC_BRAIN:
@@ -3135,6 +3513,143 @@ class MidiGenerator:
 
         return tracks
 
+    def _allocate_ethiopian_secondary_channel(
+        self,
+        instrument_id: str,
+        occupied_channels: set[int],
+    ) -> int:
+        preferred_channel = ETHIOPIAN_SECONDARY_CHANNEL_PREFERENCES.get(instrument_id, 4)
+        if preferred_channel not in occupied_channels and preferred_channel != GM_DRUM_CHANNEL:
+            return preferred_channel
+
+        for channel in (4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 2, 3):
+            if channel not in occupied_channels and channel != GM_DRUM_CHANNEL:
+                return channel
+
+        return preferred_channel
+
+    def _create_ethiopian_secondary_tracks(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate] = None,
+        consumed_instruments: Optional[set[str]] = None,
+        occupied_channels: Optional[set[int]] = None,
+    ) -> List[MidiTrack]:
+        """Emit remaining explicit Ethiopian instruments after primary tracks are claimed."""
+        tracks: List[MidiTrack] = []
+        consumed = {
+            inst for inst in (consumed_instruments or set())
+            if inst in ETHIOPIAN_EXPLICIT_INSTRUMENTS
+        }
+        occupied = set(occupied_channels or set())
+
+        for instrument_id in _explicit_ethiopian_instruments(parsed):
+            if instrument_id in consumed:
+                continue
+
+            channel = self._allocate_ethiopian_secondary_channel(instrument_id, occupied)
+            name = ETHIOPIAN_DISPLAY_NAMES[instrument_id]
+            program = ETHIOPIAN_PROGRAMS[instrument_id]
+
+            if instrument_id in {'washint', 'masenqo'}:
+                track = self._create_secondary_ethiopian_melody_track(
+                    arrangement,
+                    parsed,
+                    groove_template,
+                    program=program,
+                    channel=channel,
+                    name=name,
+                    instrument_id=instrument_id,
+                )
+            else:
+                track = self._create_secondary_chord_track(
+                    arrangement,
+                    parsed,
+                    groove_template,
+                    program=program,
+                    channel=channel,
+                    name=name,
+                    velocity_scale=0.72 if instrument_id == 'begena' else 0.86,
+                )
+
+            tracks.append(track)
+            consumed.add(instrument_id)
+            occupied.add(channel)
+
+        return tracks
+
+    def _create_secondary_ethiopian_melody_track(
+        self,
+        arrangement: Arrangement,
+        parsed: ParsedPrompt,
+        groove_template: Optional[GrooveTemplate],
+        program: int,
+        channel: int,
+        name: str,
+        instrument_id: str,
+    ) -> MidiTrack:
+        """Create a narrow melodic support track for explicit Ethiopian lead/support voices."""
+        track = MidiTrack()
+        track.append(MetaMessage('track_name', name=name, time=0))
+        track.append(MetaMessage('text', text=f'instrument:{name}', time=0))
+        track.append(Message('program_change', program=program, channel=channel, time=0))
+
+        all_notes: List[NoteEvent] = []
+        normalized_genre = normalize_genre(parsed.genre or '')
+        genre_cfg = GENRE_DEFAULTS.get(normalized_genre, {})
+        effective_scale = parsed.scale_type
+        if isinstance(parsed.scale_type, ScaleType) and parsed.scale_type in (ScaleType.MAJOR, ScaleType.MINOR):
+            effective_scale = genre_cfg.get('scale', parsed.scale_type)
+
+        for section in arrangement.sections:
+            if not section.config.enable_melody:
+                continue
+
+            tension = self._get_section_tension(arrangement, section)
+            vel_mult = self._tension_multiplier(tension, 0.88, 1.08)
+            density_mult = self._tension_multiplier(tension, 0.70, 0.95)
+            complexity = self._get_section_complexity(arrangement, section, parsed.genre or 'pop')
+            melody = generate_melody(
+                section.bars,
+                parsed.key,
+                parsed.scale_type,
+                octave=get_melody_octave(instrument_id),
+                density=min(1.0, section.config.instrument_density * 0.35 * density_mult),
+                base_velocity=int(76 * section.config.energy_level * vel_mult),
+            )
+
+            if melody and _is_ethiopian_family(parsed):
+                try:
+                    melody = embellish_melody_qenet(
+                        melody,
+                        key=parsed.key,
+                        scale_type=effective_scale,
+                        time_signature=arrangement.time_signature,
+                        section_bars=section.bars,
+                        complexity=complexity,
+                        call_response=bool(genre_cfg.get('call_response', False)),
+                    )
+                except Exception:
+                    pass
+
+            for tick, dur, pitch, vel in melody:
+                all_notes.append(NoteEvent(
+                    pitch=pitch,
+                    start_tick=section.start_tick + tick,
+                    duration_ticks=dur,
+                    velocity=vel,
+                    channel=channel,
+                ))
+
+        all_notes = self._apply_performance_humanization(
+            all_notes,
+            parsed.genre or 'default',
+            'lead',
+        )
+        self._notes_to_track(all_notes, track, channel=channel, groove_template=groove_template)
+        return track
+
     def _create_secondary_chord_track(
         self,
         arrangement: Arrangement,
@@ -3154,7 +3669,11 @@ class MidiGenerator:
 
         all_notes = []
         has_explicit_tension_arc = self._has_explicit_tension_arc(arrangement)
+        instrument_id = name.strip().lower().replace('-', '_').replace(' ', '_')
         for section in arrangement.sections:
+            if not section.config.enable_chords:
+                continue
+
             tension = self._get_section_tension(arrangement, section)
             vel_mult = self._tension_multiplier(tension, 0.85, 1.15)
 
@@ -3170,18 +3689,29 @@ class MidiGenerator:
                 ) and tension < 0.4:
                     continue
 
-            chord_pattern = generate_chord_progression_midi(
-                section.bars,
-                parsed.key,
-                parsed.scale_type,
-                octave=get_chord_octave(name.lower()),
-                base_velocity=int(80 * section.config.energy_level * vel_mult * velocity_scale),
-                rhythm_style='block',
-                chord_color=True,
-                complexity=0.5,
-                genre=parsed.genre,
-                section_type=section.section_type.value,
-            )
+            if _is_eskista_support_instrument(parsed, instrument_id):
+                chord_pattern = generate_eskista_support_pattern(
+                    section.bars,
+                    parsed.key,
+                    parsed.scale_type,
+                    octave=get_chord_octave(instrument_id),
+                    base_velocity=int(80 * section.config.energy_level * vel_mult * velocity_scale),
+                    instrument_id=instrument_id,
+                    time_signature=arrangement.time_signature,
+                )
+            else:
+                chord_pattern = generate_chord_progression_midi(
+                    section.bars,
+                    parsed.key,
+                    parsed.scale_type,
+                    octave=get_chord_octave(instrument_id),
+                    base_velocity=int(80 * section.config.energy_level * vel_mult * velocity_scale),
+                    rhythm_style='block',
+                    chord_color=True,
+                    complexity=0.5,
+                    genre=parsed.genre,
+                    section_type=section.section_type.value,
+                )
             if has_explicit_tension_arc:
                 chord_pattern = self._filter_pattern_onsets_by_stride(chord_pattern, onset_stride)
 
@@ -3318,65 +3848,53 @@ class MidiGenerator:
         # Try to resolve instrument via service first (if available)
         program = None
         resolved_instrument = None
+        primary_melody_instrument = _select_primary_melody_instrument(parsed, horn_choice)
         
         if self._instrument_service:
             # Determine which instrument to resolve based on parsed instruments
-            instrument_to_resolve = None
-            
-            if 'washint' in parsed.instruments:
-                instrument_to_resolve = 'washint'
-            elif 'masenqo' in parsed.instruments:
-                instrument_to_resolve = 'masenqo'
-            elif 'krar' in parsed.instruments:
-                instrument_to_resolve = 'krar'
-            elif 'flute' in parsed.instruments:
-                instrument_to_resolve = 'flute'
-            elif horn_choice:
-                instrument_to_resolve = horn_choice[0]
-            elif 'brass' in parsed.instruments:
-                instrument_to_resolve = 'brass'
-            elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
-                instrument_to_resolve = 'synth_lead'
-            else:
-                instrument_to_resolve = 'synth_lead'
+            instrument_to_resolve = primary_melody_instrument
             
             resolved = self._instrument_service.resolve_instrument(
                 instrument_to_resolve,
                 genre=parsed.genre or ""
             )
             program = resolved.program
-            resolved_instrument = horn_choice[2] if horn_choice and instrument_to_resolve == horn_choice[0] else instrument_to_resolve
+            resolved_instrument = (
+                horn_choice[2]
+                if horn_choice and instrument_to_resolve == horn_choice[0]
+                else _ethiopian_display_name(instrument_to_resolve) or instrument_to_resolve
+            )
+            if primary_melody_instrument == 'guitar' and _has_explicit_rock_guitar_lead(parsed):
+                program = _rock_guitar_lead_program(parsed)
+                resolved_instrument = 'Guitar'
         
         # Fallback to hardcoded mappings if no service
         if program is None:
-            if 'washint' in parsed.instruments:
-                program = 112  # Custom: Washint (Ethiopian flute) - great for melodies
-                resolved_instrument = 'Washint'
-            elif 'masenqo' in parsed.instruments:
-                program = 111  # Custom: Masenqo (Ethiopian fiddle)
-                resolved_instrument = 'Masenqo'
-            elif 'krar' in parsed.instruments:
-                program = 110  # Custom: Krar
-                resolved_instrument = 'Krar'
-            elif 'flute' in parsed.instruments:
+            if primary_melody_instrument in ETHIOPIAN_PROGRAMS:
+                program = ETHIOPIAN_PROGRAMS[primary_melody_instrument]
+                resolved_instrument = ETHIOPIAN_DISPLAY_NAMES[primary_melody_instrument]
+            elif primary_melody_instrument == 'guitar' and _has_explicit_rock_guitar_lead(parsed):
+                program = _rock_guitar_lead_program(parsed)
+                resolved_instrument = 'Guitar'
+            elif primary_melody_instrument == 'flute':
                 program = 73  # Flute
                 resolved_instrument = 'Flute'
             elif horn_choice:
                 program = horn_choice[1]
                 resolved_instrument = horn_choice[2]
-            elif 'brass' in parsed.instruments:
+            elif primary_melody_instrument == 'brass':
                 program = 56  # Trumpet
                 resolved_instrument = 'Brass'
-            elif 'synth_lead' in parsed.instruments or 'synth' in parsed.instruments:
+            elif primary_melody_instrument == 'synth_lead':
                 program = 80  # Lead 1 (square)
                 resolved_instrument = 'Synth'
             else:
                 program = 80  # Lead 1 (square) - default
                 resolved_instrument = 'Melody'
         
-        # Always use generic 'Melody' track name for API compatibility.
-        # Instrument identity preserved via program_change.
-        track.append(MetaMessage('track_name', name='Melody', time=0))
+        explicit_ethiopian_track_name = _ethiopian_display_name(primary_melody_instrument) if _is_ethiopian_family(parsed) else None
+        track_name = explicit_ethiopian_track_name or 'Melody'
+        track.append(MetaMessage('track_name', name=track_name, time=0))
         if resolved_instrument:
             track.append(MetaMessage('text', text=f'instrument:{resolved_instrument}', time=0))
         track.append(Message('program_change', program=program, channel=3, time=0))
@@ -3384,9 +3902,7 @@ class MidiGenerator:
         all_notes = []
 
         normalized_genre = normalize_genre(parsed.genre or '')
-        is_ethiopian_genre = normalized_genre in [
-            'ethiopian', 'ethio_jazz', 'ethiopian_traditional', 'eskista'
-        ]
+        is_ethiopian_genre = normalized_genre in ETHIOPIAN_FAMILY_GENRES
         genre_cfg = GENRE_DEFAULTS.get(normalized_genre, {})
         wants_call_response = bool(genre_cfg.get('call_response', False))
         

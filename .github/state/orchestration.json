@@ -7,6 +7,113 @@
   },
   "task_queue": [
     {
+      "id": "rock-no-unrequested-synth-lead-contract-130",
+      "description": "Suppress the unrequested GM program-80 synth Melody track for rock-family prompts while preserving explicit synth-lead and lead-guitar requests.",
+      "status": "completed",
+      "assigned_to": "builder",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "instrument-realism-strobe-popup-grounded-audit-20260730"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/midi_generator.py",
+        "tests/test_midi_generator.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-07-30T00:00:00Z",
+      "updated": "2026-07-30T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/midi_generator.py",
+          "tests/test_midi_generator.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Task 130 added rock-family melody-intent gating to prevent default unrequested GM program-80 Synth Melody tracks in rock-band prompts. Explicit rock synth-lead prompts still create program-80 Synth Melody, while explicit lead-guitar/guitar-solo prompts route the Melody track to GM guitar program 30 with `instrument:Guitar`.",
+        "guardrails_preserved": [
+          "Existing R&B and lofi default-melody suppression remains intact.",
+          "Existing Ethiopian duplicate-melody suppression remains intact.",
+          "No renderer, parser, analyzer, JUCE, or SoundFont behavior changed in this slice.",
+          "Implementation/verification initially left files unstaged because the working tree had many pre-existing pending changes; after user confirmation, the Task 130 implementation/test files plus matching plan/state files were prepared for a task-scoped local commit."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest tests/test_midi_generator.py -q -k \"1990s_rock_prompt or rock_synth_lead or rock_lead_guitar\"",
+          "result": "PASS: 4 passed, 21 deselected."
+        },
+        {
+          "command": "python -m pytest tests/test_midi_generator.py -q",
+          "result": "PASS: 25 passed."
+        },
+        {
+          "command": "python -m pytest tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q",
+          "result": "PASS: 28 passed."
+        },
+        {
+          "command": "direct one-bar exact-prompt MIDI inspection using PromptParser + MidiGenerator",
+          "result": "PASS: exact prompt now emits Meta, Drums, Bass program 34 `instrument:Bass Guitar`, and Chords program 30 `instrument:Guitar`; no Melody track and `program80_present=False`."
+        },
+        {
+          "command": "git diff --check -- multimodal_gen/midi_generator.py tests/test_midi_generator.py",
+          "result": "PASS: no whitespace errors; existing LF-to-CRLF warning only."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_DIRTY_TREE_CAVEAT",
+        "timestamp": "2026-07-30T00:00:00Z",
+        "summary": "Task 130 behavior is verified: unrequested rock-family default Synth Melody is suppressed, explicit synth lead and lead guitar are preserved, and the only caveat is the broad pre-existing dirty working tree outside the intended task-scoped commit."
+      }
+    },
+    {
+      "id": "instrument-realism-strobe-popup-grounded-audit-20260730",
+      "description": "Audit current codebase gaps causing natural-instrument realism failures and gate the Strobe2-inspired creative synth popup behind rock/instrument source-truth fixes.",
+      "status": "completed",
+      "assigned_to": "supervisor",
+      "phase": "aggregate",
+      "priority": "HIGH",
+      "dependencies": [],
+      "files_to_modify": [
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-07-30T00:00:00Z",
+      "updated": "2026-07-30T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Added a source-grounded July 30 audit showing that old May rock-routing gaps are mostly stale, but the current exact rock prompt still emits an unrequested GM program-80 synth Melody track. The audit prioritizes fixing the rock MIDI contract, proving the current render, designing hybrid/stem-aware renderer selection, and upgrading real guitar/bass sources before implementing a Strobe2-inspired creative synth popup.",
+        "guardrails_preserved": [
+          "Documentation/state only; no production renderer, MIDI, parser, or JUCE UI code changed in this audit.",
+          "The Strobe2 PDF fetch failed to extract text, so the plan uses only the user-supplied feature list as inspiration and makes no direct manual-derived claims.",
+          "The popup is explicitly framed as a creative synth layer rather than a natural-instrument realism fix."
+        ]
+      },
+      "tests": [
+        {
+          "command": "read-only recursive-verifier audit over prompt_parser, rock_strategy, midi_generator, audio_renderer, assets_gen, ethiopian_samples, and JUCE synth/UI architecture",
+          "result": "PASS_WITH_ACTION_REQUIRED: verified rock route exists now; found current exact-prompt bug where unrequested GM program-80 Synth Melody is still emitted; identified procedural realism, whole-file FluidSynth skip, analyzer-proof, sample-cleanliness, and Strobe-popup gating gaps."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_ACTION_REQUIRED",
+        "timestamp": "2026-07-30T00:00:00Z",
+        "summary": "The audit is documented and queues Task 130 as the next implementation slice: suppress unrequested rock-family synth Melody while preserving explicit lead/synth requests."
+      }
+    },
+    {
       "id": "ethiopian-timbre-phrasing-task-sequence-planning",
       "description": "Translate the post-step-4 Ethiopian authenticity research into an implementation-ready timbre/phrasing/articulation sequence with exact file edits, tests, and proofs for the next bounded slices.",
       "status": "completed",
@@ -636,7 +743,7 @@
       "description": "Recover Task 129 with source-truth and reference-audio integrity: stop treating generated approval songs/analyzer pass as Ethiopian timbre proof, add a real instrument-reference comparison layer, and only then perform bounded synthesis corrections that preserve existing functionality.",
       "status": "in_progress",
       "assigned_to": "supervisor",
-      "phase": "verify",
+      "phase": "probe",
       "priority": "HIGH",
       "dependencies": [
         "ethiopian-traditional-exact-prompt-isolated-full-render-followthrough-128"
@@ -649,7 +756,7 @@
         ".github/state/memory.json"
       ],
       "created": "2026-06-26T00:00:00Z",
-      "updated": "2026-06-28T14:00:00Z",
+      "updated": "2026-06-28T16:00:00Z",
       "implementation": {
         "files_changed": [
           "multimodal_gen/assets_gen.py",
@@ -1157,6 +1264,57 @@
             "Washint has no user MP3, so it still renders procedurally (dance_call/alto_breathy).",
             "Bank coverage gaps exist outside the sampled root_note ranges (krar 38-71, masenqo 57-74, begena 35-50).",
             "User listening approval of the 2-minute song and sampled probes is still pending."
+          ]
+        },
+        "honest_listening_diagnostic_and_kebero_dewesternization": {
+          "timestamp": "2026-06-28T16:00:00Z",
+          "user_feedback": "User listened: the 2-minute song is horrible and the instruments sound nothing like the MP3 samples; user also flagged that the saved kebero samples are named bass/slap which is Westernized.",
+          "diagnostic_findings": {
+            "sample_bank_is_dirty_fragments_not_notes": {
+              "krar_f0std_cents_median": 822.3,
+              "masenqo_f0std_cents_median": 545.0,
+              "begena_f0std_cents_median": 306.7,
+              "multi_onset_fraction": {
+                "krar": 0.56,
+                "masenqo": 0.5,
+                "begena": 0.67
+              },
+              "note": "A clean single note has f0 std < ~40 cents. The auto-extractor segmented between onsets and labeled each chunk a note, but chunks span multiple pitches/onsets/glissandi. Pitch-shifting and sustain-looping these scrambled fragments is why it sounds nothing like the instruments."
+            },
+            "arrangement_too_dense_and_wrong": {
+              "krar_notes": 440,
+              "masenqo_notes": 136,
+              "begena_notes": 256,
+              "song_seconds": 178,
+              "note": "Begena is a slow meditative drone; 256 notes is wrong. Song ran 178s not the requested 120s."
+            },
+            "begena_out_of_bank_range": {
+              "oor_frac": 0.56,
+              "ge7_semitone_shift_frac": 0.16
+            },
+            "audio_not_clipping": {
+              "peak": 0.579,
+              "clip_frac": 0.0,
+              "rms": 0.146
+            },
+            "misleading_metric": "The earlier 37-49% descriptor-distance improvement was misleading: the fragments are literally bits of the MP3 so aggregate spectra matched, while the music is perceptually mush."
+          },
+          "kebero_dewesternization_fix": {
+            "files_changed": [
+              "multimodal_gen/agents/performers/kebero.py",
+              "multimodal_gen/assets_gen.py",
+              "multimodal_gen/audio_renderer.py",
+              "multimodal_gen/midi_generator.py",
+              "tests/test_assets_gen.py"
+            ],
+            "summary": "Replaced conga/drum-kit kebero vocabulary (bass/slap/conga/bongo/doom/tek) with authentic double-headed kebero terminology: KEBERO_LOW (large head, low tone)=50, KEBERO_HIGH (small head, high tone)=51, muted=52, edge=53. Output samples now kebero_low.wav/kebero_high.wav. KEBERO_BASS/KEBERO_SLAP and kebero_bass/kebero_slap kept as backward-compatible aliases. Numeric/audio behavior unchanged.",
+            "tests": "targeted -k kebero/drum/ethiopian: 21 passed; broad 3-file: 113 passed; consumer strategies/guardrails: 13 passed; git diff --check clean; get_errors clean on 4 files."
+          },
+          "honest_status": "NOT solved. The kebero naming is fixed (authenticity). The core sound problem (dirty fragment samples + over-dense, non-idiomatic arrangement) is NOT fixed. No claim that the song is good.",
+          "next_real_work": [
+            "Rebuild sample extraction to keep ONLY clean, stable single-note pitch plateaus (f0 std < ~30-50 cents, single onset, harmonic), re-measure cleanliness honestly; expect far fewer but usable samples; reconsider sampled-default if clean coverage is insufficient.",
+            "Fix Ethiopian arrangement idiom: begena as sparse low drone (few long notes), krar ostinato, masenqo sparse vocal-like lead, kebero-driven pulse; drastically reduce note density.",
+            "Only after both, regenerate and get user listening approval; never claim success from descriptor metrics alone."
           ]
         }
       },
@@ -8985,12 +9143,12 @@
   "recursion_depth": 0,
   "max_recursion": 5,
   "metadata": {
-    "last_updated": "2026-06-28T14:00:00Z",
+    "last_updated": "2026-06-28T16:00:00Z",
     "total_tasks_completed": 129,
     "total_tasks_failed": 0,
     "tasks_coding_agent_status": "ALL 15/15 COMPLETE",
     "test_baseline": "1223 passed, 6 skipped",
-    "next_phase": "await-user-listening-approval-of-mp3-sampled-eskista-then-expand-multisample-coverage-and-washint-bank"
+    "next_phase": "rebuild-clean-note-sample-extraction-and-fix-ethiopian-arrangement-density-then-user-listening"
   },
   "sprint_11": {
     "status": "COMPLETE",

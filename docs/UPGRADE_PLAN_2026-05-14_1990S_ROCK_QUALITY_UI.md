@@ -1532,3 +1532,177 @@ These tasks are **after** Task 076 and should not start while the pre-UI gate re
 - **Depends on:** Tasks 077-081.
 - **Likely file targets:** `juce/Source/UI/Theme/ColourScheme.h`, `juce/Source/UI/Theme/LayoutConstants.h`, `juce/Source/UI/TrackList/TrackHeaderComponent.cpp`, `juce/Source/MainComponent.cpp`.
 - **Scope:** Apply the final integrated MPC-inspired polish pass only after capability surfaces, take rendering, and workflow truthfulness are stable.
+
+## Source-grounded instrument realism audit and Strobe-inspired popup gating — 2026-07-30
+
+Status: **documentation/state only**. This audit was run because the requested goal is not merely to add a creative synth surface, but first to find codebase-truth gaps that still make rendered instruments fail the “natural true sound” test.
+
+### Bottom line
+
+The original May rock-routing findings are now mostly stale: rock parsing, `RockStrategy`, rock-family arranger/profile support, mastered WAV playback parity, and app preview category parity all exist in the current codebase. The new source-truth gap is more specific and more musical:
+
+1. the exact 1990s rock prompt can still produce an **unrequested GM program-80 square/synth `Melody` track** even though the prompt asks for guitar, bass guitar, and live drums;
+2. procedural guitar/bass fallback is intentionally bounded and synthetic, not a true amp/cabinet/multisample model;
+3. renderer selection is still too all-or-nothing: custom drums can skip whole-file FluidSynth, losing better SoundFont guitar/bass/key timbres;
+4. `audio_analysis.passed=true` still cannot prove guitar/bass naturalness because the analyzer mostly proves spectral/drum conditions, not electric-guitar or bass-guitar timbre identity;
+5. broader sampled-instrument work, especially Ethiopian-family work, must follow the repo memory lesson: dirty fragments and descriptor movement are not listening approval.
+
+### Verified current truth
+
+- Rock-family route exists now:
+  - `multimodal_gen/prompt_parser.py` contains rock-family genre/default mappings.
+  - `multimodal_gen/strategies/rock_strategy.py` provides live-kit drums, electric-bass patterns, and guitar-range power chords.
+  - `multimodal_gen/strategies/registry.py` registers `RockStrategy`.
+  - `multimodal_gen/fluidsynth_profiles.py` defines the current rock-family FluidSynth profile and shelves.
+- Backend/app parity has improved since the early plan:
+  - generated backend WAV playback was implemented in JUCE;
+  - MIDI preview is labeled honestly as unmastered;
+  - rock-family app-preview category ordering can prefer guitar.
+- The Strobe2 PDF fetch failed to extract meaningful text in this session, so this plan uses only the user-supplied Strobe2 feature list as inspiration and does **not** claim direct manual-derived implementation details.
+
+### Current source-grounded gaps
+
+#### Gap 1 — exact rock prompt still emits an unrequested synth lead
+
+The read-only verifier reproduced the current exact prompt as `genre=rock`, instruments `['guitar', 'bass']`, and live-kit drums. However, MIDI inspection still found:
+
+```text
+Drums
+Bass   program=34  instrument:Bass Guitar
+Chords program=30  instrument:Guitar
+Melody program=80  instrument:Synth
+```
+
+This is the highest-priority bug for natural 1990s rock: a guitar/bass/live-drums prompt should not silently add a square/saw synth lead. The likely implementation seam is the default melody policy in `multimodal_gen/midi_generator.py`: suppress rock-family default `Melody` unless the prompt explicitly asks for melody/lead/hook/solo/synth; if it asks for **lead guitar**, route that lead to a guitar program, not GM synth lead.
+
+#### Gap 2 — procedural guitar/bass remains a fallback, not an authenticity target
+
+Relevant source:
+
+- `audio_renderer.py::_synthesize_rock_electric_guitar()` explicitly says it is bounded and “does not attempt a full amp/cabinet simulation.”
+- `assets_gen.py::generate_guitar_tone()` is a harmonic stack + pick transient + tanh drive + filters.
+- `audio_renderer.py::_synthesize_rock_electric_bass()` safely avoids 808 sub-bloom, but it is still a procedural approximation.
+
+This is acceptable as offline fallback. It should not be treated as the final natural-instrument target. The realistic path is: prefer licensed SoundFont/SFZ/multisample sources when available, record source-path diagnostics in render reports, and keep procedural guitar/bass only as an honest fallback.
+
+#### Gap 3 — renderer selection should become hybrid/stem-aware
+
+Current `AudioRenderer.render_midi_file()` tries FluidSynth only if `custom_drums_loaded == 0` and no Ethiopian instruments are present. If custom drums are loaded, the whole song can fall back to procedural rendering. That means a useful custom drum kit can accidentally cost the song its better SoundFont/SFZ guitar, bass, organ, piano, or brass timbres.
+
+Future renderer work should become stem-aware: keep custom drums where requested, but still render GM melodic tracks through FluidSynth/SF2/SFZ where possible, then mix/master the stems through the existing backend path.
+
+#### Gap 4 — analyzer pass is not proof of natural instrument identity
+
+Rock analyzer targets mention electric guitar, bass guitar, and live drums, but the implemented scoring is mostly spectral/drum/loudness oriented. It can prove the mix is not obviously wrong; it cannot prove that a guitar sounds like a true guitar.
+
+For instrument-realism work, acceptance must include:
+
+- MIDI contract assertions: no unrequested synth lead, expected GM programs/markers/channels;
+- render-report source assertions: FluidSynth/SFZ/sample/procedural source used per instrument family;
+- listening artifacts or reference-comparison probes for the actual instrument family;
+- analyzer metrics only as guardrails, not as the final authenticity proof.
+
+#### Gap 5 — sample-based realism must use clean notes, not dirty fragments
+
+Repo state already records the decisive lesson from Ethiopian work: real samples can be the right direction, but dirty MP3 fragments with unstable f0/multiple onsets produce perceptual mush even if descriptors move closer. That lesson generalizes to rock and all natural instruments: do not pitch-shift arbitrary fragments and call them a multisample instrument.
+
+### Recommended task sequence from this audit
+
+#### Task 130 — Rock no-unrequested-synth-lead contract
+
+- **Goal:** exact 1990s rock prompt produces drums, bass guitar, guitar chords/riffs, and only explicit requested leads.
+- **Likely files:** `multimodal_gen/midi_generator.py`, focused MIDI/rock contract tests.
+- **Acceptance:** exact prompt has no GM program-80 `Melody` synth track; explicit `lead guitar` routes to guitar; explicit `synth lead` still routes to synth; non-rock genres that rely on default melody are preserved.
+
+#### Task 131 — Current-worktree exact rock render proof
+
+- **Depends on:** Task 130.
+- **Goal:** regenerate the exact prompt and inspect parser, MIDI programs, render report, renderer path/profile, and audio guardrails.
+- **Acceptance:** `genre=rock`, no unrequested synth lead, `renderer_path` and source diagnostics are truthful, rock audio guardrails pass or produce actionable non-relaxed warnings.
+
+#### Task 132 — Hybrid renderer plan / spike
+
+- **Depends on:** Task 131.
+- **Goal:** design the smallest safe path for custom drums + FluidSynth/SFZ melodic stems instead of whole-song fallback.
+- **Acceptance:** implementation plan identifies track splitting, source diagnostics, mix/master handoff, and failure fallback without changing analyzer thresholds.
+
+#### Task 133 — Real guitar/bass source upgrade
+
+- **Depends on:** Task 132 or a confirmed no-custom-drum FluidSynth path.
+- **Goal:** prefer licensed SoundFont/SFZ/multisample guitar and bass sources over procedural fallback.
+- **Acceptance:** render report proves the real source path; procedural fallback remains available and labeled; listening/reference artifacts are generated before declaring naturalness solved.
+
+#### Task 134 — Strobe-inspired creative synth popup, bounded v1
+
+- **Depends on:** Tasks 130-133 for natural-instrument credibility, plus an explicit decision to keep this as a creative synth layer rather than a natural-instrument fix.
+- **Goal:** add an in-app floating “Performance Synth” panel inspired by the supplied Strobe2 feature list, using the existing `FloatingToolWindow`, `ControlsPanel`, `FXChainPanel`, and default-synth/patch seams.
+- **Bounded v1 feature subset:** multi-waveform oscillator UI, sub/noise amount, detune/phase-reset controls, filter mode/cutoff/resonance/drive subset, amp ADSR/VCA drive, one LFO plus clock division, simple modulation assignment matrix, preset randomize/morph controls, and vector-style scalable JUCE layout.
+- **Explicitly deferred:** true Strobe2 equivalence, 22 filter models, full TransMod, Euclid/Curve processors, full MPE, 900+ factory presets, VST/AU/AAX packaging, and plugin certification.
+
+### Opinion / decision
+
+The Strobe-inspired popup is a good idea, but it should be a **creative synth layer**, not the fix for natural instruments. Implementing it before the rock MIDI-contract bug and real-source renderer gaps would make the app more impressive visually while still letting a rock-band prompt sound synthetic for the wrong reason. The practical next move is therefore Task 130 first, then a current-worktree proof, then hybrid/real-source rendering. Once the natural-instrument path is honest, the Strobe-inspired popup can become a strong differentiator without masking the core realism problem.
+
+## Task 130 — Rock no-unrequested-synth-lead contract implementation — 2026-07-30
+
+Status: **implemented and verified**.
+
+### What changed
+
+- `multimodal_gen/midi_generator.py`
+  - Added rock-family melody-intent helpers so rock-family prompts only create the optional `Melody` track when a lead/melody/hook/solo/synth-lead request is explicit.
+  - Added an explicit rock synth-lead path that preserves GM program `80` / `instrument:Synth` when the prompt asks for `synth lead`, `lead synth`, `square lead`, or `saw lead`.
+  - Added explicit rock guitar-lead detection for `lead guitar`, `guitar lead`, `guitar solo`, `solo guitar`, and `guitar hook`.
+  - Routed explicit rock guitar lead/solo melody to a guitar program, currently GM program `30`, with `instrument:Guitar`, instead of silently falling back to GM program `80` Synth.
+  - Added `suppress_rock_default_melody` beside the existing R&B/lofi/default-melody suppression and Ethiopian duplicate-melody suppression; those existing guards remain intact.
+- `tests/test_midi_generator.py`
+  - Added focused coverage proving the exact 1990s rock prompt has no unrequested `Melody` track and no program `80`.
+  - Added coverage proving explicit rock `synth lead` still creates `Melody` program `80` / `instrument:Synth`.
+  - Added coverage proving explicit rock `lead guitar` and `guitar solo` create `Melody` with guitar program `30` / `instrument:Guitar`.
+
+### Direct exact-prompt proof
+
+Using the exact prompt:
+
+```text
+1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor
+```
+
+the one-bar direct MIDI inspection now reports:
+
+```text
+genre= rock
+instruments= ['guitar', 'bass']
+drums= ['kick', 'snare', 'hihat', 'hihat_open', 'crash', 'ride', 'tom']
+Meta [] []
+Drums [] []
+Bass [(1, 34)] ['instrument:Bass Guitar']
+Chords [(2, 30)] ['instrument:Guitar']
+program80_present= False
+```
+
+This closes the specific Task 130 bug: the exact rock-band prompt no longer contains the unrequested GM square/synth lead.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+python -m pytest tests/test_midi_generator.py -q -k "1990s_rock_prompt or rock_synth_lead or rock_lead_guitar"
+python -m pytest tests/test_midi_generator.py -q
+python -m pytest tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+git diff --check -- multimodal_gen/midi_generator.py tests/test_midi_generator.py
+```
+
+Results:
+
+- Focused Task 130 tests: `4 passed, 21 deselected`.
+- Full MIDI generator tests: `25 passed`.
+- Rock smoke/golden guard subset: `28 passed`.
+- `git diff --check`: no whitespace errors; only the existing Git LF→CRLF warning for `multimodal_gen/midi_generator.py`.
+- VS Code diagnostics: no errors in `multimodal_gen/midi_generator.py` or `tests/test_midi_generator.py`.
+- Post-verifier verdict: `PASS` with dirty-tree caveat.
+
+### Dirty-tree / commit caveat
+
+No files were staged or committed during the Task 130 implementation/verification pass. After verification, the user explicitly requested a task-scoped local commit containing Task 130 plus the updated docs/state files. The repo already had many pending source-control changes, and the terminal status count observed during this task was `35` entries (`26` modified tracked, `9` untracked), while the user reported `83` pending changes in the Source Control UI. Therefore the commit is intentionally scoped to the Task 130 implementation/test files plus the matching plan/state files, leaving other pending work unstaged.

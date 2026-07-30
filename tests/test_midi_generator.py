@@ -1,8 +1,10 @@
 """Focused regressions for guitar chord-track MIDI routing."""
 
+import random
+
 from mido import MidiFile, MidiTrack
 
-from multimodal_gen.arranger import Arrangement, SECTION_CONFIGS, SectionType, SongSection
+from multimodal_gen.arranger import Arrangement, Arranger, SECTION_CONFIGS, SectionType, SongSection
 from multimodal_gen.instrument_ranges import get_melody_octave, get_range
 from multimodal_gen.instrument_resolution import InstrumentResolutionService
 from multimodal_gen.midi_generator import (
@@ -10,11 +12,12 @@ from multimodal_gen.midi_generator import (
     JAZZ_HORN_MELODY_VELOCITY_CAP,
     JAZZ_SAX_MELODY_CC74_CAP,
     MidiGenerator,
+    generate_chord_progression_midi,
 )
 from multimodal_gen.prompt_parser import ParsedPrompt
 from multimodal_gen.prompt_parser import PromptParser
 from multimodal_gen.tension_arc import TensionArc, TensionPoint
-from multimodal_gen.utils import ScaleType, TICKS_PER_BAR_4_4
+from multimodal_gen.utils import GM_DRUM_NOTES, ScaleType, TICKS_PER_BAR_4_4
 
 
 EXACT_1990S_ROCK_PROMPT = (
@@ -26,6 +29,15 @@ EXACT_1990S_ROCK_PROMPT = (
 LYRICAL_CINEMATIC_PIANO_PROMPT = (
     "cinematic orchestral score with lyrical piano, warm strings, flute, oboe, "
     "harp, and soft choir, emotional rising theme, 78 BPM in G major"
+)
+
+TASK_113_ESKISTA_PROMPT = (
+    "eskista shoulder dance groove with kebero and bright washint riffs at 126 BPM "
+    "in E minor with krar lead and masenqo answers"
+)
+
+TASK_127_TRADITIONAL_AMBASSEL_PROMPT = (
+    "traditional Ethiopian ambassel groove with krar, washint, masenqo, kebero at 104 BPM"
 )
 
 
@@ -77,6 +89,15 @@ def _track_by_name(mid: MidiFile, name: str) -> MidiTrack:
     raise AssertionError(f"{name} track not found")
 
 
+def _track_names(mid: MidiFile) -> list[str]:
+    return [
+        msg.name
+        for track in mid.tracks
+        for msg in track
+        if msg.type == "track_name"
+    ]
+
+
 def _channel_2_program(track: MidiTrack) -> int:
     return _channel_program(track, 2)
 
@@ -115,8 +136,263 @@ def _note_on_pitches(track: MidiTrack) -> list[int]:
     return [msg.note for msg in track if msg.type == "note_on" and msg.velocity > 0]
 
 
+def _note_on_pitches_by_absolute_tick(track: MidiTrack) -> dict[int, list[int]]:
+    absolute_tick = 0
+    grouped: dict[int, list[int]] = {}
+    for msg in track:
+        absolute_tick += msg.time
+        if msg.type == "note_on" and msg.velocity > 0:
+            grouped.setdefault(absolute_tick, []).append(msg.note)
+    return grouped
+
+
+def _note_on_bars(track: MidiTrack) -> set[int]:
+    absolute_tick = 0
+    bars: set[int] = set()
+    for msg in track:
+        absolute_tick += msg.time
+        if msg.type == "note_on" and msg.velocity > 0:
+            bars.add(absolute_tick // TICKS_PER_BAR_4_4)
+    return bars
+
+
 def _cc_values(track: MidiTrack, control: int) -> list[int]:
     return [msg.value for msg in track if msg.type == "control_change" and msg.control == control]
+
+
+def _lowest_bar_start_pitches(pattern: list[tuple[int, int, int, int]], bars: int) -> list[int]:
+    grouped: dict[int, list[int]] = {}
+    for tick, _duration, pitch, _velocity in pattern:
+        grouped.setdefault(tick, []).append(pitch)
+    return [min(grouped[bar * TICKS_PER_BAR_4_4]) for bar in range(bars)]
+
+
+def test_generate_chord_progression_midi_ambassel_default_progression_stays_safe_and_non_empty():
+    pattern = generate_chord_progression_midi(
+        bars=4,
+        key="C",
+        scale_type=ScaleType.AMBASSEL,
+    )
+
+    assert pattern
+    assert all(isinstance(tick, int) and tick >= 0 for tick, _duration, _pitch, _velocity in pattern)
+    assert all(isinstance(duration, int) and duration > 0 for _tick, duration, _pitch, _velocity in pattern)
+    assert all(isinstance(pitch, int) and 0 <= pitch <= 127 for _tick, _duration, pitch, _velocity in pattern)
+    assert all(isinstance(velocity, int) and 1 <= velocity <= 127 for _tick, _duration, _pitch, velocity in pattern)
+
+
+def test_ethiopian_traditional_ambassel_prompt_generates_midi_without_scale_degree_index_error():
+    parsed = PromptParser().parse(TASK_127_TRADITIONAL_AMBASSEL_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    krar = _track_by_name(mid, "Krar")
+
+    assert parsed.genre == "ethiopian_traditional"
+    assert parsed.scale_type == ScaleType.AMBASSEL
+    assert mid.tracks
+    assert _note_on_pitches(krar)
+
+
+def test_generate_chord_progression_midi_major_default_progression_preserves_seven_note_roots():
+    pattern = generate_chord_progression_midi(
+        bars=4,
+        key="C",
+        scale_type=ScaleType.MAJOR,
+    )
+
+    assert _lowest_bar_start_pitches(pattern, bars=4) == [60, 67, 69, 65]
+
+
+def test_eskista_multi_instrument_prompt_preserves_distinct_ethiopian_tracks_and_programs():
+    parsed = PromptParser().parse(TASK_113_ESKISTA_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    drums = _track_by_name(mid, "Drums")
+    krar = _track_by_name(mid, "Krar")
+    washint = _track_by_name(mid, "Washint")
+    masenqo = _track_by_name(mid, "Masenqo")
+    track_names = [
+        msg.name
+        for track in mid.tracks
+        for msg in track
+        if msg.type == "track_name"
+    ]
+
+    assert parsed.genre == "eskista"
+    assert track_names.count("Krar") == 1
+    assert track_names.count("Washint") == 1
+    assert track_names.count("Masenqo") == 1
+    assert "Chords" not in track_names
+    assert "Melody" not in track_names
+    assert _channel_2_program(krar) == 110
+    assert _channel_3_program(washint) == 112
+    assert _channel_4_program(masenqo) == 111
+    assert _note_on_pitches(krar)
+    assert _note_on_pitches(washint)
+    assert _note_on_pitches(masenqo)
+    assert "instrument:Kebero" in _text_markers(drums)
+
+
+def test_eskista_base_midi_drums_track_stays_generic_with_kebero_marker():
+    parsed = PromptParser().parse(TASK_113_ESKISTA_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    drums = _track_by_name(mid, "Drums")
+    track_names = [
+        msg.name
+        for track in mid.tracks
+        for msg in track
+        if msg.type == "track_name"
+    ]
+    drum_pitches = _note_on_pitches(drums)
+    drum_pitch_set = set(drum_pitches)
+    low_head_hits = drum_pitches.count(GM_DRUM_NOTES["conga_low"])
+    high_head_hits = drum_pitches.count(GM_DRUM_NOTES["conga_high"])
+
+    assert track_names.count("Drums") == 1
+    assert "Kebero" not in track_names
+    assert "instrument:Kebero" in _text_markers(drums)
+    assert GM_DRUM_NOTES["conga_low"] in drum_pitch_set
+    assert GM_DRUM_NOTES["conga_high"] in drum_pitch_set
+    assert low_head_hits == 2
+    assert high_head_hits == 2
+    assert high_head_hits < 4
+
+
+def test_eskista_krar_track_avoids_same_tick_western_block_chord_clusters():
+    parsed = PromptParser().parse(TASK_113_ESKISTA_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    krar = _track_by_name(mid, "Krar")
+    onset_groups = _note_on_pitches_by_absolute_tick(krar)
+
+    assert onset_groups
+    assert max(len(set(pitches)) for pitches in onset_groups.values()) <= 2
+
+
+def test_eskista_krar_track_still_emits_sparse_support_notes():
+    parsed = PromptParser().parse(TASK_113_ESKISTA_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    krar = _track_by_name(mid, "Krar")
+    onset_groups = _note_on_pitches_by_absolute_tick(krar)
+
+    assert _note_on_pitches(krar)
+    assert len(onset_groups) >= 2
+
+
+def test_eskista_krar_support_change_preserves_task_113_identity_contract():
+    parsed = PromptParser().parse(TASK_113_ESKISTA_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(
+        _one_bar_arrangement(SectionType.CHORUS),
+        parsed,
+    )
+    drums = _track_by_name(mid, "Drums")
+    krar = _track_by_name(mid, "Krar")
+    washint = _track_by_name(mid, "Washint")
+    masenqo = _track_by_name(mid, "Masenqo")
+    track_names = [
+        msg.name
+        for track in mid.tracks
+        for msg in track
+        if msg.type == "track_name"
+    ]
+
+    assert track_names.count("Krar") == 1
+    assert track_names.count("Washint") == 1
+    assert track_names.count("Masenqo") == 1
+    assert "Chords" not in track_names
+    assert "Melody" not in track_names
+    assert _channel_2_program(krar) == 110
+    assert _channel_3_program(washint) == 112
+    assert _channel_4_program(masenqo) == 111
+    assert "instrument:Kebero" in _text_markers(drums)
+
+
+def test_compact_eskista_exact_prompt_keeps_identity_and_thins_krar_intro_outro_bars():
+    state = random.getstate()
+    random.seed(0)
+    try:
+        parsed = PromptParser().parse(TASK_113_ESKISTA_PROMPT)
+        parsed.target_bars = 16
+        arrangement = Arranger().create_arrangement(parsed)
+
+        mid = MidiGenerator(use_physics_humanization=False).generate(arrangement, parsed)
+        drums = _track_by_name(mid, "Drums")
+        krar = _track_by_name(mid, "Krar")
+        washint = _track_by_name(mid, "Washint")
+        masenqo = _track_by_name(mid, "Masenqo")
+        track_names = [
+            msg.name
+            for track in mid.tracks
+            for msg in track
+            if msg.type == "track_name"
+        ]
+        krar_bars = _note_on_bars(krar)
+
+        assert [section.section_type.value for section in arrangement.sections] == [
+            "intro",
+            "verse",
+            "variation",
+            "outro",
+        ]
+        assert track_names.count("Drums") == 1
+        assert track_names.count("Krar") == 1
+        assert track_names.count("Washint") == 1
+        assert track_names.count("Masenqo") == 1
+        assert "Chords" not in track_names
+        assert "Melody" not in track_names
+        assert _channel_2_program(krar) == 110
+        assert _channel_3_program(washint) == 112
+        assert _channel_4_program(masenqo) == 111
+        assert "instrument:Kebero" in _text_markers(drums)
+        assert krar_bars
+        assert not (krar_bars & {0, 1, 2, 3})
+        assert krar_bars & {4, 5, 6, 7, 8, 9, 10, 11}
+        assert not (krar_bars & {12, 13, 14, 15})
+    finally:
+        random.setstate(state)
+
+
+def test_compact_eskista_secondary_begena_honors_intro_outro_chord_disable_with_high_tension():
+    state = random.getstate()
+    random.seed(0)
+    try:
+        parsed = PromptParser().parse(
+            "eskista groove with kebero, krar, washint, and begena at 126 BPM in E minor"
+        )
+        parsed.target_bars = 16
+        arrangement = Arranger().create_arrangement(parsed)
+        arrangement.tension_arc = TensionArc(
+            points=[TensionPoint(0.0, 0.95), TensionPoint(1.0, 0.95)]
+        )
+
+        mid = MidiGenerator(use_physics_humanization=False).generate(arrangement, parsed)
+        begena = _track_by_name(mid, "Begena")
+        begena_bars = _note_on_bars(begena)
+
+        assert begena_bars
+        assert not (begena_bars & {0, 1, 2, 3})
+        assert begena_bars & {4, 5, 6, 7, 8, 9, 10, 11}
+        assert not (begena_bars & {12, 13, 14, 15})
+    finally:
+        random.setstate(state)
 
 
 def test_rock_guitar_prompt_creates_guitar_chord_track_not_rhodes():
@@ -161,6 +437,49 @@ def test_exact_1990s_rock_prompt_bass_track_uses_electric_bass_guitar_not_synth_
     assert program in {33, 34}
     assert program not in {38, 39}
     assert "instrument:Bass Guitar" in text_markers
+
+
+def test_exact_1990s_rock_prompt_suppresses_unrequested_synth_melody():
+    parsed = PromptParser().parse(EXACT_1990S_ROCK_PROMPT)
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(), parsed)
+    track_names = _track_names(mid)
+    programs = [msg.program for track in mid.tracks for msg in track if msg.type == "program_change"]
+
+    assert parsed.genre == "rock"
+    assert {"guitar", "bass"}.issubset(set(parsed.instruments))
+    assert "Melody" not in track_names
+    assert 80 not in programs
+
+
+def test_rock_synth_lead_prompt_still_emits_synth_melody_program_80():
+    parsed = PromptParser().parse(f"{EXACT_1990S_ROCK_PROMPT}, synth lead")
+
+    mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(), parsed)
+    melody = _melody_track(mid)
+
+    assert parsed.genre == "rock"
+    assert _channel_3_program(melody) == 80
+    assert "instrument:Synth" in _text_markers(melody)
+
+
+def test_rock_lead_guitar_and_guitar_solo_route_melody_to_guitar_program():
+    prompts = [
+        "1990's era rock song with crunchy lead guitar, live drums, bass guitar, 100 BPM in E minor",
+        "1990's era rock song with crunchy electric guitar solo, live drums, bass guitar, 100 BPM in E minor",
+    ]
+
+    for prompt in prompts:
+        parsed = PromptParser().parse(prompt)
+        mid = MidiGenerator(use_physics_humanization=False).generate(_one_bar_arrangement(), parsed)
+        melody = _melody_track(mid)
+        program = _channel_3_program(melody)
+
+        assert parsed.genre == "rock"
+        assert 24 <= program <= 31
+        assert program == 30
+        assert program != 80
+        assert "instrument:Guitar" in _text_markers(melody)
 
 
 def test_classic_rock_hammond_prompt_keeps_guitar_chords_and_adds_organ_bed():

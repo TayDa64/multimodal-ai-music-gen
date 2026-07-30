@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For rock-family band prompts, suppress default synth Melody unless the prompt explicitly asks for a lead/melody/synth or guitar solo, and route explicit guitar leads to guitar instead of GM synth.",
+        "context": "Task 130 on 2026-07-30 fixed the exact 1990s rock prompt by adding rock-family melody-intent gating in `multimodal_gen/midi_generator.py`. The exact prompt now emits Drums, Bass Guitar program 34, and Guitar Chords program 30 with no Melody and no program 80; explicit `synth lead` still creates program 80 Synth, while `lead guitar` / `guitar solo` creates a Melody track with guitar program 30. This keeps natural rock-band prompts from sounding synthetic for a routing reason before any renderer/source upgrade work.",
+        "timestamp": "2026-07-30T00:00:00Z"
+      },
+      {
+        "pattern": "Before adding a Strobe-style creative synth surface, fix natural-instrument source-truth bugs that make generated band prompts sound synthetic for the wrong reason.",
+        "context": "On 2026-07-30, a source-grounded audit found that old May rock parser/strategy gaps are mostly stale, but the current exact 1990s rock prompt still emits an unrequested GM program-80 Synth Melody track alongside drums, bass guitar, and guitar. The correct sequence is Task 130+ rather than Task 083 because Task 083 already exists for Ethiopian runtime work: fix the rock MIDI contract, prove current-worktree rendering, then design hybrid/stem-aware FluidSynth/SFZ/sample rendering and real guitar/bass source diagnostics before implementing a Strobe2-inspired popup as a creative synth layer.",
+        "timestamp": "2026-07-30T00:00:00Z"
+      },
+      {
         "pattern": "When procedural instrument synthesis plateaus far from real recordings, switch to sample-based reproduction: extract real note samples from the user recordings and render via pitch-shift + sustain-loop, reusing the renderer existing sample path.",
         "context": "On 2026-06-28, after many procedural tuning passes still sounded synthetic, MUSE extracted real note samples from the user Krar/Masenqo/Begena MP3s into a cached bank and rendered Ethiopian instruments from those samples. librosa descriptor distance to the MP3s dropped ~37-49% vs procedural, and the workflow was made to prefer the sampled instruments by default for Ethiopian genres. This is the decisive move toward authentic timbre.",
         "timestamp": "2026-06-28T14:00:00Z"
@@ -945,6 +955,18 @@
     ],
     "failed": [
       {
+        "pattern": "Auto-extracting instrument note samples by onset-to-onset segmentation from expressive/polyphonic solo recordings.",
+        "reason": "Onset segments span pitch changes, slides, strums, and buzz, so each \"sample\" is not a single note; pitch-shifting and looping them produces dissonant, stuttering output.",
+        "avoid_when": "Building a sample bank: extract only stable single-pitch plateaus with strict f0-stability and single-onset gates; reject the rest.",
+        "timestamp": "2026-06-28T16:00:00Z"
+      },
+      {
+        "pattern": "Treating a lower librosa descriptor-distance as proof of authentic/good-sounding instruments.",
+        "reason": "On 2026-06-28 the sampled Ethiopian probes scored 37-49% closer to the MP3s yet the user said the song was horrible and sounded nothing like the instruments. The \"samples\" were dirty multi-pitch onset-segmented fragments (krar f0 std 822 cents, 50-67% multi-onset), so aggregate spectra matched while perceptual result was mush.",
+        "avoid_when": "Any instrument-authenticity work: require clean per-note proof (f0 stability, single-onset, listening) and human approval, not aggregate descriptor distance.",
+        "timestamp": "2026-06-28T16:00:00Z"
+      },
+      {
         "pattern": "Do not offer a previously generated analyzer-passed approval song as proof of authentic Ethiopian timbre after the user has asked for source-truth/reference-audio work.",
         "reason": "The artifact only demonstrates the remaining synthesized-western-instrument gap and bypasses the promised research, modular source-model correction, and librosa/reference comparison.",
         "avoid_when": "When the acceptance criterion is real instrument timbre/character rather than runtime rendering success.",
@@ -977,6 +999,14 @@
     ]
   },
   "decisions": [
+    {
+      "decision": "De-Westernize kebero terminology to authentic double-headed naming (low/high heads) with backward-compatible aliases, and stop claiming the sampled song is good.",
+      "rationale": "User correctly identified bass/slap as Western conga framing and that the song is horrible. The naming fix is concrete and verifiable; the sound problem requires a clean-note extraction rebuild and arrangement fix, which are not yet done.",
+      "alternatives_considered": [
+        "Keep iterating on procedural/sample params and re-claim metric wins (rejected: dishonest and ineffective)."
+      ],
+      "timestamp": "2026-06-28T16:00:00Z"
+    },
     {
       "decision": "Make Ethiopian-family generation default to the MP3 sampled instrument bank, with procedural as fallback and an explicit opt-out.",
       "rationale": "The user repeatedly said the workflow did not prefer the MP3-variant instruments and the synthesized sound did not match the recordings. Real-sample rendering both sounds authentic and addresses the workflow-preference complaint directly. Defaults preserve all prior procedural behavior when the bank is unavailable or opted out.",
@@ -2628,5 +2658,5 @@
       "communication": "Structured tables, clear verdicts, proofs required"
     }
   },
-  "last_updated": "2026-06-28T14:00:00Z"
+  "last_updated": "2026-06-28T16:00:00Z"
 }
