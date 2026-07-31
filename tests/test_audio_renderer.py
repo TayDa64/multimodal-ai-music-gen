@@ -403,7 +403,88 @@ def test_render_report_track_realization_statuses_report_fluidsynth_whole_file_t
     assert status["actual_realization"] == "fluidsynth_soundfont"
     assert status["uses_patch_sample_layer"] is False
     assert status["source_path"] == "C:/soundfonts/test.sf3"
+    assert status["source_quality"] == "gm_soundfont_baseline"
+    assert status["effective_programs"] == [81]
+    assert status["gm_program_names"] == ["Lead 2 Sawtooth"]
+    assert status["gm_program_families"] == ["synth"]
     assert any("whole-file SoundFont rendering" in note for note in status["notes"])
+    assert any("not proof of dedicated multisample" in note for note in status["notes"])
+
+
+def test_fluidsynth_track_realization_reports_rock_guitar_bass_gm_sources(tmp_path):
+    midi_path = tmp_path / "rock_band.mid"
+    midi = mido.MidiFile(ticks_per_beat=480)
+
+    meta = mido.MidiTrack()
+    meta.append(mido.MetaMessage('track_name', name='Meta', time=0))
+    midi.tracks.append(meta)
+
+    bass = mido.MidiTrack()
+    bass.append(mido.MetaMessage('track_name', name='Bass', time=0))
+    bass.append(mido.MetaMessage('text', text='instrument:Bass Guitar', time=0))
+    bass.append(mido.Message('program_change', program=34, channel=1, time=0))
+    bass.append(mido.Message('note_on', note=40, velocity=100, channel=1, time=0))
+    bass.append(mido.Message('note_off', note=40, velocity=0, channel=1, time=480))
+    midi.tracks.append(bass)
+
+    guitar = mido.MidiTrack()
+    guitar.append(mido.MetaMessage('track_name', name='Chords', time=0))
+    guitar.append(mido.MetaMessage('text', text='instrument:Guitar', time=0))
+    guitar.append(mido.Message('program_change', program=30, channel=2, time=0))
+    guitar.append(mido.Message('note_on', note=52, velocity=100, channel=2, time=0))
+    guitar.append(mido.Message('note_off', note=52, velocity=0, channel=2, time=480))
+    midi.tracks.append(guitar)
+    midi.save(midi_path)
+
+    parsed = ParsedPrompt(
+        genre="rock",
+        bpm=100,
+        key="E",
+        scale_type=ScaleType.MINOR,
+        instruments=["guitar", "bass"],
+        drum_elements=[],
+    )
+    renderer = AudioRenderer(
+        sample_rate=44100,
+        use_fluidsynth=False,
+        soundfont_path="assets/soundfonts/FluidR3Mono_GM.sf3",
+        require_soundfont=True,
+        instrument_library=None,
+        expansion_manager=None,
+        genre=parsed.genre,
+        mood=parsed.mood,
+        use_bwf=False,
+        parsed_instruments=parsed.instruments,
+    )
+
+    report = renderer._build_render_report(
+        midi_path=str(midi_path),
+        output_path="dummy.wav",
+        parsed=parsed,
+        renderer_path="fluidsynth",
+        fluidsynth_allowed=True,
+        fluidsynth_attempted=True,
+        fluidsynth_success=True,
+        fluidsynth_skip_reason=None,
+        warnings=[],
+    )
+
+    statuses = {status["track_name"]: status for status in report["track_realization_statuses"]}
+    assert statuses["Bass"]["actual_realization"] == "fluidsynth_soundfont"
+    assert statuses["Bass"]["source_quality"] == "gm_soundfont_baseline"
+    assert statuses["Bass"]["effective_programs"] == [34]
+    assert statuses["Bass"]["gm_program_names"] == ["Electric Bass Pick"]
+    assert statuses["Bass"]["gm_program_families"] == ["bass"]
+    assert statuses["Bass"]["source_path"] == "assets/soundfonts/FluidR3Mono_GM.sf3"
+
+    assert statuses["Chords"]["actual_realization"] == "fluidsynth_soundfont"
+    assert statuses["Chords"]["patch_family"] == "guitar"
+    assert statuses["Chords"]["source_quality"] == "gm_soundfont_baseline"
+    assert statuses["Chords"]["effective_programs"] == [30]
+    assert statuses["Chords"]["gm_program_names"] == ["Distortion Guitar"]
+    assert statuses["Chords"]["gm_program_families"] == ["guitar"]
+    assert statuses["Chords"]["uses_patch_sample_layer"] is False
+    assert any("not proof of dedicated multisample" in note for note in statuses["Chords"]["notes"])
 
 
 def test_procedural_drum_note_mapping_keeps_side_stick_and_clap_off_kick_path():

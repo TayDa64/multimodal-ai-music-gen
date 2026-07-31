@@ -2740,6 +2740,48 @@ class AudioRenderer:
             return {'begena'}
         return set()
 
+    @staticmethod
+    def _gm_program_display_name(program: int) -> str:
+        """Return a compact GM program display name for source diagnostics."""
+        gm_names = {
+            24: 'Nylon Guitar',
+            25: 'Steel Guitar',
+            26: 'Jazz Guitar',
+            27: 'Clean Guitar',
+            28: 'Muted Guitar',
+            29: 'Overdriven Guitar',
+            30: 'Distortion Guitar',
+            31: 'Guitar Harmonics',
+            32: 'Acoustic Bass',
+            33: 'Electric Bass Finger',
+            34: 'Electric Bass Pick',
+            35: 'Fretless Bass',
+            36: 'Slap Bass 1',
+            37: 'Slap Bass 2',
+            38: 'Synth Bass 1',
+            39: 'Synth Bass 2',
+            80: 'Lead 1 Square',
+            81: 'Lead 2 Sawtooth',
+        }
+        return gm_names.get(int(program), f'GM Program {int(program)}')
+
+    @classmethod
+    def _gm_program_families(cls, programs: List[int]) -> List[str]:
+        """Return stable GM patch families for a list of programs."""
+        families: List[str] = []
+        for program in programs:
+            candidates = cls._program_to_patch_candidate_families(int(program))
+            if 'guitar' in candidates:
+                family = 'guitar'
+            elif 'bass' in candidates:
+                family = 'bass'
+            elif candidates:
+                family = sorted(candidates)[0]
+            else:
+                family = 'unknown'
+            families.append(family)
+        return list(dict.fromkeys(families))
+
     def _get_expansion_source_path_for_program(self, program: int) -> Optional[str]:
         """Return a truthful expansion sample path for a MIDI program when cached."""
         expansion_sample_sources = getattr(self.procedural, '_expansion_sample_sources', {}) or {}
@@ -3082,6 +3124,23 @@ class AudioRenderer:
             if patch_id is None:
                 notes.append('No truthful patch mapping could be proven for this track.')
 
+            effective_programs = [
+                int(program)
+                for program in (track_fact.get('effective_programs') or [])
+                if isinstance(program, int)
+            ]
+            source_quality = None
+            gm_program_names: List[str] = []
+            gm_program_families: List[str] = []
+            if actual_realization == 'fluidsynth_soundfont':
+                gm_program_names = [self._gm_program_display_name(program) for program in effective_programs]
+                gm_program_families = self._gm_program_families(effective_programs)
+                source_quality = 'gm_soundfont_baseline'
+                notes.append(
+                    'GM SoundFont rendering is a stable real-instrument baseline, '
+                    'but not proof of dedicated multisample/round-robin source quality.'
+                )
+
             if track_fact.get('explicit_programs') and len(track_fact.get('effective_programs') or []) > 1:
                 match_basis = 'mixed_programs'
             elif track_fact.get('explicit_programs'):
@@ -3093,7 +3152,7 @@ class AudioRenderer:
             else:
                 match_basis = 'unknown'
 
-            statuses.append({
+            status = {
                 'track_index': track_fact.get('track_index'),
                 'track_name': track_fact.get('track_name'),
                 'patch_id': patch_id,
@@ -3104,7 +3163,15 @@ class AudioRenderer:
                 'source_path': source_path,
                 'match_basis': match_basis,
                 'notes': list(dict.fromkeys(str(note) for note in notes if str(note).strip())),
-            })
+            }
+            if actual_realization == 'fluidsynth_soundfont':
+                status.update({
+                    'source_quality': source_quality,
+                    'effective_programs': effective_programs,
+                    'gm_program_names': gm_program_names,
+                    'gm_program_families': gm_program_families,
+                })
+            statuses.append(status)
 
         return statuses
 

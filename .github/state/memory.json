@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For natural-instrument source upgrades, first label the current SoundFont realization as a truthful GM baseline with exact program/family diagnostics instead of implying it is dedicated multisample quality.",
+        "context": "Task 133 on 2026-07-31 added FluidSynth per-track diagnostics: source_quality=gm_soundfont_baseline, effective_programs, gm_program_names, and gm_program_families. The exact rock proof now reports Bass as program 34 Electric Bass Pick and Chords/Guitar as program 25 Steel Guitar from FluidR3Mono_GM.sf3, while explicitly noting that GM SoundFont rendering is not proof of dedicated multisample/round-robin quality. This creates a clean acceptance seam for future guitar/bass source upgrades.",
+        "timestamp": "2026-07-31T00:00:00Z"
+      },
+      {
         "pattern": "For rock-family prompts with a valid SoundFont, prefer the known-good FluidSynth band render over auto-loaded custom drum samples, but keep custom-kit procedural priority for non-rock genres.",
         "context": "Task 132 on 2026-07-31 fixed the full exact-rock runtime failure from Task 131. The old all-or-nothing gate skipped FluidSynth whenever custom drums were loaded, allowing R&B/Funk samples to make a rock prompt fail sub-bass and drum-presence targets. The bounded fix lets rock-family/required-SoundFont renders use FluidSynth despite custom_drums_loaded, records an explicit warning, and preserves non-rock/trap custom-drum behavior. The exact full-runtime prompt now passes with renderer_path=fluidsynth, score 1.0, sub_bass 0.1099, and percussive_ratio 0.192 while still having no Melody/program80.",
         "timestamp": "2026-07-31T00:00:00Z"

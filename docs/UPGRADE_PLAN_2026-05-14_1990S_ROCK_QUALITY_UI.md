@@ -1926,3 +1926,102 @@ Key proof fields:
 ### Task 132 conclusion
 
 Task 132 closes the exact full-runtime renderer/source-selection failure found in Task 131 without relaxing analyzer targets and without changing the Task 130 MIDI contract. The next natural-instrument task can move up one layer: real guitar/bass source quality and source diagnostics, rather than whole-file renderer selection.
+
+## Task 133 — Rock guitar/bass source-quality diagnostics — 2026-07-31
+
+Status: **implemented and verified** as a diagnostics/source-truth slice.
+
+### Decision
+
+Task 132 made the full exact-rock runtime use the known-good SoundFont path. Task 133 does **not** claim the current GM SoundFont guitar/bass are the final “natural true sound” target. Instead, it makes the source-quality truth explicit per track so future work can distinguish:
+
+- `fluidsynth_soundfont` GM baseline quality;
+- custom/expansion/procedural realization;
+- patch intent versus actual render source;
+- future dedicated multisample/round-robin source upgrades.
+
+### What changed
+
+- `multimodal_gen/audio_renderer.py`
+  - Added compact GM program diagnostics for FluidSynth-rendered tracks:
+    - `source_quality`
+    - `effective_programs`
+    - `gm_program_names`
+    - `gm_program_families`
+  - Added GM display names for the rock-relevant guitar/bass programs, plus existing lead programs used by tests.
+  - Added a per-track note for FluidSynth statuses: GM SoundFont is a stable real-instrument baseline, but **not proof of dedicated multisample/round-robin source quality**.
+  - Kept procedural/custom status shapes unchanged; the new fields are additive on `actual_realization=fluidsynth_soundfont` statuses.
+- `tests/test_audio_renderer.py`
+  - Extended the existing FluidSynth realization test to assert source-quality and GM program diagnostics.
+  - Added a rock guitar/bass test proving Bass program `34` reports `Electric Bass Pick` / `bass` and Guitar program `30` reports `Distortion Guitar` / `guitar` when rendered through FluidSynth.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+python -m pytest tests/test_audio_renderer.py -q -k "track_realization_statuses_report_fluidsynth or rock_guitar_bass_gm_sources or custom_drums"
+python -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py -q
+```
+
+Results:
+
+- Focused source-diagnostics tests: `4 passed`.
+- Renderer + render-report guard suite: `57 passed`.
+- VS Code diagnostics: no errors in `multimodal_gen/audio_renderer.py` or `tests/test_audio_renderer.py`.
+
+### Exact runtime source-diagnostics proof
+
+Command shape:
+
+```powershell
+python main.py "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor" --duration-bars 16 --seed 199001 --require-audio --no-banner --output output/_diagnostics/task133_exact_rock_source_diagnostics_20260731 --soundfont assets/soundfonts/FluidR3Mono_GM.sf3
+```
+
+Artifact directory:
+
+- `output/_diagnostics/task133_exact_rock_source_diagnostics_20260731`
+
+Render proof:
+
+- `renderer_path=fluidsynth`
+- `fluidsynth.attempted=true`
+- `fluidsynth.success=true`
+- `fluidsynth.skip_reason=null`
+- `custom_audio.custom_drums_loaded=5`
+- `custom_audio.custom_melodic_loaded={'bass': 3, 'guitar': 3}`
+- `audio_analysis.passed=true`
+- `genre_match_score=1.0`
+- `issues=null`
+- `spectral.centroid_hz=3860.5`
+- `spectral.sub_bass_energy_ratio=0.108`
+- `drums.percussive_ratio=0.192`
+
+Per-track source diagnostics in the render report:
+
+- `Bass`
+  - `patch_id=core.bass.track.v1`
+  - `patch_family=bass`
+  - `actual_realization=fluidsynth_soundfont`
+  - `source_path=assets/soundfonts/FluidR3Mono_GM.sf3`
+  - `source_quality=gm_soundfont_baseline`
+  - `effective_programs=[34]`
+  - `gm_program_names=['Electric Bass Pick']`
+  - `gm_program_families=['bass']`
+  - `uses_patch_sample_layer=false`
+  - note includes: `not proof of dedicated multisample/round-robin source quality`
+- `Chords` / Guitar
+  - `patch_id=core.guitar.track.v1`
+  - `patch_family=guitar`
+  - `actual_realization=fluidsynth_soundfont`
+  - `source_path=assets/soundfonts/FluidR3Mono_GM.sf3`
+  - `source_quality=gm_soundfont_baseline`
+  - `effective_programs=[25]`
+  - `gm_program_names=['Steel Guitar']`
+  - `gm_program_families=['guitar']`
+  - `uses_patch_sample_layer=false`
+  - note includes: `not proof of dedicated multisample/round-robin source quality`
+
+### Task 133 conclusion / next action
+
+Task 133 makes the current guitar/bass source truth visible. The exact prompt is now passing as a GM SoundFont baseline, but the report honestly says this is not a dedicated multisample/round-robin proof. The next real sonic-improvement slice should choose or add a licensed guitar/bass source upgrade path (SFZ/multisample/high-quality SoundFont profile) and use these diagnostics to prove when the track moves beyond `gm_soundfont_baseline`.

@@ -7,6 +7,63 @@
   },
   "task_queue": [
     {
+      "id": "rock-guitar-bass-source-diagnostics-133",
+      "description": "Expose truthful per-track GM SoundFont source-quality diagnostics for rock guitar and bass so future source upgrades can be measured beyond the baseline.",
+      "status": "completed",
+      "assigned_to": "builder/verifier/supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-soundfont-source-policy-fix-132"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_audio_renderer.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-07-31T00:00:00Z",
+      "updated": "2026-07-31T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/audio_renderer.py",
+          "tests/test_audio_renderer.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Task 133 added additive FluidSynth per-track source-quality diagnostics: effective GM programs, GM program names, GM families, and a `gm_soundfont_baseline` source-quality label. Exact rock renders now report Bass as Electric Bass Pick from the SoundFont and Guitar/Chords as a GM guitar source, while explicitly noting that this is not proof of dedicated multisample or round-robin quality.",
+        "guardrails_preserved": [
+          "No renderer-selection behavior changed beyond Task 132.",
+          "No analyzer target was relaxed.",
+          "Procedural/custom track realization status shapes remain unchanged; new fields are additive for FluidSynth statuses.",
+          "No new SoundFont or sample asset was added."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest tests/test_audio_renderer.py -q -k \"track_realization_statuses_report_fluidsynth or rock_guitar_bass_gm_sources or custom_drums\"",
+          "result": "PASS: 4 passed."
+        },
+        {
+          "command": "python -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py -q",
+          "result": "PASS: 57 passed."
+        },
+        {
+          "command": "full exact prompt CLI proof under output/_diagnostics/task133_exact_rock_source_diagnostics_20260731",
+          "result": "PASS: renderer_path=fluidsynth; audio_analysis.passed=true; Bass source_quality=gm_soundfont_baseline, program 34 Electric Bass Pick; Chords/Guitar source_quality=gm_soundfont_baseline, program 25 Steel Guitar; notes explicitly say this is not multisample/round-robin proof."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-07-31T00:00:00Z",
+        "summary": "Task 133 completes the source-truth diagnostics layer for current rock guitar/bass baseline and sets up the next slice to upgrade actual guitar/bass sources."
+      }
+    },
+    {
       "id": "rock-soundfont-source-policy-fix-132",
       "description": "Fix the full-runtime exact-rock renderer/source policy so auto-loaded custom drums do not force rock-family SoundFont-capable prompts away from the known-good FluidSynth band path.",
       "status": "completed",
