@@ -3,6 +3,16 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "For rock-family prompts with a valid SoundFont, prefer the known-good FluidSynth band render over auto-loaded custom drum samples, but keep custom-kit procedural priority for non-rock genres.",
+        "context": "Task 132 on 2026-07-31 fixed the full exact-rock runtime failure from Task 131. The old all-or-nothing gate skipped FluidSynth whenever custom drums were loaded, allowing R&B/Funk samples to make a rock prompt fail sub-bass and drum-presence targets. The bounded fix lets rock-family/required-SoundFont renders use FluidSynth despite custom_drums_loaded, records an explicit warning, and preserves non-rock/trap custom-drum behavior. The exact full-runtime prompt now passes with renderer_path=fluidsynth, score 1.0, sub_bass 0.1099, and percussive_ratio 0.192 while still having no Melody/program80.",
+        "timestamp": "2026-07-31T00:00:00Z"
+      },
+      {
+        "pattern": "When exact rock MIDI identity passes in isolation but full current-worktree audio fails, separate the proof into full-runtime source-selection failure and isolated SoundFont health instead of re-opening the MIDI contract or relaxing analyzer thresholds.",
+        "context": "Task 131 on 2026-07-30 proved Task 130 held in both full and isolated runs: no unrequested Melody and no program 80. The full current-worktree run rendered procedurally because custom drums were loaded (`custom_drums_loaded:5`) and failed rock audio analysis with percussive_ratio 0.093 and sub_bass 0.198. The isolated strict SoundFont run passed with renderer_path=fluidsynth, profile=rock:rock, audio_analysis.passed=true, score=1.0, centroid 3709.3 Hz, sub_bass 0.1087, and percussive_ratio 0.19. This makes Task 132 a renderer/source-selection problem, not a parser/MIDI/analyzer-threshold problem.",
+        "timestamp": "2026-07-30T00:00:00Z"
+      },
+      {
         "pattern": "For rock-family band prompts, suppress default synth Melody unless the prompt explicitly asks for a lead/melody/synth or guitar solo, and route explicit guitar leads to guitar instead of GM synth.",
         "context": "Task 130 on 2026-07-30 fixed the exact 1990s rock prompt by adding rock-family melody-intent gating in `multimodal_gen/midi_generator.py`. The exact prompt now emits Drums, Bass Guitar program 34, and Guitar Chords program 30 with no Melody and no program 80; explicit `synth lead` still creates program 80 Synth, while `lead guitar` / `guitar solo` creates a Melody track with guitar program 30. This keeps natural rock-band prompts from sounding synthetic for a routing reason before any renderer/source upgrade work.",
         "timestamp": "2026-07-30T00:00:00Z"

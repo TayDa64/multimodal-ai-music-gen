@@ -691,13 +691,13 @@ class ProceduralRenderer:
         44: 'hihat',       # Pedal Hi-Hat
         46: 'hihat_open',  # Open Hi-Hat
         49: 'hihat_open',  # Crash
-        50: 'kebero',      # Kebero bass
-        51: 'kebero_slap', # Kebero slap
-        52: 'kebero_mute', # Kebero muted
-        60: 'bongo_high',  # High Bongo - Atamo
-        61: 'bongo_low',   # Low Bongo
-        62: 'conga_high',  # High Conga - Kebero slap
-        63: 'conga_low',   # Low Conga - Kebero bass
+        50: 'kebero_low',   # Kebero large head (low tone)
+        51: 'kebero_high',  # Kebero small head (high tone)
+        52: 'kebero_muted', # Kebero muted / dampened
+        60: 'bongo_high',  # GM High Bongo - Atamo (small drum)
+        61: 'bongo_low',   # GM Low Bongo
+        62: 'conga_high',  # GM High Conga - kebero small head (high tone)
+        63: 'conga_low',   # GM Low Conga - kebero large head (low tone)
         70: 'shaker',      # Maracas/Shaker
     }
     DRUM_NOTE_MAP = DRUM_RENDER_NOTE_MAP
@@ -2126,6 +2126,28 @@ class AudioRenderer:
             parsed=parsed,
         )
 
+    def _should_use_fluidsynth_with_custom_drums(
+        self,
+        parsed: Optional[ParsedPrompt],
+        custom_drums_loaded: int,
+    ) -> bool:
+        """Return True when SoundFont rendering should outrank custom drums.
+
+        Most genres keep the existing behavior where loaded custom drum samples
+        force the procedural/custom-sample path. Rock-family band prompts are
+        different: auto-loaded non-rock one-shots can make the whole render skip
+        the known-good GM/SoundFont band path and fail rock audio guardrails.
+        """
+        if custom_drums_loaded <= 0:
+            return True
+        if self.require_soundfont:
+            return True
+
+        genre = getattr(parsed, 'genre', None) if parsed is not None else None
+        genre_key = str(genre or self._normalize_genre() or '').strip().lower()
+        genre_key = genre_key.replace(' ', '_').replace('-', '_')
+        return genre_key in ROCK_FAMILY_GENRES
+
     def _apply_rock_fluidsynth_tone_shaping(
         self,
         audio: np.ndarray,
@@ -2380,8 +2402,20 @@ class AudioRenderer:
                         f"Neural render skipped ({neural_skip_reason}); falling back to standard renderer"
                     )
 
-            # Try FluidSynth first (only if no custom drums loaded AND no Ethiopian instruments)
-            if fluidsynth_allowed and custom_drums_loaded == 0 and not has_ethiopian:
+            use_fluidsynth_with_custom_drums = self._should_use_fluidsynth_with_custom_drums(
+                parsed,
+                custom_drums_loaded,
+            )
+
+            # Try FluidSynth first. Custom drums still block the whole-file
+            # SoundFont path for most genres, but rock-family and strict
+            # --require-soundfont renders prefer the SoundFont band contract.
+            if fluidsynth_allowed and use_fluidsynth_with_custom_drums and not has_ethiopian:
+                if custom_drums_loaded > 0:
+                    warnings.append(
+                        f"FluidSynth selected despite custom drum samples (count={custom_drums_loaded}) "
+                        "because SoundFont rendering is required or preferred for this genre"
+                    )
                 self._set_render_stage("fluidsynth_render")
                 renderer_path_used = "fluidsynth"
                 fluidsynth_attempted = True

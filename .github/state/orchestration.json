@@ -7,6 +7,116 @@
   },
   "task_queue": [
     {
+      "id": "rock-soundfont-source-policy-fix-132",
+      "description": "Fix the full-runtime exact-rock renderer/source policy so auto-loaded custom drums do not force rock-family SoundFont-capable prompts away from the known-good FluidSynth band path.",
+      "status": "completed",
+      "assigned_to": "builder/verifier/supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "current-worktree-exact-rock-render-proof-131"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/audio_renderer.py",
+        "tests/test_audio_renderer.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-07-31T00:00:00Z",
+      "updated": "2026-07-31T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/audio_renderer.py",
+          "tests/test_audio_renderer.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Task 132 added a bounded AudioRenderer source-policy helper so rock-family and strict SoundFont renders can use FluidSynth despite auto-loaded custom drums, while non-rock genres preserve custom-kit procedural priority. The full exact-rock runtime now renders through FluidSynth and passes rock audio analysis even with custom drum/melodic samples loaded.",
+        "guardrails_preserved": [
+          "No analyzer target was relaxed.",
+          "No parser, MIDI, JUCE, or SoundFont asset behavior changed.",
+          "Non-rock/trap custom drum behavior remains procedural/custom-first.",
+          "The render report records a warning when FluidSynth intentionally outranks loaded custom drums."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest tests/test_audio_renderer.py -q -k \"custom_drums or fluidsynth_file_level_mastering\"",
+          "result": "PASS: 3 passed."
+        },
+        {
+          "command": "python -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py -q",
+          "result": "PASS: 56 passed."
+        },
+        {
+          "command": "full exact prompt CLI proof under output/_diagnostics/task132_exact_rock_full_runtime_fluidsynth_20260731",
+          "result": "PASS: no Melody; no program80; renderer_path=fluidsynth; fluidsynth.success=true; custom_drums_loaded=5; audio_analysis.passed=true; genre_match_score=1.0; centroid=3768.5Hz; sub_bass=0.1099; percussive_ratio=0.192."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-07-31T00:00:00Z",
+        "summary": "Task 132 fixes the exact full-runtime source-policy failure and leaves the next natural-instrument work focused on real guitar/bass source quality and diagnostics."
+      }
+    },
+    {
+      "id": "current-worktree-exact-rock-render-proof-131",
+      "description": "Run the exact 1990s rock prompt after Task 130 to prove the current parser/MIDI/render contract and identify the next renderer/source-selection gap.",
+      "status": "completed",
+      "assigned_to": "supervisor/verifier",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-no-unrequested-synth-lead-contract-130"
+      ],
+      "files_to_modify": [
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-07-30T00:00:00Z",
+      "updated": "2026-07-30T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Task 131 ran both the full current-worktree exact 1990s rock prompt and an isolated strict SoundFont/FluidSynth proof. Both prove Task 130's MIDI contract: no unrequested Melody track and no program 80. The full current-worktree run rendered successfully but failed rock audio analysis because custom R&B/Funk drum samples caused whole-file FluidSynth skip and raised sub-bass / lowered live-drum presence. The isolated SoundFont run passed with renderer_path=fluidsynth, profile=rock:rock, audio_analysis.passed=true, and genre_match_score=1.0.",
+        "guardrails_preserved": [
+          "No production code changed in Task 131; this is proof/documentation/state only.",
+          "No analyzer thresholds were relaxed.",
+          "Task 130 MIDI contract remained green in both full and isolated proofs.",
+          "The full current-worktree failure is recorded as input for Task 132 hybrid/source-selection work rather than hidden by the isolated proof."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python main.py --diagnose-audio",
+          "result": "PASS: FluidSynth available at C:\\dev\\MUSE-ai\\tools\\fluidsynth-2.4.7-win10-x64\\bin\\fluidsynth.exe; SoundFont discovered at ./assets/soundfonts/FluidR3Mono_GM.sf3."
+        },
+        {
+          "command": "full exact prompt CLI proof under output/_diagnostics/task131_exact_rock_current_worktree_20260730",
+          "result": "PASS_WITH_ACTIONABLE_AUDIO_FAILURE: genre=rock; instruments=guitar,bass; no Melody; no program80; render_status.success=true; renderer_path=procedural because FluidSynth skipped custom_drums_loaded:5; audio_analysis.passed=false due percussive_ratio=0.093 below 0.12 and sub_bass=0.198 above 0.16."
+        },
+        {
+          "command": "isolated exact prompt strict SoundFont proof under output/_diagnostics/task131_exact_rock_isolated_fluidsynth_20260730",
+          "result": "PASS: no Melody; no program80; renderer_path=fluidsynth; fluidsynth.success=true; profile=rock:rock; render_status.success=true; audio_analysis.passed=true; genre_match_score=1.0; centroid=3709.3Hz; sub_bass=0.1087; percussive_ratio=0.19."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS_WITH_ACTION_REQUIRED",
+        "timestamp": "2026-07-30T00:00:00Z",
+        "summary": "Task 131 completes the proof phase and queues Task 132: fix/design full-runtime custom sample vs FluidSynth/hybrid source policy instead of changing the MIDI contract or relaxing analyzer targets."
+      }
+    },
+    {
       "id": "rock-no-unrequested-synth-lead-contract-130",
       "description": "Suppress the unrequested GM program-80 synth Melody track for rock-family prompts while preserving explicit synth-lead and lead-guitar requests.",
       "status": "completed",

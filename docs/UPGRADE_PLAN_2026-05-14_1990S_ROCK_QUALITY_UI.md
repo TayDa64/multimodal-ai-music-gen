@@ -1706,3 +1706,223 @@ Results:
 ### Dirty-tree / commit caveat
 
 No files were staged or committed during the Task 130 implementation/verification pass. After verification, the user explicitly requested a task-scoped local commit containing Task 130 plus the updated docs/state files. The repo already had many pending source-control changes, and the terminal status count observed during this task was `35` entries (`26` modified tracked, `9` untracked), while the user reported `83` pending changes in the Source Control UI. Therefore the commit is intentionally scoped to the Task 130 implementation/test files plus the matching plan/state files, leaving other pending work unstaged.
+
+### Local commit
+
+After user confirmation, Task 130 was committed locally with the task-scoped file list above:
+
+- Commit: `88e3e16`
+- Message: `Fix rock default synth lead routing`
+- Other pending source-control changes were left unstaged/uncommitted.
+
+## Task 131 — Current-worktree exact rock render proof — 2026-07-30
+
+Status: **completed with actionable renderer/source caveat**.
+
+Task 131 intentionally ran the exact 1990s rock prompt after Task 130 to separate three layers:
+
+1. whether parser/MIDI contract is now correct;
+2. whether the full current-worktree runtime produces usable audio without isolation;
+3. whether the known-good isolated SoundFont path still passes after Task 130.
+
+### Environment diagnosis
+
+`python main.py --diagnose-audio` reports the local FluidSynth setup is available:
+
+- FluidSynth executable: `C:\dev\MUSE-ai\tools\fluidsynth-2.4.7-win10-x64\bin\fluidsynth.exe`
+- Version: `2.4.7`
+- Discovered SoundFont: `./assets/soundfonts/FluidR3Mono_GM.sf3`
+- SoundFonts directory exists: `true`
+
+### Full current-worktree exact prompt proof
+
+Command shape:
+
+```powershell
+python main.py "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor" --duration-bars 16 --seed 199001 --require-audio --no-banner --output output/_diagnostics/task131_exact_rock_current_worktree_20260730 --soundfont assets/soundfonts/FluidR3Mono_GM.sf3
+```
+
+Artifact directory:
+
+- `output/_diagnostics/task131_exact_rock_current_worktree_20260730`
+
+Key artifacts:
+
+- `project_metadata.json`
+- `session_manifest.json`
+- `rock_100.0bpm_Eminor_20260730_141532.mid`
+- `rock_100.0bpm_Eminor_20260730_141532.wav`
+- `rock_100.0bpm_Eminor_20260730_141532_render_report.json`
+- `samples/kick.wav`, `samples/snare.wav`, `samples/hihat_closed.wav`, `samples/hihat_open.wav`
+
+Parser/session/MIDI proof:
+
+- Parsed genre: `rock`
+- Parsed instruments: `guitar`, `bass`
+- Parsed drums: `kick`, `snare`, `hihat`, `hihat_open`, `crash`, `ride`, `tom`
+- Session tracks: `Drums` / `Bass` / `Guitar`
+- MIDI tracks:
+  - `Meta`
+  - `Drums`, 342 note-ons
+  - `Bass`, program `34`, marker `instrument:Bass Guitar`, 128 note-ons
+  - `Chords`, program `25`, marker `instrument:Guitar`, 84 note-ons
+- `Melody` track: absent
+- GM program `80`: absent
+
+Renderer/audio result:
+
+- `renderer_path=procedural`
+- FluidSynth skipped because custom drums were loaded: `custom_drums_loaded:5`
+- Custom samples selected included R&B/Funk-derived kick/snare/clap/hat plus custom bass/guitar.
+- `render_status.success=true`
+- `audio_analysis.passed=false`
+- Issues:
+  - live drum presence/percussive ratio `0.093` below rock target `0.12`
+  - sub-bass/808 energy `0.198` above rock ceiling `0.16`
+
+Interpretation: Task 130’s MIDI contract is fixed in the full current-worktree path, but the full non-isolated runtime still has a source-selection/rendering quality problem. Custom drum auto-loading skips whole-file FluidSynth and can select non-rock custom samples that push the mix outside rock analyzer bounds. This is exactly the Task 132 problem: hybrid/stem-aware renderer/source policy.
+
+### Isolated exact SoundFont proof
+
+Command shape:
+
+```powershell
+python main.py "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor" --duration-bars 16 --seed 199001 --require-audio --require-soundfont --skip-default-instruments --skip-expansions --soundfont assets/soundfonts/FluidR3Mono_GM.sf3 --no-banner --output output/_diagnostics/task131_exact_rock_isolated_fluidsynth_20260730
+```
+
+Artifact directory:
+
+- `output/_diagnostics/task131_exact_rock_isolated_fluidsynth_20260730`
+
+Key artifact files:
+
+- `project_metadata.json`
+- `session_manifest.json`
+- `rock_100.0bpm_Eminor_20260730_141907.mid`
+- `rock_100.0bpm_Eminor_20260730_141907.wav`
+- `rock_100.0bpm_Eminor_20260730_141907_render_report.json`
+
+Parser/session/MIDI proof:
+
+- Parsed genre: `rock`
+- BPM/key: `100.0`, `E minor`
+- Total bars: `16`
+- Sections: `verse`, `chorus`, `bridge`, `chorus`
+- Session tracks: `Drums`, `Bass`, `Chords`
+- MIDI tracks:
+  - `Meta`
+  - `Drums`, channel `9`, 353 notes
+  - `Bass`, channel `1`, program `34`, marker `instrument:Bass Guitar`, 128 notes
+  - `Chords`, channel `2`, program `30`, marker `instrument:Guitar`, 84 notes
+- `Melody` track: absent
+- GM program `80`: absent
+
+Renderer/audio proof:
+
+- `renderer_path=fluidsynth`
+- `fluidsynth.available=true`
+- `fluidsynth.attempted=true`
+- `fluidsynth.success=true`
+- `fluidsynth.skip_reason=null`
+- `soundfont_path=assets/soundfonts/FluidR3Mono_GM.sf3`
+- `require_soundfont=true`
+- `render_status.success=true`
+- `pipeline_stages.fluidsynth_file_mastering.status=applied`
+- `pipeline_stages.fluidsynth_file_mastering.profile=rock:rock`
+- `pipeline_stages.fluidsynth_file_mastering.tone_shaping=high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz`
+- `audio_analysis.passed=true`
+- `genre_match_score=1.0`
+- `issues=null`
+- `spectral.centroid_hz=3709.3`
+- `spectral.sub_bass_energy_ratio=0.1087`
+- `drums.percussive_ratio=0.19`
+- `drums.has_kick=true`, `has_snare_or_clap=true`, `has_hihats=true`
+
+Interpretation: the isolated path proves the Task 130 MIDI contract plus the strict SoundFont/FluidSynth rock render path are healthy. The full current-worktree failure is not a regression in Task 130; it is a renderer/source-selection problem caused by custom sample auto-loading and whole-file FluidSynth skip behavior.
+
+### Task 131 conclusion / next action
+
+Task 131 is complete and directly motivates Task 132. The next implementation slice should not retune analyzer thresholds or re-open the rock MIDI contract. It should design/fix the renderer/source policy so full current-worktree generation can avoid non-rock custom drum/bass sample leakage while still allowing custom drums/samples when they are semantically appropriate.
+
+## Task 132 — Rock SoundFont source-policy fix — 2026-07-31
+
+Status: **implemented and verified**.
+
+### Root cause
+
+`AudioRenderer.render_midi_file()` previously skipped whole-file FluidSynth whenever any custom drum sample was loaded. In the full current-worktree exact-rock run, default instrument auto-loading selected R&B/Funk-derived custom kick/snare/hat samples, which caused:
+
+- `renderer_path=procedural`
+- `fluidsynth.skip_reason=custom_drums_loaded:5`
+- rock audio failure from low live-drum presence and excess sub-bass
+
+The isolated SoundFont path passed, proving the MIDI contract and SoundFont profile were healthy. The failing seam was therefore the renderer/source-selection policy, not parser/MIDI or analyzer thresholds.
+
+### What changed
+
+- `multimodal_gen/audio_renderer.py`
+  - Added `_should_use_fluidsynth_with_custom_drums(parsed, custom_drums_loaded)`.
+  - Preserved the old behavior for most genres: loaded custom drums continue to prefer the procedural/custom-sample renderer.
+  - Changed rock-family and strict `--require-soundfont` renders so SoundFont/FluidSynth can outrank auto-loaded custom drums.
+  - Added a render-report warning when FluidSynth is selected despite loaded custom drums, making the source-policy decision visible instead of silent.
+- `tests/test_audio_renderer.py`
+  - Added a focused regression proving rock-family renders use FluidSynth even when custom drum samples are present.
+  - Added a preservation regression proving non-rock/trap custom drums still block whole-file FluidSynth and use the procedural path.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+python -m pytest tests/test_audio_renderer.py -q -k "custom_drums or fluidsynth_file_level_mastering"
+python -m pytest tests/test_audio_renderer.py tests/test_render_report_schema.py -q
+```
+
+Results:
+
+- Focused renderer policy tests: `3 passed`.
+- Renderer + render-report guard suite: `56 passed`.
+- VS Code diagnostics: no errors in `multimodal_gen/audio_renderer.py` or `tests/test_audio_renderer.py`.
+
+### Full exact-rock runtime proof after the fix
+
+Command shape:
+
+```powershell
+python main.py "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor" --duration-bars 16 --seed 199001 --require-audio --no-banner --output output/_diagnostics/task132_exact_rock_full_runtime_fluidsynth_20260731 --soundfont assets/soundfonts/FluidR3Mono_GM.sf3
+```
+
+Artifact directory:
+
+- `output/_diagnostics/task132_exact_rock_full_runtime_fluidsynth_20260731`
+
+Key proof fields:
+
+- MIDI tracks: `Meta`, `Drums`, `Bass`, `Chords`
+- `Melody` track: absent
+- GM program `80`: absent
+- Bass: program `34`, marker `instrument:Bass Guitar`, 128 notes
+- Chords/Guitar: program `25`, marker `instrument:Guitar`, 84 notes
+- `renderer_path=fluidsynth`
+- `fluidsynth.available=true`
+- `fluidsynth.attempted=true`
+- `fluidsynth.success=true`
+- `fluidsynth.skip_reason=null`
+- `soundfont_path=assets/soundfonts/FluidR3Mono_GM.sf3`
+- `custom_audio.custom_drums_loaded=5`
+- `custom_audio.custom_melodic_loaded={'bass': 3, 'guitar': 3}`
+- Warning recorded: `FluidSynth selected despite custom drum samples (count=5) because SoundFont rendering is required or preferred for this genre`
+- `pipeline_stages.fluidsynth_file_mastering.profile=rock:rock`
+- `pipeline_stages.fluidsynth_file_mastering.tone_shaping=high_shelf=-10.0dB@4000Hz;low_shelf=-4.0dB@90Hz`
+- `render_status.success=true`
+- `audio_analysis.passed=true`
+- `genre_match_score=1.0`
+- `issues=null`
+- `spectral.centroid_hz=3768.5`
+- `spectral.sub_bass_energy_ratio=0.1099`
+- `drums.percussive_ratio=0.192`
+- `drums.has_kick=true`, `has_snare_or_clap=true`, `has_hihats=true`
+
+### Task 132 conclusion
+
+Task 132 closes the exact full-runtime renderer/source-selection failure found in Task 131 without relaxing analyzer targets and without changing the Task 130 MIDI contract. The next natural-instrument task can move up one layer: real guitar/bass source quality and source diagnostics, rather than whole-file renderer selection.

@@ -1012,6 +1012,83 @@ def test_fluidsynth_file_level_mastering_integration(monkeypatch, tmp_path):
     assert peak <= 1.0, f"Peak {peak} should be limited to <= 1.0"
 
 
+def test_rock_fluidsynth_preferred_even_when_custom_drums_loaded(monkeypatch, tmp_path):
+    """Rock-family SoundFont renders should not be blocked by auto-loaded custom drums."""
+    import soundfile as sf
+
+    def fake_fluidsynth_render(midi_path, output_path, soundfont_path, sample_rate, **_kwargs):
+        audio = np.zeros((max(1, int(0.05 * sample_rate)), 2), dtype=np.float32)
+        sf.write(output_path, audio, sample_rate, subtype='PCM_16')
+        return True
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.render_midi_with_fluidsynth", fake_fluidsynth_render)
+
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="rock")
+    renderer.mood = "neutral"
+    renderer.procedural.mood = "neutral"
+    renderer.fluidsynth_available = True
+    renderer.use_fluidsynth = True
+    renderer.soundfont_path = "fake.sf2"
+    renderer.procedural._custom_drum_cache["kick"] = np.ones(16, dtype=np.float32)
+    monkeypatch.setattr(renderer, "_apply_file_level_mastering", lambda *args, **kwargs: True)
+    monkeypatch.setattr(renderer, "_post_process", lambda *args, **kwargs: None)
+    monkeypatch.setattr(renderer, "_run_output_analysis", lambda *args, **kwargs: None)
+
+    midi_path = tmp_path / "rock.mid"
+    _save_single_track_program_midi(midi_path, track_name="Drums", program=None, channel=9)
+    output_path = tmp_path / "rock.wav"
+
+    parsed = ParsedPrompt(genre="rock", raw_prompt="rock band with live drums")
+    assert renderer.render_midi_file(str(midi_path), str(output_path), parsed) is True
+
+    report = renderer.get_last_render_report()
+    assert report["renderer_path"] == "fluidsynth"
+    assert report["fluidsynth"]["attempted"] is True
+    assert report["fluidsynth"]["success"] is True
+    assert report["fluidsynth"]["skip_reason"] is None
+    assert report["custom_audio"]["custom_drums_loaded"] >= 1
+    assert any("despite custom drum samples" in warning for warning in report["warnings"])
+
+
+def test_non_rock_custom_drums_still_block_whole_file_fluidsynth(monkeypatch, tmp_path):
+    """Keep the existing custom-kit priority for non-rock genres."""
+    renderer = AudioRenderer(sample_rate=44100, use_fluidsynth=False, genre="trap")
+    renderer.mood = "neutral"
+    renderer.procedural.mood = "neutral"
+    renderer.fluidsynth_available = True
+    renderer.use_fluidsynth = True
+    renderer.soundfont_path = "fake.sf2"
+    renderer.procedural._custom_drum_cache["kick"] = np.ones(16, dtype=np.float32)
+
+    attempted_fluidsynth = {"value": False}
+
+    def fake_fluidsynth_render(*_args, **_kwargs):
+        attempted_fluidsynth["value"] = True
+        return True
+
+    def fake_procedural(_midi_path, output_path, _parsed=None):
+        sf.write(output_path, np.zeros((32, 2), dtype=np.float32), renderer.sample_rate, subtype='PCM_16')
+        return True
+
+    monkeypatch.setattr("multimodal_gen.audio_renderer.render_midi_with_fluidsynth", fake_fluidsynth_render)
+    monkeypatch.setattr(renderer, "_render_procedural", fake_procedural)
+    monkeypatch.setattr(renderer, "_post_process", lambda *args, **kwargs: None)
+    monkeypatch.setattr(renderer, "_run_output_analysis", lambda *args, **kwargs: None)
+
+    midi_path = tmp_path / "trap.mid"
+    midi_path.write_bytes(b"dummy")
+    output_path = tmp_path / "trap.wav"
+
+    parsed = ParsedPrompt(genre="trap", raw_prompt="trap beat with custom drums")
+    assert renderer.render_midi_file(str(midi_path), str(output_path), parsed) is True
+
+    report = renderer.get_last_render_report()
+    assert attempted_fluidsynth["value"] is False
+    assert report["renderer_path"] == "procedural"
+    assert report["fluidsynth"]["attempted"] is False
+    assert report["fluidsynth"]["skip_reason"] == "custom_drums_loaded:1"
+
+
 def test_apply_file_level_mastering_unit(tmp_path):
     """
     Unit test for _apply_file_level_mastering() directly.
