@@ -7,6 +7,67 @@
   },
   "task_queue": [
     {
+      "id": "exact-rock-crunchy-rhythm-guitar-program-136",
+      "description": "Correct the instrument-service rock rhythm-guitar path so the exact crunchy electric guitar prompt uses GM Distortion Guitar instead of service-default Steel Guitar while preserving acoustic guitar behavior.",
+      "status": "completed",
+      "assigned_to": "builder/verifier/supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-guitar-bass-source-candidate-audit-135"
+      ],
+      "files_to_modify": [
+        "multimodal_gen/midi_generator.py",
+        "tests/test_midi_generator.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-08-02T00:00:00Z",
+      "updated": "2026-08-02T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "multimodal_gen/midi_generator.py",
+          "tests/test_midi_generator.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Task 136 aligned the instrument-service guitar chord path with the existing rock guitar program selector. The exact crunchy rock prompt now routes Chords/Guitar to GM program 30 Distortion Guitar instead of service-default program 25 Steel Guitar; explicit acoustic rock guitar remains program 25.",
+        "guardrails_preserved": [
+          "No unapproved local/expansion sample was promoted into the exact-rock render path.",
+          "No analyzer threshold was relaxed.",
+          "Task 130 no-Melody/no-program80 contract remains intact.",
+          "Acoustic guitar context remains GM Steel Guitar program 25."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest tests/test_midi_generator.py -q -k \"service_routing_uses_crunch or acoustic_rock_guitar_service or rock_guitar_prompt or exact_1990s_rock_prompt\"",
+          "result": "PASS: 5 passed."
+        },
+        {
+          "command": "python -m pytest tests/test_midi_generator.py tests/test_audio_renderer.py -q -k \"rock_guitar or rock_guitar_bass_gm_sources\"",
+          "result": "PASS: 3 passed."
+        },
+        {
+          "command": "python -m pytest tests/test_midi_generator.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q",
+          "result": "PASS: 55 passed."
+        },
+        {
+          "command": "full exact prompt CLI proof under output/_diagnostics/task136_exact_rock_distortion_guitar_20260802",
+          "result": "PASS: no Melody; no program80; Chords program/effective_program=30 Distortion Guitar; renderer_path=fluidsynth; audio_analysis.passed=true; score=1.0; centroid=3709.3Hz; sub_bass=0.1087; percussive_ratio=0.19."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-08-02T00:00:00Z",
+        "summary": "Task 136 improves the exact-rock guitar source within the approved GM SoundFont baseline and preserves acoustic guitar plus no-synth-lead guardrails."
+      }
+    },
+    {
       "id": "rock-guitar-bass-source-candidate-audit-135",
       "description": "Add a deterministic audit gate for guitar/bass source candidates beyond gm_soundfont_baseline and prove whether current workspace assets are eligible exact-rock upgrades.",
       "status": "completed",

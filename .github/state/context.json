@@ -3,6 +3,13 @@
   "session_id": "session-2026-05-21-task-072-082-backlog-planning",
   "files_touched": [
     {
+      "path": "multimodal_gen/midi_generator.py; tests/test_midi_generator.py; output/_diagnostics/task136_exact_rock_distortion_guitar_20260802/*; docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md; .github/state/orchestration.json; .github/state/context.json; .github/state/memory.json",
+      "action": "modified/created",
+      "timestamp": "2026-08-02T00:00:00Z",
+      "by_agent": "builder/verifier/supervisor",
+      "changes": "Implemented Task 136: instrument-service rock guitar chord routing now uses GM Distortion Guitar program 30 for exact crunchy electric guitar prompts while preserving acoustic guitar program 25. Exact runtime proof passes audio analysis and preserves no Melody/program80."
+    },
+    {
       "path": "scripts/audit_rock_source_candidates.py; tests/test_rock_source_candidate_audit.py; output/_diagnostics/task135_rock_source_candidate_audit_20260731/*; docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md; .github/state/orchestration.json; .github/state/context.json; .github/state/memory.json",
       "action": "created/modified",
       "timestamp": "2026-07-31T00:00:00Z",

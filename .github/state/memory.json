@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "After source audits block unapproved asset promotion, still improve natural-instrument realism inside the approved GM baseline by fixing semantically wrong GM program selection.",
+        "context": "Task 136 on 2026-08-02 found that the exact crunchy electric guitar prompt used service-resolved GM program 25 Steel Guitar on the Chords track even though existing guitar context logic could select program 30 Distortion Guitar. The bounded fix reuses the existing selector in the instrument-service chord path, prioritizes explicit acoustic guitar before crunch/rock context, and proves the exact prompt now uses program 30 Distortion Guitar while audio analysis still passes and no Melody/program80 is reintroduced.",
+        "timestamp": "2026-08-02T00:00:00Z"
+      },
+      {
         "pattern": "Before switching exact-rock guitar/bass away from gm_soundfont_baseline, run a deterministic source-candidate audit and require an eligible licensed/approved source instead of promoting local or personal-use samples by assumption.",
         "context": "Task 135 on 2026-07-31 added `scripts/audit_rock_source_candidates.py` and found 1061 current candidates but 0 eligible exact-rock source upgrades: 1 GM baseline SoundFont, 442 local user-sample candidates, and 618 unverified expansion candidates. This prevents regressions from forcing Funk-o-Rama/personal-use or local unverified WAV material into the rock render path without license, curation, and listening/source-quality proof.",
         "timestamp": "2026-07-31T00:00:00Z"

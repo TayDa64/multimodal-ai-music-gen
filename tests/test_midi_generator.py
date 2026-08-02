@@ -417,6 +417,41 @@ def test_rock_guitar_prompt_creates_guitar_chord_track_not_rhodes():
     assert "instrument:Guitar" in text_markers
 
 
+def test_exact_rock_prompt_service_routing_uses_crunch_guitar_chord_program():
+    parsed = PromptParser().parse(EXACT_1990S_ROCK_PROMPT)
+    service = InstrumentResolutionService()
+
+    mid = MidiGenerator(
+        use_physics_humanization=False,
+        instrument_service=service,
+    ).generate(_one_bar_arrangement(), parsed)
+    chords = _chords_track(mid)
+    program = _channel_2_program(chords)
+
+    assert parsed.genre == "rock"
+    assert program == 30
+    assert program != 25
+    assert "instrument:Guitar" in _text_markers(chords)
+
+
+def test_acoustic_rock_guitar_service_routing_keeps_steel_guitar_chord_program():
+    parsed = PromptParser().parse(
+        "acoustic rock song with acoustic guitar, bass guitar, live drums, 100 BPM in E minor"
+    )
+    service = InstrumentResolutionService()
+
+    mid = MidiGenerator(
+        use_physics_humanization=False,
+        instrument_service=service,
+    ).generate(_one_bar_arrangement(), parsed)
+    chords = _chords_track(mid)
+    program = _channel_2_program(chords)
+
+    assert parsed.genre == "rock"
+    assert program == 25
+    assert "instrument:Guitar" in _text_markers(chords)
+
+
 def test_exact_1990s_rock_prompt_bass_track_uses_electric_bass_guitar_not_synth_bass():
     parsed = ParsedPrompt(
         genre="rock",

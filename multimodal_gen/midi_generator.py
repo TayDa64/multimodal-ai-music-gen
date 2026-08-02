@@ -399,10 +399,14 @@ def _rock_guitar_lead_program(parsed: ParsedPrompt) -> int:
         + list(getattr(parsed, 'style_modifiers', []) or [])
         + [raw_prompt, normalize_genre(getattr(parsed, 'genre', '') or '')]
     )
+    if (
+        'acoustic_guitar' in parsed_instruments_norm
+        or 'acoustic guitar' in parsed_instruments_spaces
+        or 'acoustic guitar' in raw_prompt
+    ):
+        return 25  # GM Steel-string Acoustic Guitar
     if any(term in guitar_context for term in ['distortion', 'distorted', 'crunch', 'crunchy', 'grunge', 'rock', 'overdrive']):
         return 30  # GM Distortion Guitar
-    if 'acoustic_guitar' in parsed_instruments_norm or 'acoustic guitar' in parsed_instruments_spaces:
-        return 25  # GM Steel-string Acoustic Guitar
     return 27  # GM Clean Electric Guitar
 
 
@@ -3020,10 +3024,14 @@ class MidiGenerator:
                 + list(getattr(parsed, 'style_modifiers', []) or [])
                 + [raw_prompt, normalized_genre]
             )
+            if (
+                'acoustic_guitar' in parsed_instruments_norm
+                or 'acoustic guitar' in parsed_instruments_spaces
+                or 'acoustic guitar' in raw_prompt
+            ):
+                return 25  # GM Steel-string Acoustic Guitar
             if any(term in guitar_context for term in ['distortion', 'distorted', 'crunch', 'crunchy', 'grunge', 'rock', 'overdrive']):
                 return 30  # GM Distortion Guitar
-            if 'acoustic_guitar' in parsed_instruments_norm or 'acoustic guitar' in parsed_instruments_spaces:
-                return 25  # GM Steel-string Acoustic Guitar
             return 27  # GM Clean Electric Guitar
         
         # Try to resolve instrument via service first (if available)
@@ -3038,8 +3046,7 @@ class MidiGenerator:
             program = resolved.program
             resolved_instrument = instrument_display_names.get(primary_chord_instrument, primary_chord_instrument)
             if wants_guitar:
-                if not (24 <= int(program) <= 31):
-                    program = _guitar_program()
+                program = _guitar_program()
                 resolved_instrument = 'Guitar'
         
         # Fallback to hardcoded mappings if no service or resolution failed

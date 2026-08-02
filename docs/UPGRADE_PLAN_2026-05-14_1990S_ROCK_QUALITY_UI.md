@@ -2112,3 +2112,78 @@ The current exact-rock output remains a truthful passing GM SoundFont baseline. 
 2. a deliberate policy decision to treat specific local user samples as approved, with license/curation/listening proof.
 
 Do **not** force the current Funk-o-Rama/personal-use or local unverified WAV material into the exact-rock render path without that proof; doing so would undo the source-truth lessons from Tasks 131–133.
+
+## Task 136 — Exact-rock crunchy rhythm-guitar GM program correction — 2026-08-02
+
+Status: **implemented and verified**.
+
+### Root cause
+
+After Task 135, no license-approved source exists to move beyond `gm_soundfont_baseline`. However, a read-only subagent found a source-quality defect still inside the GM baseline: the exact prompt says `crunchy electric guitar`, but the instrument-service path resolved the rhythm guitar/chords track to GM program `25` (`Steel Guitar`). The fallback helper already knew how to choose program `30` (`Distortion Guitar`) for crunchy/rock/overdrive context, but the service path skipped that helper whenever the service returned any guitar-range program.
+
+### What changed
+
+- `multimodal_gen/midi_generator.py`
+  - The instrument-service guitar chord path now uses the same `_guitar_program()` selector as the non-service path whenever `wants_guitar` is true.
+  - Explicit acoustic-guitar context is checked before rock/crunch/distortion context, so acoustic rock remains GM program `25` while crunchy/electric rock uses GM program `30`.
+  - The explicit rock lead-guitar helper was aligned with the same acoustic-first ordering.
+- `tests/test_midi_generator.py`
+  - Added a service-backed exact-rock regression proving the exact prompt routes Chords/Guitar to program `30`, not service-default `25`.
+  - Added an acoustic-rock service-backed guard proving explicit acoustic guitar remains program `25`.
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+python -m pytest tests/test_midi_generator.py -q -k "service_routing_uses_crunch or acoustic_rock_guitar_service or rock_guitar_prompt or exact_1990s_rock_prompt"
+python -m pytest tests/test_midi_generator.py tests/test_audio_renderer.py -q -k "rock_guitar or rock_guitar_bass_gm_sources"
+python -m pytest tests/test_midi_generator.py tests/test_smoke_1990s_rock_contract.py tests/test_golden_prompts_smoke.py -q
+```
+
+Results:
+
+- Focused MIDI tests: `5 passed`.
+- Focused MIDI/source-diagnostics guard: `3 passed`.
+- Broader MIDI/rock/golden guard suite: `55 passed`.
+- VS Code diagnostics: no errors in `multimodal_gen/midi_generator.py` or `tests/test_midi_generator.py`.
+- Post-verifier verdict: `PASS`.
+
+### Exact runtime proof
+
+Command shape:
+
+```powershell
+python main.py "1990's era rock song with crunchy electric guitar, live drums, bass guitar, verse chorus bridge, energetic band performance, 100 BPM in E minor" --duration-bars 16 --seed 199001 --require-audio --no-banner --output output/_diagnostics/task136_exact_rock_distortion_guitar_20260802 --soundfont assets/soundfonts/FluidR3Mono_GM.sf3
+```
+
+Artifact directory:
+
+- `output/_diagnostics/task136_exact_rock_distortion_guitar_20260802`
+
+Render/MIDI proof:
+
+- `renderer_path=fluidsynth`
+- `fluidsynth.attempted=true`
+- `fluidsynth.success=true`
+- `fluidsynth.skip_reason=null`
+- MIDI tracks: `Meta`, `Drums`, `Bass`, `Chords`
+- `Melody` track: absent
+- GM program `80`: absent
+- Bass track: program `34`, marker `instrument:Bass Guitar`
+- Chords/Guitar track: program `30`, marker `instrument:Guitar`
+- Render-report Chords status:
+  - `effective_programs=[30]`
+  - `gm_program_names=['Distortion Guitar']`
+  - `gm_program_families=['guitar']`
+  - `source_quality=gm_soundfont_baseline`
+- `audio_analysis.passed=true`
+- `genre_match_score=1.0`
+- `issues=null`
+- `spectral.centroid_hz=3709.3`
+- `spectral.sub_bass_energy_ratio=0.1087`
+- `drums.percussive_ratio=0.19`
+
+### Task 136 conclusion / next action
+
+Task 136 improves the actual audible rock guitar source inside the currently approved GM baseline: the exact crunchy-rock prompt now renders rhythm guitar as Distortion Guitar instead of Steel Guitar, without adding unapproved assets, reintroducing synth lead, or breaking strict rock audio guardrails. The next source-quality step remains blocked on a license-approved dedicated guitar/bass source or explicit approval manifest; until then, the GM baseline is now more semantically aligned with the prompt.
