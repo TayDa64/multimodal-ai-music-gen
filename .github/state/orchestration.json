@@ -7,6 +7,63 @@
   },
   "task_queue": [
     {
+      "id": "rock-guitar-bass-source-candidate-audit-135",
+      "description": "Add a deterministic audit gate for guitar/bass source candidates beyond gm_soundfont_baseline and prove whether current workspace assets are eligible exact-rock upgrades.",
+      "status": "completed",
+      "assigned_to": "builder/verifier/supervisor",
+      "phase": "complete",
+      "priority": "HIGH",
+      "dependencies": [
+        "rock-guitar-bass-source-diagnostics-133"
+      ],
+      "files_to_modify": [
+        "scripts/audit_rock_source_candidates.py",
+        "tests/test_rock_source_candidate_audit.py",
+        "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+        ".github/state/orchestration.json",
+        ".github/state/context.json",
+        ".github/state/memory.json"
+      ],
+      "created": "2026-07-31T00:00:00Z",
+      "updated": "2026-07-31T00:00:00Z",
+      "implementation": {
+        "files_changed": [
+          "scripts/audit_rock_source_candidates.py",
+          "tests/test_rock_source_candidate_audit.py",
+          "docs/UPGRADE_PLAN_2026-05-14_1990S_ROCK_QUALITY_UI.md",
+          ".github/state/orchestration.json",
+          ".github/state/context.json",
+          ".github/state/memory.json"
+        ],
+        "summary": "Task 135 added a stdlib-only source-candidate audit CLI/test that scans SoundFonts, local instruments, and expansion candidates for exact-rock guitar/bass upgrades. The current workspace has 1061 candidates but 0 eligible exact-rock upgrade candidates: one GM SoundFont baseline, 442 local unverified samples, and 618 unverified expansion candidates.",
+        "guardrails_preserved": [
+          "No renderer audio behavior changed in this diagnostics slice.",
+          "No local unverified or personal-use expansion sample is promoted into the exact-rock render path.",
+          "The exact-rock GM SoundFont baseline remains the passing source until a license-approved upgrade source exists.",
+          "Task 134 remains reserved for the later Strobe-inspired creative synth popup."
+        ]
+      },
+      "tests": [
+        {
+          "command": "python -m pytest tests/test_rock_source_candidate_audit.py -q",
+          "result": "PASS: 2 passed."
+        },
+        {
+          "command": "python scripts/audit_rock_source_candidates.py --out output/_diagnostics/task135_rock_source_candidate_audit_20260731/rock_source_candidates.json",
+          "result": "PASS: current workspace summary shows total_candidates=1061 and eligible_exact_rock_upgrade_candidates=0."
+        },
+        {
+          "command": "python -m py_compile scripts/audit_rock_source_candidates.py tests/test_rock_source_candidate_audit.py",
+          "result": "PASS: compile check passed."
+        }
+      ],
+      "post_verifier": {
+        "verdict": "PASS",
+        "timestamp": "2026-07-31T00:00:00Z",
+        "summary": "Task 135 proves no current local asset is an eligible exact-rock source upgrade beyond gm_soundfont_baseline; a true upgrade now requires a license-approved source or an explicit approval manifest/policy decision."
+      }
+    },
+    {
       "id": "rock-guitar-bass-source-diagnostics-133",
       "description": "Expose truthful per-track GM SoundFont source-quality diagnostics for rock guitar and bass so future source upgrades can be measured beyond the baseline.",
       "status": "completed",

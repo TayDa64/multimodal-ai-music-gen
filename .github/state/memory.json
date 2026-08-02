@@ -3,6 +3,11 @@
   "patterns": {
     "successful": [
       {
+        "pattern": "Before switching exact-rock guitar/bass away from gm_soundfont_baseline, run a deterministic source-candidate audit and require an eligible licensed/approved source instead of promoting local or personal-use samples by assumption.",
+        "context": "Task 135 on 2026-07-31 added `scripts/audit_rock_source_candidates.py` and found 1061 current candidates but 0 eligible exact-rock source upgrades: 1 GM baseline SoundFont, 442 local user-sample candidates, and 618 unverified expansion candidates. This prevents regressions from forcing Funk-o-Rama/personal-use or local unverified WAV material into the rock render path without license, curation, and listening/source-quality proof.",
+        "timestamp": "2026-07-31T00:00:00Z"
+      },
+      {
         "pattern": "For natural-instrument source upgrades, first label the current SoundFont realization as a truthful GM baseline with exact program/family diagnostics instead of implying it is dedicated multisample quality.",
         "context": "Task 133 on 2026-07-31 added FluidSynth per-track diagnostics: source_quality=gm_soundfont_baseline, effective_programs, gm_program_names, and gm_program_families. The exact rock proof now reports Bass as program 34 Electric Bass Pick and Chords/Guitar as program 25 Steel Guitar from FluidR3Mono_GM.sf3, while explicitly noting that GM SoundFont rendering is not proof of dedicated multisample/round-robin quality. This creates a clean acceptance seam for future guitar/bass source upgrades.",
         "timestamp": "2026-07-31T00:00:00Z"

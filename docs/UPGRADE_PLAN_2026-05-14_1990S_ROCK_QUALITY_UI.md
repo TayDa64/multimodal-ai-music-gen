@@ -2025,3 +2025,90 @@ Per-track source diagnostics in the render report:
 ### Task 133 conclusion / next action
 
 Task 133 makes the current guitar/bass source truth visible. The exact prompt is now passing as a GM SoundFont baseline, but the report honestly says this is not a dedicated multisample/round-robin proof. The next real sonic-improvement slice should choose or add a licensed guitar/bass source upgrade path (SFZ/multisample/high-quality SoundFont profile) and use these diagnostics to prove when the track moves beyond `gm_soundfont_baseline`.
+
+## Task 135 — Rock guitar/bass source-candidate audit gate — 2026-07-31
+
+Status: **implemented and verified**. Task number intentionally skips Task 134 because Task 134 is already reserved for the later Strobe-inspired creative synth popup.
+
+### Decision
+
+Task 135 is the safe source-upgrade gate before changing renderer behavior again. Two read-only subagent passes agreed that the current workspace does not contain a license-clear guitar/bass SFZ/SF2/SF3/multisample candidate that should replace the exact-rock `gm_soundfont_baseline`. The repo does contain many guitar/bass WAV/XPM candidates, but they are local user samples or expansion/personal-use assets, not approved exact-rock source upgrades.
+
+### What changed
+
+- `scripts/audit_rock_source_candidates.py`
+  - Added a stdlib-only importable audit module plus CLI.
+  - Defaults `--repo-root` to the current working directory.
+  - Supports `--out` while always printing JSON to stdout.
+  - Scans:
+    - `assets/soundfonts` for `.sf2`, `.sf3`, `.sfz`;
+    - `instruments` for guitar/gtr/bass audio files;
+    - sibling `../expansions` and repo-local `expansions` for `expansion.json`, `.xpm`, and guitar/bass audio files.
+  - Emits deterministic JSON with `schema_version`, `repo_root`, `summary`, and sorted `candidates`.
+  - Candidate fields include `path`, `format`, `family`, `source_quality`, `license_status`, `eligible_for_exact_rock_upgrade`, `reason`, `source_scope`, and expansion metadata when present.
+  - Classifies current sources conservatively:
+    - `gm_soundfont_baseline` for FluidR3/GM SoundFont baseline assets;
+    - `local_user_sample_unverified` for local instrument WAV/AIFF/MP3/FLAC samples;
+    - `expansion_personal_use` for personal-use expansion candidates;
+    - `expansion_sample_unverified` for expansion candidates without an approval manifest.
+- `tests/test_rock_source_candidate_audit.py`
+  - Added fixture-based tests for GM SoundFont baseline, local guitar/bass WAVs, personal-use expansion WAV/XPM candidates, and CLI `--out` behavior.
+
+### Current workspace audit proof
+
+Generated artifact:
+
+- `output/_diagnostics/task135_rock_source_candidate_audit_20260731/rock_source_candidates.json`
+- `output/_diagnostics/task135_rock_source_candidate_audit_20260731/rock_source_candidates.stdout.json`
+
+Summary:
+
+```json
+{
+  "by_family": {
+    "bass": 892,
+    "general_midi": 1,
+    "guitar": 168
+  },
+  "by_source_quality": {
+    "expansion_sample_unverified": 618,
+    "gm_soundfont_baseline": 1,
+    "local_user_sample_unverified": 442
+  },
+  "by_source_scope": {
+    "expansion": 618,
+    "local_instruments": 442,
+    "soundfont": 1
+  },
+  "eligible_exact_rock_upgrade_candidates": 0,
+  "ineligible_candidates": 1061,
+  "total_candidates": 1061
+}
+```
+
+### Verification proof
+
+Commands/checks run from `c:\dev\MUSE-ai\MUSE`:
+
+```powershell
+python -m pytest tests/test_rock_source_candidate_audit.py -q
+python scripts/audit_rock_source_candidates.py | python -c "import json,sys; data=json.load(sys.stdin); print(json.dumps(data['summary'], indent=2, sort_keys=True))"
+python -m py_compile scripts/audit_rock_source_candidates.py tests/test_rock_source_candidate_audit.py
+```
+
+Results:
+
+- Focused audit tests: `2 passed`.
+- Current workspace audit: `eligible_exact_rock_upgrade_candidates=0`.
+- Python compile check: pass.
+- VS Code diagnostics: no errors in the new script/test.
+- Post-verifier verdict: `PASS`.
+
+### Task 135 conclusion / next action
+
+The current exact-rock output remains a truthful passing GM SoundFont baseline. The codebase now has a deterministic audit gate proving that no current local source is eligible to replace it. A true source upgrade beyond `gm_soundfont_baseline` now requires one of:
+
+1. a license-approved guitar/bass SF2/SF3/SFZ or multisample source plus approval manifest; or
+2. a deliberate policy decision to treat specific local user samples as approved, with license/curation/listening proof.
+
+Do **not** force the current Funk-o-Rama/personal-use or local unverified WAV material into the exact-rock render path without that proof; doing so would undo the source-truth lessons from Tasks 131–133.
