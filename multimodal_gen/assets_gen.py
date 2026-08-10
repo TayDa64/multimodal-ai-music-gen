@@ -398,6 +398,164 @@ def add_saturation(audio: np.ndarray, amount: float = 0.3) -> np.ndarray:
     return np.tanh(audio * (1 + amount * 2)) / np.tanh(1 + amount * 2)
 
 
+# ---------------------------------------------------------------------------
+# Shared natural-instrument DSP foundation (InstrumentPatch-aligned)
+#
+# These helpers back the mainstream physical-modeling upgrades (guitar, bass,
+# piano, brass) with the same class of techniques already proven on the
+# Ethiopian engines: velocity-sensitive excitation, filter envelopes, and
+# dispersion. They are pure/additive and change no existing engine on their
+# own. Determinism is provided via _seeded_rng so upgraded engines stay stable
+# under the offline render path (which does not seed a global RNG per note).
+# ---------------------------------------------------------------------------
+
+
+def _seeded_rng(*keys: float) -> np.random.Generator:
+    """Return a deterministic RNG seeded from note-scoped numeric keys.
+
+    Using a per-note seed keeps "organic" noise reproducible under the offline
+    render path, which does not set a global np.random seed per note.
+    """
+    h = 1469598103934665603  # FNV-1a 64-bit offset basis
+    for key in keys:
+        quantized = int(round(float(key) * 1000.0)) & 0xFFFFFFFFFFFFFFFF
+        h = ((h ^ quantized) * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+    return np.random.default_rng(h & 0x7FFFFFFF)
+
+
+def apply_velocity_map(
+    velocity: float,
+    velocity_map: object = None,
+    *,
+    amp: float = 1.0,
+    cutoff_delta_hz: float = 0.0,
+    transient_level: float = 0.0,
+    noise_level: float = 0.0,
+    amp_curve: float = 0.6,
+) -> Dict[str, float]:
+    """Resolve a VelocityMap into concrete per-note contributions.
+
+    Extends velocity beyond amplitude so it can drive filter cutoff, transient
+    intensity, and breath/pluck noise. Accepts a VelocityMap-like object (duck
+    typed) or explicit keyword defaults. ``amp`` follows a mild perceptual
+    curve; the other fields scale linearly with velocity.
+    """
+    v = float(np.clip(velocity, 0.0, 1.0))
+    if velocity_map is not None:
+        amp = float(getattr(velocity_map, "amp", amp))
+        cutoff_delta_hz = float(getattr(velocity_map, "cutoff_delta_hz", cutoff_delta_hz))
+        transient_level = float(getattr(velocity_map, "transient_level", transient_level))
+        noise_level = float(getattr(velocity_map, "noise_level", noise_level))
+
+    curved = v ** max(0.1, float(amp_curve))
+    return {
+        "velocity": v,
+        "amp": float(amp) * curved,
+        "cutoff_delta_hz": float(cutoff_delta_hz) * v,
+        "transient_level": float(transient_level) * v,
+        "noise_level": float(noise_level) * v,
+    }
+
+
+def apply_filter_envelope(
+    audio: np.ndarray,
+    base_cutoff_hz: float,
+    *,
+    attack_ms: float = 0.0,
+    decay_ms: float = 120.0,
+    sustain_level: float = 0.5,
+    release_ms: float = 120.0,
+    amount_hz: float = 0.0,
+    sample_rate: int = SAMPLE_RATE,
+    floor_hz: float = 80.0,
+) -> np.ndarray:
+    """Apply a time-varying low-pass whose cutoff follows an ADSR contour.
+
+    The cutoff blooms to ``base + amount_hz`` right after the attack and settles
+    toward ``base + amount_hz * sustain_level``, brightening onsets and darkening
+    decays the way natural instruments do. With ``amount_hz == 0`` it reduces to
+    a static one-pole low-pass at ``base_cutoff_hz``.
+    """
+    n = int(audio.shape[0]) if audio.ndim else 0
+    if n <= 0:
+        return audio.astype(np.float64, copy=True) if audio.size else audio
+
+    nyquist = sample_rate / 2.0 - 100.0
+    base = float(np.clip(base_cutoff_hz, floor_hz, nyquist))
+
+    if abs(amount_hz) < 1e-6:
+        cutoff = np.full(n, base, dtype=np.float64)
+    else:
+        contour = np.zeros(n, dtype=np.float64)
+        a = min(n, max(0, int(attack_ms * 1e-3 * sample_rate)))
+        d = min(n - a, max(0, int(decay_ms * 1e-3 * sample_rate)))
+        r = min(n, max(0, int(release_ms * 1e-3 * sample_rate)))
+        sustain = float(np.clip(sustain_level, 0.0, 1.0))
+
+        idx = 0
+        if a > 0:
+            contour[:a] = np.linspace(0.0, 1.0, a, endpoint=False)
+            idx = a
+        else:
+            contour[:1] = 1.0
+        if d > 0:
+            end = min(n, idx + d)
+            contour[idx:end] = np.linspace(1.0, sustain, end - idx, endpoint=False)
+            idx = end
+        if idx < n:
+            contour[idx:] = sustain
+        if r > 0:
+            contour[-r:] = np.linspace(contour[max(0, n - r - 1)], 0.0, r)
+
+        cutoff = np.clip(base + amount_hz * contour, floor_hz, nyquist)
+
+    # Time-varying one-pole low-pass (matches lowpass_filter topology).
+    dt = 1.0 / sample_rate
+    rc = 1.0 / (2.0 * np.pi * cutoff)
+    alpha = dt / (rc + dt)
+
+    src = audio.astype(np.float64, copy=False)
+    out = np.empty(n, dtype=np.float64)
+    prev = src[0] * alpha[0]
+    out[0] = prev
+    for i in range(1, n):
+        prev = prev + alpha[i] * (src[i] - prev)
+        out[i] = prev
+    return out
+
+
+def _dispersion_allpass(
+    audio: np.ndarray,
+    coefficient: float = 0.4,
+    stages: int = 2,
+    sample_rate: int = SAMPLE_RATE,
+) -> np.ndarray:
+    """Add frequency-dependent dispersion (stiff-string inharmonicity).
+
+    Cascades first-order allpass sections so high partials are delayed relative
+    to the fundamental, the physical cue behind piano/guitar inharmonicity.
+    """
+    c = float(np.clip(coefficient, -0.95, 0.95))
+    stages = int(np.clip(stages, 0, 8))
+    if stages <= 0 or abs(c) < 1e-6 or audio.size == 0:
+        return audio.astype(np.float64, copy=True)
+
+    signal = audio.astype(np.float64, copy=True)
+    n = signal.shape[0]
+    for _ in range(stages):
+        out = np.empty(n, dtype=np.float64)
+        x1 = 0.0
+        y1 = 0.0
+        for i in range(n):
+            x0 = signal[i]
+            y0 = c * x0 + x1 - c * y1
+            out[i] = y0
+            x1 = x0
+            y1 = y0
+        signal = out
+    return signal
+
+
 def mix_audio(*tracks: np.ndarray, levels: Optional[List[float]] = None) -> np.ndarray:
     """Mix multiple audio tracks together."""
     if not tracks:
@@ -773,11 +931,14 @@ def generate_guitar_tone(
     sample_rate: int = SAMPLE_RATE,
     drive: float = 0.45,
 ) -> np.ndarray:
-    """Generate a conservative electric-guitar/crunch fallback tone.
+    """Generate a physically-modeled electric-guitar/crunch fallback tone.
 
-    This is intentionally lightweight and bounded for procedural rendering when
-    no guitar sample or expansion is available. It returns empty audio for
-    non-positive durations and keeps output finite/normalized for short notes.
+    Upgraded to the same class of techniques proven on the Ethiopian plucked
+    strings: a Karplus-Strong core with pick-position comb excitation, blended
+    with an additive harmonic body, plus string dispersion, a velocity-driven
+    filter envelope (bright pick attack, darker sustain), and a velocity-scaled
+    pick transient. Deterministic (seeded per note), finite, bounded, and
+    zero-duration safe so the offline render and golden tests stay stable.
     """
     num_samples = int(duration * sample_rate)
     if num_samples <= 0:
@@ -787,32 +948,89 @@ def generate_guitar_tone(
     velocity = float(np.clip(velocity, 0.0, 1.0))
     drive = float(np.clip(drive, 0.0, 1.0))
     t = np.arange(num_samples) / sample_rate
+    rng = _seeded_rng(frequency, duration, velocity, drive)
 
-    # Guitar-like harmonic stack: strong fundamental, controlled upper partials,
-    # and a small octave/fifth layer for body without becoming a synth lead.
-    audio = np.zeros(num_samples, dtype=np.float64)
+    # Velocity opens the tone: brighter, stronger pick, more pick noise.
+    vmap = apply_velocity_map(
+        velocity,
+        cutoff_delta_hz=1400.0,
+        transient_level=1.0,
+        noise_level=1.0,
+    )
+
+    # === KARPLUS-STRONG PLUCKED-STRING CORE ===
+    period_samples = max(2, int(sample_rate / frequency))
+    excitation = rng.standard_normal(period_samples)
+    # Louder notes are picked nearer the bridge -> brighter, twangier comb.
+    pick_position = float(np.clip(0.5 - 0.20 * velocity, 0.12, 0.5))
+    pick_delay = max(1, int(pick_position * period_samples))
+    if pick_delay < period_samples:
+        excitation[pick_delay:] -= excitation[:-pick_delay] * 0.7
+    smoothing_passes = 2 + int((1.0 - velocity) * 2)
+    for _ in range(smoothing_passes):
+        excitation = np.convolve(excitation, [0.15, 0.7, 0.15], mode="same")
+
+    ks = np.zeros(num_samples, dtype=np.float64)
+    delay_line = excitation.copy()
+    damping = 0.991 + 0.005 * velocity  # louder plucks ring a little longer
+    write_pos = 0
+    for i in range(num_samples):
+        read_pos = (write_pos + 1) % period_samples
+        next_pos = (read_pos + 1) % period_samples
+        filtered = damping * 0.5 * (delay_line[read_pos] + delay_line[next_pos])
+        ks[i] = filtered
+        delay_line[write_pos] = filtered
+        write_pos = (write_pos + 1) % period_samples
+
+    # === ADDITIVE HARMONIC BODY (fullness the KS core alone lacks) ===
+    body = np.zeros(num_samples, dtype=np.float64)
     for harmonic, level in [(1, 1.0), (2, 0.42), (3, 0.28), (4, 0.16), (5, 0.10)]:
         harmonic_freq = frequency * harmonic
         if harmonic_freq >= sample_rate / 2 - 200:
             break
-        audio += level * np.sin(2 * np.pi * harmonic_freq * t)
+        body += level * np.sin(2 * np.pi * harmonic_freq * t)
     fifth_freq = frequency * 1.5
     if fifth_freq < sample_rate / 2 - 200:
-        audio += 0.10 * np.sin(2 * np.pi * fifth_freq * t)
+        body += 0.10 * np.sin(2 * np.pi * fifth_freq * t)
 
-    # Deterministic pick transient; no randomness so tests and smokes are stable.
+    ks_peak = float(np.max(np.abs(ks))) if ks.size else 0.0
+    if ks_peak > 1e-9:
+        ks /= ks_peak
+    body_peak = float(np.max(np.abs(body))) if body.size else 0.0
+    if body_peak > 1e-9:
+        body /= body_peak
+    audio = 0.62 * ks + 0.38 * body
+
+    # String stiffness dispersion (inharmonicity) for a less synthetic tone.
+    audio = _dispersion_allpass(audio, coefficient=0.32, stages=2, sample_rate=sample_rate)
+
+    # Deterministic pick transient; noisy scrape scales with velocity.
     pick_len = min(num_samples, max(1, int(0.006 * sample_rate)))
-    pick_t = np.arange(pick_len) / sample_rate
-    pick = np.sin(2 * np.pi * min(5200.0, sample_rate / 4.0) * pick_t)
-    pick *= np.exp(-np.arange(pick_len) / max(1.0, 0.0018 * sample_rate))
-    audio[:pick_len] += pick * 0.08
+    pick_env = np.exp(-np.arange(pick_len) / max(1.0, 0.0018 * sample_rate))
+    pick = np.sin(2 * np.pi * min(5200.0, sample_rate / 4.0) * (np.arange(pick_len) / sample_rate))
+    pick_noise = rng.standard_normal(pick_len) * np.exp(-np.arange(pick_len) / max(1.0, 0.0012 * sample_rate))
+    audio[:pick_len] += (pick + 0.5 * pick_noise) * pick_env * (0.06 + 0.12 * vmap["transient_level"])
 
-    # Mild amp-style saturation for overdrive/crunch, then band-limit to avoid
-    # harsh aliases in the fallback path.
-    saturation = 0.20 + drive * 1.80
+    # Mild amp-style saturation; harder when driven or played louder.
+    saturation = 0.20 + drive * 1.80 + velocity * 0.30
     audio = np.tanh(audio * saturation) / np.tanh(saturation)
+
+    # Velocity-driven filter envelope: bright pick attack -> darker sustain.
+    base_cutoff = 2600.0 - drive * 600.0
+    audio = apply_filter_envelope(
+        audio,
+        base_cutoff,
+        attack_ms=2.0,
+        decay_ms=140.0,
+        sustain_level=0.5,
+        release_ms=120.0,
+        amount_hz=2200.0 + vmap["cutoff_delta_hz"],
+        sample_rate=sample_rate,
+    )
     audio = highpass_filter(audio, 70, sample_rate)
-    audio = lowpass_filter(audio, 6500 - drive * 1800, sample_rate)
+
+    # Subtle deterministic amp flutter (body vibration) that settles quickly.
+    audio *= 1.0 + 0.02 * np.sin(2 * np.pi * 5.0 * t) * np.exp(-t / 0.5)
 
     attack = int(0.004 * sample_rate)
     decay = int(0.090 * sample_rate)
@@ -823,6 +1041,111 @@ def generate_guitar_tone(
 
     audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
     audio = normalize_audio(audio, 0.72 * velocity) if np.any(audio) else audio
+    return audio.astype(np.float32)
+
+
+def generate_bass_tone(
+    frequency: float,
+    duration: float = 0.5,
+    velocity: float = 0.8,
+    sample_rate: int = SAMPLE_RATE,
+) -> np.ndarray:
+    """Generate a physically-modeled electric/acoustic bass fallback tone.
+
+    Uses the same plucked-string physical modeling proven on the Ethiopian
+    strings: a Karplus-Strong core (pick-position comb, velocity-dependent
+    damping so louder notes sustain longer) blended with a fundamental-heavy
+    additive body, plus a velocity-scaled pick transient, growl saturation, and
+    a velocity-driven filter envelope. Deterministic, finite, bounded, and
+    zero-duration safe. This is the general (non-rock) bass path; the rock
+    renderer keeps its dedicated sub-controlled electric-bass fallback.
+    """
+    num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float32)
+
+    frequency = float(np.clip(frequency, 30.0, sample_rate / 4.0))
+    velocity = float(np.clip(velocity, 0.0, 1.0))
+    t = np.arange(num_samples) / sample_rate
+    rng = _seeded_rng(frequency, duration, velocity)
+    vmap = apply_velocity_map(
+        velocity,
+        cutoff_delta_hz=600.0,
+        transient_level=1.0,
+        noise_level=0.5,
+    )
+
+    # === KARPLUS-STRONG STRING CORE ===
+    period_samples = max(2, int(sample_rate / frequency))
+    excitation = rng.standard_normal(period_samples)
+    pick_position = float(np.clip(0.5 - 0.15 * velocity, 0.15, 0.5))
+    pick_delay = max(1, int(pick_position * period_samples))
+    if pick_delay < period_samples:
+        excitation[pick_delay:] -= excitation[:-pick_delay] * 0.6
+    smoothing_passes = 3 + int((1.0 - velocity) * 2)
+    for _ in range(smoothing_passes):
+        excitation = np.convolve(excitation, [0.15, 0.7, 0.15], mode="same")
+
+    ks = np.zeros(num_samples, dtype=np.float64)
+    delay_line = excitation.copy()
+    damping = 0.994 + 0.004 * velocity  # bass strings ring long
+    write_pos = 0
+    for i in range(num_samples):
+        read_pos = (write_pos + 1) % period_samples
+        next_pos = (read_pos + 1) % period_samples
+        filtered = damping * 0.5 * (delay_line[read_pos] + delay_line[next_pos])
+        ks[i] = filtered
+        delay_line[write_pos] = filtered
+        write_pos = (write_pos + 1) % period_samples
+
+    # === FUNDAMENTAL-HEAVY ADDITIVE BODY ===
+    body = np.zeros(num_samples, dtype=np.float64)
+    for harmonic, level in [(1, 1.0), (2, 0.55), (3, 0.30), (4, 0.15)]:
+        harmonic_freq = frequency * harmonic
+        if harmonic_freq >= sample_rate / 2 - 200:
+            break
+        body += level * np.sin(2 * np.pi * harmonic_freq * t)
+
+    ks_peak = float(np.max(np.abs(ks))) if ks.size else 0.0
+    if ks_peak > 1e-9:
+        ks /= ks_peak
+    body_peak = float(np.max(np.abs(body))) if body.size else 0.0
+    if body_peak > 1e-9:
+        body /= body_peak
+    audio = 0.6 * ks + 0.4 * body
+
+    # Velocity-scaled pick/finger transient (lower/rounder than guitar).
+    pick_len = min(num_samples, max(1, int(0.008 * sample_rate)))
+    pick_env = np.exp(-np.arange(pick_len) / max(1.0, 0.0025 * sample_rate))
+    pick_tone = np.sin(2 * np.pi * min(1800.0, sample_rate / 4.0) * (np.arange(pick_len) / sample_rate))
+    audio[:pick_len] += pick_tone * pick_env * (0.05 + 0.10 * vmap["transient_level"])
+
+    # Growl saturation, harder when played louder.
+    audio = np.tanh(audio * (1.1 + 0.4 * velocity))
+
+    # Velocity-driven filter envelope: brighter attack, warm sustain.
+    base_cutoff = 900.0 + 800.0 * velocity
+    audio = apply_filter_envelope(
+        audio,
+        base_cutoff,
+        attack_ms=3.0,
+        decay_ms=100.0,
+        sustain_level=0.55,
+        release_ms=120.0,
+        amount_hz=1200.0 + vmap["cutoff_delta_hz"],
+        sample_rate=sample_rate,
+    )
+    audio = highpass_filter(audio, 40, sample_rate)
+
+    attack = int(0.004 * sample_rate)
+    decay = int(0.06 * sample_rate)
+    sustain_level = 0.7
+    release = int(0.10 * sample_rate)
+    sustain_samples = max(0, num_samples - attack - decay - release)
+    audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
+
+    audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+    audio = normalize_audio(audio, 0.8 * velocity) if np.any(audio) else audio
     return audio.astype(np.float32)
 
 
@@ -863,14 +1186,24 @@ def generate_piano_tone(
 ) -> np.ndarray:
     """Generate a more piano-like tone (procedural fallback).
 
-    This is intentionally lightweight (numpy only) but aims to be less "toyish"
-    than FM plucks by modeling:
-    - Fast hammer transient (band-limited noise)
-    - Additive harmonic stack with faster decay for higher partials
-    - Slight inharmonicity and mild detune (chorus-like)
+    Physically-modeled fallback that is deterministic (seeded per note) so the
+    offline render stays stable. Models:
+    - Additive partials with string inharmonicity (stiff-string dispersion)
+    - Velocity-scaled hammer-noise transient
+    - Two slightly detuned unison strings (chorus-like beating)
+    - A velocity-driven filter envelope (harder strikes are brighter)
+    - Light soundboard body resonance for low-mid warmth
     """
     num_samples = max(1, int(duration * sample_rate))
     t = np.arange(num_samples) / sample_rate
+    velocity = float(np.clip(velocity, 0.0, 1.0))
+    rng = _seeded_rng(frequency, duration, velocity)
+    vmap = apply_velocity_map(
+        velocity,
+        cutoff_delta_hz=3500.0,
+        transient_level=1.0,
+        noise_level=1.0,
+    )
 
     # Harmonic stack with mild inharmonicity (piano strings)
     inharm = 0.00015 + (min(frequency, 1000) / 1000.0) * 0.00015
@@ -899,13 +1232,14 @@ def generate_piano_tone(
 
     audio /= len(detunes)
 
-    # Hammer noise transient (first ~12ms)
+    # Hammer noise transient (first ~12ms); harder strikes hit brighter/louder.
     transient_len = min(num_samples, int(0.012 * sample_rate))
     if transient_len > 8:
-        noise = np.random.randn(transient_len)
+        noise = rng.standard_normal(transient_len)
         noise = bandpass_filter(noise, 900, 8000, sample_rate)
         noise_env = np.exp(-np.arange(transient_len) / (0.004 * sample_rate))
-        noise = noise * noise_env * 0.12
+        hammer_gain = 0.06 + 0.14 * vmap["transient_level"]
+        noise = noise * noise_env * hammer_gain
         audio[:transient_len] += noise
 
     # Envelope: fast attack, gentle release
@@ -916,12 +1250,34 @@ def generate_piano_tone(
     sustain_samples = max(0, num_samples - attack - decay - release)
     audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
 
+    # Velocity-driven filter envelope: harder strikes are brighter.
+    base_cutoff = 4500.0 + 2500.0 * velocity
+    audio = apply_filter_envelope(
+        audio,
+        base_cutoff,
+        attack_ms=1.0,
+        decay_ms=350.0,
+        sustain_level=0.35,
+        release_ms=200.0,
+        amount_hz=3000.0 + vmap["cutoff_delta_hz"],
+        sample_rate=sample_rate,
+    )
+
+    # Light soundboard body resonance (low-mid warmth), kept subtle.
+    resonant = np.zeros_like(audio)
+    for res_freq, res_q, res_gain in ((120.0, 8.0, 0.5), (230.0, 6.0, 0.35)):
+        bandwidth = res_freq / res_q
+        low = max(20.0, res_freq - bandwidth / 2.0)
+        high = min(sample_rate / 2 - 100.0, res_freq + bandwidth / 2.0)
+        band = highpass_filter(lowpass_filter(audio, high, sample_rate), low, sample_rate)
+        resonant += band * res_gain
+    audio = audio * 0.9 + resonant * 0.1
+
     # Warmth + gentle saturation
-    audio = lowpass_filter(audio, 9000, sample_rate)
     audio = add_saturation(audio, 0.12)
 
     # Velocity scaling and normalization
-    audio = normalize_audio(audio, target_peak=0.85) * float(np.clip(velocity, 0.0, 1.0))
+    audio = normalize_audio(audio, target_peak=0.85) * velocity
     return audio.astype(np.float32)
 
 
@@ -3626,70 +3982,90 @@ def generate_brass_tone(
 ) -> np.ndarray:
     """
     Generate brass-like tone for Ethio-jazz style.
-    
-    Characteristic of Mulatu Astatke's Ethio-jazz fusion -
-    bright, punchy brass with soul/funk influence.
-    
-    Acoustic characteristics:
-    - Bright attack with "blat" transient
-    - Strong even and odd harmonics
-    - Slight vibrato on sustained notes
-    - Punchy, rhythmic quality
+
+    Characteristic of Mulatu Astatke's Ethio-jazz fusion - bright, punchy
+    brass with soul/funk influence. Deterministic (seeded per note) and
+    velocity-expressive: the defining brass cue is that louder playing pushes
+    far more upper-harmonic energy (the tone "blooms" and brightens), driven
+    here by a velocity-scaled harmonic profile and filter envelope plus a
+    pressure-scaled lip-reed "blat" attack.
     """
     num_samples = int(duration * sample_rate)
+    if num_samples <= 0:
+        return np.zeros(0, dtype=np.float32)
+
+    velocity = float(np.clip(velocity, 0.0, 1.0))
     t = np.arange(num_samples) / sample_rate
-    
-    audio = np.zeros(num_samples)
-    
-    # === BRASS OSCILLATOR ===
-    # Rich harmonic content
-    for i in range(1, 12):
+    rng = _seeded_rng(frequency, duration, velocity)
+    vmap = apply_velocity_map(
+        velocity,
+        cutoff_delta_hz=4000.0,
+        transient_level=1.0,
+        noise_level=1.0,
+    )
+
+    audio = np.zeros(num_samples, dtype=np.float64)
+
+    # === BRASS OSCILLATOR (upper harmonics grow with playing intensity) ===
+    brightness = 0.4 + 0.6 * velocity
+    for i in range(1, 14):
         harmonic_freq = frequency * i
-        
-        # Brass harmonic profile: strong fundamentals and mid-harmonics
+        if harmonic_freq >= sample_rate / 2 - 200:
+            break
         if i <= 3:
             amp = 1.0 / i
         elif i <= 6:
-            amp = 0.8 / i
+            amp = (0.6 + 0.4 * brightness) / i
         else:
-            amp = 0.4 / i
-        
+            amp = (0.15 + 0.55 * brightness) / i
         audio += amp * np.sin(2 * np.pi * harmonic_freq * t)
-    
-    # === ATTACK TRANSIENT ("blat") ===
-    attack_noise = np.random.randn(num_samples) * velocity
+
+    # === LIP-REED ATTACK TRANSIENT ("blat", pressure ~ velocity) ===
+    attack_noise = rng.standard_normal(num_samples) * (0.5 + velocity)
     attack_env = np.exp(-t / 0.008)  # 8ms decay
     attack_noise *= attack_env
     attack_noise = highpass_filter(attack_noise, 800, sample_rate)
     attack_noise = lowpass_filter(attack_noise, 4000, sample_rate)
-    audio += attack_noise * 0.2
-    
+    audio += attack_noise * (0.12 + 0.16 * vmap["transient_level"])
+
     # === VIBRATO (delayed) ===
     if duration > 0.3:
         vibrato_rate = 5.5
         vibrato_depth = 0.008
         vibrato_onset = np.clip((t - 0.2) / 0.15, 0, 1)
         vibrato = np.sin(2 * np.pi * vibrato_rate * t) * vibrato_depth * vibrato_onset
-        
+
         audio_vibrato = np.zeros(num_samples)
         for i in range(1, 8):
             amp = 0.9 / i if i <= 3 else 0.5 / i
             audio_vibrato += amp * np.sin(2 * np.pi * frequency * i * (t + vibrato))
-        
+
         audio = audio * 0.6 + audio_vibrato * 0.4
-    
+
     # === ENVELOPE ===
     attack = int(0.015 * sample_rate)
     decay = int(0.06 * sample_rate)
     sustain_level = 0.85
     release = int(0.08 * sample_rate)
-    
+
     audio = apply_envelope(audio, attack, decay, sustain_level, release)
-    
-    # === BRIGHTNESS ===
+
+    # === VELOCITY-DRIVEN BRIGHTNESS BLOOM ===
+    base_cutoff = 1800.0 + 2600.0 * velocity
+    audio = apply_filter_envelope(
+        audio,
+        base_cutoff,
+        attack_ms=12.0,
+        decay_ms=120.0,
+        sustain_level=0.6,
+        release_ms=100.0,
+        amount_hz=2500.0 + vmap["cutoff_delta_hz"],
+        sample_rate=sample_rate,
+    )
     audio = highpass_filter(audio, 120, sample_rate)
-    
-    return normalize_audio(audio, 0.75 * velocity)
+
+    audio = np.nan_to_num(audio, nan=0.0, posinf=0.0, neginf=0.0)
+    return normalize_audio(audio, 0.75 * velocity).astype(np.float32)
 
 
 def generate_organ_tone(
@@ -4033,22 +4409,23 @@ def generate_kebero_hit(
     """
     Generate a bounded Kebero-first hand-drum hit with GM compatibility.
 
-    The Kebero is a double-headed Ethiopian drum with distinct low-head and
-    slap articulation. GM conga/bongo notes are still supported for compatibility,
+    The Kebero is a double-headed conical Ethiopian drum with a large head
+    (deep low tone) and a small head (higher tone), plus muted and edge
+    articulations. GM conga/bongo notes are still supported for compatibility,
     but the synthesis stays centered on warm hand-drum behavior rather than a
     generic bright conga model.
     
-    Pitch mappings (GM standard):
-    - 60: High Bongo (Atamo - small drum)
-    - 61: Low Bongo
-    - 62: High Conga (Kebero slap/tek)
-    - 63: Low Conga (Kebero bass/doom)
+    Pitch mappings (GM standard notes kept for compatibility):
+    - 60: Atamo (small drum) - GM high-bongo note
+    - 61: GM low-bongo note
+    - 62: small head (high tone) - GM high-conga note
+    - 63: large head (low tone) - GM low-conga note
     - 70: Shaker/Maracas
     
-    Custom kebero range:
-    - 50: Kebero bass
-    - 51: Kebero slap
-    - 52: Kebero muted
+    Custom kebero range (authentic head-based):
+    - 50: large head (low tone)
+    - 51: small head (high tone)
+    - 52: muted / dampened
     """
     def _resolve_kebero_profile(profile_name: str) -> Dict[str, float]:
         key = str(profile_name or 'eskista_dance').strip().lower().replace('-', '_').replace(' ', '_')
@@ -4074,12 +4451,12 @@ def generate_kebero_hit(
                 'slap_decay': 0.07,
                 'slap_gain': 1.22,
                 'slap_lowpass': 3100.0,
-                'bongo_freq': 278.0,
-                'bongo_harmonic_gain': 0.22,
-                'bongo_attack_low': 850.0,
-                'bongo_attack_high': 2400.0,
-                'bongo_attack_gain': 0.18,
-                'bongo_decay': 0.058,
+                'head_freq': 278.0,
+                'head_harmonic_gain': 0.22,
+                'head_attack_low': 850.0,
+                'head_attack_high': 2400.0,
+                'head_attack_gain': 0.18,
+                'head_decay': 0.058,
                 'muted_freq': 96.0,
                 'muted_decay': 0.04,
                 'muted_gain': 0.76,
@@ -4108,12 +4485,12 @@ def generate_kebero_hit(
                 'slap_decay': 0.095,
                 'slap_gain': 1.08,
                 'slap_lowpass': 2500.0,
-                'bongo_freq': 255.0,
-                'bongo_harmonic_gain': 0.18,
-                'bongo_attack_low': 750.0,
-                'bongo_attack_high': 2000.0,
-                'bongo_attack_gain': 0.14,
-                'bongo_decay': 0.07,
+                'head_freq': 255.0,
+                'head_harmonic_gain': 0.18,
+                'head_attack_low': 750.0,
+                'head_attack_high': 2000.0,
+                'head_attack_gain': 0.14,
+                'head_decay': 0.07,
                 'muted_freq': 92.0,
                 'muted_decay': 0.05,
                 'muted_gain': 0.64,
@@ -4142,12 +4519,12 @@ def generate_kebero_hit(
                 'slap_decay': 0.08,
                 'slap_gain': 1.15,
                 'slap_lowpass': 2900.0,
-                'bongo_freq': 268.0,
-                'bongo_harmonic_gain': 0.2,
-                'bongo_attack_low': 800.0,
-                'bongo_attack_high': 2250.0,
-                'bongo_attack_gain': 0.16,
-                'bongo_decay': 0.064,
+                'head_freq': 268.0,
+                'head_harmonic_gain': 0.2,
+                'head_attack_low': 800.0,
+                'head_attack_high': 2250.0,
+                'head_attack_gain': 0.16,
+                'head_decay': 0.064,
                 'muted_freq': 94.0,
                 'muted_decay': 0.045,
                 'muted_gain': 0.7,
@@ -4165,8 +4542,8 @@ def generate_kebero_hit(
     
     audio = np.zeros(num_samples)
     
-    if pitch in [63, 50, 61]:  # Low Conga / Kebero bass / Low Bongo
-        # Deep low-head / bass response
+    if pitch in [63, 50, 61]:  # large head (low tone) / GM low-conga / GM low-bongo
+        # Deep large-head (low tone) response
         base_freq = (75 if pitch == 63 else (65 if pitch == 50 else 85)) * cfg['bass_pitch_scale']
         
         # Characteristic pitch drop of hand drums
@@ -4187,8 +4564,8 @@ def generate_kebero_hit(
         env = np.exp(-t / cfg['bass_decay']) * (1 - np.exp(-t / 0.003))
         audio *= env * velocity * cfg['bass_gain']
         
-    elif pitch in [62, 51]:  # High Conga / Kebero slap
-        # Pointed but still warm high-head / slap response
+    elif pitch in [62, 51]:  # small head (high tone) / GM high-conga
+        # Pointed but still warm small-head (high tone) response
         base_freq = cfg['slap_gm_freq'] if pitch == 62 else cfg['slap_custom_freq']
         
         # Slap has faster pitch drop
@@ -4196,7 +4573,7 @@ def generate_kebero_hit(
         phase = 2 * np.pi * np.cumsum(freq_env) / sample_rate
         audio = np.sin(phase) * cfg['slap_tone_gain']
         
-        # Attack transient (controlled hand slap, never conga-bright)
+        # Attack transient (controlled hand stroke, never conga-bright)
         slap = np.random.randn(num_samples)
         slap = bandpass_simple(slap, cfg['slap_band_low'], cfg['slap_band_high'], sample_rate)
         slap *= np.exp(-t / cfg['slap_noise_decay'])
@@ -4209,25 +4586,25 @@ def generate_kebero_hit(
         # Roll off highs to keep the hand-drum identity warm
         audio = lowpass_filter(audio, cfg['slap_lowpass'], sample_rate)
         
-    elif pitch in [60]:  # High Bongo / Atamo
+    elif pitch in [60]:  # Atamo (small drum) - GM compatibility
         # Compact upper-head articulation used for GM compatibility
-        base_freq = cfg['bongo_freq']
+        base_freq = cfg['head_freq']
         
         freq_env = base_freq * (1 + 0.5 * np.exp(-t / 0.006))
         phase = 2 * np.pi * np.cumsum(freq_env) / sample_rate
         audio = np.sin(phase) * 0.6
         
         # Add harmonic brightness (but controlled)
-        audio += cfg['bongo_harmonic_gain'] * np.sin(2 * np.pi * base_freq * 2.2 * t) * np.exp(-t / 0.03)
+        audio += cfg['head_harmonic_gain'] * np.sin(2 * np.pi * base_freq * 2.2 * t) * np.exp(-t / 0.03)
         
         # Attack with moderate brightness
         attack = np.random.randn(num_samples)
-        attack = bandpass_simple(attack, cfg['bongo_attack_low'], cfg['bongo_attack_high'], sample_rate)
+        attack = bandpass_simple(attack, cfg['head_attack_low'], cfg['head_attack_high'], sample_rate)
         attack *= np.exp(-t / 0.008)
-        audio += attack * cfg['bongo_attack_gain']
+        audio += attack * cfg['head_attack_gain']
         
         # Very short envelope
-        env = np.exp(-t / cfg['bongo_decay']) * (1 - np.exp(-t / 0.001))
+        env = np.exp(-t / cfg['head_decay']) * (1 - np.exp(-t / 0.001))
         audio *= env * velocity
         
     elif pitch == 52:  # Muted kebero
@@ -4614,15 +4991,22 @@ class AssetsGenerator:
             kit['shaker'] = path
 
         if 'kebero' in requested:
+            # Kebero is a double-headed conical Ethiopian drum.
+            # Pitch 50 = large head (low tone); pitch 51 = small head (high tone).
+            low_path = os.path.join(self.output_dir, 'kebero_low.wav')
             audio = generate_kebero_hit(pitch=50, sample_rate=self.sample_rate)
-            path = os.path.join(self.output_dir, 'kebero_bass.wav')
-            save_wav(audio, path, self.sample_rate)
-            kit['kebero_bass'] = path
+            save_wav(audio, low_path, self.sample_rate)
+            kit['kebero_low'] = low_path
 
+            high_path = os.path.join(self.output_dir, 'kebero_high.wav')
             audio = generate_kebero_hit(pitch=51, sample_rate=self.sample_rate)
-            path = os.path.join(self.output_dir, 'kebero_slap.wav')
-            save_wav(audio, path, self.sample_rate)
-            kit['kebero_slap'] = path
+            save_wav(audio, high_path, self.sample_rate)
+            kit['kebero_high'] = high_path
+
+            # Deprecated Western alias keys retained for backward compatibility.
+            # They point at the SAME authentic head-based sample files.
+            kit['kebero_bass'] = low_path
+            kit['kebero_slap'] = high_path
         
         return kit
     

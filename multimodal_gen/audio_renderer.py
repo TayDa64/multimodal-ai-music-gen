@@ -71,6 +71,7 @@ from .assets_gen import (
     generate_rain,
     generate_fm_pluck,
     generate_guitar_tone,
+    generate_bass_tone,
     generate_piano_tone,
     generate_lead_tone,
     generate_unison_lead_tone,
@@ -1551,7 +1552,7 @@ class ProceduralRenderer:
         elif note.program in [38, 39]:  # Synth Bass
             return generate_808_kick(duration, freq * 4, freq)
         elif note.program >= 32 and note.program <= 37:  # Acoustic/Electric/Fretless Bass
-            return generate_fm_pluck(freq, max(duration, 0.3))
+            return generate_bass_tone(freq, max(duration, 0.3), velocity, self.sample_rate)
         elif note.program >= 88 and note.program <= 95:  # Pads
             return generate_pad_tone(freq, duration)
         elif note.program >= 16 and note.program <= 23:  # All Organs
