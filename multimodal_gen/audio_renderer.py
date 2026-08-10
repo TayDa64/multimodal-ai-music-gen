@@ -1448,6 +1448,28 @@ class ProceduralRenderer:
         # Fallback to procedural
         return self._drum_cache.get(drum_name, self._drum_cache['kick']).copy()
     
+    def _resolve_patch_voice(self, family: str):
+        """Return the registry SynthesisVoice for a family (cached per renderer).
+
+        Lets the offline procedural engines pull filter-envelope / velocity-map
+        params from the InstrumentPatch registry instead of only hard-coded
+        locals. Falls back to None so engines use their built-in defaults.
+        """
+        cache = getattr(self, "_instrument_voice_cache", None)
+        if cache is None:
+            cache = {}
+            self._instrument_voice_cache = cache
+        if family not in cache:
+            voice = None
+            try:
+                from .instrument_patch import get_instrument_patch
+                patch = get_instrument_patch(family, genre=self.genre)
+                voice = getattr(patch, "synthesis_voice", None) if patch else None
+            except Exception:
+                voice = None
+            cache[family] = voice
+        return cache[family]
+
     def _synthesize_note(self, note: SynthNote) -> np.ndarray:
         """Synthesize a melodic note based on MIDI program number.
         
@@ -1512,7 +1534,7 @@ class ProceduralRenderer:
         # Choose synthesis method based on program
         # Standard GM instruments
         if note.program in [0, 1, 2, 3]:  # Acoustic/bright/honky-tonk
-            return generate_piano_tone(freq, duration, velocity, self.sample_rate)
+            return generate_piano_tone(freq, duration, velocity, self.sample_rate, voice=self._resolve_patch_voice('keys'))
         elif note.program in [4, 5, 6, 7]:  # Electric pianos
             return generate_fm_pluck(freq, duration)
         elif 24 <= note.program <= 31:  # Guitar family
@@ -1521,7 +1543,7 @@ class ProceduralRenderer:
                 drive = max(drive, 0.72)
             if self._is_rock_family_genre():
                 return self._synthesize_rock_electric_guitar(freq, duration, velocity, drive=drive)
-            return generate_guitar_tone(freq, duration, velocity, self.sample_rate, drive=drive)
+            return generate_guitar_tone(freq, duration, velocity, self.sample_rate, drive=drive, voice=self._resolve_patch_voice('guitar'))
         elif 80 <= note.program <= 87:  # Synth leads
             genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
             if genre_key in {'edm', 'pop', 'dance', 'electro', 'electropop', 'house'}:
@@ -1548,17 +1570,17 @@ class ProceduralRenderer:
             return generate_lead_tone(freq, duration, velocity, self.sample_rate)
         elif 12 <= note.program <= 15:  # Chromatic percussion (vibe/marimba/xylophone)
             # Avoid toy mallet timbres in procedural mode; render as soft keys instead.
-            return generate_piano_tone(freq, duration, velocity * 0.75, self.sample_rate)
+            return generate_piano_tone(freq, duration, velocity * 0.75, self.sample_rate, voice=self._resolve_patch_voice('keys'))
         elif note.program in [38, 39]:  # Synth Bass
             return generate_808_kick(duration, freq * 4, freq)
         elif note.program >= 32 and note.program <= 37:  # Acoustic/Electric/Fretless Bass
-            return generate_bass_tone(freq, max(duration, 0.3), velocity, self.sample_rate)
+            return generate_bass_tone(freq, max(duration, 0.3), velocity, self.sample_rate, voice=self._resolve_patch_voice('bass'))
         elif note.program >= 88 and note.program <= 95:  # Pads
             return generate_pad_tone(freq, duration)
         elif note.program >= 16 and note.program <= 23:  # All Organs
             return generate_organ_tone(freq, duration, velocity)
         elif note.program >= 56 and note.program <= 63:  # Brass
-            return generate_brass_tone(freq, duration, velocity)
+            return generate_brass_tone(freq, duration, velocity, voice=self._resolve_patch_voice('brass'))
         elif note.program == 46:  # Harp (GM program 46)
             return generate_harp_tone(freq, duration, velocity, self.sample_rate)
         elif note.program == 47:  # Timpani (GM program 47)

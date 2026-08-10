@@ -480,7 +480,8 @@ def apply_filter_envelope(
     if n <= 0:
         return audio.astype(np.float64, copy=True) if audio.size else audio
 
-    nyquist = sample_rate / 2.0 - 100.0
+    nyquist = max(200.0, sample_rate / 2.0 - 100.0)
+    floor_hz = float(np.clip(floor_hz, 1.0, nyquist))
     base = float(np.clip(base_cutoff_hz, floor_hz, nyquist))
 
     if abs(amount_hz) < 1e-6:
@@ -521,7 +522,39 @@ def apply_filter_envelope(
     for i in range(1, n):
         prev = prev + alpha[i] * (src[i] - prev)
         out[i] = prev
-    return out
+    return np.nan_to_num(out, nan=0.0, posinf=0.0, neginf=0.0)
+
+
+def resolve_filter_envelope_params(
+    voice: object = None,
+    *,
+    attack_ms: float,
+    decay_ms: float,
+    sustain_level: float,
+    release_ms: float,
+    amount_hz: float,
+) -> Dict[str, float]:
+    """Pull filter-envelope params from a SynthesisVoice.filter_envelope.
+
+    Lets the InstrumentPatch registry drive the offline filter envelope while
+    falling back to the caller's tuned defaults when no voice / field exists.
+    """
+    fe = getattr(voice, "filter_envelope", None) if voice is not None else None
+    if fe is None:
+        return {
+            "attack_ms": attack_ms,
+            "decay_ms": decay_ms,
+            "sustain_level": sustain_level,
+            "release_ms": release_ms,
+            "amount_hz": amount_hz,
+        }
+    return {
+        "attack_ms": float(getattr(fe, "attack_ms", attack_ms)),
+        "decay_ms": float(getattr(fe, "decay_ms", decay_ms)),
+        "sustain_level": float(getattr(fe, "sustain_level", sustain_level)),
+        "release_ms": float(getattr(fe, "release_ms", release_ms)),
+        "amount_hz": float(getattr(fe, "amount", amount_hz)),
+    }
 
 
 def _dispersion_allpass(
@@ -930,6 +963,7 @@ def generate_guitar_tone(
     velocity: float = 0.8,
     sample_rate: int = SAMPLE_RATE,
     drive: float = 0.45,
+    voice: object = None,
 ) -> np.ndarray:
     """Generate a physically-modeled electric-guitar/crunch fallback tone.
 
@@ -953,6 +987,7 @@ def generate_guitar_tone(
     # Velocity opens the tone: brighter, stronger pick, more pick noise.
     vmap = apply_velocity_map(
         velocity,
+        velocity_map=getattr(voice, "velocity_map", None),
         cutoff_delta_hz=1400.0,
         transient_level=1.0,
         noise_level=1.0,
@@ -1016,15 +1051,18 @@ def generate_guitar_tone(
     audio = np.tanh(audio * saturation) / np.tanh(saturation)
 
     # Velocity-driven filter envelope: bright pick attack -> darker sustain.
+    fe = resolve_filter_envelope_params(
+        voice, attack_ms=2.0, decay_ms=140.0, sustain_level=0.5, release_ms=120.0, amount_hz=2200.0
+    )
     base_cutoff = 2600.0 - drive * 600.0
     audio = apply_filter_envelope(
         audio,
         base_cutoff,
-        attack_ms=2.0,
-        decay_ms=140.0,
-        sustain_level=0.5,
-        release_ms=120.0,
-        amount_hz=2200.0 + vmap["cutoff_delta_hz"],
+        attack_ms=fe["attack_ms"],
+        decay_ms=fe["decay_ms"],
+        sustain_level=fe["sustain_level"],
+        release_ms=fe["release_ms"],
+        amount_hz=fe["amount_hz"] + vmap["cutoff_delta_hz"],
         sample_rate=sample_rate,
     )
     audio = highpass_filter(audio, 70, sample_rate)
@@ -1049,6 +1087,7 @@ def generate_bass_tone(
     duration: float = 0.5,
     velocity: float = 0.8,
     sample_rate: int = SAMPLE_RATE,
+    voice: object = None,
 ) -> np.ndarray:
     """Generate a physically-modeled electric/acoustic bass fallback tone.
 
@@ -1070,6 +1109,7 @@ def generate_bass_tone(
     rng = _seeded_rng(frequency, duration, velocity)
     vmap = apply_velocity_map(
         velocity,
+        velocity_map=getattr(voice, "velocity_map", None),
         cutoff_delta_hz=600.0,
         transient_level=1.0,
         noise_level=0.5,
@@ -1124,15 +1164,18 @@ def generate_bass_tone(
     audio = np.tanh(audio * (1.1 + 0.4 * velocity))
 
     # Velocity-driven filter envelope: brighter attack, warm sustain.
+    fe = resolve_filter_envelope_params(
+        voice, attack_ms=3.0, decay_ms=100.0, sustain_level=0.55, release_ms=120.0, amount_hz=1200.0
+    )
     base_cutoff = 900.0 + 800.0 * velocity
     audio = apply_filter_envelope(
         audio,
         base_cutoff,
-        attack_ms=3.0,
-        decay_ms=100.0,
-        sustain_level=0.55,
-        release_ms=120.0,
-        amount_hz=1200.0 + vmap["cutoff_delta_hz"],
+        attack_ms=fe["attack_ms"],
+        decay_ms=fe["decay_ms"],
+        sustain_level=fe["sustain_level"],
+        release_ms=fe["release_ms"],
+        amount_hz=fe["amount_hz"] + vmap["cutoff_delta_hz"],
         sample_rate=sample_rate,
     )
     audio = highpass_filter(audio, 40, sample_rate)
@@ -1182,7 +1225,8 @@ def generate_piano_tone(
     frequency: float,
     duration: float = 0.6,
     velocity: float = 0.8,
-    sample_rate: int = SAMPLE_RATE
+    sample_rate: int = SAMPLE_RATE,
+    voice: object = None,
 ) -> np.ndarray:
     """Generate a more piano-like tone (procedural fallback).
 
@@ -1200,6 +1244,7 @@ def generate_piano_tone(
     rng = _seeded_rng(frequency, duration, velocity)
     vmap = apply_velocity_map(
         velocity,
+        velocity_map=getattr(voice, "velocity_map", None),
         cutoff_delta_hz=3500.0,
         transient_level=1.0,
         noise_level=1.0,
@@ -1251,15 +1296,18 @@ def generate_piano_tone(
     audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
 
     # Velocity-driven filter envelope: harder strikes are brighter.
+    fe = resolve_filter_envelope_params(
+        voice, attack_ms=1.0, decay_ms=350.0, sustain_level=0.35, release_ms=200.0, amount_hz=3000.0
+    )
     base_cutoff = 4500.0 + 2500.0 * velocity
     audio = apply_filter_envelope(
         audio,
         base_cutoff,
-        attack_ms=1.0,
-        decay_ms=350.0,
-        sustain_level=0.35,
-        release_ms=200.0,
-        amount_hz=3000.0 + vmap["cutoff_delta_hz"],
+        attack_ms=fe["attack_ms"],
+        decay_ms=fe["decay_ms"],
+        sustain_level=fe["sustain_level"],
+        release_ms=fe["release_ms"],
+        amount_hz=fe["amount_hz"] + vmap["cutoff_delta_hz"],
         sample_rate=sample_rate,
     )
 
@@ -3978,7 +4026,8 @@ def generate_brass_tone(
     frequency: float,
     duration: float = 0.5,
     velocity: float = 0.8,
-    sample_rate: int = SAMPLE_RATE
+    sample_rate: int = SAMPLE_RATE,
+    voice: object = None,
 ) -> np.ndarray:
     """
     Generate brass-like tone for Ethio-jazz style.
@@ -3999,6 +4048,7 @@ def generate_brass_tone(
     rng = _seeded_rng(frequency, duration, velocity)
     vmap = apply_velocity_map(
         velocity,
+        velocity_map=getattr(voice, "velocity_map", None),
         cutoff_delta_hz=4000.0,
         transient_level=1.0,
         noise_level=1.0,
@@ -4051,15 +4101,18 @@ def generate_brass_tone(
     audio = apply_envelope(audio, attack, decay, sustain_level, release)
 
     # === VELOCITY-DRIVEN BRIGHTNESS BLOOM ===
+    fe = resolve_filter_envelope_params(
+        voice, attack_ms=12.0, decay_ms=120.0, sustain_level=0.6, release_ms=100.0, amount_hz=2500.0
+    )
     base_cutoff = 1800.0 + 2600.0 * velocity
     audio = apply_filter_envelope(
         audio,
         base_cutoff,
-        attack_ms=12.0,
-        decay_ms=120.0,
-        sustain_level=0.6,
-        release_ms=100.0,
-        amount_hz=2500.0 + vmap["cutoff_delta_hz"],
+        attack_ms=fe["attack_ms"],
+        decay_ms=fe["decay_ms"],
+        sustain_level=fe["sustain_level"],
+        release_ms=fe["release_ms"],
+        amount_hz=fe["amount_hz"] + vmap["cutoff_delta_hz"],
         sample_rate=sample_rate,
     )
     audio = highpass_filter(audio, 120, sample_rate)

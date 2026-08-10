@@ -16,6 +16,7 @@ from multimodal_gen.assets_gen import (
     _seeded_rng,
     apply_filter_envelope,
     apply_velocity_map,
+    resolve_filter_envelope_params,
 )
 
 
@@ -132,6 +133,82 @@ def test_filter_envelope_preserves_length_and_is_finite():
 def test_filter_envelope_handles_empty_input():
     out = apply_filter_envelope(np.zeros(0), base_cutoff_hz=1000.0, amount_hz=2000.0)
     assert out.shape[0] == 0
+
+
+def test_filter_envelope_short_notes_are_finite_and_click_safe():
+    # Very short notes (1..64 samples) must stay finite, length-preserving, and
+    # bounded (no cold-start blow-up) even with a large modulation amount.
+    src_full = _bright_source(0.5)
+    for n in (1, 2, 3, 8, 32, 64):
+        out = apply_filter_envelope(
+            src_full[:n],
+            base_cutoff_hz=600.0,
+            attack_ms=5.0,
+            decay_ms=40.0,
+            sustain_level=0.2,
+            release_ms=40.0,
+            amount_hz=6000.0,
+        )
+        assert out.shape[0] == n
+        assert np.all(np.isfinite(out))
+        assert np.max(np.abs(out)) <= np.max(np.abs(src_full[:n])) + 1e-6
+
+
+def test_filter_envelope_extreme_params_stay_finite():
+    src = _bright_source(0.05)
+    # Base above Nyquist, negative amount, tiny release: must not raise or NaN.
+    out = apply_filter_envelope(
+        src,
+        base_cutoff_hz=1_000_000.0,
+        attack_ms=0.0,
+        decay_ms=0.0,
+        sustain_level=2.0,
+        release_ms=0.0,
+        amount_hz=-9000.0,
+    )
+    assert out.shape[0] == src.shape[0]
+    assert np.all(np.isfinite(out))
+
+
+# --- resolve_filter_envelope_params -------------------------------------------
+
+def test_resolve_filter_envelope_uses_defaults_when_no_voice():
+    params = resolve_filter_envelope_params(
+        None, attack_ms=2.0, decay_ms=140.0, sustain_level=0.5, release_ms=120.0, amount_hz=2200.0
+    )
+    assert params == {
+        "attack_ms": 2.0,
+        "decay_ms": 140.0,
+        "sustain_level": 0.5,
+        "release_ms": 120.0,
+        "amount_hz": 2200.0,
+    }
+
+
+def test_resolve_filter_envelope_reads_voice_filter_envelope():
+    from multimodal_gen.instrument_patch import SynthesisVoice, EnvelopeSpec
+
+    voice = SynthesisVoice(
+        filter_envelope=EnvelopeSpec(attack_ms=9.0, decay_ms=99.0, sustain_level=0.1, release_ms=33.0, amount=1234.0)
+    )
+    params = resolve_filter_envelope_params(
+        voice, attack_ms=2.0, decay_ms=140.0, sustain_level=0.5, release_ms=120.0, amount_hz=2200.0
+    )
+    assert params["attack_ms"] == 9.0
+    assert params["decay_ms"] == 99.0
+    assert params["sustain_level"] == 0.1
+    assert params["release_ms"] == 33.0
+    assert params["amount_hz"] == 1234.0  # EnvelopeSpec.amount maps to amount_hz
+
+
+def test_resolve_filter_envelope_defaults_when_voice_has_no_filter_envelope():
+    from multimodal_gen.instrument_patch import SynthesisVoice
+
+    voice = SynthesisVoice()  # filter_envelope is None by default
+    params = resolve_filter_envelope_params(
+        voice, attack_ms=2.0, decay_ms=140.0, sustain_level=0.5, release_ms=120.0, amount_hz=2200.0
+    )
+    assert params["amount_hz"] == 2200.0
 
 
 # --- _dispersion_allpass ------------------------------------------------------

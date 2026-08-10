@@ -173,3 +173,63 @@ def test_bass_velocity_increases_brightness():
     soft = generate_bass_tone(55.0, 0.5, 0.25)
     loud = generate_bass_tone(55.0, 0.5, 0.95)
     assert _hf_ratio(loud, cutoff_hz=800.0) > _hf_ratio(soft, cutoff_hz=800.0)
+
+
+# --- InstrumentPatch -> DSP consumption (loop closure) ------------------------
+
+_ENGINE_FAMILY = [
+    (generate_guitar_tone, "guitar", dict(frequency=196.0, duration=0.4, velocity=0.75, drive=0.5)),
+    (generate_piano_tone, "keys", dict(frequency=261.63, duration=0.6, velocity=0.8)),
+    (generate_bass_tone, "bass", dict(frequency=55.0, duration=0.5, velocity=0.8)),
+    (generate_brass_tone, "brass", dict(frequency=220.0, duration=0.5, velocity=0.8)),
+]
+
+
+def _registry_voice(family: str):
+    from multimodal_gen.instrument_patch import get_instrument_patch
+
+    patch = get_instrument_patch(family)
+    assert patch is not None and patch.synthesis_voice is not None
+    return patch.synthesis_voice
+
+
+def test_registry_voice_is_behavior_preserving():
+    # The registry filter-envelope / velocity-map values equal the engine
+    # defaults, so consuming the model must reproduce the default sound exactly.
+    for fn, family, kw in _ENGINE_FAMILY:
+        default = fn(**kw)
+        via_patch = fn(**kw, voice=_registry_voice(family))
+        assert np.array_equal(default, via_patch), family
+
+
+def test_custom_voice_changes_realization():
+    # A patch with a different filter envelope / velocity map must change the
+    # rendered output, proving the engines actually consume the model.
+    from multimodal_gen.instrument_patch import SynthesisVoice, EnvelopeSpec, VelocityMap
+
+    neutral = SynthesisVoice(
+        filter_envelope=EnvelopeSpec(attack_ms=0.0, decay_ms=10.0, sustain_level=0.0, release_ms=10.0, amount=0.0),
+        velocity_map=VelocityMap(amp=1.0, cutoff_delta_hz=0.0, transient_level=0.0, noise_level=0.0),
+    )
+    for fn, family, kw in _ENGINE_FAMILY:
+        default = fn(**kw)
+        altered = fn(**kw, voice=neutral)
+        _assert_render_invariants(altered)
+        assert not np.array_equal(default, altered), family
+
+
+def test_registry_patches_expose_filter_envelope_for_upgraded_families():
+    for family in ("guitar", "keys", "bass", "brass"):
+        voice = _registry_voice(family)
+        assert voice.filter_envelope is not None, family
+        assert voice.filter_envelope.amount > 0.0, family
+
+
+# --- short-note robustness across engines -------------------------------------
+
+def test_upgraded_engines_short_notes_are_valid_float32():
+    for fn, _family, kw in _ENGINE_FAMILY:
+        short = dict(kw)
+        short["duration"] = 0.002  # ~88 samples at 44.1k
+        audio = fn(**short)
+        _assert_render_invariants(audio)
