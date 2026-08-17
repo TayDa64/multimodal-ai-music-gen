@@ -29,6 +29,27 @@ def _hf_ratio(audio: np.ndarray, cutoff_hz: float = 2000.0, sample_rate: int = S
     return float(np.sum(spectrum[freqs > cutoff_hz]) / total)
 
 
+def _attack_centroid(audio: np.ndarray, sample_rate: int = SAMPLE_RATE) -> float:
+    # First ~40 ms after a 4 ms cold-start skip, where velocity brightness lives.
+    a = np.asarray(audio, dtype=np.float64)
+    s = int(0.004 * sample_rate)
+    w = int(0.04 * sample_rate)
+    a = a[s:s + w]
+    if a.size == 0:
+        return 0.0
+    spectrum = np.abs(np.fft.rfft(a))
+    freqs = np.fft.rfftfreq(a.size, d=1.0 / sample_rate)
+    total = float(np.sum(spectrum))
+    return float(np.sum(freqs * spectrum) / total) if total > 0 else 0.0
+
+
+def _end_tail_ratio(audio: np.ndarray, sample_rate: int = SAMPLE_RATE) -> float:
+    a = np.asarray(audio, dtype=np.float64)
+    pk = float(np.max(np.abs(a))) or 1.0
+    tail = a[-int(0.003 * sample_rate):]
+    return float(np.mean(np.abs(tail)) / pk)
+
+
 def _assert_render_invariants(audio: np.ndarray) -> None:
     assert audio.dtype == np.float32
     assert audio.size > 0
@@ -233,3 +254,53 @@ def test_upgraded_engines_short_notes_are_valid_float32():
         short["duration"] = 0.002  # ~88 samples at 44.1k
         audio = fn(**short)
         _assert_render_invariants(audio)
+
+
+# --- short-note amplitude release (no end click) ------------------------------
+
+def test_short_notes_fade_to_near_zero_all_engines():
+    # 60 ms notes must end near zero (previously truncated at 18-28% of peak).
+    for fn, _family, kw in _ENGINE_FAMILY:
+        note = dict(kw)
+        note["duration"] = 0.06
+        note["velocity"] = 0.75
+        audio = fn(**note)
+        _assert_render_invariants(audio)
+        assert _end_tail_ratio(audio) < 0.05, _family
+
+
+def test_very_short_notes_fade_and_stay_valid():
+    for fn, _family, kw in _ENGINE_FAMILY:
+        note = dict(kw)
+        note["duration"] = 0.04
+        note["velocity"] = 0.7
+        audio = fn(**note)
+        _assert_render_invariants(audio)
+        assert _end_tail_ratio(audio) < 0.10, _family
+
+
+def test_normal_notes_still_fade_cleanly():
+    for fn, _family, kw in _ENGINE_FAMILY:
+        note = dict(kw)
+        note["duration"] = 0.4
+        audio = fn(**note)
+        assert _end_tail_ratio(audio) < 0.02, _family
+
+
+# --- guitar & bass velocity -> attack brightness (robustness) ------------------
+
+def test_guitar_attack_brightness_increases_with_velocity():
+    v = _registry_voice("guitar")
+    soft = generate_guitar_tone(196.0, 0.6, 0.30, voice=v)
+    loud = generate_guitar_tone(196.0, 0.6, 0.98, voice=v)
+    assert _attack_centroid(loud) > _attack_centroid(soft)
+    assert _hf_ratio(loud[int(0.004 * SAMPLE_RATE):int(0.044 * SAMPLE_RATE)]) > \
+        _hf_ratio(soft[int(0.004 * SAMPLE_RATE):int(0.044 * SAMPLE_RATE)])
+
+
+def test_bass_attack_brightness_increases_with_velocity():
+    v = _registry_voice("bass")
+    soft = generate_bass_tone(55.0, 0.6, 0.30, voice=v)
+    loud = generate_bass_tone(55.0, 0.6, 0.98, voice=v)
+    # Centroid is the meaningful brightness measure for a low bass note.
+    assert _attack_centroid(loud) > _attack_centroid(soft)

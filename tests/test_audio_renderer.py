@@ -235,6 +235,24 @@ def test_procedural_guitar_fallback_is_finite_and_zero_duration_safe():
     assert np.all(np.isfinite(zero))
 
 
+def test_rock_guitar_fallback_handles_note_shorter_than_one_period():
+    # Regression: a low note shorter than one delay period must not crash the
+    # rock KS fallback (previously raised a broadcast ValueError).
+    renderer = ProceduralRenderer(sample_rate=44100, genre="rock")
+    short_low = SynthNote(
+        pitch=28,  # ~41 Hz -> period ~1075 samples
+        start_sample=0,
+        duration_samples=400,  # shorter than one period
+        velocity=0.8,
+        channel=2,
+        program=30,
+    )
+    rendered = renderer._synthesize_note(short_low)
+    assert rendered.size == 400
+    assert np.all(np.isfinite(rendered))
+    assert np.max(np.abs(rendered)) <= 1.0
+
+
 def test_custom_guitar_loading_and_render_report_include_guitar(tmp_path):
     guitar_sample = tmp_path / "dummy_guitar.wav"
     midi_path = tmp_path / "guitar_track.mid"

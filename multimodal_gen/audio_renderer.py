@@ -971,7 +971,8 @@ class ProceduralRenderer:
         exc *= (0.35 + 0.55 * brightness)
 
         buf = np.zeros(num_samples, dtype=np.float64)
-        buf[:period] = exc
+        fill = min(period, num_samples)  # guard notes shorter than one period
+        buf[:fill] = exc[:fill]
         for i in range(period, num_samples):
             avg = 0.5 * (buf[i - period] + buf[i - period - 1])
             buf[i] = damping * avg

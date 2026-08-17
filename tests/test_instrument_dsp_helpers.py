@@ -14,6 +14,7 @@ from multimodal_gen.assets_gen import (
     SAMPLE_RATE,
     _dispersion_allpass,
     _seeded_rng,
+    apply_envelope,
     apply_filter_envelope,
     apply_velocity_map,
     resolve_filter_envelope_params,
@@ -209,6 +210,47 @@ def test_resolve_filter_envelope_defaults_when_voice_has_no_filter_envelope():
         voice, attack_ms=2.0, decay_ms=140.0, sustain_level=0.5, release_ms=120.0, amount_hz=2200.0
     )
     assert params["amount_hz"] == 2200.0
+
+
+# --- apply_envelope short-note release -----------------------------------------
+
+def test_apply_envelope_short_note_fades_to_zero():
+    # A note far shorter than attack+decay must still fade to near zero at the
+    # end (no mid-amplitude truncation click).
+    n = 2000
+    audio = np.ones(n)
+    out = apply_envelope(audio, attack_samples=200, decay_samples=4000,
+                         sustain_level=0.5, release_samples=5000, sustain_samples=0)
+    assert out.shape[0] == n
+    assert np.all(np.isfinite(out))
+    assert abs(out[-1]) < 0.02
+    assert float(np.mean(np.abs(out[-30:]))) < 0.05
+
+
+def test_apply_envelope_normal_note_preserves_sustain_and_fades():
+    n = 20000
+    a, d, r = 200, 800, 1000
+    audio = np.ones(n)
+    out = apply_envelope(audio, a, d, sustain_level=0.5,
+                         release_samples=r, sustain_samples=n - a - d - r)
+    # Sustain region is not compressed: it sits at sustain_level.
+    assert out[a + d + 100] == pytest.approx(0.5, abs=1e-6)
+    # And the note still fades to zero at the end.
+    assert abs(out[-1]) < 1e-6
+
+
+def test_apply_envelope_extreme_short_notes_finite_bounded():
+    for n in (1, 2, 3, 8, 16):
+        out = apply_envelope(np.ones(n), attack_samples=200, decay_samples=4000,
+                             sustain_level=0.5, release_samples=5000, sustain_samples=0)
+        assert out.shape[0] == n
+        assert np.all(np.isfinite(out))
+        assert np.max(np.abs(out)) <= 1.0 + 1e-9
+
+
+def test_apply_envelope_empty_input():
+    out = apply_envelope(np.zeros(0), 100, 100, 0.5, 100, 0)
+    assert out.shape[0] == 0
 
 
 # --- _dispersion_allpass ------------------------------------------------------

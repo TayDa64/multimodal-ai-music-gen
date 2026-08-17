@@ -314,29 +314,53 @@ def apply_envelope(
     release_samples: int,
     sustain_samples: int = 0
 ) -> np.ndarray:
-    """Apply ADSR envelope to audio."""
+    """Apply ADSR envelope to audio.
+
+    When attack+decay+release exceeds the note length, A/D/R are compressed
+    proportionally so the release still reaches zero. This prevents short notes
+    (shorter than attack+decay) from being truncated mid-amplitude, which caused
+    audible clicks. Normal-length notes are unchanged.
+    """
     total_samples = len(audio)
+    if total_samples <= 0:
+        return audio
+
+    a = int(max(0, attack_samples))
+    d = int(max(0, decay_samples))
+    r = int(max(0, release_samples))
+    s = int(max(0, sustain_samples))
+
+    if a + d + r > total_samples:
+        scale = total_samples / float(a + d + r)
+        a = int(a * scale)
+        d = int(d * scale)
+        r = total_samples - a - d
+        s = 0
+        if r <= 0:  # guarantee a release so the note always fades to zero
+            r = 1 if total_samples >= 1 else 0
+            d = max(0, total_samples - a - r)
+
     envelope = np.ones(total_samples)
-    
+
     # Attack
-    if attack_samples > 0:
-        attack_end = min(attack_samples, total_samples)
+    if a > 0:
+        attack_end = min(a, total_samples)
         envelope[:attack_end] = np.linspace(0, 1, attack_end)
-    
+
     # Decay
-    decay_start = attack_samples
-    decay_end = min(decay_start + decay_samples, total_samples)
+    decay_start = a
+    decay_end = min(decay_start + d, total_samples)
     if decay_end > decay_start:
         envelope[decay_start:decay_end] = np.linspace(1, sustain_level, decay_end - decay_start)
-    
+
     # Sustain
     sustain_start = decay_end
-    sustain_end = min(sustain_start + sustain_samples, total_samples)
+    sustain_end = min(sustain_start + s, total_samples)
     if sustain_end > sustain_start:
         envelope[sustain_start:sustain_end] = sustain_level
-    
+
     # Release
-    release_start = sustain_end if sustain_samples > 0 else decay_end
+    release_start = sustain_end if s > 0 else decay_end
     if release_start < total_samples:
         release_len = total_samples - release_start
         envelope[release_start:] = np.linspace(
@@ -344,7 +368,7 @@ def apply_envelope(
             0,
             release_len
         )
-    
+
     return audio * envelope
 
 
@@ -996,8 +1020,9 @@ def generate_guitar_tone(
     # === KARPLUS-STRONG PLUCKED-STRING CORE ===
     period_samples = max(2, int(sample_rate / frequency))
     excitation = rng.standard_normal(period_samples)
-    # Louder notes are picked nearer the bridge -> brighter, twangier comb.
-    pick_position = float(np.clip(0.5 - 0.20 * velocity, 0.12, 0.5))
+    # Harder plucks land at a brighter pluck position (this comb brightens as
+    # the pluck point moves toward center), so louder notes read brighter.
+    pick_position = float(np.clip(0.30 + 0.18 * velocity, 0.12, 0.5))
     pick_delay = max(1, int(pick_position * period_samples))
     if pick_delay < period_samples:
         excitation[pick_delay:] -= excitation[:-pick_delay] * 0.7
@@ -1007,7 +1032,7 @@ def generate_guitar_tone(
 
     ks = np.zeros(num_samples, dtype=np.float64)
     delay_line = excitation.copy()
-    damping = 0.991 + 0.005 * velocity  # louder plucks ring a little longer
+    damping = 0.990 + 0.003 * velocity  # louder plucks ring a little longer
     write_pos = 0
     for i in range(num_samples):
         read_pos = (write_pos + 1) % period_samples
@@ -1046,15 +1071,16 @@ def generate_guitar_tone(
     pick_noise = rng.standard_normal(pick_len) * np.exp(-np.arange(pick_len) / max(1.0, 0.0012 * sample_rate))
     audio[:pick_len] += (pick + 0.5 * pick_noise) * pick_env * (0.06 + 0.12 * vmap["transient_level"])
 
-    # Mild amp-style saturation; harder when driven or played louder.
-    saturation = 0.20 + drive * 1.80 + velocity * 0.30
+    # Mild amp-style saturation driven by the amp/overdrive, not velocity, so
+    # louder notes stay brighter rather than getting darker from extra clipping.
+    saturation = 0.20 + drive * 1.80
     audio = np.tanh(audio * saturation) / np.tanh(saturation)
 
     # Velocity-driven filter envelope: bright pick attack -> darker sustain.
     fe = resolve_filter_envelope_params(
         voice, attack_ms=2.0, decay_ms=140.0, sustain_level=0.5, release_ms=120.0, amount_hz=2200.0
     )
-    base_cutoff = 2600.0 - drive * 600.0
+    base_cutoff = 2200.0 + 900.0 * velocity - drive * 600.0
     audio = apply_filter_envelope(
         audio,
         base_cutoff,
@@ -1118,7 +1144,7 @@ def generate_bass_tone(
     # === KARPLUS-STRONG STRING CORE ===
     period_samples = max(2, int(sample_rate / frequency))
     excitation = rng.standard_normal(period_samples)
-    pick_position = float(np.clip(0.5 - 0.15 * velocity, 0.15, 0.5))
+    pick_position = float(np.clip(0.32 + 0.15 * velocity, 0.15, 0.5))
     pick_delay = max(1, int(pick_position * period_samples))
     if pick_delay < period_samples:
         excitation[pick_delay:] -= excitation[:-pick_delay] * 0.6
@@ -1128,7 +1154,7 @@ def generate_bass_tone(
 
     ks = np.zeros(num_samples, dtype=np.float64)
     delay_line = excitation.copy()
-    damping = 0.994 + 0.004 * velocity  # bass strings ring long
+    damping = 0.993 + 0.002 * velocity  # bass strings ring long
     write_pos = 0
     for i in range(num_samples):
         read_pos = (write_pos + 1) % period_samples
@@ -1160,14 +1186,14 @@ def generate_bass_tone(
     pick_tone = np.sin(2 * np.pi * min(1800.0, sample_rate / 4.0) * (np.arange(pick_len) / sample_rate))
     audio[:pick_len] += pick_tone * pick_env * (0.05 + 0.10 * vmap["transient_level"])
 
-    # Growl saturation, harder when played louder.
-    audio = np.tanh(audio * (1.1 + 0.4 * velocity))
+    # Growl saturation; keep the velocity coupling light so louder stays brighter.
+    audio = np.tanh(audio * (1.1 + 0.15 * velocity))
 
     # Velocity-driven filter envelope: brighter attack, warm sustain.
     fe = resolve_filter_envelope_params(
         voice, attack_ms=3.0, decay_ms=100.0, sustain_level=0.55, release_ms=120.0, amount_hz=1200.0
     )
-    base_cutoff = 900.0 + 800.0 * velocity
+    base_cutoff = 700.0 + 1400.0 * velocity
     audio = apply_filter_envelope(
         audio,
         base_cutoff,
