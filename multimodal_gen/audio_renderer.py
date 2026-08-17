@@ -1471,6 +1471,74 @@ class ProceduralRenderer:
             cache[family] = voice
         return cache[family]
 
+    def _load_attack_layer(self, family: str) -> Optional[np.ndarray]:
+        """Load a short recorded attack transient for a family, if present.
+
+        Returns a mono, unit-normalized transient (<=60ms) at the renderer
+        sample rate, or None when no asset exists (pure procedural fallback).
+        Cached per renderer. Set self._attack_layer_dir to override the root.
+        """
+        cache = getattr(self, "_attack_layer_cache", None)
+        if cache is None:
+            cache = {}
+            self._attack_layer_cache = cache
+        if family in cache:
+            return cache[family]
+
+        layer = None
+        try:
+            from pathlib import Path
+            override = getattr(self, "_attack_layer_dir", None)
+            root = Path(override) if override else Path(__file__).resolve().parent.parent / "assets" / "attack_samples"
+            folder = root / family
+            if HAS_SOUNDFILE and folder.is_dir():
+                wavs = sorted(list(folder.glob("*.wav")) + list(folder.glob("*.WAV")))
+                if wavs:
+                    data, sr = sf.read(str(wavs[0]))
+                    data = np.asarray(data, dtype=np.float64)
+                    if data.ndim > 1:
+                        data = data.mean(axis=1)
+                    if int(sr) != self.sample_rate and data.size:
+                        try:
+                            import librosa
+                            data = librosa.resample(data, orig_sr=int(sr), target_sr=self.sample_rate)
+                        except Exception:
+                            data = None
+                    if data is not None and data.size:
+                        data = data[: int(0.06 * self.sample_rate)]
+                        peak = float(np.max(np.abs(data))) if data.size else 0.0
+                        if peak > 1e-9:
+                            layer = (data / peak).astype(np.float64)
+        except Exception:
+            layer = None
+        cache[family] = layer
+        return layer
+
+    def _apply_attack_layer(self, family: str, audio: np.ndarray, velocity: float) -> np.ndarray:
+        """Mix a recorded attack transient onto a procedural onset (hybrid).
+
+        Identity no-op when no attack asset exists, so the pure procedural path
+        stays the reference of truth and behavior is byte-identical by default.
+        """
+        attack = self._load_attack_layer(family)
+        if attack is None or audio is None or audio.size == 0:
+            return audio
+        out = audio.astype(np.float64, copy=True)
+        n = min(attack.size, out.size)
+        if n <= 0:
+            return audio
+        gain = 0.35 * float(np.clip(velocity, 0.0, 1.0))
+        out[:n] += attack[:n] * gain
+        peak = float(np.max(np.abs(out)))
+        if peak > 1.0:
+            out = out / peak
+        fams = getattr(self, "_hybrid_attack_families", None)
+        if fams is None:
+            fams = set()
+            self._hybrid_attack_families = fams
+        fams.add(family)
+        return out.astype(np.float32)
+
     def _synthesize_note(self, note: SynthNote) -> np.ndarray:
         """Synthesize a melodic note based on MIDI program number.
         
@@ -1544,7 +1612,9 @@ class ProceduralRenderer:
                 drive = max(drive, 0.72)
             if self._is_rock_family_genre():
                 return self._synthesize_rock_electric_guitar(freq, duration, velocity, drive=drive)
-            return generate_guitar_tone(freq, duration, velocity, self.sample_rate, drive=drive, voice=self._resolve_patch_voice('guitar'))
+            proc = generate_guitar_tone(freq, duration, velocity, self.sample_rate, drive=drive, voice=self._resolve_patch_voice('guitar'))
+            # Optional hybrid: mix a recorded attack transient if an asset exists.
+            return self._apply_attack_layer('guitar', proc, velocity)
         elif 80 <= note.program <= 87:  # Synth leads
             genre_key = str(self.genre or '').strip().lower().replace(' ', '_').replace('-', '_')
             if genre_key in {'edm', 'pop', 'dance', 'electro', 'electropop', 'house'}:
