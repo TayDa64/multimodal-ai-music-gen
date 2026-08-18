@@ -97,3 +97,40 @@ def test_zero_velocity_still_valid_with_asset(tmp_path):
     out = r._apply_attack_layer("guitar", proc, 0.0)
     assert np.all(np.isfinite(out))
     assert np.max(np.abs(out)) <= 1.0
+
+
+# --- shipped self-owned asset engages via the default path --------------------
+
+def _rms(x, lo, hi, sr=44100):
+    x = np.asarray(x, dtype=np.float64)
+    return float(np.sqrt(np.mean(x[int(lo * sr):int(hi * sr)] ** 2)))
+
+
+def test_shipped_guitar_attack_asset_engages_by_default():
+    # No dir override: the renderer must find the shipped self-owned asset.
+    r = ProceduralRenderer(sample_rate=44100, genre="funk")
+    layer = r._load_attack_layer("guitar")
+    assert layer is not None
+    assert layer.size <= int(0.06 * 44100)
+    assert np.max(np.abs(layer)) <= 1.0 + 1e-9
+
+    proc = generate_guitar_tone(196.0, 0.4, 0.85, 44100, drive=0.72,
+                                voice=r._resolve_patch_voice("guitar"))
+    hybrid = r._apply_attack_layer("guitar", proc, 0.85)
+    assert hybrid.dtype == np.float32
+    assert np.all(np.isfinite(hybrid))
+    assert np.max(np.abs(hybrid)) <= 1.0
+    assert not np.array_equal(hybrid, proc)
+    assert "guitar" in r._hybrid_attack_families
+    # Attack-window energy increases with the transient layer on.
+    assert _rms(hybrid, 0.0, 0.010) > _rms(proc, 0.0, 0.010)
+
+
+def test_shipped_asset_does_not_regress_short_note_release():
+    r = ProceduralRenderer(sample_rate=44100, genre="funk")
+    proc = generate_guitar_tone(196.0, 0.06, 0.75, 44100, drive=0.72,
+                                voice=r._resolve_patch_voice("guitar"))
+    hybrid = r._apply_attack_layer("guitar", proc, 0.75)
+    tail = float(np.mean(np.abs(np.asarray(hybrid, np.float64)[-int(0.003 * 44100):])))
+    peak = float(np.max(np.abs(hybrid))) or 1.0
+    assert tail / peak < 0.05

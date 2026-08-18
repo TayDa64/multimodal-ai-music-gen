@@ -107,6 +107,9 @@ audio_test.py
 *.aiff
 *.flac
 
+# Exception: self-owned shippable hybrid attack-layer assets
+!assets/attack_samples/**/*.wav
+
 # But allow audio in the showcase example
 !output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.wav
 !output/boom_bap_100bpm_Csharpminor_20251209_133208_mpc/**/*.WAV

@@ -16,6 +16,12 @@ Currently consumed: `guitar` (non-rock procedural fallback only).
   (downmixed to mono). It is unit-normalized on load.
 - The first `*.wav` in the family folder is used.
 
+## Shipped assets
+- `guitar/guitar_pick_transient_v1.wav` -- self-owned, generated in-repo
+  (deterministic) by `scripts/generate_guitar_attack_sample.py`. It is a
+  broadband pick onset only (~97% of energy in the first 10 ms, silent by 30 ms,
+  no pitched/sustained content), peak-normalized.
+
 ## Behavior / fallback
 - No folder or no `*.wav` -> `None` -> pure procedural (no change).
 - Present -> mixed onto the procedural onset with a velocity-scaled gain, and the
@@ -23,8 +29,9 @@ Currently consumed: `guitar` (non-rock procedural fallback only).
   never reported as pure procedural.
 
 ## Licensing
-Only add samples you are licensed to redistribute (or CC0). No audio assets are
-shipped here by default.
+Only add samples you are licensed to redistribute (or CC0). The shipped
+`guitar_pick_transient_v1.wav` is self-owned (procedurally generated in-repo),
+so it is safe to redistribute offline.
 
 ## Scope
 Rock guitar (`_synthesize_rock_electric_guitar`) and all other families are not
