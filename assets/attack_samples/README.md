@@ -18,9 +18,10 @@ Currently consumed: `guitar` (non-rock procedural fallback only).
 
 ## Shipped assets
 - `guitar/guitar_pick_transient_v1.wav` -- self-owned, generated in-repo
-  (deterministic) by `scripts/generate_guitar_attack_sample.py`. It is a
-  broadband pick onset only (~97% of energy in the first 10 ms, silent by 30 ms,
-  no pitched/sustained content), peak-normalized.
+  (deterministic) by `scripts/generate_guitar_attack_sample.py`. It is derived
+  from the guitar physical-model onset (`generate_guitar_tone` KS pluck + pick
+  transient), windowed and fast-faded to keep only the attack (~99% of energy in
+  the first 30 ms, near-zero tail, no sustained note), peak-normalized.
 
 ## Behavior / fallback
 - No folder or no `*.wav` -> `None` -> pure procedural (no change).
