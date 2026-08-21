@@ -1097,9 +1097,10 @@ def generate_guitar_tone(
     audio *= 1.0 + 0.02 * np.sin(2 * np.pi * 5.0 * t) * np.exp(-t / 0.5)
 
     attack = int(0.004 * sample_rate)
-    decay = int(0.090 * sample_rate)
+    # Longer decay/release give a fuller, more gradual string tail (non-rock).
+    decay = int(0.180 * sample_rate)
     sustain_level = 0.42 + (0.18 * drive)
-    release = int(0.120 * sample_rate)
+    release = int(0.260 * sample_rate)
     sustain_samples = max(0, num_samples - attack - decay - release)
     audio = apply_envelope(audio, attack, decay, sustain_level, release, sustain_samples)
 
