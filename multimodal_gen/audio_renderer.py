@@ -1514,12 +1514,27 @@ class ProceduralRenderer:
         cache[family] = layer
         return layer
 
+    def _hybrid_attack_enabled(self) -> bool:
+        """Hybrid guitar attack is opt-in and OFF by default.
+
+        A present asset must not force hybrid in normal renders. Enable per
+        renderer via ``self._hybrid_attack_on = True`` or globally via the
+        ``MUSE_HYBRID_GUITAR_ATTACK`` env flag.
+        """
+        flag = getattr(self, "_hybrid_attack_on", None)
+        if flag is not None:
+            return bool(flag)
+        return os.environ.get("MUSE_HYBRID_GUITAR_ATTACK", "").strip().lower() in ("1", "true", "yes", "on")
+
     def _apply_attack_layer(self, family: str, audio: np.ndarray, velocity: float) -> np.ndarray:
         """Mix a recorded attack transient onto a procedural onset (hybrid).
 
-        Identity no-op when no attack asset exists, so the pure procedural path
-        stays the reference of truth and behavior is byte-identical by default.
+        Default OFF (opt-in): returns the input unchanged unless hybrid is
+        explicitly enabled, and is also a no-op when no attack asset exists, so
+        the pure procedural path stays the reference of truth.
         """
+        if not self._hybrid_attack_enabled():
+            return audio
         attack = self._load_attack_layer(family)
         if attack is None or audio is None or audio.size == 0:
             return audio
